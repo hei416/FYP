@@ -1,0 +1,82 @@
+{
+  "title": "01 Java Basic",
+  "sections": [
+    {
+      "heading": "Hardware:",
+      "content": "CPU, the master mind that gives instruction\nVolatile memory, RAM, that holds data for the current program\nPersistent memory, HD, that holds more data, more reliable, yet slower"
+    },
+    {
+      "heading": "Data stored in main memory is",
+      "content": "represented as binary, grouped\ninto a byte (8-bits)."
+    },
+    {
+      "heading": "One byte of integer can only",
+      "content": "represent the possible value of 0\nto 255."
+    },
+    {
+      "heading": "A 32-bits system means we use",
+      "content": "32-bits to store an address."
+    },
+    {
+      "heading": "A runnable program is",
+      "content": "compiled into some code\n(e.g. .exe ) that can be\nexecuted on a computer\nplatform.\nWhy can't we double-click-run an Android APK on Windows?\nCompiler vs Interpreter Compiler vs Interpreter"
+    },
+    {
+      "heading": "Compiler",
+      "content": "Compiler is a special type of computer program\nTranslates human writing programming code to runnable code\nA program needs to be compiled for once only"
+    },
+    {
+      "heading": "Interpreter does not compile code.",
+      "content": "Translates source code line-by-line while it is running"
+    },
+    {
+      "heading": "More portable",
+      "content": "e.g. Python/VBA/bash script\n\nJava Bytecode Java Bytecode\nJava compiler compiles source code into bytecode.\nA Java Virtual Machine (JVM) interprets the bytecode.\n\nCOMP2045 7 / 17Compile Our First Java Program Compile Our First Java Program\npublic class HelloWorld  {\n    public static void main(String argv[])  {\n        new HelloWorld().runApp();\n    }\n    public void runApp() {\n        System.out.println( \"Hello World!\" );\n    }\n}"
+    },
+    {
+      "heading": "Name this file HelloWorld.java",
+      "content": "1\n2\n3\n4\n5\n6\n7\n8\nIn Windows system filename is not case sensitive. As a good habit you\nshould strictly follow the case of your class name.\n\nCOMP2045 8 / 17Compile Our First Java Program Compile Our First Java Program"
+    },
+    {
+      "heading": "HelloWorld.java",
+      "content": "$ javac HelloWorld.java\n$ ls"
+    },
+    {
+      "heading": "Hello World!",
+      "content": "ls - a Linux command for listing the file under the current directory\njavac HelloWorld.java  - compiles the source program HelloWorld.java\ninto a class file HelloWorld.class\njava HelloWorld  - it executes the compile java program HelloWorld .\n\nCOMP2045 9 / 17Compile Our First Java Program Compile Our First Java Program"
+    },
+    {
+      "heading": "4. Run the program",
+      "content": "Compile Our First Java Program Compile Our First Java Program"
+    },
+    {
+      "heading": "2. Type cmd  in the box and click OK.",
+      "content": "COMP2045 11 / 17Compile Our First Java Program Compile Our First Java Program"
+    },
+    {
+      "heading": "C:\\Users\\kevinw\\Desktop\\MyFirstJava>Dir",
+      "content": "Volume in drive C has no label.\n Volume Serial Number is 91D0-BC80\n Directory of C:\\Users\\kevinw\\Desktop\\MyFirstJava\n05/11/2021  04:12 PM    <DIR>          .\n05/11/2021  04:12 PM    <DIR>          ..\n               0 File(s)              0 bytes\n               2 Dir(s)  604,250,165,248 bytes free\nC:\\Users\\kevinw\\Desktop\\MyFirstJava>notepad HelloWorld.java\n\nCOMP2045 12 / 17Compile Our First Java Program Compile Our First Java Program\nUse the program Notepad to edit HelloWorld.java ."
+    },
+    {
+      "heading": "Do not use Wordpad or Word.",
+      "content": "Files saved in Wordpad or Word has their own format and its own file\nextension. Moreover, Word processors will convert the symbol\nquotation \"\" to “” which cannot be recognized by the compiler.\n\nCOMP2045 13 / 17Compile Our First Java Program Compile Our First Java Program"
+    },
+    {
+      "heading": "C:\\Users\\kevinw\\Desktop\\MyFirstJava>dir",
+      "content": "Volume in drive C has no label.\n Volume Serial Number is 91D0-BC80\n Directory of C:\\Users\\kevinw\\Desktop\\MyFirstJava\n05/11/2021  04:41 PM    <DIR>          .\n05/11/2021  04:41 PM    <DIR>          ..\n05/11/2021  04:41 PM               199 HelloWorld.java\n               1 File(s)            199 bytes\n               2 Dir(s)  604,243,447,808 bytes free\nC:\\Users\\kevinw\\Desktop\\MyFirstJava>javac HelloWorld.java\nC:\\Users\\kevinw\\Desktop\\MyFirstJava>java HelloWorld"
+    },
+    {
+      "heading": "COMP2045 14 / 17Java IDE Java IDE",
+      "content": "Integrated Development Environment (IDE) - Software application that helps\nus:"
+    },
+    {
+      "heading": "Visual Studio Code",
+      "content": "Compiling a Java Program with IntelliJ Compiling a Java Program with IntelliJ\n Youtube\n\nCOMP2045 16 / 17Comment in Java Comment in Java\nWe want to leave some remarks/comments inside our program to enhance the\nreadability.\nComments in Java are not read by the compiler^."
+    },
+    {
+      "heading": "Comments can be taken in either form",
+      "content": "Line comment: texts after the symbol // are comments\n// line comment\n// another line comment\nBlock comment: texts between the symbol /* and */ are comments\n/* First lines of comments\n   Another lines of comments */\n^with the exception of java doc. Don't worry about that now."
+    },
+
+  ]
+}

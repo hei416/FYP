@@ -1,0 +1,230 @@
+{
+  "title": "10-Polymorphism",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "Polymorphism",
+      "content": "Part of the material refer from Oracle's Java Tutorial.\nThis course is colocated with COMP2026 Problem Solving Using Object Oriented Programming"
+    },
+    {
+      "heading": "Polymorphism",
+      "content": "@Override\nfinal  method\nfinal  class"
+    },
+    {
+      "heading": "COMP2046 3 / 49Polymorphism Polymorphism",
+      "content": "The dictionary definition of polymorphism refers to a principle in biology in\nwhich an organism or species can have many different forms or stages.\nIn Java language, subclasses of a class can define their own unique behaviors\nfor the same method and yet share some of the same functionality of the\nparent class.\n\nCOMP2046 4 / 49Examples of Polymorphism Examples of Polymorphism\nclass Animal {\n  public void speak() {}\n}\nclass Cat extends Animal {\n  public void speak() { System.out.println( \"meow\"); }\n}\nclass Dog extends Animal {\n  public void speak() { System.out.println( \"woof\"); }\n}\n\nCOMP2046 5 / 49Example of Polymorphism Example of Polymorphism\nclass USBDevice  {\n  public void connect(Power p)  {\n    ...\n  }\n  public void writeData (byte[] b) {..}\n  public byte[] readData() {...}\n}\nclass USBThumb  extends USBDevice  {\n  //read from storage\n  public byte[] readData() {..}\n  //write to storage\n  public void writeData (byte[] b) {..}\n}\nclass USBFan extends USBDevice  {\n  ..\n}\nclass USBMouse  extends USBDevice  {\n  ..\n}\nimage credit: https://www.techrepublic.com/article/how-to-easily-share-usb-devices-using-usb-network-gate/\nCOMP2046 6 / 49Example of Polymorphism Example of Polymorphism\nclass Video {\n  public void play() {..}\n  public void pause() {..}\n  public void skip() {..}\n}\nclass AdVideo extends Video {\n  public void skip() { return; } //not skippable\n}\nclass LiveVideo  extends Video {\n  public void play() { playWithChat(); }\n}\n\nCOMP2046 7 / 49Polymorphism example Polymorphism example"
+    },
+    {
+      "heading": "Different type of food eat differently,",
+      "content": "cook differently, keep differently...\nimage credit: Pallavi Damera\nCOMP2046 8 / 49Polymorphism example Polymorphism example\nvoid flush()\nimage credit: https://www.piqsels.com/en/search?q=toilet&page=2"
+    },
+    {
+      "heading": "COMP2046",
+      "content": "9 / 49\nCOMP2046 10 / 49A concrete example A concrete example\nclass Student {\n  public void study() { System.out.println( \"Read book!\" );  }\n}\nclass MusicStudent  extends Student {\n  public void study() { System.out.println( \"Practise Instruement!\" );  }\n}\nclass CSStudent  extends Student {\n  public void study() { System.out.println( \"Code and Math!\" );  }\n}"
+    },
+    {
+      "heading": "COMP2046 11 / 49Mother Mother",
+      "content": "class Mother {\n  Student son = ...;\n  void eeoo() {\n    System.out.println( \"Son, you need to study hard!\" );\n    son.study();\n  }\n}\nIn the method eeoo , mother does not really care what subject the son is\nstudying, she just need to push him to study!\nDifferent instances of son will perform differently!"
+    },
+    {
+      "heading": "COMP2046 12 / 49Mother Mother",
+      "content": "class Mother {\n  Student son = new Student();\n  void eeoo() {\n    System.out.println( \"Son, you need to study hard!\" );\n    son.study();\n  }\n}"
+    },
+    {
+      "heading": "COMP2046 13 / 49Mother Mother",
+      "content": "class Mother {\n  Student son = new MusicStudent();\n  void eeoo() {\n    System.out.println( \"Son, you need to study hard!\" );\n    son.study();\n  }\n}"
+    },
+    {
+      "heading": "Practise Instruement!",
+      "content": "son  has the type of Student, but it is referring to the instance of a"
+    },
+    {
+      "heading": "MusicStudent .",
+      "content": "The method is dynamically binded at run-time."
+    },
+    {
+      "heading": "COMP2046 14 / 49Mother Mother",
+      "content": "class Mother {\n  Student son = new CSStudent();\n  void eeoo() {\n    System.out.println( \"Son, you need to study hard!\" );\n    son.study();\n  }\n}"
+    },
+    {
+      "heading": "Code and Math!",
+      "content": "Different types of son respond differently.\nHow easy to code on mother with polymorphism!\n\nCOMP2046 15 / 49Polymorphism - the wrong way Polymorphism - the wrong way\nclass Mother {\n  Student son = ...\n  void badEeoo() {\n    System.out.println( \"Son, it is time to study..\" );\n    if (son instanceof  CSStudent)\n      System.out.println( \"Your little cousin Steve can write Python already.\" );\n    else if (son instanceof  MusicStudent)\n      System.out.println( \"The instrustment costs me lots of money, lazy!\" );\n    else \n      System.out.println( \"Your book? Let's do some dictation now!\" );\n  }\n}"
+    },
+    {
+      "heading": "This mother is so tired.",
+      "content": "Even worst, if we want to add more types of Student later.\nImportant note: Study is the responsibility of a Student!\n\nCOMP2046 16 / 49Responsibility Responsibility\nIn OO design, each class has its own responsibility."
+    },
+    {
+      "heading": "A class should know what its needs to do.",
+      "content": "Student should bear the responsibility to study. It knows what to study, not the\nmother!\nIn principle, we code against the general case\nWe minimize the knowledge of other classes."
+    },
+    {
+      "heading": "Mother should know less about her son.",
+      "content": "Polymorphism allows each student to study on their own, in their own way.\n\nCOMP2046 17 / 49Another example Another example\nclass Student {\n  public void doAssignment () {\n    System.out.println( \"Write down the answer on paper\" );\n  }\n}\nclass MusicStudent  extends Student {\n  public void doAssignment () { \n    System.out.println( \"Listen to some music first\" );\n    System.out.println( \"Write down the answer on paper\" );\n  }\n}\nclass CSStudent  extends Student {\n  public void doAssignments () {\n    System.out.println( \"Type in the computer\" );  \n  }\n}\n..."
+    },
+    {
+      "heading": "Student s = ...;",
+      "content": "s.doAssignment();\n\nCOMP2046 18 / 49Some problems in doAssignment Some problems in doAssignment"
+    },
+    {
+      "heading": "Problem 1. Code Repeated in Music Student",
+      "content": "class MusicStudent  extends Student {\n  public void doAssignment () { \n    System.out.println( \"Listen to some music first\" );\n    System.out.println( \"Write down the answer on paper\" );\n  }\n}\nHow come this is a problem? Just a copy-and-paste\nWe need to minimize the number of code repeated\nProblem 2. CSStudent's output is incorrect"
+    },
+    {
+      "heading": "Write down the answer on paper",
+      "content": "COMP2046 19 / 49Solution to Problem 1. Solution to Problem 1.\nclass MusicStudent  extends Student {\n  public void doAssignment () { \n    System.out.println( \"Listen to some music first\" );\n    super.doAssignment(); \n  }\n}\nCall doAssignment()  method of the superclass\nImagine Student's doAssignment()  involves many complicate instructions\nand fields.\nThere is a good opportunity that you can make these fields private (if they are\nnot used anywhere in the subclass of Students).\nTake away: Try to reuse superclass's method!\n\nCOMP2046 20 / 49More on reusing More on reusing\nclass superclass  {\n  void method() {\n    { //Block A\n      //Code that does not \n      //repeat in subclass \n    }\n    { //Block B\n      //Code that repeat\n    }\n  }\n}class subclass  extends superclass  {\n  void method() {\n    { //Block B\n      //Code that repeat\n    }\n    { //Block C\n      //Additional Code\n      //in subclass\n    }    \n  }\n}\nIn this case directly calling parent method is not possible.\nRefactor the code to extract Block B as a protected method.\n\nCOMP2046 21 / 49More on reusing More on reusing\nclass superclass  {\n  protected  void B() { ... }\n  void method() {\n    { //Block A\n      //Code that does not \n      //repeat in subclass \n    }\n    B();\n  }\n}class subclass  extends superclass  {\n  void method() {\n    B();\n    { //Block C\n      //Additional Code\n      //in subclass\n    }    \n  }\n}\nTake away: Call your parent class more often!"
+    },
+    {
+      "heading": "COMP2046 22 / 49Problem 2 Problem 2",
+      "content": "class Student {\n  public void doAssignment () {\n    System.out.println( \"Write down the answer on paper\" );\n  }\n}\nclass CSStudent  extends Student {\n  public void doAssignments () {\n    System.out.println( \"Type in the computer\" );  \n  }\n}\n//..\nnew CSStudent().doAssignment();"
+    },
+    {
+      "heading": "COMP2046 23 / 49Problem 2 Problem 2",
+      "content": "class CSStudent  extends Student {\n  public void doAssignments () {\n    System.out.println( \"Type in the computer\" );  \n  }\n}\nCompiler cannot differentiate you are spelling it wrong or just want to add a\nnew method\nThe annotation @Override  helps you to label a method that is designed for\noverride\nPlace the annotation @Override  one-line above subclass method.\n@Override  is optional, but useful.\n\nCOMP2046 24 / 49Solution to Problem 2 Solution to Problem 2"
+    },
+    {
+      "heading": "This work the same without @Override .",
+      "content": "class CSStudent  extends Student {\n  @Override\n  public void doAssignment () { System.out.println( \"Type in the computer\" ); }\n}\n This will not compile.\nclass CSStudent  extends Student {\n  @Override\n  public void doAssignments () { //typo\n    System.out.println( \"Type in the computer\" );  \n  }\n}\nTake away: Make a habit to use @Override  in all overriden methods."
+    },
+    {
+      "heading": "COMP2046 25 / 49Cheating Cheating",
+      "content": "class Student {\n  public boolean isCheating () {\n    //I don't cheat, so return false\n    return false;\n  }\n}\n..."
+    },
+    {
+      "heading": "Student son = ...;",
+      "content": "if (son.isCheating())\n  System.out.println( \"Impossible, my son would not cheat!\" );"
+    },
+    {
+      "heading": "Is it really impossible?",
+      "content": "COMP2046 26 / 49Unwanted overriding Unwanted overriding\nclass Student {\n  public boolean isCheating () {\n    //I don't cheat, so return false\n    return false;\n  }\n}\nclass LazyStudent  extends Student {\n  @Override\n  public boolean isCheating () {\n    return true;\n  }\n}"
+    },
+    {
+      "heading": "Oh.",
+      "content": "COMP2046 27 / 49Unwanted overriding Unwanted overriding\nWe can use final  to stop further overriding.\nA method labeled with final  cannot be overriden by its subclasses.\nclass Student {\n  public final boolean isCheating () {\n    return false;\n  }\n}\n This would not compile\nclass LazyStudent  extends Student {\n  @Override\n  public boolean isCheating () {\n    return true;\n  }\n}\n\nCOMP2046 28 / 49final in multilayer hierarchy final in multilayer hierarchy\nclass Human {\n  public boolean isCheating () {\n    return true;\n  }\n}\nclass Student extends Human {\n  @Override\n  public final boolean isCheating () {\n    return false;\n  }\n}\nStudent add final  to isCheating()  stop its subclass to further overriding it.\nWhile it's siblings (other child of Human) may override it."
+    },
+    {
+      "heading": "COMP2046 29 / 49final class final class",
+      "content": "When a class is labeled as final , it cannot be further inherited\nfinal class BCDAStudent  extends CSStudent  {\n}\n This would not compile\nclass MinorBCDAStudent  extends BCDAStudent  {\n}\n\nCOMP2046 30 / 49The final keyword The final keyword\nfinal  in front of a field to indicate this value cannot be changed.\nfinal String name;\nfinal  in front of a static variable to indiciate this is a constant, to avoid\nhardcode."
+    },
+    {
+      "heading": "All CAPITAL letters by convention.",
+      "content": "public static final int ROWS_FOR_SUDOKU = 9;\nfinal  in front of a method indiciates this cannot be further overriden.\nfinal  in front of a class indiciates this class cannot be further inherited.\nTake away: final  method stops further overriding, final  class stops\nfurther inheritance.\n\nCOMP2046 31 / 49Revisit Casting Revisit Casting\nType casting changes the data type of a value from its normal type to some\nother type."
+    },
+    {
+      "heading": "Two type of casting:",
+      "content": "Widening (automatic): changes a smaller type to a bigger/more precise type\nbyte  short  char  int  long  float  double\nNarrowing (manual): changes a bigger/more precise type to a smaller type\ndouble  float  long  int  char  short  byte"
+    },
+    {
+      "heading": "COMP2046 32 / 49Widening Widening",
+      "content": "float f = 1.2345f; //to specify a number literal as float, add f after it\ndouble d;\nd = f; \nThe value 1.2345 will be stored in double without any precision lost."
+    },
+    {
+      "heading": "No problem will happen for sure.",
+      "content": "int i = 439234;\nlong l;\nl = i;\nThe variable l has a type long  which support a larger range than int ."
+    },
+    {
+      "heading": "COMP2046 33 / 49Narrowing Narrowing",
+      "content": "double d = 1.23456;\nfloat f;\nf = d; //error! \nThe assign has an error because it is possible that some digits in d can't be\nstored in f"
+    },
+    {
+      "heading": "Lost of precision",
+      "content": "long l = 123456789 ;\nint i;\ni = l; //error!\nIt is possible that l has a value large than what int  can support ("
+    },
+    {
+      "heading": "COMP2046 34 / 49Narrowing Narrowing",
+      "content": "You can suppress the error by casting if you are sure the value are compatible\ndouble d = 1.23456;\nfloat f;\nf = (float) d; //casting\nlong l = 123456789 ;\nint i;\ni = (int) l; //casting"
+    },
+    {
+      "heading": "COMP2046 35 / 49Narrowing Narrowing",
+      "content": "However, what happen if the value is incompatible?\ndouble d = 1.23456789123456789 ;\nfloat f = (float) d;"
+    },
+    {
+      "heading": "Things get worst for integer",
+      "content": "int i = 1234567;\nshort s = (short) i; //short support -32768 to 32767"
+    },
+    {
+      "heading": "System.out.println(i + \":\" + s);",
+      "content": "123456:-7616\n\nCOMP2046 36 / 49Casting in OO Casting in OO\nSimilar concept but different terminology here"
+    },
+    {
+      "heading": "Suppose we have the class hierarchy",
+      "content": "(superclass) A  B  C  D (subclass)"
+    },
+    {
+      "heading": "Upcasting is always safe.",
+      "content": "COMP2046 37 / 49Casting in OO Casting in OO\n(superclass) A  B  C  D (subclass)"
+    },
+    {
+      "heading": "Now we see objA  is holding C's instance.",
+      "content": "But this does not compile\nobjA.cMethod();\nThe compiler just don't know if this is a C or not in compile time.\n\nCOMP2046 38 / 49Casting in OO Casting in OO\n(superclass) A  B  C  D (subclass)\n Similarly this does not work"
+    },
+    {
+      "heading": "C objC = objA;",
+      "content": "The compiler just don't know if this is a C or not in compile time.\n\nCOMP2046 39 / 49Casting in OO Casting in OO\n(superclass) A  B  C  D (subclass)\nIf you are 100% sure that objA  is pointing to a C object, you can perform\ndowncasting.\nDowncasting means to force this object as a specific subclass.\nDowncasting is not automatic, must be done explicitly.\nDowncasting can throw ClassCastException ."
+    },
+    {
+      "heading": "C objC = (C)objA;",
+      "content": "((C)objA).cMethod();\n\nCOMP2046 40 / 49Casting in OO Casting in OO\nTo check the class of an object in run-time, use instanceof"
+    },
+    {
+      "heading": "A objA = new C();",
+      "content": "if (objA instanceof  C) {\n  C objC = (C)objA;\n  ((C)objA).cMethod();\n  ...\n}\nMost of the time our students will misuse downcasting! Rethink\ncarefully if this can be done via polymorphism first.\n\nCOMP2046 41 / 49Overloading with inheritance Overloading with inheritance\nSuppose you have overloaded method method .\nvoid method(Animal a)  {\n  System.out.println( \"Animal!\" );\n}void method(Cat c) {\n  System.out.println( \"Cat!\");\n}"
+    },
+    {
+      "heading": "What will happen if we call",
+      "content": "method(animalObj);\nmethod(catObj);\n\nCOMP2046 42 / 49Overloading with inheritance Overloading with inheritance\nSuppose you have overloaded method method .\nvoid method(Animal a)  {\n  System.out.println( \"Animal!\" );\n}void method(Cat c) {\n  System.out.println( \"Cat!\");\n}\nTo decide which method to invoke, it only depends on the type of the\nargument, but not the object it is referenced to.\nAnimal a = new Lion() ; method(a); //Animal!"
+    },
+    {
+      "heading": "Lion l = new Lion() ; method(l); //Cat!",
+      "content": "Lion uses Cat's version because it is nearer!\n\nCOMP2046 43 / 49Overloading with inheritance Overloading with inheritance"
+    },
+    {
+      "heading": "This does not resolve like polymorphism!",
+      "content": "Method overloading looks at the type of variable only."
+    },
+    {
+      "heading": "Rationale:",
+      "content": "In polymorphism, a subclass copies the code into its object. When the code is\ninvoked, it calls the code in the object.\nIn method overloading, the compiler needs to decide which overloaded method\nneeds to be called. This needs to be determined during compile-time. (only look at\nthe type of the variable)\nUse casting if you want to explicitly change the overloaded method."
+    },
+    {
+      "heading": "Cat c = new Lion();",
+      "content": "method(c); //Cat!\nmethod((Animal)c); //Animal!\n\nCOMP2046 44 / 49The Object class The Object class"
+    },
+    {
+      "heading": "Object obj = new Object();",
+      "content": "This Object  class is the superclass of all Java\nclasses\n\nCOMP2046 45 / 49The Object class The Object class"
+    },
+    {
+      "heading": "Don't be confuse with an object.",
+      "content": "This is a class, just its name is called Object.\nAll classes, even if you do not declare explicitly, it inherits object anyway.\npublic class MyClass {}\nis same as\npublic class MyClass extends Object {}\n\nCOMP2046 46 / 49The Object class The Object class"
+    },
+    {
+      "heading": "Modifier Return Type Method Name",
+      "content": "protectedObjectclone()\npublic booleanequals(Object obj)\nprotectedvoid finalize()\npublic Class<?>getClass()\npublic int hashCode()\npublic void notify()\npublic void notifyAll()\npublic String toString()\npublic void wait()\npublic void wait(long timeout)\npublic void wait(long timeout, int nanos)\n\nCOMP2046 47 / 49The Object class The Object class\npublic class MyClass { /* empty */  }\npublic class MyClassWithtoString  { \n  @Override\n  public String toString () { return \"override toString!\" ;} \n}"
+    },
+    {
+      "heading": "System.out.println( new MyClass());",
+      "content": "System.out.println( new MyClassWithtoString());"
+    },
+    {
+      "heading": "MyClass@1b6d3586",
+      "content": "override toString!\nRecall we can actually call toString()  and equals(Object obj)\nmethod! Because your father has it!\n\nCOMP2046 48 / 49The Object class The Object class\nSince all objects are in fact an Object class, you can actually store different\nobject inthe same List!"
+    },
+    {
+      "heading": "List<Object> handbag = new ArrayList<>();",
+      "content": "handbag.add(myString);\nhandbag.add(myContact);\nhandbag.add(myPhone);\nhandbag.add(myLipstick);\nBut it creates a problem when you want to retrieve it"
+    },
+    {
+      "heading": "Object lipstick = handbag.get( 3); //OK",
+      "content": "COMP2046 49 / 49The Object class The Object class"
+    },
+    {
+      "heading": "List<Object> handbag = new ArrayList<>();",
+      "content": "handbag.add(myString);\nhandbag.add(myContact);\nhandbag.add(myPhone);\nhandbag.add(myLipstick);\n..."
+    },
+    {
+      "heading": "Phone s = (Phone)handbag.get( 0); //crash",
+      "content": "At the first place handbag  is a bad design!"
+    }
+  ]
+}

@@ -1,0 +1,294 @@
+{
+  "title": "02-Problem Solving With Java",
+  "intro": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming\nCOMP2045 2 / 57Before entering this classroom Before entering this classroom\nYou should have watched the flip videos and read the lecture notes",
+  "sections": [
+    {
+      "heading": "COMP2045 3 / 57Outline Outline",
+      "content": "Throwing a few programmes and see how they can be implemented using only\nsimple Java primitives\nThese primitives can be founded from the flipped classroom videos."
+    },
+    {
+      "heading": "A number guessing game behave as follows:",
+      "content": "A player guesses a integer between 0 to 100.\nThe program says \"too big\", \"too small\", or \"hooray!\" if the number is bigger,\nsmaller, or same as the secret number respectively.\nThe program repeats until the number is guess correctly"
+    },
+    {
+      "heading": "Hooray!",
+      "content": "COMP2045 4 / 57Number Guessing Game Number Guessing Game"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "scanner.nextInt();\nif-else\nloops\n\nCOMP2045 5 / 57Number Guessing Game Number Guessing Game"
+    },
+    {
+      "heading": "Starting a blank project",
+      "content": "import java.util.Scanner; //added for scanner\npublic class NumberGuessingGame  {\n    public static void main(String[] argv)  {\n        new NumberGuessingGame().runOnce();\n    }\n    public void runOnce() {\n        //add your code here\n    }\n}\n\nCOMP2045 6 / 57Number Guessing Game Number Guessing Game"
+    },
+    {
+      "heading": "Let's do a version without repeat",
+      "content": "public void runOnce() {\n    Scanner scanner = new Scanner(System.in);\n    ...\n}"
+    },
+    {
+      "heading": "3. System.out.print(\"Guess a number between 0-100:\");",
+      "content": "COMP2045 7 / 57Number Guessing Game Number Guessing Game\nWe haven't through about the secret value yet. Let it be 60.\npublic void runOnce() {\n    Scanner scanner = new Scanner(System.in);\n    System.out.print( \"Guess a number between 0-100:\" );\n    int guess = scanner.nextInt();\n    if (guess > 60) \n        System.out.print( \"Too big, try again:\" );\n    if (guess < 60) \n        System.out.print( \"Too small, try again:\" );\n    if (guess == 60)  \n        System.out.print( \"Hooray!\" );\n}\nCan we change the line if (guess == 60)  to else ?\n\nCOMP2045 8 / 57Number Guessing Game Number Guessing Game\npublic void runOnce() {\n    Scanner scanner = new Scanner(System.in);\n    int secret = 60;\n    System.out.print( \"Guess a number between 0-100:\" );\n    int guess = scanner.nextInt();\n    //alternative we can do it as a if-else\n    if (guess > secret) \n        System.out.print( \"Too big, try again:\" );\n    else if (guess < secret) \n        System.out.print( \"Too small, try again:\" );\n    else \n        System.out.print( \"Hooray!\" );\n}\nWe don't like hard-code the value 60. It makes the many problems\nwhen we want to modify the program.\n\nCOMP2045 9 / 57Number Guessing Game - Adding a loop Number Guessing Game - Adding a loop\n    Scanner scanner = new Scanner(System.in);\n    int secret = 60;\n    System.out.print( \"Guess a number between 0-100:\" );\n    int guess = scanner.nextInt();\n    if (guess > secret) \n        System.out.print( \"Too big, try again:\" );\n    else if (guess < secret) \n        System.out.print( \"Too small, try again:\" );\n    else \n        System.out.print( \"Hooray!\" );\nTwo important questions: 1) What to loop? 2) When does it stop?\n\nCOMP2045 10 / 57Number Guessing Game - Adding a loop Number Guessing Game - Adding a loop\n    Scanner scanner = new Scanner(System.in);\n    int secret = 60;\n    System.out.print( \"Guess a number between 0-100:\" );\n    {   //add here\n    int guess = scanner.nextInt();\n    if (guess > secret) \n        System.out.print( \"Too big, try again:\" );\n    else if (guess < secret) \n        System.out.print( \"Too small, try again:\" );\n    else \n        System.out.print( \"Hooray!\" );\n    }  //or add here"
+    },
+    {
+      "heading": "Pick one: while / do-while / for-loop",
+      "content": "COMP2045 11 / 57Number Guessing Game - Adding a loop Number Guessing Game - Adding a loop"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int secret = 60;\nSystem.out.print( \"Guess a number between 0-100:\" );\ndo {   \n    int guess = scanner.nextInt();\n    if (guess > secret) \n        System.out.print( \"Too big, try again:\" );\n    else if (guess < secret) \n        System.out.print( \"Too small, try again:\" );\n    else \n        System.out.print( \"Hooray!\" );\n}  while (guess != secret);\nAlmost there except guess  is not visible.\n\nCOMP2045 12 / 57Number Guessing Game - Adding a loop Number Guessing Game - Adding a loop\npublic void runOnce() {\n    Scanner scanner = new Scanner(System.in);\n    int secret = 60;\n    System.out.print( \"Guess a number between 0-100:\" );\n    int guess; //define here\n    do {   \n        guess = scanner.nextInt();\n        if (guess > secret) \n            System.out.print( \"Too big, try again:\" );\n        else if (guess < secret) \n            System.out.print( \"Too small, try again:\" );\n        else \n            System.out.print( \"Hooray!\" );\n    } while (guess != secret);\n}\nRandomize by ThreadLocalRandom.current().nextInt(0, 101);"
+    },
+    {
+      "heading": "COMP2045 13 / 57Random Random",
+      "content": "There are many ways to generate random number in Java\nThreadLocalRandom.current().nextInt(min, max);\nThis returns a random integer that is >= min  and < max ."
+    },
+    {
+      "heading": "To generate a random double, similarly",
+      "content": "ThreadLocalRandom.current().nextDouble(min, max);"
+    },
+    {
+      "heading": "A random boolean",
+      "content": "ThreadLocalRandom.current().nextBoolean();\nTo use this API, add the following on the top of your file.\nimport java.util.concurrent.ThreadLocalRandom; \n\nCOMP2045 Dr. Kevin Wang 2023/2024import java.util.Scanner; //added for scanner\nimport java.util.concurrent.ThreadLocalRandom; //add for random\npublic class NumberGuessingGame  {\n    public static void main(String[] argv)  {\n        new NumberGuessingGame().runOnce();\n    }\n    public void runOnce() {\n        Scanner scanner = new Scanner(System.in);\n        int secret = ThreadLocalRandom.current().nextInt( 0, 101);\n        System.out.print( \"Guess a number between 0-100:\" );\n        int guess; \n        do {   \n            guess = scanner.nextInt();\n            if (guess > secret) \n                System.out.print( \"Too big, try again:\" );\n            else if (guess < secret) \n                System.out.print( \"Too small, try again:\" );\n            else \n                System.out.print( \"Hooray!\" );\n        } while (guess != secret);\n    }\n}\n\nCOMP2045 15 / 57Number Guessing Game v2 Number Guessing Game v2\nSlightly modify the program so that it also prints the range of the numbers\nIf the guess value exceed the range, give a warning"
+    },
+    {
+      "heading": "Extra ingredients?",
+      "content": "COMP2045 16 / 57Number Guessing Game v2 Number Guessing Game v2"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int secret = ThreadLocalRandom.current().nextInt( 0, 101);\nSystem.out.print( \"Guess a number between 0-100:\" );\nint guess; //define here\nint min = 0, max = 100;\ndo {   \n    guess = scanner.nextInt();\n    if (guess > secret) \n        System.out.print( \"Too big, try again (\"  + min + \"-\" + max + \"):\");\n    else if (guess < secret) \n        System.out.print( \"Too small, try again (\"  + min + \"-\" + max + \"):\");\n    else \n        System.out.print( \"Hooray!\" );\n}  while (guess != secret);"
+    },
+    {
+      "heading": "Next: update min  and max . When? How?",
+      "content": "COMP2045 17 / 57Number Guessing Game v2 Number Guessing Game v2"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int secret = ThreadLocalRandom.current().nextInt( 0, 101);\nSystem.out.print( \"Guess a number between 0-100:\" );\nint guess; //define here\nint min = 0, max = 100;\ndo {   \n    guess = scanner.nextInt();\n    if (guess > secret) {  //these { } are important!\n        max = guess - 1;\n        System.out.print( \"Too big, try again (\"  + min + \"-\" + max + \"):\");\n    } else if (guess < secret) {\n        min = guess + 1;\n        System.out.print( \"Too small, try again (\"  + min + \"-\" + max + \"):\");\n    } else \n        System.out.print( \"Hooray!\" );\n}  while (guess != secret);"
+    },
+    {
+      "heading": "Adding condition checking",
+      "content": "COMP2045 18 / 57Final version Final version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int secret = ThreadLocalRandom.current().nextInt( 0, 101);\nSystem.out.print( \"Guess a number between 0-100:\" );\nint guess; //define here\nint min = 0, max = 100;\ndo {   \n    guess = scanner.nextInt();\n    if (guess < min || guess > max) {\n        System.out.print( \"Out-of-range, try again (\"  + min + \"-\" + max + \"):\");\n        continue ;\n    }\n    if (guess > secret) {  \n        max = guess - 1;\n        System.out.print( \"Too big, try again (\"  + min + \"-\" + max + \"):\");\n    } else if (guess < secret) {\n        min = guess + 1;\n        System.out.print( \"Too small, try again (\"  + min + \"-\" + max + \"):\");\n    } else \n        System.out.print( \"Hooray!\" );\n}  while (guess != secret);\n\nCOMP2045 19 / 57A shorter version A shorter version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int secret = ThreadLocalRandom.current().nextInt( 0, 101);\nSystem.out.print( \"Guess a number between 0-100:\" );\nfor (int guess = - 1, min = 0, max = 100; guess != secret; ) {   \n    guess = scanner.nextInt();\n    if (guess < min || guess > max) \n        System.out.printf( \"Out-of-range, try again (%d-%d)\"  , min, max);\n    else if (guess > secret) {  \n        max = guess - 1;\n        System.out.printf( \"Too big, try again (%d-%d)\"  , min, max);\n    } else if (guess < secret) {\n        min = guess + 1;\n        System.out.printf( \"Too small, try again (%d-%d)\"  , min, max);\n    } else \n        System.out.print( \"Hooray!\" );\n}\n\nCOMP2045 20 / 57Finding prime number Finding prime number\nFind the next prime number that is bigger or equal to the input.\n50"
+    },
+    {
+      "heading": "Nested loop",
+      "content": "if\n\nCOMP2045 21 / 57Find prime number Find prime number\nimport java.util.Scanner; //added for scanner\npublic class FindPrime  {\n    public static void main(String[] argv)  {\n        new FindPrime().runOnce();\n    }\n    public void runOnce() {\n        //add your code here\n    }\n}\n50\n.\n53"
+    },
+    {
+      "heading": "The next prime number is 53.",
+      "content": "Strategy: how about print the input number if it is a prime?\n\nCOMP2045 22 / 57Find prime number Find prime number\npublic void runOnce() {\n    Scanner scanner = new Scanner(System.in);\n    int input = scanner.nextInt();\n    //test if input is a prime\n    if (...) \n        System.out.println( \"The next prime number is \"  + input);\n    else \n        System.out.println( \".\");\n}\nBut how to test if an input is a prime? Trial-and-Error!\n\nCOMP2045 23 / 57Find prime number Find prime number"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int input = scanner.nextInt();\n//test if input is a prime\nboolean isPrime = true;\nfor (int i = 2; i < input; i++)\n    if (input % i == 0)\n        isPrime = false;\nif (isPrime) \n    System.out.println( \"The next prime number is \"  + input);\nelse \n    System.out.println( \".\");\nNow, create another loop that loops forward until it gets a prime\n\nCOMP2045 24 / 57Find prime number Find prime number"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int input = scanner.nextInt();\nboolean isPrime = true;\n{ //loop this until there is a prime\nfor (int i = 2; i < input; i++)\n    if (input % i == 0)\n        isPrime = false;\nif (isPrime) \n    System.out.println( \"The next prime number is \"  + input);\nelse \n    System.out.println( \".\");\n}\n\nCOMP2045 25 / 57Find prime number Find prime number"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int input = scanner.nextInt();\nboolean isPrime = true;\ndo {\n    for (int i = 2; i < input; i++)\n        if (input % i == 0)\n            isPrime = false;\n    if (isPrime) \n        System.out.println( \"The next prime number is \"  + input);\n    //we don't need the else part\n    //increase the value of input by 1\n    input++;\n} while (!isPrime);"
+    },
+    {
+      "heading": "The loop is faulty, why?",
+      "content": "COMP2045 26 / 57Final Version Final Version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int input = scanner.nextInt();\nboolean isPrime = true;\ndo {\n    isPrime = true; //important\n    for (int i = 2; i < input; i++)\n        if (input % i == 0)\n            isPrime = false;\n    if (isPrime) \n        System.out.println( \"The next prime number is \"  + input);\n    input++;\n} while (!isPrime);"
+    },
+    {
+      "heading": "Types the item",
+      "content": "name to record the\nitem and calculate\nthe total price."
+    },
+    {
+      "heading": "Types cancel",
+      "content": "followed by the\nitems name to\ncancel an item."
+    },
+    {
+      "heading": "The system shall",
+      "content": "also print the\nproduct catalog.Items: \napple - $5 banana - $3 carrot - $12.5 durian - $43: watermelon"
+    },
+    {
+      "heading": "Sorry no such item!",
+      "content": "apple - $5 banana - $3 carrot - $12.5 durian - $43: apple"
+    },
+    {
+      "heading": "Total: $5.0",
+      "content": "apple - $5 banana - $3 carrot - $12.5 durian - $43: banana"
+    },
+    {
+      "heading": "Total: $8.0",
+      "content": "apple - $5 banana - $3 carrot - $12.5 durian - $43: cancel apple"
+    },
+    {
+      "heading": "Shopping cart:",
+      "content": "apple\nbanana\napple - Cancelled"
+    },
+    {
+      "heading": "Total",
+      "content": "Again, forget the loop, do a one-off version\n\nCOMP2045 29 / 57Cashier - a no loop version Cashier - a no loop version\n...\npublic void runOnce() {\n    Scanner scanner = new Scanner(System.in);\n    \n    \n}"
+    },
+    {
+      "heading": "Place the following in order",
+      "content": "COMP2045 30 / 57Cashier - a no loop version Cashier - a no loop version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "//Print the menu\nSystem.out.print( \"apple - $5 banana - $3 carrot - $12.5 durian - $43:\" );\n//accept user inputs"
+    },
+    {
+      "heading": "String input = scanner.next();",
+      "content": "//determine the input\n...\n//Print the Shopping cart\nSystem.out.println( \"Shopping cart:\\n\"  + shoppingCart);\n//Print the total\nSystem.out.printf( \"Total: $%.1f\\n\" , total);\n...\nWe need two variables shoppingCart  and total . What types are\nthey?\n\nCOMP2045 31 / 57Cashier - a no loop version Cashier - a no loop version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "System.out.print( \"apple - $5 banana - $3 carrot - $12.5 durian - $43:\" );"
+    },
+    {
+      "heading": "String input = scanner.next();",
+      "content": "//determine the input\n...\nSystem.out.println( \"Shopping cart:\\n\"  + shoppingCart);\nSystem.out.printf( \"Total: $%.1f\\n\" , total);\nBase on value of the input, we do different things. Use switch  or if?\n\nCOMP2045 32 / 57Cashier - a no loop version Cashier - a no loop version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "System.out.print( \"apple - $5 banana - $3 carrot - $12.5 durian - $43:\" );"
+    },
+    {
+      "heading": "String input = scanner.next();",
+      "content": "switch (input) {\n    case \"apple\" : total += 5; break; //don't forget your break\n    case \"banana\" : total += 3; break;\n    case \"carrot\" : total += 12.5; break;\n    case \"durian\" : total += 43; break;\n    case \"cancel\" : break; //not sure what to do\n    default: System.out.println( \"Sorry no such item!\" );\n}\nshoppingCart += input + '\\n';\nSystem.out.print( \"Shopping cart:\\n\"  + shoppingCart); //trailed by \\n already\nSystem.out.printf( \"Total: $%.1f\\n\" , total);\n\nCOMP2045 33 / 57Cashier - adding the loop Cashier - adding the loop"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "while (true) {\n    System.out.print( \"apple - $5 banana - $3 carrot - $12.5 durian - $43:\" );\n    String input = scanner.next();\n    switch (input) {\n        case \"apple\" : total += 5; break;\n        case \"banana\" : total += 3; break;\n        case \"carrot\" : total += 12.5; break;\n        case \"durian\" : total += 43; break;\n        case \"cancel\" : break; //not sure what to do\n        default: System.out.println( \"Sorry no such item!\" ); \n                 continue ;  //add continue here, skip printing shopping cart.\n    }\n    shoppingCart += input + '\\n';\n    System.out.print( \"Shopping cart:\\n\"  + shoppingCart); \n    System.out.printf( \"Total: $%.1f\\n\" , total);\n}"
+    },
+    {
+      "heading": "COMP2045 Dr. Kevin Wang 2023/2024...",
+      "content": "switch (input) {\n        case \"apple\" : total += 5; break;\n        case \"banana\" : total += 3; break;\n        case \"carrot\" : total += 12.5; break;\n        case \"durian\" : total += 43; break;\n        case \"cancel\" : \n                 input = scanner.next();\n                 switch (input) {\n                    case \"apple\" : total -= 5; break;\n                    case \"banana\" : total -= 3; break;\n                    case \"carrot\" : total -= 12.5; break;\n                    case \"durian\" : total -= 43; break;\n                    default: System.out.println( \"Sorry no such item!\" ); \n                 }\n                 shoppingCart += input + ' cancelled\\n' ;                 \n                 break; \n        default: System.out.println( \"Sorry no such item!\" ); \n                 continue ;  //add continue here, skip printing shopping cart.\n    }\nvery clumsy, and not quite correct too!\n\nCOMP2045 35 / 57Shorter version Shorter version"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "while (true) {\n    System.out.print( \"apple - $5 banana - $3 carrot - $12.5 durian - $43:\" );\n    String input = scanner.next();\n    boolean cancel = false; \n    int sign = 1;\n    if (input.equals( \"cancel\" )) {\n        cancel = true;\n        input = scanner.next();\n        sign = - 1;\n    }\n    switch (input) {\n        case \"apple\" : total += sign * 5; break;\n        case \"banana\" : total += sign * 3; break;\n        case \"carrot\" : total += sign * 12.5; break;\n        case \"durian\" : total += sign * 43; break;\n        default: System.out.println( \"Sorry no such item!\" ); \n                 continue ;  //add continue here, skip printing shopping cart.\n    }\n    shoppingCart += input + (cancel ? \" cancelled\\n\"  : \"\\n\");\n    System.out.print( \"Shopping cart:\\n\"  + shoppingCart); \n    System.out.printf( \"Total: $%.1f\\n\" , total);\n}\n\nCOMP2045 Dr. Kevin Wang 2023/2024public void runOnce() { //Complete program\n    String shoppingCart = \"\";\n    float total = 0;\n    Scanner scanner = new Scanner(System.in);\n    while (true) {\n        System.out.print( \"apple - $5 banana - \"  + \n                         \"$3 carrot - $12.5 durian - $43:\" );\n        String input = scanner.next();\n        int sign = 1;\n        if (input.equals( \"cancel\" )) {\n            sign = - 1;\n            input = scanner.next();\n        }\n        switch (input) {\n            case \"apple\" : total += sign * 5; break;\n            case \"banana\" : total += sign * 3; break;\n            case \"carrot\" : total += sign * 12.5; break;\n            case \"durian\" : total += sign * 43; break;\n            default: System.out.println( \"Sorry no such item!\" ); \n                     continue ;  //to skip printing shopping cart.\n        }\n        shoppingCart += input + (sign == - 1 ? \" cancelled\\n\"  : \"\\n\"); \n        System.out.print( \"Shopping cart:\\n\"  + shoppingCart); \n        System.out.printf( \"Total: $%.1f\\n\" , total);\n    }\n}\nCOMP2045 37 / 57Printing Shapes Printing Shapes"
+    },
+    {
+      "heading": "Right Triangle",
+      "content": "*\n**\n***\n****\n*****Hollow Square\n*****\n*   *\n*   *\n*   *\n*****Pyramid\n    *\n   ***\n  *****\n *******\n*********Alt. Square\n*o*o*\no*o*o\n*o*o*\no*o*o\n*o*o*"
+    },
+    {
+      "heading": "COMP2045 38 / 57Warm up Warm up",
+      "content": "*****\n*****\n*****\n*****\n*****int size = scanner.nextInt();\nfor (int i = 0; i < size; i++) { //row\n    for (int j = 0; j < size; j++) //on each row\n        System.out.print( \"*\");\n    System.out.println();\n}\n A wrong solution\nint size = scanner.nextInt();\nfor (int i = 0, j = 0; i < size && j < size; i++, j++) \n    System.out.print( \"*\");\niteration 1 2 3 4 5\ni 0 1 2 3 4\nj 0 1 2 3 4\n\nCOMP2045 39 / 57Right Triangle Right Triangle\nfor (int i = 0; i < ______; i++) {\n    for (int j = 0; j < ______; j++)\n        System.out.print( \"*\");\n    System.out.println();\n}\nHow many rows? How many stars to print on the i-th row?\n\nCOMP2045 40 / 57Hollow Square Hollow Square\nfor (int j = 0; j < size; j++) //top row\n    System.out.print( '*');"
+    },
+    {
+      "heading": "System.out.println();",
+      "content": "for (int i = 1; i < size - 1; i++) { //exclude the top and the bottom\n    //?\n}\nfor (int j = 0; j < size; j++) //bottom row\n    System.out.print( '*');\nExcept the top and the bottom rows, each row has exactly two\nasterisks and x's spaces. What is x?\n*****\n*   *\n*   *\n*   *\n*****"
+    },
+    {
+      "heading": "COMP2045 41 / 57Pyramid Pyramid",
+      "content": "*\n   ***\n  *****\n *******\n*********Row/i Leading SpacesAsterisk\n0 4 1\n1 3 3\n2 2 5\n3 1 7\n4 0 9\nfor (int i = 0; i < size; i++) {\n    for (int j = 0; j < _______ ; j++) \n        System.out.print( ' ');\n    for (int j = 0; j < _______ ; j++) \n        System.out.print( '*');\n    System.out.println();\n}\nEach row has a few spaces and asterisks *. How many?"
+    },
+    {
+      "heading": "An easier understandable solution",
+      "content": "for (int i = 0; i < size; i++) {\n    if (i % 2 == 0) {\n        for (int j = 0; j < size; j++) {\n            if (j % 2 == 0) \n                System.out.print( '*');\n            else\n                System.out.print( 'o');\n        }\n    } else {\n        for (int j = 0; j < size; j++) {\n            if (j % 2 == 1) //alternative row \n                System.out.print( '*');\n            else\n                System.out.print( 'o');\n        }\n    }\n    System.out.println();\n}\n*o*o*\no*o*o\n*o*o*\no*o*o\n*o*o*"
+    },
+    {
+      "heading": "A shorter solution",
+      "content": "for (int i = 0; i < size; i++) {\n    for (int j = 0; j < size; j++)\n        System.out.print( (_______ ? '*' : 'o') );\n    System.out.println();\n}"
+    },
+    {
+      "heading": "Fill the ________ !",
+      "content": "COMP2045 44 / 57Crossing the Bridge Game Crossing the Bridge Game\nRef: https://www.inwebson.com/demo/cross-the-bridge/\n6 family members need to cross a bridge within 30 seconds.\nNeed to bring a lamp with them (someone need to take the lamp back)\nTimes required to cross the bridge for different members are different:\nMax two people can cross a bridge at the same time\nThese two people will walk at the same pace."
+    },
+    {
+      "heading": "Fred 12 sec",
+      "content": "COMP2045 45 / 57Crossing the Bridge Game Crossing the Bridge Game"
+    },
+    {
+      "heading": "ABCDEF (*) _____________",
+      "content": "Enter two initials or one followed by -: A B"
+    },
+    {
+      "heading": "CDEF _____________ AB (*)",
+      "content": "Enter two initials or one followed by -: D E"
+    },
+    {
+      "heading": "Invalid selection!",
+      "content": "Enter two initials or one followed by -: D A"
+    },
+    {
+      "heading": "Invalid selection!",
+      "content": "Enter two initials or one followed by -: A -"
+    },
+    {
+      "heading": "ACDEF (*) _____________ B",
+      "content": "Enter two initials or one followed by -: C F"
+    },
+    {
+      "heading": "ADE _____________ BCF (*)",
+      "content": "...\n\nCOMP2045 46 / 57Crossing the Bridge Game Crossing the Bridge Game"
+    },
+    {
+      "heading": "Construct a never ending game first",
+      "content": "COMP2045 47 / 57Crossing the Bridge Game - Print Crossing the Bridge Game - Print\nWe use 7 variables to keep the states of each person and the lamp\nEach state is binary, i.e. either left or right.\nboolean a,b,c,d,e,f,lamp; //true = right\na = b = c = d = e = f = lamp = false;\nint time = 0;\nwhile (true) {\n    //print time\n    System.out.println( \"Time: \"  + time);\n    //print bridge\n    String left = \"\", right = \"\";\n    if (a) right += \"A\"; else left += \"A\";\n    if (b) right += \"B\"; else left += \"B\";\n    if (c) right += \"C\"; else left += \"C\";\n    if (d) right += \"D\"; else left += \"D\";\n    if (e) right += \"E\"; else left += \"E\";\n    if (f) right += \"F\"; else left += \"F\";\n    if (lamp) right += \" (*)\"; else left += \" (*)\";\n    System.out.println(left + \" _________ \"  + right);\n    ...\n}\n\nCOMP2045 48 / 57Crossing the Bridge Game - Cross a bridge Crossing the Bridge Game - Cross a bridge\na = !a  allow us to turn true-to-false or false-to-true.\n...\nwhile (true) {\n    //print time and bridge\n    ...\n    //take input\n    System.out.print( \"Enter two initials..\" );\n    String s1 = scanner.next();\n    String s2 = scanner.next();    //crossing the bridge\n    int s1Time = 0, s2Time = 0;\n    switch (s1) {\n        case \"A\": a = !a; s1Time = 1; break;\n        case \"B\": b = !b; s1Time = 2; break;\n        case \"C\": c = !c; s1Time = 4; break;\n        case \"D\": d = !d; s1Time = 6; break;\n        case \"E\": e = !e; s1Time = 8; break;\n        case \"F\": f = !f; s1Time = 12; break;\n    }\n    switch (s2) {\n        case \"A\": a = !a; s2Time = 1; break;\n        case \"B\": b = !b; s2Time = 2; break;\n        case \"C\": c = !c; s2Time = 4; break;\n        case \"D\": d = !d; s2Time = 6; break;\n        case \"E\": e = !e; s2Time = 8; break;\n        case \"F\": f = !f; s2Time = 12; break;\n    }\n    time += s1Time > s2Time ? s1Time : s2Time;\n    lamp = !lamp;\n} \n\nCOMP2045 49 / 57Ending Condition Ending Condition\nThe ending condition is rather straight forward - all variables are true.\nso change while (true)  to\nwhile (!(a && b && c && d && e && f && lamp))"
+    },
+    {
+      "heading": "COMP2045 50 / 57Validation Validation",
+      "content": "It is invalid if the initials and the lamp are not at the same side;\nIt is invalid if the initials got repeated;"
+    },
+    {
+      "heading": "It is invalid if the both symbols are -;",
+      "content": "It is invalid if the symbol is not one of the correct initials or -;\nWe can't help if the user enter three initials at the same time, unless we are using\nanother API from Scanner  class."
+    },
+    {
+      "heading": "COMP2045 51 / 57Validation Validation",
+      "content": "...\nSystem.out.print( \"Enter two initials..\" );"
+    },
+    {
+      "heading": "String s2 = scanner.next();",
+      "content": "//validation\nboolean valid = true;\nif (s1.equals(s2)) \n    valid = false;\nboolean state1 = false, state2 = false;\nswitch (s1) {\n    case \"A\": state1 = a; break;\n    case \"B\": state1 = b; break;\n    case \"C\": state1 = c; break;\n    case \"D\": state1 = d; break;\n    case \"E\": state1 = e; break;\n    case \"F\": state1 = f; break;\n    case \"-\": state1 = lamp; break; //!\n    default: valid = false;\n}switch (s2) {\n    case \"A\": state2 = a; break;\n    case \"B\": state2 = b; break;\n    case \"C\": state2 = c; break;\n    case \"D\": state2 = d; break;\n    case \"E\": state2 = e; break;\n    case \"F\": state2 = f; break;\n    case \"-\": state2 = lamp; break;\n    default: valid = false;\n}\nif (state1 != state2 || state1 != lamp) \n    valid = false;\nif (!valid) {\n    System.out.println( \"Invalid selection!\" );\n    continue ;\n}\n//crossing the bridge\n...\n\nCOMP2045 52 / 57A better solution A better solution"
+    },
+    {
+      "heading": "Array is a good tool.",
+      "content": "An even better solution over array - integer and bit-wise operator\nstate 7th 6th 5th 4th 3rd 2nd 1st Remark"
+    },
+    {
+      "heading": "Examples Lamp A B C D E F",
+      "content": "0b1101000 1 1 0 1 0 0 0 A, C, and Lamp on the right side\n0b0101010 0 1 0 1 0 1 0 A, C, and E on the right side\n0b1111111 1 1 1 1 1 1 1 Finished\n\nCOMP2045 53 / 57Crossing a bridge Crossing a bridge\nstate 7th 6th 5th 4th 3rd 2nd 1st Remark"
+    },
+    {
+      "heading": "Lamp A B C D E F",
+      "content": "0b1101000 1 1 0 1 0 0 0 A, C, and Lamp on the right side\n0b0101010 0 1 0 1 0 1 0 A, C, and E on the right side\nTo flip a bit we use XOR operator ^, i.e., state = state ^ 0b0000010; ,\nwhich make E crosses the bridge.\nIf state  is 0b1100000, state ^ 0b0000010  becomes 0b1100010\nIf state  is 0b0101011, state ^ 0b0000010  becomes 0b0101001\nXOR with a 0 does nothing. 0 ^ 0 = 0; 1 ^ 0 = 1;\nXOR with a 1 flips a bit! 0 ^ 1 = 1; 1 ^ 1 = 0;"
+    },
+    {
+      "heading": "COMP2045 54 / 57Validate Validate",
+      "content": "Check if A C and Lamp  are on the right side (all three bits are 1, other does not\ncare)"
+    },
+    {
+      "heading": "We use bit-wise AND & operator",
+      "content": "Recall & perform bit-wise operation, produce 1 if both are 1."
+    },
+    {
+      "heading": "A-C-Lamp   checker = 0b1101000",
+      "content": "statechecker (A-C-LAMP)state & checker Remark\n0b1101100 0b1101000 0b1101000 All on the right\n0b1001101 0b1101000 0b1001000 Not all on the right"
+    },
+    {
+      "heading": "COMP2045 55 / 57Validate Validate",
+      "content": "Check if A C and Lamp  are all on the left side (all three bits are 0, other does\nnot care)\nWe use bit-wise NOT ~ operator with & operator.\nBitwise NOT ~ invert all bit from 0 to 1 and 1 to 0.\nstatechecker (A-C-LAMP)~state~state & checker Remark\n0b0010100 0b1101000 0b1101011 0b1101000 All on the left\n0b1001101 0b1101000 0b0110010 0b0100000 Not all on the left"
+    },
+    {
+      "heading": "COMP2045 56 / 57Validate Validate",
+      "content": "The checker is built based on the selection of the user.\nThe checker should always contain the lamp.\nThe checker should also include the one or two initials selected by the user\nint checker = 0b1000000 ; //lamp is set\ns1 = Scanner.next();\nif (s1.equals( \"A\"))\n    checker = checker | 0b100000 ;\nif (s1.equals( \"B\"))\n    checker = checker | 0b10000;\n...\nBoth OR operator | and XOR operator ^ set a bit to 1.\n\nCOMP2045 57 / 57Complete Solution Complete Solution"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int state = 0;\nint time = 0;\nwhile (state  != 0b1111111 ) {\n  //print time\n  System.out.println( \"Time: \"  + time);\n  //print bridge\n  String left = \"\", right = \"\";\n  if ((state & 0b100000 ) != 0) right += \"A\"; else left += \"A\";\n  if ((state & 0b10000) != 0) right += \"B\"; else left += \"B\";\n  if ((state & 0b1000) != 0) right += \"C\"; else left += \"C\";\n  if ((state & 0b100) != 0) right += \"D\"; else left += \"D\";\n  if ((state & 0b10) != 0) right += \"E\"; else left += \"E\";\n  if ((state & 0b1) != 0) right += \"F\"; else left += \"F\";\n  if ((state & 0b1000000 ) != 0) \n      right += \" (*)\"; \n  else \n      left += \" (*)\";\n  System.out.println(left + \" _________ \"  + right);\n  System.out.print( \"Enter two initials..\" );\n  String s1 = scanner.next();\n  String s2 = scanner.next();\n  boolean valid = true;\n  if (s1.equals(s2))\n      valid = false;\n  int checker = 0b1000000 ; //always with a lamp\n  int s1Time = 0, s2Time = 0;     switch (s1) {\n      case \"A\": checker |= 0b100000 ; s1Time = 1; break;\n      case \"B\": checker |= 0b10000; s1Time = 2; break;\n      case \"C\": checker |= 0b1000; s1Time = 4; break;\n      case \"D\": checker |= 0b100; s1Time = 6; break;\n      case \"E\": checker |= 0b10; s1Time = 8; break;\n      case \"F\": checker |= 0b1; s1Time = 12; break;\n      case \"-\": break;\n      default: valid = false;\n  }\n  switch (s2) {\n      case \"A\": checker |= 0b100000 ; s2Time = 1; break;\n      case \"B\": checker |= 0b10000; s2Time = 2; break;\n      case \"C\": checker |= 0b1000; s2Time = 4; break;\n      case \"D\": checker |= 0b100; s2Time = 6; break;\n      case \"E\": checker |= 0b10; s2Time = 8; break;\n      case \"F\": checker |= 0b1; s2Time = 12; break;\n      case \"-\": break;\n      default: valid = false;\n  }\n  if ( (state & checker) != checker && \n       ((~state) & checker) != checker )\n      valid = false;\n  if (!valid) {\n      System.out.println( \"Invalid selection!\" );\n      continue ;\n  }\n  time += s1Time > s2Time ? s1Time : s2Time;\n  state = state ^ checker;\n}\nSystem.out.println( \"Finish! Total seconds: \"  + time);"
+    }
+  ]
+}

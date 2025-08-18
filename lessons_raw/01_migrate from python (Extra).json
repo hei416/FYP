@@ -1,0 +1,118 @@
+{
+  "title": "01 Migrate From Python (Extra)",
+  "intro": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming\nCOMP2045 2 / 20Where were we? Where were we?\nMost of us have experience of Python or Processing or some other languages\n(C/C++, JS, etc..)\nI assume you still have some blurry memory with the following terms:",
+  "sections": [
+    {
+      "heading": "Functions/Methods",
+      "content": "COMP2045 3 / 20Processing vs Java Processing vs Java"
+    },
+    {
+      "heading": "Little cousin of Java",
+      "content": "Concepts are somewhat related and close to Java"
+    },
+    {
+      "heading": "Even syntax is almost the same as Java",
+      "content": "COMP2045 4 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Quite different from Java",
+      "content": "Python allows you to quickly come up with little programs for testing ideas\nJava allows you to build a larger software in a more structured way\nAssume you still remember Python a bit, this notes serves as a quick\ncheatsheet to migrate from Python to Java.\n\nCOMP2045 5 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Comment in Python",
+      "content": "# This is a comment in Python\n'''"
+    },
+    {
+      "heading": "This is a multiple line comment",
+      "content": "in Python.\n'''Comment in Java\n// This is a comment in Java\n/* This is a multiple lines \n   in Java. */\nTips: in most IDE pressing 'CTRL' + '/' (or CMD + / in mac) is a comment\ntoggle.\n\nCOMP2045 6 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Arithmetic in Python",
+      "content": "a = 1 + 2 - 5\nb = 4 / 2\nc = 3 * 9\nd = 3 ** 4  # power\ne = 42 % 5  # remainder\nf = 84 // 5 # floor divisionArithmetic in Java\na = 1 + 2 - 5;\nb = 4 / 2;\nc = 3 * 9;\ne = 42 % 5;  // remainder\nfloor division and power needs to be done via the APIs"
+    },
+    {
+      "heading": "Math.floorDiv()  and Math.pow()",
+      "content": "COMP2045 7 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Assignment in Python",
+      "content": "a = 4Assignment in Java\na = 4;\na++;   // same as a = a + 1\n++b;   // same as b = b + 1\nc--;   // same as c = c - 1\n--d;   // same as d = d - 1\nOn top of that both language support assignment operators like +=, -=\netc.\n\nCOMP2045 8 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "If-then-Else in Python",
+      "content": "if a == 1:\n    print(\"one command\" )\n    print(\"Another command\" )\nelse:\n    print(\"else\")\nmultiple statements are grouped by\nindentationIf-then-Else in Java\nif (a == 1) {\n    System.out.println( \"one command\" );\n    System.out.println( \"another line\" );\n} else\n    System.out.println( \"else\");\nmultiple statements are grouped by {}\n\nCOMP2045 9 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "If-then-Else in Python",
+      "content": "if a == 1:\n    print(\"one command\" )\n    print(\"another line\" )\nelif b > 3:\n    print(\"alternatively\" )\nelse:\n    print(\"else\")"
+    },
+    {
+      "heading": "Use the keyword elif  to handle",
+      "content": "multiple cases.If-then-Else in Java\nif (a == 1) {\n    System.out.println( \"one command\" );\n    System.out.println( \"another line\" );\n} else if (b > 3) {\n    System.out.println( \"alternatively\" );\n} else\n    System.out.println( \"else\");\nelse if  are two separated words\n\nCOMP2045 10 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Condition must be followed by",
+      "content": "semicolon :Comparison in Java"
+    },
+    {
+      "heading": "Condition must be enclosed by",
+      "content": "parenthesis ()\n\nCOMP2045 11 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "NameOperator Example",
+      "content": "andand if fat and tall:\noror if fat or tall:\nnotnot if not tall:Logical Operator in Java"
+    },
+    {
+      "heading": "NameOperator Example",
+      "content": "and&& if (fat && tall)\nor|| if (fat || tall)\nnot! if (!tall)\n\nCOMP2045 12 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Loops in Python",
+      "content": "while x < 10:\n    x = x + 1\n    print(x)\nfor x in range(1,10):\n    do_something()Loops in Java\nwhile (x < 10) {\n    x = x + 1;\n    System.out.println(x);\n}\nfor (int x = 0; x < 10; x++)\n    do_something();\n\nCOMP2045 13 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "List in Python",
+      "content": "array = []\narray.append( 1)\narray.append( 10)\ni = 0\nj = 1\narray.append(array[i] + array[j])Array in Java\nint[] array = new int[3];\narray[0] = 1;\narray[1] = 10;\nint i = 0; int j = 1;\narray[2] = array[i] + array[j];\n\nCOMP2045 14 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Function in Python",
+      "content": "def function (param1, param2 ):\n    if (param1 > param2):\n        return 1\n    else:\n        return 2"
+    },
+    {
+      "heading": "Return values are weak type and",
+      "content": "nullable.Method in Java\npublic int method(int param1, \n                  int param2)  {\n    if (param1 > param2)\n        return 1;\n    else\n        return 2;\n}"
+    },
+    {
+      "heading": "The return type of a Java method",
+      "content": "must be defined. A non-void method\nmust have a return statement on every\npossible path.\n\nCOMP2045 15 / 20Python vs Java Python vs Java"
+    },
+    {
+      "heading": "Simple Program in Python",
+      "content": "i = 9527\nwhile i > 1:\n    for j in range(2, i + 1):\n        if i % j == 0:\n            print(j)\n            i = i / j\n            breakSimple Program in Java\nint i = 9527;\nwhile (i > 1) {\n    for (int j = 2; j <= i; j++) {\n        if (i % j == 0) {\n            System.out.println(j);\n            i = i / j;\n            break;\n        }\n    }\n}\n\nCOMP2045 16 / 20More about Java More about Java"
+    },
+    {
+      "heading": "1. Java must have a class",
+      "content": "A complete Java program must include at least one class.\nCode are placed inside methods of a class.\nSystem.out.println( \"Hello\"); //does not work alone\npublic class Main {\n    public static void main(String[] arg)  {\n        System.out.println( \"Hello\"); //code placed inside method\n    }\n}\n\nCOMP2045 17 / 20More about Java More about Java"
+    },
+    {
+      "heading": "2. Java starts from public static void main",
+      "content": "All Java executable program must include a method called\npublic static void main . All code starts there.\npublic class Main {\n    public static void main(String[] arg)  {\n        System.out.println( \"Hello\"); //Programme entry point\n    }\n    public static void hi(String[] arg)  {\n        System.out.println( \"hi\"); //would not go here \n    }\n}\n\nCOMP2045 18 / 20More about Java More about Java"
+    },
+    {
+      "heading": "3. Java needs to be compiled before runs",
+      "content": "The compilation procedure is transparent to you for most of the time.\nCompile: the process to convert source code (.java) to byte code (.class)"
+    },
+    {
+      "heading": "4. Running Java Byte code needs a JRE/JDK",
+      "content": "JRE: Java Run-time Environment (most PC installed that)\nJDK: Java Development Kits. Include JRE as well.\n\nCOMP2045 19 / 20More about Java More about Java"
+    },
+    {
+      "heading": "5. Java variable needs to be declared",
+      "content": "All variable needs to be declared before it can be used.\nJava is a strong type language. Each variable has a fixed type."
+    },
+    {
+      "heading": "COMP2045 20 / 20Next Next",
+      "content": "Read flipped lecture notes (Quiz is coming~)"
+    }
+  ]
+}

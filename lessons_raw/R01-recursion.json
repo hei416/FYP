@@ -1,0 +1,94 @@
+{
+  "title": "R01-Recursion",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "Additional - Recursion",
+      "content": "not part of the exam\nThis course is colocated with COMP2026 Problem Solving Using Object Oriented Programming\nCOMP2046 2 / 26What is Recursion? What is Recursion?\nA recursion (aka recursive method, recursive function) is a method calling\nitself directly or indirectly.\nPrior to this chapter, we have shown some cases of accidential recursion which\nends up as an infinite loop, e.g."
+    },
+    {
+      "heading": "Lecture 9 - Professor - if we remove",
+      "content": "super  (directly call itself)\nclass Person { \n  private final String name; \n  Person(String name) { this.name = name;} \n  protected  String getName() {return name; } \n} \nclass Professor  extends Person { \n  public Professor (String name)  { \n    super(name);   \n  } \n  public String getName() { \n                 //if super is missing\n    return \"Dr. \" + getName(); \n  } \n} Lecture 6 - Make Friends (indirectly\ncall itself)\npublic void makeFriend (Person a)  { \n  if (numOfFriend < 5) { \n    friends[numOfFriend++] = a; \n    a.makeFriend( this); \n  } \n} \n\nCOMP2046 3 / 26What was happening? What was happening?"
+    },
+    {
+      "heading": "Stack layout of methods calling",
+      "content": "void a() { b(); }\nvoid b() { c(); }\nvoid c() { d(); }\nvoid d() { System.out.println( \"OK\"); }\n\nCOMP2046 4 / 26What was happening? What was happening?"
+    },
+    {
+      "heading": "Stack layout of methods calling",
+      "content": "class Professor  extends Person { \n...\n  public String getName() { \n    return \"Dr. \" + getName(); \n  } \n}"
+    },
+    {
+      "heading": "COMP2046 5 / 26Recursion Recursion",
+      "content": "A recursion algorithm can be useful to solve some special problems (e.g.\nsearching problem).\nA recursion breaks down a bigger problem into a smaller problem instance."
+    },
+    {
+      "heading": "Divide-and-conquer",
+      "content": "Like mathematical induction (if you know what is it).\n\nCOMP2046 6 / 26A first glance of a working recursion A first glance of a working recursion\nvoid printNumber (int n) {\n  if (n == 0) \n    return;\n  System.out.print(n + \" \");\n  printNumber(n- 1);\n}\nvoid run() {\n  printNumber( 5);\n}\n5 4 3 2 1"
+    },
+    {
+      "heading": "We loop without loop!",
+      "content": "COMP2046 7 / 26Key-steps of Recursion Key-steps of Recursion"
+    },
+    {
+      "heading": "3. Return the value to your caller",
+      "content": "Base case: some very simple situation that you can actually hardcode it\nCall yourself: the recursion. Use yourself to solve the problem\nReturn value: return value is not a must for recursion. Yet, many problems use\nreturn values in their recursion.\n\nCOMP2046 8 / 26Recursion example - Factorial Recursion example - Factorial"
+    },
+    {
+      "heading": "Factorial:  is defined as  with",
+      "content": "An ordinary factorial method (without recursion)\nint factorial (int n) {\n  int result = 1;\n  if (n < 0)\n    throw new ArithmeticException( \"n cannot be negative\" );\n  for (int i = 1; i <= n; i++)\n    result *= i;\n  return result;\n}\nn! n!= n×(n−1)×⋯2×10!=1!=1\nCOMP2046 9 / 26Recursion example - Factorial #1 Recursion example - Factorial #1\nA recursion of factorial, started with the base case. The simplest case you know\nhow to do it\nint factorial (int n) {\n  if (n < 0)\n    throw new ArithmeticException( \"n cannot be negative\" );\n  if (n == 1 || n == 0)\n    return 1;\n  // rest of the code...\n}\n\nCOMP2046 10 / 26Recursion example - Factorial #2 Recursion example - Factorial #2\nNow imagine Kevin is a very kind person. He is kind enough to write a method\nint X()  for you. This method can help you compute factorial of a smaller\ninstance, say \nYou don't challenge Kevin how he implements this method. All you know is int X()\ncan really compute .\nNow, can you use this X()  to finish your program?\nint factorial (int n) {\n  if (n < 0)\n    throw new ArithmeticException( \"n cannot be negative\" );\n  if (n == 1 || n == 0)\n    return 1;\n  // rest of the code...\n}\n(n−1)!\n(n−1)!\nCOMP2046 11 / 26Recursion example - Factorial #2 (con't) Recursion example - Factorial #2 (con't)\nint factorial (int n) {\n  if (n < 0)\n    throw new ArithmeticException( \"n cannot be negative\" );\n  if (n == 1 || n == 0)\n    return 1;\n  int result = X() * n;\n  return result;\n}"
+    },
+    {
+      "heading": "The only problem is",
+      "content": "Kevin is not that kind to write me int X()...\n(n−1)!(n−1)!∗n= n!\nCOMP2046 12 / 26Recursion example Recursion example"
+    },
+    {
+      "heading": "Revisit what is the purpose of your",
+      "content": "method int factorial(int n)"
+    },
+    {
+      "heading": "So X()  is indeed factorial(n-1) .",
+      "content": "int result = X() * n;\nis actually\n  int result = factorial(n- 1) * n;"
+    },
+    {
+      "heading": "Factorial Recursion Factorial Recursion",
+      "content": "int factorial (int n) {\n  if (n < 0)\n    throw new ArithmeticException( \"n cannot be negative\" );\n  if (n == 1 || n == 0)\n    return 1;\n  return factorial(n- 1) * n;\n}"
+    },
+    {
+      "heading": "3. Return value to caller",
+      "content": "COMP2046 14 / 26Fibonacci Sequence - the Golden Ratio Fibonacci Sequence - the Golden Ratio\nf(n)= f(n−1)+ f(n−2),∀n≥3\nf(1)= f(2)=1\nimg credit: wiki common; glowscotland\nCOMP2046 15 / 26Fibonacci Sequence Do together Fibonacci Sequence Do together"
+    },
+    {
+      "heading": "3. Return value?",
+      "content": "int fib(int n) {\n  ...\n}\n\nCOMP2046 16 / 26Towers of Hanoi Towers of Hanoi\nTowers of Hanoi is one of the classic problems every budding computer\nscientist must grapple with. Legend. Epic. Classic"
+    },
+    {
+      "heading": "Goal: Move the disc from",
+      "content": "tower A to tower B, using\ntower C as a buffer\nLet's work out how two-discs, three discs can be moved.\n\nCOMP2046 17 / 26Towers of Hanoi Towers of Hanoi\npublic void solveTower (int disks, char src, char dest, char buffer)  {\n  if (disks == 1) {\n    System.out.printf( \"\\n Move %c --> %c\" , src, dest); //base case\n    return;\n  }\n  \n  //recursion step -- move discs - 1 from src to buffer\n  solveTower(disks - 1, src, buffer, dest);\n  //move 1 disc from src to dest\n  solveTower( 1, src, dest, buffer);\n  //move discs - 1 from buffer back to dest\n  solveTower(disks - 1, buffer, dest, src);\n}\nKevin: read a few more times. Yeah, I did not get it for the first time\ntoo! \n\nCOMP2046 18 / 26Searching problem with Recursion Searching problem with Recursion"
+    },
+    {
+      "heading": "How to find the shortest path from",
+      "content": "a node to another node?\nab c d e f\na 4 2\nb4 1 5\nc2 1 8 10\nd 5 8 2 8\ne 10 2 5\nf 8 5\nimage credit: https://networkx.guide/algorithms/shortest-path/\nCOMP2046 19 / 26Searching Problem with Recursion Searching Problem with Recursion\nboolean search(int steps, int[][] matrix, int src, int dest) {\n  if (steps < 0)\n    return false;\n  if (src == dest) {\n    System.out.print(( char)('a' + src));\n    return true;\n  }\n  //find the neightbor that can reach the destination\n  for (int i = 0; i < matrix.length; i++) {\n    int nextStop = i;\n    int cost = matrix[src][nextStop];\n    if (search(steps - cost, matrix, nextStop, dest)) {\n      System.out.printf( \" < %c(%d) \" , src + 'a', steps);\n      return true;\n    }\n  }\n  return false;\n}\n\nCOMP2046 20 / 26Searching Problem with Recursion Searching Problem with Recursion\nThe algorithm presented above only tell if a path can be searched with a given\ncost."
+    },
+    {
+      "heading": "How to find the best path (shortest)?",
+      "content": "int i = 0;\nfor (; i < 1000000; i++)\n  if (search(i, matrix, src, dest))\n    break;\nSystem.out.println( \"Minimum steps required: \"  + i);\nWe can use a better algorithm to find the minimum distance.\n\nCOMP2046 21 / 26Find the minimum distance Find the minimum distance\nint minDistance (int[][] matrix, int src, \n                  int dest, boolean[] visited)  {\n  if (dest == src)\n    return 0;\n  if (visited[src])\n    return INF;\n  visited[src] = true;\n  int distance = INF;\n  for (int i = 0; i < matrix.length; i++) {\n    int d = minDistance(matrix, i, dest, visited) \n              + matrix[src][i];\n    if (d < distance)\n      distance = d; //minimum distance\n  }\n  visited[src] = false; //back-tracking\n  return distance;\n}\n\nCOMP2046 22 / 26Back-tracking Back-tracking\n  visited[src] = false; //back-tracking\n  return distance;\nWhy do we need to set visited[src] = false;  ?\nBecause you need to clean this flag for other searching path!"
+    },
+    {
+      "heading": "A > C > D > ...",
+      "content": "Both path use C, if you do not unflag C, it cannot be used in another path!"
+    },
+    {
+      "heading": "Refer to your code in Lab 2.",
+      "content": "Build an autopath that reach the destination.\n *           X  \n X       X      \n X X   X     X  \n       X   X    \n     X       X X\n   X       X X  \n X       X      \n             X D * . . . . . X  \n X       X .    \n X X   X . . X  \n       X . X    \n     X . .   X X\n   X . .   X X  \n X   . . X . . .\n       . . . X D"
+    },
+    {
+      "heading": "COMP2046 24 / 26Auto-maze Auto-maze",
+      "content": "/**\n  * I want to navigate myself from the position \n  * row col to the final destination 'D'.\n  * If it is reachable, a path of ... \n  * will be written from my current position to \n  * the destination & return true\n  * If it is not reachable, I will return false \n  * & clean up the dots that I have written.\n  *\n  * @param maze input 2D array\n  * @param row my row\n  * @param col my col\n  * @return true if reachable, false otherwise\n  */\n  boolean autoMaze (char[][] maze, int row, int col) { }\n\nCOMP2046 25 / 26Lab - Bridge Crossing Lab - Bridge Crossing"
+    },
+    {
+      "heading": "This is an optional lab.",
+      "content": "To find the solution that cross the bridge within finite time."
+    }
+  ]
+}

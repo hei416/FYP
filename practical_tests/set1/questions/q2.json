@@ -1,0 +1,128 @@
+{
+    "question": {
+      "title": "Clock",
+      "description": "In this question you are required to create a class called Clock and save it inside Clock.java. A clock should have two digits for hour (00 to 23), two digits for minute (00 to 59), and two digits for second (00 to 59). When a clock runs, the method runs() will be called along with the parameter stating the positive number of seconds has passed. When the clock is printed, it outputs the time in a specific format, e.g.,\n\n16:33:25\n06:13:03\n\nYou can tune a clock in two ways. The first way is to state the exact hour, minute, and second using the method setTime(). The other way is to tune by another clock (copy the time from the other clock), which is achieved by calling the overloaded method setTime().\n\nIn this class, all fields must be private. You should also best encapsulate your class without exposing any unnecessary public methods.",
+      "instructions": [
+        "Create a class named Clock.",
+        "Implement private fields for hour, minute, and second.",
+        "Implement setTime(int hour, int minute, int second) to set the time.",
+        "Implement setTime(Clock otherClock) to copy the time from another clock.",
+        "Implement runs(int seconds) to simulate the passage of time.",
+        "Override toString() to return time in HH:mm:ss format.",
+        "Ensure invalid times are handled with the message 'Invalid time'."
+      ],
+      "examples": [
+        {
+          "description": "Example of setting and running the clock",
+          "input": [
+            "Clock c = new Clock();",
+            "c.setTime(14, 44, 58);",
+            "System.out.println(c);",
+            "c.runs(2);",
+            "System.out.println(c);"
+          ],
+          "output": [
+            "14:44:58",
+            "14:45:00"
+          ]
+        },
+        {
+          "description": "Example of invalid time",
+          "input": [
+            "Clock c = new Clock();",
+            "c.setTime(25, 10, 10);",
+            "System.out.println(c);"
+          ],
+          "output": [
+            "Invalid time"
+          ]
+        }
+      ],
+      "expectedOutput": [
+        "Invalid time",
+        "Time for the clock:\t14:44:58",
+        "Time for the clock after 1 sec:\t14:44:59",
+        "Time for the clock after another 100 sec:\t14:46:39",
+        "Time for first clock:\t14:46:40",
+        "Time for second clock:\t14:46:39"
+      ]
+    },
+    "solution": {
+      "class": "Clock",
+      "methods": {
+        "setTime(int, int, int)": [
+          "if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {",
+          "    this.hour = this.minute = this.second = -1;",
+          "} else {",
+          "    this.hour = hour;",
+          "    this.minute = minute;",
+          "    this.second = second;",
+          "}"
+        ],
+        "setTime(Clock)": [
+          "if (otherClock != null) {",
+          "    this.hour = otherClock.hour;",
+          "    this.minute = otherClock.minute;",
+          "    this.second = otherClock.second;",
+          "}"
+        ],
+        "runs": [
+          "if (hour == -1) return;",
+          "int total = hour * 3600 + minute * 60 + second + seconds;",
+          "total %= 24 * 3600;",
+          "this.hour = total / 3600;",
+          "total %= 3600;",
+          "this.minute = total / 60;",
+          "this.second = total % 60;"
+        ],
+        "toString": [
+          "if (hour == -1) return \"Invalid time\";",
+          "return String.format(\"%02d:%02d:%02d\", hour, minute, second);"
+        ],
+        "runApp": [
+          "Clock c = new Clock();",
+          "c.setTime(24, 44, 40);",
+          "System.out.println(c);",
+          "c.setTime(14, 44, 58);",
+          "System.out.println(\"Time for the clock:\\t\" + c);",
+          "c.runs(1);",
+          "System.out.println(\"Time for the clock after 1 sec:\\t\" + c);",
+          "c.runs(100);",
+          "System.out.println(\"Time for the clock after another 100 sec:\\t\" + c);",
+          "Clock c2 = new Clock();",
+          "c2.setTime(c);",
+          "c.runs(1);",
+          "System.out.println(\"Time for first clock:\\t\" + c);",
+          "System.out.println(\"Time for second clock:\\t\" + c2);"
+        ]
+      }
+    },
+    "baseCode": {
+      "class": "Clock",
+      "methods": {
+        "setTime": "public void setTime(int hour, int minute, int second) {}",
+        "setTimeOverloaded": "public void setTime(Clock otherClock) {}",
+        "runs": "public void runs(int seconds) {}",
+        "toString": "public String toString() {}",
+        "runApp": [
+          "public void runApp() {",
+          "\nClock c = new Clock();",
+          "\nc.setTime(24, 44, 40);",
+          "\nSystem.out.println(c);",
+          "\nc.setTime(14, 44, 58);",
+          "\nSystem.out.println(\"Time for the clock:\\t\" + c);",
+          "\nc.runs(1);",
+          "\nSystem.out.println(\"Time for the clock after 1 sec:\\t\" + c);",
+          "\nc.runs(100);",
+          "\nSystem.out.println(\"Time for the clock after another 100 sec:\\t\" + c);",
+          "\nClock c2 = new Clock();",
+          "\nc2.setTime(c);",
+          "\nc.runs(1);",
+          "\nSystem.out.println(\"Time for first clock:\\t\" + c);",
+          "\nSystem.out.println(\"Time for second clock:\\t\" + c2);",
+          "\n}"
+        ]
+      }
+    }
+  }
+  

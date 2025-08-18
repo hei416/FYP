@@ -1,0 +1,198 @@
+{
+  "title": "04-Methods",
+  "intro": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming",
+  "sections": [
+    {
+      "heading": "Problem Solving with Methods",
+      "content": "COMP2045 3 / 63Basics of Methods Basics of Methods\nThe term functions is called as methods in Java.\nA method is designed and used to represent some repeating logic in a\nprogramming code.\nMathematically, a function can be defined as\nf(x)=x+31\ng(x,y)=xy+siny\nSo, for instance, we can use the expression  to represent the\nequation .\ng(3,π)\n3π+sinπ\nCOMP2045 4 / 63Basic of Methods Basic of Methods"
+    },
+    {
+      "heading": "A math function has a number",
+      "content": "of inputs and one output"
+    },
+    {
+      "heading": "A Java method has a number",
+      "content": "of inputs called parameters\nand one output return value\n\nCOMP2045 5 / 63Basics of Methods Basics of Methods\nA method is a block of statements that performs a specific task, and we\nassign a name to it.\nclass FunctionExample  {\n    int f(int x) {  //f is a method\n        return x * x * x + 1;\n    }\n    void runOnce() { //runOnce is also a method\n        int result1 = f( 5);\n        System.out.println( \"f(5) = \"  + result1);  //print f(5) = 126\n        int result2 = f( 10);\n        System.out.println( \"f(10) = \"  + result2); //print f(10) = 1001\n        System.out.println( \"f(20) = \"  + f(20)); //print f(20) = 8001\n    }\n    public static void main(String[] argv)  { //main is a special method\n        new FunctionExample().runOnce();\n    }\n}\n\nCOMP2045 6 / 63Basics of Methods Basics of Methods\nWhen a method is called, the executation branches to the method and\nexecutes the block of statements in that method.\nWhen the method finishes, it returns to the position of where it is called.\n\nCOMP2045 7 / 63Syntax of Methods Syntax of Methods"
+    },
+    {
+      "heading": "A method has the following parts",
+      "content": "returnTypereturnTypereturnTypereturnTypereturnType  functionName  functionName  functionName  functionName  functionName (parameterType parameterNameparameterType parameterNameparameterType parameterNameparameterType parameterNameparameterType parameterName ){\n    ...method body...\n    return returnValuereturnValuereturnValuereturnValuereturnValue ;\n}\ncharcharcharcharchar     gradeMethodgradeMethodgradeMethodgradeMethodgradeMethod (((((intintintintint x) x) x) x) x)     {{{{{\n                  charcharcharcharchar grade =  grade =  grade =  grade =  grade = ' '' '' '' '' ';;;;;\n                  ififififif (x >  (x >  (x >  (x >  (x > 7070707070)))))\n        grade =        grade =         grade =        grade =         grade = 'A''A''A''A''A';;;;;\n                  elseelseelseelseelse     ififififif (x >  (x >  (x >  (x >  (x > 5050505050)))))\n        grade =        grade =         grade =        grade =         grade = 'B''B''B''B''B';;;;;\n                  elseelseelseelseelse     ififififif (x >  (x >  (x >  (x >  (x > 3535353535)))))\n        grade =        grade =         grade =        grade =         grade = 'C''C''C''C''C';;;;;\n                  elseelseelseelseelse     \n        grade =        grade =         grade =        grade =         grade = 'F''F''F''F''F';;;;;\n                  returnreturnreturnreturnreturn grade; grade; grade; grade; grade;\n}}}}}return type: return type: return type: return type: return type: char\nfunction name: function name: function name: function name: function name: gradeMethod\nparameter type: parameter type: parameter type: parameter type: parameter type: int\nparameter name: parameter name: parameter name: parameter name: parameter name: x\nreturn value: return value: return value: return value: return value: grade"
+    },
+    {
+      "heading": "COMP2045 8 / 63Return value Return value",
+      "content": "The type of the return value must match with the return type.\ni.e. char gradeMethod(int x)  would expect returning a char.\nchar gradeMethod (int x) {\n    return 'A'; //OK\n}"
+    },
+    {
+      "heading": "String greeting (String name)  {",
+      "content": "System.out.println( \"Greeting!\" );\n    return \"Hello, \"  + name; //OK\n}\nint f(int x) {\n    return \"COMP2026\" ; //error! Return type mismatch\n}"
+    },
+    {
+      "heading": "COMP2045 9 / 63Return value Return value",
+      "content": "Codes after the return statement will not be executed.\nchar gradeMethod (int x) {\n  char grade = ' ';\n  if (x > 70)\n      grade = 'A';\n  else if (x > 50)\n      grade = 'B';\n  else if (x > 35)\n      grade = 'C';\n  else \n      grade = 'F';\n  return grade;\n  return 'G'; //unreachable statement\n  System.out.println( \"Should not see this\" ); //unreachable statement\n}"
+    },
+    {
+      "heading": "COMP2045 10 / 63Return value Return value",
+      "content": "A method may have multiple return  on different branches.\nchar gradeMethod (int x) {\n    if (x > 70)\n        return 'A';\n    else if (x > 50)\n        return 'B';\n    else if (x > 35)\n        return 'C';\n    else \n        return 'F';\n}char gradeMethod (int x) {\n    if (x > 70)\n        return 'A';\n    if (x > 50)\n        return 'B';\n    if (x > 35)\n        return 'C';\n    return 'F';\n}"
+    },
+    {
+      "heading": "COMP2045 11 / 63Return value Return value",
+      "content": "Except for void  methods, all branches in a method must be terminated by\na return statement."
+    },
+    {
+      "heading": "String luckDraw (int ticketNumber)  {",
+      "content": "if (tickerNumber == 2026)\n        return \"1st Prize\" ;\n    if (ticketNumber % 5 == 0) {\n        if (ticketNumber % 3 != 0)\n            return \"4th Prize\" ;\n        else if (ticketNumber % 2 == 0) \n                return \"3rd Prize\" ;\n        return \"2nd Prize\" ;\n    }\n}"
+    },
+    {
+      "heading": "COMP2045 12 / 63Return value Return value",
+      "content": "Except for void  methods, all branches in a method must be terminated by\na return statement."
+    },
+    {
+      "heading": "String luckDraw (int ticketNumber)  {",
+      "content": "if (tickerNumber == 2026)\n        return \"1st Prize\" ;\n    if (ticketNumber % 5 == 0) {\n        if (ticketNumber % 3 != 0)\n            return \"4th Prize\" ;\n        else if (ticketNumber % 2 == 0) \n                return \"3rd Prize\" ;\n        return \"2nd Prize\" ;\n    }\n    return \"No prize\" ;\n}"
+    },
+    {
+      "heading": "A void method does not return a value.",
+      "content": "It only performs certain tasks or routines."
+    },
+    {
+      "heading": "A void method has the return type void .",
+      "content": "void greeting (String name)  {\n    System.out.println( \"Hello, \"  + name + \"!\");\n}\nvoid grade(int score) {\n    if (score > 70)\n        System.out.println( \"A!\");\n    else if (score > 40)\n        System.out.println( \"Pass!\");\n    else\n        System.out.println( \"Fail!\");\n}"
+    },
+    {
+      "heading": "COMP2045 14 / 63Void Method Void Method",
+      "content": "Return statement in a void method is not mandatory.\nReturn statement only exit the function. It does not carry a return value.\nReturn statement in a void function is simply return;  (no value after\nreturn).\nvoid grade(int score) {\n    if (score > 70)\n        System.out.println( \"A!\");\n    else if (score > 40)\n        System.out.println( \"Pass!\");\n    else\n        System.out.println( \"Fail!\");\n}void grade(int score) {\n    if (score > 70) {\n        System.out.println( \"A!\");\n        return;\n    }\n    if (score > 40) {\n        System.out.println( \"Pass!\");\n        return;\n    }\n    System.out.println( \"Fail!\");\n}"
+    },
+    {
+      "heading": "COMP2045 15 / 63Void method Void method",
+      "content": "Return statement in a void method is not mandatory.\nReturn statement only exit the function. It does not carry a return value.\nReturn statement in a void function is simply return;  (no value after\nreturn).\nvoid grade(int score) {\n    if (score > 70) {\n        System.out.println( \"A!\");\n        return 'A'; //error!\n    }\n    if (score > 40) {\n        return System.out.println( \"Pass!\"); //error!\n    }\n    System.out.println( \"Fail!\");\n}\n\nCOMP2045 16 / 63Methods without a parameter Methods without a parameter\nIt is possible that a method does not have any parameter."
+    },
+    {
+      "heading": "String enterPassword () {",
+      "content": "Scanner scanner = new Scanner(System.in);\n    String password;\n    do {\n        System.out.println( \"Please enter your new password\" );\n        password = scanner.next();    \n        System.out.println( \"Please enter your password again\" );\n    } while (!password.equals(scanner.next()));\n    return password;\n}\nvoid runOnce() {\n    System.out.println( \"Your new password is \"  + enterPassword());\n}\nAdd an empty bracket () after your parameterless method when you define\nit or call it.\n\nCOMP2045 17 / 63Methods with more than one parameters Methods with more than one parameters\nIt is possible that a method has more than one parameters."
+    },
+    {
+      "heading": "Each parameter requires its own type.",
+      "content": "String boyFriendSelector (int month, int day) {\n    if ((month == 11 && day >= 22) || (month == 12 && day <= 21))\n        return \"Sagittarius, hmm, worth a try\" ;\n    if ((month == 4 && day >= 20) || (month == 5 && day <= 20))\n        return \"My-ex was a Taurus, never consider!\" ;\n    return \"Not sure\" ;\n} \nvoid runOnce() {\n    System.out.println(boyFriendSelector( 5,4)); //4th May.\n}\n\nCOMP2045 18 / 63Methods with more than one parameters Methods with more than one parameters\nIt is possible that a method has more than one parameters."
+    },
+    {
+      "heading": "String bfSelector (int m, d) {",
+      "content": "//error!\n}\n unlike declaring variables, each\nparameter must has its own typeString bfSelector (int m, int d) {\n    //correct\n}\n add the parameter type for each\nparameter\n\nCOMP2045 19 / 63Calling a method - argument vs parameter Calling a method - argument vs parameter\nvoid runOnce() {\n    sayHello( \"Kevin\", \"Wang\");\n}\nvoid sayHello (String fName, String lName)  {\n    System.out.println( \"Hello \"  + fName + \" \" + lName + \"!\");\n}\nCaller - the line calling the method (runOnce() )\nCallee - the method being called (sayHello )\nArguments - values sent from the caller to the callee (\"Kevin\", \"Wang\")\nParameters - variables that receive values from the caller by the callee (\nfName , lName )\nA method that accepts arguments has parameters to receive the\narguments\n\nCOMP2045 20 / 63Calling with correct parameter Calling with correct parameter\nWhen calling a method, you need to supply the same number of argument\nin correct order with correct type that matches the method's parameters\ndouble log(double x, int base) {...}\nvoid runOnce() {\n    log( 4.33, 5); //OK\n    log( 4.33); //error! insufficient argument\n    log( 4.33, 5, 10); //error! too many argument\n    log( 5, 4.33); //error! arguments are not in correct order\n    log( 4.33, \"Hello\"); //error! incorrect type\n}\nNote that in the method call, we do not include the data type of the\nargument in the parentheses\nlog(double 4.33, int 5); //incorrect\n\nCOMP2045 21 / 63Scope of a parameter Scope of a parameter\nRecall that a scope of a variable is confined to where it is declared.\nParameter is not visible outside a function\nvoid grade(int score) {\n    String result = \"\";\n    if (score > 70)\n        result = \"A\";\n    else if (score > 40)\n        result = \"Pass!\";\n    else\n        result = \"Fail!\";\n    System.out.println(result);\n}\nvoid runOnce() {\n    grade( 50);\n    System.out.println(result); //error! local variable of method grade is invisible\n    System.out.println(score); //error! parameter of method grade is invisible\n}\n\nCOMP2045 22 / 63Parameters being modified Parameters being modified\nWhat will happen if the parameter is modified?\nvoid f(int x) {\n    System.out.println( \"x = \" + x);\n    x++;\n    System.out.println( \"x = \" + x);\n}\nvoid runOnce() {\n    int y = 10;\n    System.out.println( \"y = \" + y);\n    f(y);\n    System.out.println( \"y = \" + y);\n}\ny = 10\nx = 10\nx = 11\ny = 10\n\nCOMP2045 23 / 63Parameters being modified Parameters being modified"
+    },
+    {
+      "heading": "What happen in a method calling",
+      "content": "is the value of the argument in the\ncaller is copied to the parameter."
+    },
+    {
+      "heading": "When the value in the parameter",
+      "content": "is updated, it does not affect the\nmemory inside the caller (runOnce)"
+    },
+    {
+      "heading": "This makes more sense",
+      "content": "void f(int x) {\n     x++;\n}\nvoid runOnce() {\n    f(10); //the constant literal can't be changed!\n}\n\nCOMP2045 24 / 63Parameters being modified Parameters being modified\nEven when the parameter and the argument has the same name, the\nargument will not be affected!\nvoid f(int x) {\n    System.out.println( \"(f) x = \"  + x);\n    x++;\n    System.out.println( \"(f) x = \"  + x);\n}\nvoid runOnce() {\n    int x = 10;\n    System.out.println( \"(runOnce) x = \"  + x);\n    f(x);\n    System.out.println( \"(runOnce) x = \"  + x);\n}\n(runOnce) x = 10\n(f) x = 10\n(f) x = 11\n(runOnce) x = 10\n\nCOMP2045 25 / 63Parameters being modified Parameters being modified\nvoid runOnce() {\n    String name = \"Kevin\";\n    changeName(name);\n    System.out.println(name);\n}\nvoid changeName (String name)  {\n    System.out.println( \"Name inside changeName: \"  + name);\n    name = \"Calvin\" ;\n    System.out.println( \"Change my name inside method: \"  + name);\n}"
+    },
+    {
+      "heading": "Kevin",
+      "content": "COMP2045 26 / 63Local variable of a method Local variable of a method\nvoid goldfish () {\n    int x = 10;\n    System.out.println(x);\n    x++\n    System.out.println(x);\n}\nvoid runOnce() {\n    goldfish();\n    goldfish();\n}10\n11\n10\n11\nLocal variables defined in a method or the parameter will not be\npersistent.\nA method's memory will be wiped once the method is returned.\n\nCOMP2045 27 / 63More on Arguments More on Arguments\nAny expression with a value that could be assigned to a variable of the\nparameter’s data type may be used as the argument in the method call\nvoid printGrade (int score) {...} //a method that print grades, not very important\nvoid runOnce() {\n    printGrade( 99); //OK\n    printGrade( 198 / 2 - 49); //OK\n    int score = 33; //don't worry about name clash\n    printGrade(score);  //OK\n}\nWhen you pass an argument to a method, you must ensure that the\nargument’s data type is compatible with the data type of the parameter\nJava will automatically perform widening conversions. This means that if\nthe argument is of a lower-ranking data type than the parameter, the\nargument will automatically be converted to the parameter's data type\n(see casting)\n\nCOMP2045 28 / 63More on Arguments More on Arguments\nJava does not automatically perform narrowing conversions, conversions to\nlower-ranking data types\nIf you try to pass an argument of a higher-ranking data type into a\nparameter variable, a compiler error occurs\nYou may use the cast operator to manually specify a conversion to a lower-\nranking data type\nprivate double multiply (int a, double b) { \n   return a * b; \n}\nmultiply( 16 + 7, 31.3); //OK\nmultiply( 16 + 7, 31); //OK widening from 31 (int) to double\nmultiply( 16.5, 31.3); //error! Narrowing cause lost of precision\nmultiply(( int) 16.5, 31.3); //OK, manually cast\n\nCOMP2045 29 / 63Methods and Arrays Methods and Arrays\nMust be careful when passing an array to a method\nSuppose an array is passed as an argument to a method:\nint[] anArray = new int[10];;\nsomeMethod(anArray);"
+    },
+    {
+      "heading": "3. The method can also return a new array:",
+      "content": "int[] theReturnedArray = methodThatReturnsArray(); \n\nCOMP2045 30 / 63Methods and Arrays - as parameter Methods and Arrays - as parameter\nvoid doubleItUp (int[] array)  { \n    for (int i = 0; i < array.length; i++) { \n        array[i] = array[i] * 2; \n    } \n}\nvoid runOnce() {\n    int [] myArray = { 1, 4, 9, 16, 25, 36, 49, 64, 81, 100 }; \n    doubleItUp(myArray); \n    for (int i : myArray)\n        System.out.printf( \"%d \", i);\n}\n2 8 18 32 50 72 98 128 162 200\nYou can modify the content of an array you pass as an argument to a\nmethod"
+    },
+    {
+      "heading": "Note that the method returns nothing",
+      "content": "COMP2045 31 / 63Methods and Arrays - Recalls.. Methods and Arrays - Recalls..\nvoid f(int x) {\n    System.out.println( \"x = \" + x);\n    x++;\n    System.out.println( \"x = \" + x);\n}\nvoid runOnce() {\n    int y = 10;\n    f(y);\n    System.out.println( \"y = \" + y);\n}"
+    },
+    {
+      "heading": "What happen in a method calling is the",
+      "content": "value of the argument in the caller is\ncopied to the parameter."
+    },
+    {
+      "heading": "When the value in the parameter is",
+      "content": "updated, it does not affect the memory inside the caller (runOnce)\n\nCOMP2045 32 / 63Methods and Arrays - as parameter Methods and Arrays - as parameter\nvoid doubleItUp (int[] array)  { \n  for (int i = 0; i < array.length; i++) { \n    array[i] = array[i] * 2; \n  } \n}\nvoid runOnce() {\n  int [] myArray = { 1, 4, 9, 16, 25, 36, \n    49, 64, 81, 100 }; \n  doubleItUp(myArray); \n  for (int i : myArray)\n    System.out.printf( \"%d \", i);\n}\nThe array is declared and allocated in runOnce\nmyArray  holds the reference of the array\nThe reference is copied into the method doubleItUp\narray  also holds the same reference\n\nCOMP2045 33 / 63Methods and Arrays - as return value Methods and Arrays - as return value\nvoid runOnce() {\n    int[] callerArray = squareNum(); \n    ...\n}\nint[] squareNum() { \n    int[] localArray = new int[5]; \n     for (int i = 0; i < localArray.length; i++) { \n       localArray[i] = i * i; \n    } \n    return localArray; \n}localArray:\n0, 1, 4, 9, 16\ncallerArray: \n0, 1, 4, 9, 16\nThe method is responsible for creating the new array and return the new\narray to its caller\n\nCOMP2045 34 / 63Methods and Arrays - as return values Methods and Arrays - as return values\nvoid runOnce() {\n    int[] callerArray = squareNum(); \n    ...\n}\nint[] squareNum() { \n    int[] localArray = new int[5]; \n     for (int i = 0; i < localArray.length; i++) { \n       localArray[i] = i * i; \n    } \n    return localArray; \n} 0 5000\n1 5004\n4 5008\n9 5012\n16 5016\nThe array is first declared and allocated as a local variable localArray\ninside squareNum\nThe reference of localArray is copied to caller's array variable\ncallerArray .\nBoth localArray  and callerArray  points to the same array.\n\nCOMP2045 35 / 63Methods and Arrays - as return values Methods and Arrays - as return values\nvoid runOnce() {\n    int[] callerArray = squareNum(); \n    int[] callerArray2 = squareNum(); \n}\nint[] squareNum() { \n    int[] localArray = new int[5]; \n     for (int i = 0; i < localArray.length; i++) { \n       localArray[i] = i * i; \n    } \n    return localArray; \n} callerArray\n0 5000\n1 5004\n4 5008\n9 5012\n16 5016callerArray2\n0 7200\n1 7204\n4 7208\n9 7212\n16 7216\nThe variable localArray , which stores the reference of the array, will be\nerased when the method returns. The array will be persistent.\nWhen the second time squareNum()  is called, another array is declared\nand allocated.\nlocalArray  will store the second array\ncallerArray2  stores the references of the second array\n\nCOMP2045 36 / 63Methods and Arrays - Mixed together Methods and Arrays - Mixed together\nA method can process an array and return a completely new array\nvoid runOnce() {\n    int[] array1 = { 1, 2, 3 }; \n    int[] array2 = enlargeArray(array1); \n}\nint [] enlargeArray( int[] origArray) { \n    int[] newArray = new int[origArray.length* 2]; \n \n    for (int i = 0; i < origArray.length; i++) { \n       newArray[i] = origArray[i]; \n       newArray[i+origArray.length] = origArray[i] * 2; \n    } \n    return newArray; \n}array1: \n1, 2, 3\narray2: \n1, 2, 3, 2, 4, 6\nnewArray:\n1, 2, 3, 2, 4, 6\nThe variable newArray , which holds the reference, will be erased after the\nfunction. The array will be persistent.\n\nCOMP2045 37 / 63Methods and Arrays - Exercise #1 Methods and Arrays - Exercise #1\nint f(int param) {\n    param++;\n    return param + 1;\n}\nvoid runOnce() {\n    int arg = 10;\n    int x = f(f(arg));\n}"
+    },
+    {
+      "heading": "What is the expected value of arg and x?",
+      "content": "COMP2045 38 / 63Methods and Arrays - Exercise #2 Methods and Arrays - Exercise #2\nint f(int[] param)  {\n    param[ 0]++;\n    return param[0] + 1;\n}\nvoid runOnce() {\n    int[] arr = { 10};\n    int x = f(arr);\n}"
+    },
+    {
+      "heading": "What is the expected value of arr and x?",
+      "content": "COMP2045 39 / 63Methods and Arrays - Exercise #3 Methods and Arrays - Exercise #3\nint f(int[] param)  {\n    param[ 0]++;\n    return param[0] - 1;\n}\nvoid runOnce() {\n    int[] arr = { 10};\n    arr[ 0] = f(arr);\n    int x = f(arr);\n}"
+    },
+    {
+      "heading": "What is the expected value of arr and x?",
+      "content": "COMP2045 40 / 63Methods and Arrays - Exercise #4 Methods and Arrays - Exercise #4\nvoid runOnce() {\n    int[] array1 = { 1, 2, 3 }; \n    enlargeArray(array1); \n}\nvoid enlargeArray (int[] origArray)  { \n    int[] newArray = new int[origArray.length * 2]; \n \n    for (int i = 0; i < origArray.length; i++) { \n       newArray[i] = origArray[i]; \n       newArray[i+origArray.length] = origArray[i] * 2; \n    } \n    \n    origArray = newArray;\n}\nWhat is the expected value of array1 , origArray , newArray ?\n\nCOMP2045 41 / 63Methods and Arrays - Exercise #5 Methods and Arrays - Exercise #5\nvoid runOnce() {\n    int[] array1 = { 1, 2, 3 }; \n    enlargeArray(array1); \n}\nvoid enlargeArray (int[] origArray)  { \n    origArray = new int[origArray.length* 2]; \n \n    for (int i = 0; i < origArray.length; i++) { \n       origArray[i] = origArray[i]; \n       origArray[i+origArray.length] = origArray[i] * 2; \n    } \n \n}"
+    },
+    {
+      "heading": "This program crashes. Why?",
+      "content": "COMP2045 42 / 63Return array vs array parameter Return array vs array parameter\nBoth returning an array and using array parameter allows you to modify the\ncontent of an array.\nint[] method( int[] input) {\n    ...\n    return newArray;\n}void method(int[] input)  {\n    ...\n    input[ 0] = 10;\n}"
+    },
+    {
+      "heading": "Which to use?",
+      "content": "When you don't want to modify the original array (i.e. making a new copy is\nneeded), use return\nWhen you are going to modify the size of the original array (esp,\nenlarging), use return\nWhen you are going to change the value of the original array, use it as a\nparameter and change it directly.\n\nCOMP2045 Dr. Kevin Wang 2023/2024Method overloading Method overloading\n\nCOMP2045 44 / 63Method overloading Method overloading\nYou can define two methods with the same name but with different\nparameter list."
+    },
+    {
+      "heading": "This is called method overloading.",
+      "content": "void printResult (int mark) {\n    System.out.println( \"You have got \"  + mark + \" marks!\" );\n}\nvoid printResult (char grade) {\n    System.out.println( \"You have got a \"  + grade + \"!\");\n}\ndouble printResult (int mark, int max) {\n    System.out.printf( \"You have got %d/%d !\\n\" , mark, max);\n    return mark * 1.0 / max; \n}\nPurpose of overloading is to provide different response against different\ntypes of input for similar functions.\n\nCOMP2045 45 / 63Method overloading Method overloading\nOverloading is to be resolved when the method is called\nvoid printResult (int mark) {\n    System.out.println( \"You have got \"  + mark + \" marks!\" );\n}\nvoid printResult (char grade) {\n    System.out.println( \"You have got a \"  + grade + \"!\");\n}\nvoid runOnce() {\n    printResult( 'A');\n    printResult( 33);\n    printResult(( int)'A');\n}"
+    },
+    {
+      "heading": "You have got 65 marks!",
+      "content": "COMP2045 46 / 63Method overloading Method overloading"
+    },
+    {
+      "heading": "Overloading can lead to ambiguity",
+      "content": "void overload (int a, double b) { System.out.println( \"A\");} \nvoid overload (double a, int b) { System.out.println( \"B\");} \n//no problem when it is defined\nvoid runOnce() {\n    overload( 5, 3.4); //OK, A\n    overload( 5.2, 3); //OK, B\n    overload( 4.3, 1.1); //error! can't compile\n}\n\nCOMP2045 47 / 63More about Method Overloading More about Method Overloading\nOverload methods are characterized by method name and parameter lists.\nCannot define two methods with the same name, same parameter list, even\nif the return types are different or the name of parameter variables are\ndifferent\nvoid overload (int a, int b) {}\nvoid overload (int a) {} //OK\nvoid overload (int x, int y) {} //error! \nint overload (int x, int b) {} //error! \nDo not confuse method overloading with method overriding (discussed in\nthe topic Class/Object)\n\nCOMP2045 Dr. Kevin Wang 2023/2024Problem Solving with Methods Problem Solving with Methods\n\nCOMP2045 49 / 63An analogy in Math An analogy in Math\nHow do you think about the following expression?\n7×5+7×(28×3)−4×7"
+    },
+    {
+      "heading": "Clumsy. This is what I will do",
+      "content": "7(5+28×3−4)\nFactorize your expression looks tidy and reduce number of computations.\n\nCOMP2045 50 / 63Use methods to extract factors Use methods to extract factors\nUsing method is like taking some common factors from the code!\nfor (int i = 0; i < 5; i++)\n    System.out.print( '*');"
+    },
+    {
+      "heading": "System.out.println();",
+      "content": "for (int row = 1; row < 4; row++) {\n      System.out.print( ' ');\n      for (int i = 0; i < 5; i++)\n           System.out.print( ' ');\n      System.out.print( '*');\n}\nfor (int i = 0; i < 5; i++)\n    System.out.print( '*');"
+    },
+    {
+      "heading": "System.out.println();void printLine () {",
+      "content": "for (int i = 0; i < 5; i++)\n        System.out.print( '*');\n    System.out.println();\n}\n...\nprintLine();\nfor (int row = 1; row < 4; row++) {\n      System.out.print( ' ');\n      for (int i = 0; i < 5; i++)\n           System.out.print( ' ');\n      System.out.print( '*');\n}\nprintLine();\n*****\n*   *\n*   *\n*   *\n*****"
+    },
+    {
+      "heading": "COMP2045 51 / 63Parameters Parameters",
+      "content": "if (boyHeight > 150)\n    System.out.println( \"Tall\");\nelse\n    System.out.println( \"OK\");\nif (girlHeight > 130)\n    System.out.println( \"Tall\");\nelse\n    System.out.println( \"OK\");void printHeight (int height, int limit) {\n    if (height > limit) \n        System.out.println( \"Tall\");\n    else\n        System.out.println( \"OK\");\n}\nprintHeight(boyHeight, 150);\nprintHeight(girlHeight, 130);\nAdding parameters to make the method be more general\nDon't waste any opportunity to factorize your code."
+    },
+    {
+      "heading": "Return values in methods are very useful",
+      "content": "e.g. Write a function for picking a password"
+    },
+    {
+      "heading": "String pickPassword () {",
+      "content": "String password = \"\";\n    boolean valid = true;\n    do {\n        System.out.println( \"Pick a password\" );\n        ... //let user input and validate it\n    } while (!valid);\n    return password;\n}\n..."
+    },
+    {
+      "heading": "String userPassword = pickPassword();",
+      "content": "The method not just validates users' inputs but also guarantees and\nreturns a valid password to the caller.\n\nCOMP2045 53 / 63Example - Printing Diamond Example - Printing Diamond\n   *\n  * *\n *   *\n*     *\n *   *     \n  * *\n   *"
+    },
+    {
+      "heading": "Strategy",
+      "content": "Defining methods that print a number of spaces\n\nCOMP2045 54 / 63Example - Printing Diamond Example - Printing Diamond\nvoid printSpace (int n) {\n    for (int i = 0; i < n; i++)\n        System.out.print( ' ');\n}\nvoid runOnce() {\n    int size = 4; //the height = 2 * size - 1\n    printSpace(size - 1);\n    System.out.println( \"*\"); //top *\n    for (int i = 1; i < size; i++) {\n        printSpace(size - i - 1);\n        System.out.print( \"*\");\n        printSpace( 2 * i - 1);\n        System.out.println( \"*\");\n    }\n    for (int i = size - 2; i >= 1; i--) {\n        printSpace(size - i - 1);\n        System.out.print( \"*\");\n        printSpace( 2 * i - 1);\n        System.out.println( \"*\");\n    }\n    printSpace(size - 1);\n    System.out.println( \"*\"); //bottom *\n}\n   *    --\n  * *    |\n *   *   | - size\n*     * --\n *   *     \n  * *\n   *\nCOMP2045 55 / 63Example - Print Filled Diamond Example - Print Filled Diamond\n   *\n  *+*\n *+++*\n*+++++*\n *+++*     \n  *+*\n   *\nA very simple way to do it is to overload the method printSpace\nvoid printSpace (int n, char c) {\n    for (int i = 0; i < n; i++)\n        System.out.print(c); //print the filling instead or space\n}\n\nCOMP2045 56 / 63Print Filled Diamond Print Filled Diamond\nvoid runOnce() {\n    int size = 4; //the height = 2 * size - 1\n    printSpace(size - 1);\n    System.out.println( \"*\"); //top *\n    for (int i = 1; i < size; i++) {\n        printSpace(size - i - 1);\n        System.out.print( \"*\");\n        printSpace( 2 * i - 1, '+'); //overload\n        System.out.println( \"*\");\n    }\n    for (int i = size - 2; i >= 1; i--) {\n        printSpace(size - i - 1);\n        System.out.print( \"*\");\n        printSpace( 2 * i - 1, '+');  //overload\n        System.out.println( \"*\");\n    }\n    printSpace(size - 1);\n    System.out.println( \"*\"); //bottom *\n}\n\nCOMP2045 57 / 63Gotcha Simulator Gotcha Simulator\nAssume there are 10 characters in a toy set.\nYou pay a token to draw a random character until you have collected the\nentire characters.\nEstimate how many token you will need to spend."
+    },
+    {
+      "heading": "Random number generator -",
+      "content": "ThreadLocalRandom.current().nextInt(0, 10);\n\nCOMP2045 58 / 63Gotcha Simulator Gotcha Simulator\n#7 Gotcha\n#3 Gotcha\n#1 Gotcha\n#3 Duplicate\n#7 Duplicate\n#7 Duplicate\n#0 Gotcha\n#7 Duplicate\n#5 Gotcha\n#4 Gotcha\n#6 Gotcha\n#8 Gotcha\n#9 Gotcha\n#2 Gotcha\ntoken spent:14\n\nCOMP2045 59 / 63Gotcha Simulator Gotcha Simulator\nboolean[] characters = new boolean[10];\nint token = 0;\nwhile (!collectAll(characters)) {\n    //spend a token and draw\n    int number = draw();\n    //check if duplicate \n    if (characters[number] == true) \n        System.out.println( \"Duplicate\" );\n    else\n        System.out.println( \"Gotcha\" );\n    characters[number] = true;\n    token++;\n}\nDo together. write two methods: collectAll  and draw\n\nCOMP2045 60 / 63Gotcha Simulator Gotcha Simulator"
+    },
+    {
+      "heading": "Assume we are upgrading the",
+      "content": "simulator to conduct the experiment\nfor 100 times and plot the histogram\nof the token spent."
+    },
+    {
+      "heading": "Instead of looping the code, how",
+      "content": "about refactor it as a method? 0-  4 [ 0] |\n 5-  9 [ 0] |\n10- 14 [ 2] |**\n15- 19 [17] |*****************\n20- 24 [12] |************\n25- 29 [23] |***********************\n30- 34 [14] |**************\n35- 39 [11] |***********\n40- 44 [ 5] |*****\n45- 49 [ 6] |******\n50- 54 [ 3] |***\n55- 59 [ 2] |**\n60- 64 [ 2] |**\n65- 69 [ 2] |**\n70- 74 [ 1] |*\n75- 79 [ 0] |\n80- 84 [ 0] |\n85- 89 [ 0] |\n90- 94 [ 0] |\n95-999 [ 0] |\n\nCOMP2045 61 / 63Gotcha Simulator Gotcha Simulator\nint sim() {\n    boolean[] characters = new boolean[10];\n    int token = 0;\n    while (!collectAll(characters)) {\n        //no need to print gotcha message\n        characters[draw()] = true;\n        token++;\n    }\n    return token;\n}void runOnce() {\n  int bins[] = new int[20]; \n  //bin size = 5, from 0 to 100+\n  for (int i = 0; i < 100; i++) {\n    int token = sim();\n    if (token >= 100)\n        bins[ 19]++;\n    else\n        bins[token / 5]++;\n  }\n  \n  //print histogram\n  for (int i = 0; i < 20; i++) {\n    System.out.printf( \"%2d-%3d [%2d] |\" , i*5, \n        (i == 19 ? 999 : i*5 + 4), bins[i]);\n    for (int j = 0; j < bins[i]; j++)\n        System.out.print( '*');\n    System.out.println();\n  }\n}\n\nCOMP2045 62 / 63Tic-Tac-Toe with Methods Tic-Tac-Toe with Methods\nDesign three methods to separate the task of check wins\nboolean checkRow (char[][] array, char symbol)  {\n    for (int row = 0; row < 3; row++)\n        if (array[row][ 0] == array[row][ 1] && array[row][ 0] == array[row][ 2] &&\n            array[row][ 0] == symbol)\n            return true;\n    return false;\n}\nboolean checkCol (char[][] array, char symbol)  {\n    for (int col = 0; col < 3; col++)\n        if (array[ 0][col] == array[ 1][col] && array[ 0][col] == array[ 2][col] &&\n            array[ 0][col] == symbol)\n            return true;\n    return false;\n}\nboolean checkDiagonal (char[][] array, char symbol)  {\n    if (array[ 1][1] != symbol) return false;\n    if (array[ 0][0] == array[ 1][1] && array[ 1][1] == array[ 2][2]) return true;\n    if (array[ 0][2] == array[ 1][1] && array[ 1][1] == array[ 2][0]) return true;\n    return false;\n}\n\nCOMP2045 63 / 63Tic-Tac-Toe with Methods Tic-Tac-Toe with Methods\n//check horizontal\nfor (int row = 0; row < 3; row++)\n    if (cells[row][ 0] == cells[row][ 1] && \n        cells[row][ 0] == cells[row][ 2] &&\n        cells[row][ 0] == symbol)\n      win = true;\n//check vertical\nfor (int col = 0; col < 3; col++)\n    if (cells[ 0][col] == cells[ 1][col] && \n        cells[ 0][col] == cells[ 2][col] &&\n        cells[ 0][col] == symbol)\n      win = true;\n//check diagonal\nif (cells[ 0][0] == cells[ 1][1] &&\n   cells[ 0][0] == cells[ 2][2] &&\n   cells[ 0][0] == symbol)\n   win = true;\nif (cells[ 0][2] == cells[ 1][1] &&\n   cells[ 0][2] == cells[ 2][0] &&\n   cells[ 0][2] == symbol)\n   win = true;win = checkRow(cells, symbol) ||\n      checkCol(cells, symbol) ||\n      checkDiagonal(cells, symbol);"
+    },
+    {
+      "heading": "This does not reduce the length",
+      "content": "of code, but easier to manage!"
+    },
+    {
+      "heading": "Advice: keep the length of a",
+      "content": "method within a screen height\nwithout scrolling."
+    }
+  ]
+}

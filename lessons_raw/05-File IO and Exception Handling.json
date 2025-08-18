@@ -1,0 +1,138 @@
+{
+  "title": "05-File Io And Exception Handling",
+  "intro": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming",
+  "sections": [
+    {
+      "heading": "COMP2045 2 / 43Exception Exception",
+      "content": "Java provides a way to handle certain kinds of special conditions\nAn exception is an object that signals the occurrence of an unusual event\nduring the execution of a program\nWhen a piece code of, usually methods, encounters error, it throws an\nexception."
+    },
+    {
+      "heading": "COMP2045 3 / 43Exception Exception",
+      "content": "int noOfBiscuits = 30;\nSystem.out.println( \"Enter number of people: \" );\nint people = scanner.nextInt();\nSystem.out.printf( \"Each gets %d biscuits with %d left\" ,\n noOfBiscuits / people, noOfBiscuits % people);"
+    },
+    {
+      "heading": "Enter number of people:",
+      "content": "9\nEach gets 3 biscuits with 3 leftThis work just fine for good user.\n\nCOMP2045 4 / 43Exception (con't) Exception (con't)\nWhat if the user enter unpredictable inputs?"
+    },
+    {
+      "heading": "Enter number of people:",
+      "content": "0\nException in thread \"main\" java.lang.ArithmeticException: / by zero\nat Test.main(Test.java:10)"
+    },
+    {
+      "heading": "This code throws an exception!",
+      "content": "This exception is called ArithmeticException ."
+    },
+    {
+      "heading": "We can patch this piece of code like",
+      "content": "if (noOfPeople <= 0)  {\n    System.out.println( \"Invalid input!\" );\n} else ...\nIn general, we never know when exception happens!\nErrorisnotthesameasexception,wewilltalkaboutthatlater.\n1\n1\nCOMP2045 5 / 43Two ways of handling exceptions Two ways of handling exceptions\nimg: memes\nCOMP2045 6 / 43Method 1 - Throws the exception Method 1 - Throws the exception\nThe simplest way is to propagate the problem to your caller method\nThe caller should then handle the problem, e.g. warning the user, retry the\naction, abort the action, etc..\nTo do it, add throws Exception  after your method\nvoid riskyMethod () throws Exception {\n    Scanner scanner = new Scanner(System.in);\n    int noOfBiscuits = 30;\n    System.out.println( \"Enter number of people: \" );\n    int people = scanner.nextInt();\n    System.out.printf( \"Each gets %d biscuits with %d left\" ,\n    noOfBiscuits / people, noOfBiscuits % people);\n}\nvoid caller() {\n    ...  //caller must handle the exception \n    riskyMethod();\n}\n\nCOMP2045 7 / 43Method 1 - Throws the exception Method 1 - Throws the exception\nvoid riskyMethod () throws Exception {\n    ...\n}\nA method labelled throws Exception  tells the caller that this method may\nthrows Exception"
+    },
+    {
+      "heading": "2. Propagate the problem (label itself with throws Exception too)",
+      "content": "COMP2045 8 / 43Method 2 - Handle with Try-catch Method 2 - Handle with Try-catch\nAn exception can be handled by a try-catch  block.\nRisky code is placed inside the try  block and the response to the exception is\nplaced inside the catch  block.\ntry {\n    System.out.println( \"Inside the try block.\" );\n    int a = 10 / 0;\n    System.out.println( \"This will not shown\" );\n} catch (Exception e) {\n    System.out.println( \"Inside the catch block.\" );\n}"
+    },
+    {
+      "heading": "Inside the catch block.",
+      "content": "COMP2045 9 / 43Method 2 - Handle with Try-catch Method 2 - Handle with Try-catch\nvoid riskyMethod () throws Exception {\n    Scanner scanner = new Scanner(System.in);\n    int noOfBiscuits = 30;\n    System.out.println( \"Enter number of people: \" );\n    int people = scanner.nextInt();\n    System.out.printf( \"Each gets %d biscuits with %d left\" ,\n    noOfBiscuits / people, noOfBiscuits % people);\n}\nvoid caller() {\n    //caller must handle the exception \n    try {\n        riskyMethod();\n    } catch (Exception e) {\n        System.out.println( \"The riskyMethod throws me an exception!\" );\n    }\n}\n\nCOMP2045 10 / 43Another Example of Exception Another Example of Exception\nSystem.out.println( \"Enter an integer: \" );"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "int x = scanner.nextInt();"
+    },
+    {
+      "heading": "Enter an integer:",
+      "content": "abc\nException in thread \"main\" java.util.InputMismatchException\nScanner does not expect the user to enter a non-integer input.\nWhen it encounter the error, it will keep the token in the buffer.\nIt returns that token in the next next()  or nextInt() .\n\nCOMP2045 11 / 43Handling the Exception with a loop Handling the Exception with a loop"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "boolean error = false;\nint x;\ndo {\n  try {\n    System.out.println( \"Enter an integer: \" );\n    x = scanner.nextInt();\n    error = false;\n  } catch (Exception e) {\n    System.out.println( \"Input error! Not an integer!\" );\n    error = true;\n    scanner.next(); //the token is still in the scanner. Skip it!\n  }\n  \n} while (error);\n\nCOMP2045 12 / 43Javadoc of nextInt Javadoc of nextInt"
+    },
+    {
+      "heading": "InputMismatchException",
+      "content": "COMP2045 13 / 43Create an exception Create an exception\nSome methods like Scanner.nextInt()  will throw exceptions\nYou can also create methods that throw exceptions and let the caller to handle\nthat for you.\nReason behind: only the caller knows what to do when exception happen!\nDone by the statement throw new Exception(\"Error Message\");\nWhen an exception is thrown, it must either be thrown the its caller (method"
+    },
+    {
+      "heading": "1) or be caught in a try-catch block (method 2).",
+      "content": "COMP2045 14 / 43Create an exception Create an exception\n/**\n * Match the name from the list and return the corresponding value\n */\nint findValue (String[] nameList, int[] values, String name)  {\n    for (int i = 0; i < nameList.length; i++)\n        if (nameList[i].equals(name))\n            return values[i];\n    return ??;\n}\nWhat should ?? be if the name is not found from the input?\n0? -1? What if 0 or -1 are also possible values from the value list?\n\nCOMP2045 15 / 43Create an exception Create an exception\n/**\n * Match the name from the list and return the corresponding value\n */\nint findValue (String[] nameList, int[] values, String name)  throws Exception {\n  for (int i = 0; i < nameList.length; i++)\n      if (nameList[i].equals(name))\n          return values[i];\n  throw new Exception(name + \" is not found!\" );\n}\n\nCOMP2045 16 / 43Mixing Method 1 and 2? Mixing Method 1 and 2?\nIt is possible to throw an exception and do try catch at the same time?\nOnce an exception is caught in a try-catch block, it will not be thrown\nvoid method() throws Exception {\n    try {\n        riskyMethod();\n    } catch (Exception e) {\n        ...\n    }\n}\nvoid caller() {\n    try {\n        method();\n    } catch (Exception e) {\n        System.out.println( \"Never thrown\" );\n    }\n}\n\nCOMP2045 17 / 43Multiple Catch Multiple Catch\nWe saw different types of exceptions earlier, e.g.: InputMismatchException ,"
+    },
+    {
+      "heading": "ArithmeticException",
+      "content": "We might want to handle different exceptions differently\nWe can have multiple catch blocks after a try block.\nEach catch block declares a specific exception that you want to handle.\n\nCOMP2045 18 / 43Multiple Catch Multiple Catch"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "try {\n    System.out.println( \"Enter a number\" );\n    int num = scanner.nextInt();\n    System.out.printf( \"100 / %d = %d\" , num, 100/num);\n} catch (ArithmeticException e) {\n    System.out.println( \"0 can't be used as divisor.\" );\n} catch (InputMismatchException e) {\n    System.out.println( \"This is not a integer\" );\n}\n\nCOMP2045 19 / 43Multiple Catch Multiple Catch\nvoid riskyMethod () throws InputMismatchException {\n    Scanner scanner = new Scanner(System.in);\n    try {\n        System.out.println( \"Enter a number\" );\n        int num = scanner.nextInt();\n        System.out.printf( \"100 / %d = %d\" , num, 100/num);\n    } catch (ArithmeticException e) {\n        System.out.println( \"0 can't be used as divisor.\" );\n    // } catch (InputMismatchException e) {\n    //     System.out.println(\"This is not a integer\");\n    }\n}\nMixing method 1 and 2 may make sense if you want the caller to handle a\nspecific exception.\n\nCOMP2045 20 / 43Finally Block Finally Block\nA finally  block is optionally added after a catch block.\nThe finally  block always executes when the try block exits, even when:"
+    },
+    {
+      "heading": "A return statement is executed",
+      "content": "Provide a good way for programmer to clean up the resource."
+    },
+    {
+      "heading": "Syntax",
+      "content": "try {\n    //open some resource \n} catch (Exception e) {\n} finally {\n    //clean up the resource\n}\n\nCOMP2045 21 / 43Finally Block - All print Finally Finally Block - All print Finally\ntry {\n    System.out.println( \"Try\");\n    throw new Exception( \"-\");\n} catch (Exception e) {\n    System.out.println( \"Catch\");\n} finally {\n    System.out.println( \"Finally\" );\n}try {\n    System.out.println( \"Try\");\n    return;\n} catch (Exception e) {\n    System.out.println( \"Catch\");\n} finally {\n    System.out.println( \"Finally\" );\n}\ntry {\n    System.out.println( \"Try\");\n} catch (Exception e) {\n    System.out.println( \"Catch\");\n} finally {\n    System.out.println( \"Finally\" );\n}try {\n    System.out.println( \"Try\");\n    throw Exception( \"-\");\n} catch (Exception e) {\n    System.out.println( \"Catch\" + 1 / 0);\n} finally {\n    System.out.println( \"Finally\" );\n}\n\nCOMP2045 22 / 43Different Type of Exceptions Different Type of Exceptions\nNot all exceptions are required to be caught.\nThere are three different categories of exceptions:"
+    },
+    {
+      "heading": "Unchecked Exception",
+      "content": "COMP2045 23 / 43Different Type of Exceptions Different Type of Exceptions"
+    },
+    {
+      "heading": "Checked Exception",
+      "content": "A well-written application must anticipate and recover from\nIf a method would throw a checked exception, the caller must handle it\ne.g. FileReader  throws FileNotFoundException  that must be handled."
+    },
+    {
+      "heading": "Error",
+      "content": "Exceptional conditions that are external to the application"
+    },
+    {
+      "heading": "Not expect to handle it",
+      "content": "e.g. OutOfMemoryError  when there isn't enough memory\nUnchecked Exception (a.k.a. RuntimeException):\nExceptional conditions that are internal to the application\nIndicate programming bugs, logic errors or improper use of API\ne.g. ArrayOutOfBoundException : array[-1] , ArithmeticException : 1/0\n\nCOMP2045 24 / 43Exceptions Hierarchy Exceptions Hierarchy\nimg src: https://sematext.com/blog/java-exceptions/\nCOMP2045 25 / 43Checked Exception Must be Caught Checked Exception Must be Caught\n\nCOMP2045 26 / 43Javadoc of nextInt Javadoc of nextInt"
+    },
+    {
+      "heading": "IllegalStateException",
+      "content": "are all uncheck exceptions."
+    },
+    {
+      "heading": "No need to use try/catch",
+      "content": "when use nextInt()\n\nCOMP2045 Dr. Kevin Wang 2023/2024File I/O File I/O\n\nCOMP2045 28 / 43Reading from Files Reading from Files\nWe use Scanner  to read inputs from console.\nUsing next() , nextInt() , nextDouble()  to read data.\nWe can also use Scanner  to read inputs from files.\nA scanner acts like an adaptor to connect different sources."
+    },
+    {
+      "heading": "COMP2045 29 / 43File Object File Object",
+      "content": "A file in Java is represented by a File Object."
+    },
+    {
+      "heading": "A file object is created by",
+      "content": "File inputFile = new File(\"InputFile.txt\" );\nThe system will try to locate the file from the project folder.\nHaving a File object allows us to read or write a local file through a media of a\nreader or a writer."
+    },
+    {
+      "heading": "COMP2045 30 / 43File Object File Object",
+      "content": "Under linux/unix system directory separator is /\nUnder windows system directory separator is \\\nA file placed under another directory can be reached using linux/unix\nconvention(even on Windows!):\nFile inputFile = new File(\"directory/InputFile.txt\" );\nNote: don't use the character \\! This is an escape character.\n\nCOMP2045 31 / 43Scanner Object Scanner Object"
+    },
+    {
+      "heading": "A scanner can be used in reading a file:",
+      "content": "File inputFile = new File(\"inputfile.txt\" );"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(inputFile);",
+      "content": "The Scanner object reads text from a file instead of System.in .\nWe can use the Scanner methods to read data from the input file\nnextInt() , nextDouble() , next() , nextLine() , etc.\nThe statement Scanner scanner = new Scanner(inputFile);  throws\nFileNotFoundException  which is a checked exception.\n\nCOMP2045 32 / 43Scanner Object Scanner Object\ntry {\n    File inputFile = new File(\"inputFile.txt\" );\n    Scanner scanner = new Scanner(inputFile);\n    String firstLine = scanner.nextLine();\n    System.out.println( \"The first line is: \"  + firstLine);\n    ...\n} catch (Exception e) {\n    System.out.println( \"No such file found.\" );\n} \n..."
+    },
+    {
+      "heading": "The first line is: abc",
+      "content": "The statement s.nextLine()  throws NoSuchElementException  if there is\nnothing left to read.\nUnlike reading user inputs, it does not stall the program and wait for new\ncontent written in the file!\n\nCOMP2045 33 / 43Loop until reaching the end Loop until reaching the end\nWe can use the methods scanner.hasNext()  or scanner.hasNextLine()\nto check if there is another token (or line) in the file for reading.\ntry {\n    File inputFile = new File(\"inputFile.txt\" );\n    Scanner scanner = new Scanner(inputFile);\n    int i = 0;\n    while (scanner.hasNext()) {\n        String token = scanner.next();        \n        System.out.println( (++i) + \":\" + token);\n    }\n    ...\n} catch (Exception e) {\n    System.out.println( \"No such file found.\" );\n}\ninputFile.txt:\nabc def\nhij1:abc\n2:def\n3:hij\n\nCOMP2045 34 / 43Close the opened file scanner. Close the opened file scanner.\nA file is locked when a program is reading it.\nYou need to close the file scanner when you have finished."
+    },
+    {
+      "heading": "Scanner scanner = null;",
+      "content": "try {\n    File inputFile = new File(\"inputFile.txt\" );\n    scanner = new Scanner(inputFile);\n    int i = 0;\n    while (scanner.hasNext()) {\n        String token = scanner.next();\n        System.out.println( (++i) + \":\" + token);\n    }\n} catch (Exception e) {\n    System.out.println( \"No such file found.\" );\n} finally {\n    if (scanner != null)\n        scanner.close();\n}\n\nCOMP2045 36 / 43Replaced by Try-resource block Replaced by Try-resource block\nJava provide a short hand for all closeable resource - a resource that needs to\nbe close after use\nWe call this a Try-resource block, syntax below\nFile inputFile = new File(\"inputFile.txt\" );\ntry (Scanner scanner = new Scanner(inputFile) ) {\n    ...\n} catch (Exception) {\n} //close the scanner automatically\n\nCOMP2045 37 / 43Reading file code 2 Reading file code 2\nFile inputFile = new File(\"inputFile.txt\" );\ntry (Scanner scanner = new Scanner(inputFile)) {\n    \n    int i = 0;\n    while (scanner.hasNext()) {\n        String token = scanner.next();\n        System.out.println( (++i) + \":\" + token);\n    }\n} catch (Exception e) {\n    System.out.println( \"No such file found.\" );\n} \n\nCOMP2045 38 / 43Data on a file Data on a file\nCreate a PrintWriter  object to open a file for writing\nPrintWriter out = new PrintWriter( \"Output.txt\" );\nWrite data to the file by print  or println  method\nout.print( \"Java \");\nout.println( \"Programming\" );\n\nCOMP2045 39 / 43Data on a file Data on a file\nJVM will decide when the data will be written to the file for optimization\nDo flush the content if to force the data to be written to the file\nout.flush();"
+    },
+    {
+      "heading": "Close the PrintWriter  after using it",
+      "content": "out.close();\nThis will overwrite the content of the existing file!\n\nCOMP2045 40 / 43Overwrite Data on a file Overwrite Data on a file\ntry (PrintWriter out = new PrintWriter( \"outputFile.txt\" )) {\n  out.print( \"This \");\n  out.print( \"is \");\n  out.println( \"line 1. \" );\n  out.println( \"and line 2 \" );\n  out.flush();\n} catch (Exception e) {\n  System.out.println( \"Cannot write a file\" );\n}    \n\nCOMP2045 41 / 43Appending Data on a file Appending Data on a file"
+    },
+    {
+      "heading": "Create a FileWriter  object as follows:",
+      "content": "FileWriter writer = new FileWriter( \"outputFile.txt\" , true);\nWriting on this FileWriter will append data in the file.\nConnect it with a PrintWriter  as follows:\nPrintWriter out = new PrintWriter(writer);"
+    },
+    {
+      "heading": "Remember to flush and close",
+      "content": "out.print( \"Hello \" );\nout.print( \"World\");\nout.flush();\nout.close();\nwriter.close();\n\nCOMP2045 42 / 43Appending on a file Appending on a file\ntry (FileWriter writer = new FileWriter( \"outputFile.txt\" , true);\n  PrintWriter out = new PrintWriter(writer)) {\n  out.println( \"appending line\" );  \n  out.flush(); // flush the output as a good practice\n} catch (Exception e) {\n  System.out.println( \"Cannot append on the file\" );\n}\nTwo resources declared in the try-resource block will be close automatically!"
+    }
+  ]
+}

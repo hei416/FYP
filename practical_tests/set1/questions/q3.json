@@ -1,0 +1,146 @@
+{
+    "question": {
+      "id": "q3",
+      "title": "Dynamic Array",
+      "description": "In Java, arrays have fixed sizes. This lesson introduces a custom `DynamicArray` class to allow resizing, adding elements, and recovering hidden elements.",
+      "instructions": [
+        "Implement a constructor `DynamicArray(String[] stringArray)` that copies elements into internal storage.",
+        "Implement `size()` to return the current size.",
+        "Implement `get(int index)` to return the value at index, or `\"-----\"` if out of bounds.",
+        "Implement `add(String s)` to append one string.",
+        "Implement `add(String[] s)` to append all strings.",
+        "Implement `resize(int newSize)` to hide or recover items based on the new size.",
+        "Override `toString()` to print the current size and content."
+      ],
+      "expectedOutput": [
+        "Construct the array",
+        "[7] Today is Saturday How do you do",
+        "",
+        "Add element",
+        "[8] Today is Saturday How do you do ",
+        "",
+        "Get the element at 5: you",
+        "Get the element at -1: -----",
+        "",
+        "Add string array",
+        "[12] Today is Saturday How do you do  Yes it is good",
+        "",
+        "Resize the array to size 5",
+        "[5] Today is Saturday How do you",
+        "",
+        "Get the element at 6: -----",
+        "",
+        "Resize the array to size 10",
+        "[10] Today is Saturday How do you  Yes it"
+      ]
+    },
+    "solution": {
+      "class": "DynamicArray",
+      "methods": {
+        "constructor": [
+          "public DynamicArray(String[] stringArray) {",
+          "    this.data = new ArrayList<>(Arrays.asList(stringArray));",
+          "    this.size = stringArray.length;",
+          "}"
+        ],
+        "size": [
+          "public int size() {",
+          "    return size;",
+          "}"
+        ],
+        "get": [
+          "public String get(int index) {",
+          "    if (index < 0 || index >= size) return \"-----\";",
+          "    return data.get(index);",
+          "}"
+        ],
+        "addOne": [
+          "public void add(String s) {",
+          "    data.add(s);",
+          "    size++;",
+          "}"
+        ],
+        "addArray": [
+          "public void add(String[] s) {",
+          "    data.addAll(Arrays.asList(s));",
+          "    size += s.length;",
+          "}"
+        ],
+        "resize": [
+          "public void resize(int newSize) {",
+          "    if (newSize < size) {",
+          "        size = newSize;",
+          "    } else if (newSize > size) {",
+          "        size = newSize;",
+          "    }",
+          "}"
+        ],
+        "toString": [
+          "public String toString() {",
+          "    StringBuilder sb = new StringBuilder(\"[\" + size + \"] \");",
+          "    for (int i = 0; i < size; i++) sb.append(data.get(i)).append(\" \");",
+          "    return sb.toString().trim();",
+          "}"
+        ],
+        "runApp": [
+          "String[] ordinaryStringArray = {\"Today\", \"is\", \"Saturday\", \"How\", \"do\", \"you\", \"do\"};",
+          "System.out.println(\"Construct the array\");",
+          "DynamicArray d = new DynamicArray(ordinaryStringArray);",
+          "System.out.println(d);",
+          "System.out.println(\"\\nAdd element\");",
+          "d.add(\"\");",
+          "System.out.println(d);",
+          "System.out.println(\"\\nGet the element at 5: \" + d.get(5));",
+          "System.out.println(\"\\nGet the element at -1: \" + d.get(-1));",
+          "System.out.println(\"\\nAdd string array\");",
+          "String[] newString = {\"Yes\", \"it\", \"is\", \"good\"};",
+          "d.add(newString);",
+          "System.out.println(d);",
+          "System.out.println(\"\\nResize the array to size 5\");",
+          "d.resize(5);",
+          "System.out.println(d);",
+          "System.out.println(\"\\nGet the element at 6: \" + d.get(6));",
+          "System.out.println(\"\\nResize the array to size 10\");",
+          "d.resize(10);",
+          "System.out.println(d);"
+        ]
+      }
+    },
+    "baseCode": {
+      "class": "DynamicArray",
+      "methods": {
+        "constructor": "public DynamicArray(String[] stringArray) {}",
+        "size": "public int size() {}",
+        "get": "public String get(int index) {}",
+        "addOne": "public void add(String s) {}",
+        "addArray": "public void add(String[] s) {}",
+        "resize": "public void resize(int newSize) {}",
+        "toString": "public String toString() {}",
+        "runApp": [
+          "public void runApp() {",
+          "    String[] ordinaryStringArray = {\"Today\", \"is\", \"Saturday\", \"How\", \"do\", \"you\", \"do\"};",
+          "    System.out.println(\"Construct the array\");",
+          "    DynamicArray d = new DynamicArray(ordinaryStringArray);",
+          "    System.out.println(d);",
+          "    System.out.println(\"\\nAdd element\");",
+          "    d.add(\"\");",
+          "    System.out.println(d);",
+          "    System.out.println(\"\\nGet the element at 5: \" + d.get(5));",
+          "    System.out.println(\"\\nGet the element at -1: \" + d.get(-1));",
+          "    System.out.println(\"\\nAdd string array\");",
+          "    String[] newString = {\"Yes\", \"it\", \"is\", \"good\"};",
+          "    d.add(newString);",
+          "    System.out.println(d);",
+          "    System.out.println(\"\\nResize the array to size 5\");",
+          "    d.resize(5);",
+          "    System.out.println(d);",
+          "    System.out.println(\"\\nGet the element at 6: \" + d.get(6));",
+          "    System.out.println(\"\\nResize the array to size 10\");",
+          "    d.resize(10);",
+          "    System.out.println(d);",
+          "}"
+        ]
+      }
+    }
+  }
+  

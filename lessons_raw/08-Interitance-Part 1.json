@@ -1,0 +1,254 @@
+{
+  "title": "08-Interitance-Part 1",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "Inheritance - Part 1",
+      "content": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming"
+    },
+    {
+      "heading": "Oh! We also want a few question types",
+      "content": "COMP2046 4 / 58Question Class (v1) Question Class (v1)"
+    },
+    {
+      "heading": "Initial Version of the Question Class",
+      "content": "public class Question  { \n    private String question; \n    private String answer; \n \n    public Question (String question, String answer)  { \n        this.question = question; \n        this.answer = answer; \n    } \n} \nAn initial version of the Question class with only question, answer, and a basic\nconstructor\n\nCOMP2046 5 / 58Question Class Question Class"
+    },
+    {
+      "heading": "Question Class",
+      "content": "public class Question  { \n    private String question; \n    private String answer; \n \n    public Question (String question, String answer)  { \n        this.question = question; \n        this.answer = answer; \n    } \n} \nTask 1: Add a default constructor to Question\nTask 2: Add getter & setter methods for question & answer\nTask 3: Add a display method for displaying the question\nTask 4: Add a chkAnswer method for checking user’s answer\n\nCOMP2046 6 / 58Task 1: Default Constructor Task 1: Default Constructor"
+    },
+    {
+      "heading": "Default Constructor",
+      "content": "public Question () { \n    this(\"\", \"\"); \n} \nDefault constructor calls the original basic constructor\nMore flexible and less likely to introduce bugs\nTo call another constructor, do this: this(...)  with the necessary arguments\n\nCOMP2046 7 / 58Task 2: Helper Methods Task 2: Helper Methods"
+    },
+    {
+      "heading": "Helper Methods",
+      "content": "public String getQuestion () {\n    return question;\n}\npublic String getAnswer () {\n    return answer;\n}public void setQuestion (String question)  {\n    this.question = question;\n}\npublic void setAnswer (String answer)  {\n    this.answer = answer;\n}\nAdd getter & setter methods for question  & answer\n\nCOMP2046 8 / 58Task 3: Task 3: displaydisplay  Method  Method\npublic void display() { \n    System.out.println(question); \n    System.out.println(); \n} \ndisplay  displays the question based on the question type\n\nCOMP2046 9 / 58Task 4: the Task 4: the chkAnswerchkAnswer  Method  Method"
+    },
+    {
+      "heading": "The chkAnswer  method",
+      "content": "public boolean chkAnswer (String userAnswer)  { \n    return answer.compareToIgnoreCase(userAnswer) == 0; \n} \nchkAnswer  makes use of compareToIgnoreCase  which compares two String\nobjects (case ignored) and returns an integer:\nnegative integer – the specified string is greater than this string\nzero – the specified string is equal to this string\npositive integer – the specified string is less than this string\n\nCOMP2046 10 / 58Task 4: the Task 4: the chkAnswerchkAnswer  Method  Method"
+    },
+    {
+      "heading": "The chkAnswer  method",
+      "content": "public boolean chkAnswer (String userAnswer)  { \n    return answer.compareToIgnoreCase(userAnswer) == 0; \n} \nAs a side note, the String  class provides:\nequals method and equalsIgnoreCase method, which only return a boolean\ncompareTo method and compareToIgnoreCase method, which only return an int\n(as explained on the last slide)\nTypically, classes provide compareTo  methods if the objects that have some\nnatural order (that is, objA  is greater than objB )\n\nCOMP2046 11 / 58Question Class Question Class\nNow, our Question  class is basically done"
+    },
+    {
+      "heading": "It has basic information:",
+      "content": "the question\nthe answer"
+    },
+    {
+      "heading": "It has basic functionality:",
+      "content": "displaying the question\nchecking the answer"
+    },
+    {
+      "heading": "Next: Add the Exam  class",
+      "content": "COMP2046 12 / 58Exam Class (v1) Exam Class (v1)"
+    },
+    {
+      "heading": "Initial Version of the Exam class",
+      "content": "public class Exam { \n} \nTask 1: Add questionList  to Exam (ArrayList)"
+    },
+    {
+      "heading": "Task 2: Add addQuestion  to Exam",
+      "content": "Task 3: Add prepare  to Exam , where we add questions to the Exam  through\naddQuestion\nTask 4: Add runIt  to Exam  for running the exam"
+    },
+    {
+      "heading": "Add questionList  to Exam (ArrayList)",
+      "content": "List<Question> questionList = new ArrayList<>();"
+    },
+    {
+      "heading": "ArrayList  works very much like array",
+      "content": "It is a data structure provided by Java for managing a sequence of objects of\nthe same type\nUnlike array, ArrayList  can grow and shrink as needed\nThe more you add to it, the bigger it grows\nAfter removing elements from it, it shrinks\n\nCOMP2046 14 / 58Task 1: Adding Task 1: Adding questionListquestionList"
+    },
+    {
+      "heading": "Add questionList to Exam (ArrayList)",
+      "content": "List<Question> questionList = new ArrayList<>(); \nArrayList takes on a funny syntax, as shown above\nquestionList  is an ArrayList  of Questions\nIt is declares as List<Question> , but initialized as ArrayList<>() . This\nrelates to an OO-programming principle, called coding to interfaces (explained\nlater)\nquestionList.add(...)  appends to an ArrayList\nquestionList.get(...)  gets from an ArrayList\n\nCOMP2046 15 / 58Task 2: Adding Task 2: Adding addQuestionaddQuestion"
+    },
+    {
+      "heading": "Add addQuestion  to Exam",
+      "content": "private void addQuestion (Question question)  { \n    questionList.add(question); \n} \nquestionList.add(question)  adds question to the questionList  - a list\nof questions\nWe will further discuss ArrayList  in our next chapter\n\nCOMP2046 16 / 58Task 3: prepare and Exam Task 3: prepare and Exam"
+    },
+    {
+      "heading": "Add prepare to Exam",
+      "content": "public void prepare() { \n    Question q1 = new Question( \"What is the full name of HKBU?\" ,  \n                               \"Hong Kong Baptist University\" ); \n    Question q2 = new Question( \"CS stands for what?\" ,  \n                               \"Computer Science\" ); \n    Question q3 = new Question( \"Are computers smart?\" ,  \n                               \"No!\"); \n \n    addQuestion(q1); \n    addQuestion(q2); \n    addQuestion(q3); \n} \n\nCOMP2046 17 / 58Task 4: Adding Task 4: Adding runItrunIt"
+    },
+    {
+      "heading": "Loop through all the questions",
+      "content": "Use questionList.get(i)  to get a question\nDisplay the question using question.display()\nPrompt for user's answer (using \"promptForAnswer\")\nCheck user’s answer using question.chkAnswer(...)"
+    },
+    {
+      "heading": "If correct, add one to the score",
+      "content": "After asking all the questions, return the final score to the caller\nIn \"main\", call runIt() . Display the score returned by runIt()\n\nCOMP2046 18 / 58Task 4: Adding runIt Task 4: Adding runIt\nrunIt of Exam\npublic int runIt() { \n    int score = 0; \n \n    for (int i = 0; i < questionList.size(); i++) { \n        Question question = questionList.get(i); \n        question.display(); \n        String answer = promptForAnswer(); \n        if (question.chkAnswer(answer)) { \n           score++; \n        } \n    } \n    return score; \n} \nMay revise the loop to use enhanced-for loop\n\nCOMP2046 19 / 58Task 4: Adding Task 4: Adding runItrunIt\nrunIt of Exam"
+    },
+    {
+      "heading": "String answer = promptForAnswer();",
+      "content": "if (question.chkAnswer(answer)) { \n    score++; \n} \nLine 1 gets the question (index i) from questionList\nNote how we use \"question.display\" to display the question (encapsulation)\nNote how we use \"question.chkAnswer\" to check the answer (encapsulation)\n\nCOMP2046 20 / 58Task 5: Adding Task 5: Adding promptForAnswerpromptForAnswer"
+    },
+    {
+      "heading": "Get input from console",
+      "content": "Remove leading and trailing spaces (use trim)"
+    },
+    {
+      "heading": "Otherwise, return the input to caller",
+      "content": "COMP2046 21 / 58Task 5: Adding Task 5: Adding promptForAnswerpromptForAnswer\npublic String promptForAnswer () { \n   Scanner in = new Scanner(System.in); \n \n   String answer = \"\"; \n   do { \n       System.out.print( \"Your answer? \" ); \n       answer = in.nextLine(); \n       answer = answer.trim(); \n   } while (answer.length() == 0); \n   return answer; \n} \nUsing do-while  loop makes much more sense\n Try it!\n\nCOMP2046 22 / 58Exam Class v2 Exam Class v2"
+    },
+    {
+      "heading": "Prompting user for answer",
+      "content": "Next: add a new class MChoice  (Multiple Choice)\n\nCOMP2046 23 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\nWhen thinking more deeply, Multiple Choice is actually a type of Questions"
+    },
+    {
+      "heading": "Every MChoice question is a Question",
+      "content": "public class MChoice extends Question  { \n    public MChoice(String question)  { \n        super(question, \"\"); \n    } \n} \n\nCOMP2046 24 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\npublic class MChoice extends Question  { \n    public MChoice(String question)  { \n        super(question, \"\"); \n    } \n} \nIn Object-Oriented programming, this is called inheritance..."
+    },
+    {
+      "heading": "MChoice is a subclass",
+      "content": "Question and MChoice form a superclass-subclass relationship\nWith inheritance, every subclass object is superclass object (e.g., Every"
+    },
+    {
+      "heading": "MChoice  question is a Question )",
+      "content": "COMP2046 25 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\npublic class MChoice extends Question  { \n    public MChoice(String question)  { \n        super(question, \"\"); \n    } \n} \nIn Java, inheritance is represented using \"extends\"...\npublic class MChoice extends Question\npublic class SubClass extends SuperClass\nThe super  keyword can be used by the subclass to refer to the superclass\nobject\nOn line 3, super(question, \"\")  would invoke the constructor of the\nsuperclass, i.e. it calls:\npublic Question(String question, String answer)\n\nCOMP2046 26 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\npublic class MChoice extends Question  { \n    public MChoice(String question)  { \n        super(question, \"\"); \n    } \n} \nSince every subclass object is superclass object, a subclass object has all\nmembers of a superclass object\nFor example, every Question  has question , answer , display , chkAnswer ...,\nevery MChoice  would have the same\nWe say that MChoice  inherits members of Question\n\nCOMP2046 27 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\nTo access a member from the superclass, you can do something like:\nsuper.chkAnswer\nHowever, for members of superclass, we have access modifiers...\npublic members – allow ever body to access\nprivate members – nobody can access (not even subclass)\nno modifier (package) – nobody can access except classes from the same package\nprotected members – nobody can access except its subclass, and classes from the\nsame package (explain later)\n\nCOMP2046 28 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\nSubclass does not have direct access to private members\nSuperclass may provide access to its private members through getters or other\nmethods\nSubclass does not directly inherit constructors from superclass (e.g., new\nMChoice(\"question\", \"answer\") is not available)\nSubclass can invoke constructors of the superclass via super(...)\nIf a subclass constructor does not explicitly call a superclass constructor, the\ndefault constructor of the superclass would be called implicitly (error if\nsuperclass does not have a default constructor)\n\nCOMP2046 29 / 58MChoiceMChoice  - Superclass & Subclass  - Superclass & Subclass\npublic class MChoice extends Question  { \n    public MChoice(String question)  { \n        super(question, \"\"); \n    } \n} \nA subclass can add more methods to itself. Let's add the following:\nTask 1: choiceList  (ArrayList for storing choices)\nTask 2: addChoice(String choice, boolean isTheAnswer)"
+    },
+    {
+      "heading": "Task 5: add a few MChoice  to Exam",
+      "content": "COMP2046 30 / 58Task 1: Adding choiceList Task 1: Adding choiceList"
+    },
+    {
+      "heading": "The choiceList Class",
+      "content": "private List<String> choiceList = new ArrayList<>(); \nWe need an ArrayList : for storing the choices for the MChoice\nNote that the choices (that is, elements of the ArrayList  ) are all String\nobjects\n\nCOMP2046 31 / 58Task 2: Adding addChoice (v1) Task 2: Adding addChoice (v1)"
+    },
+    {
+      "heading": "The addChoice Method (v1)",
+      "content": "public void addChoice (String choice, boolean isTheAnswer)  { \n    choiceList.add(choice); \n    if (isTheAnswer) { \n        char theAnswer = ( char) ('A' + choiceList.size()- 1); \n        setAnswer( \"\" + theAnswer); \n    } \n} \nFor the choice, we simply add it to choiceList\nFor the choice is the correct answer, we calculate the choice letter, and store it\nas the answer using super.setAnswer\nAs there is no other setAnswer  in MChoice , we can just skip the super\nkeyword\nNote how a char  is used in calculation and converted back\n\nCOMP2046 32 / 58Task 3: Adding addChoice (v2) Task 3: Adding addChoice (v2)"
+    },
+    {
+      "heading": "The addChoice Method (v2)",
+      "content": "public void addChoice (String choice)  { \n    addChoice(choice, false); \n} \nMost choices are not the answer. Let's create a version of addChoice  method\nwhere isTheAnswer  is default to false\nObject-Oriented Programming is about reusing code (reusability). Let's reuse\nthe previous version of addChoice\nOn line 2, we just call our previous version of addChoice  and overload it\n\nCOMP2046 33 / 58Task 4: Overriding display Task 4: Overriding display\npublic void addChoice (String choice)  { \n    addChoice(choice, false); \n} \npublic void display() { \n    System.out.println(getQuestion()); \n    System.out.println(); \n \n    for (int i = 0; i < choiceList.size(); i++) { \n        char choice = ( char) ('A' + i); \n        System.out.println(choice + \". \" + choiceList.get(i)); \n    } \n    System.out.println(); \n} \nOur superclass, Question , has a display method\nOur subclass, MChoice , also has a display method, same signature"
+    },
+    {
+      "heading": "This is call method overriding",
+      "content": "COMP2046 34 / 58Task 4: Overriding display Task 4: Overriding display"
+    },
+    {
+      "heading": "MChoice  mchoice = new MChoice(...);",
+      "content": "question.display(); // display of Question class is invoked \nmchoice.display();  // display of MChoice class is invoked \nOur superclass, Question , has a display  method\nOur subclass, MChoice , also has a display  method\nThe two methods have the same method signature, which one to invoke?\nCalling display with a Question  object, Question.display  would be invoked\nCalling display with a MChoice  object, MChoice.display would be invoked\n\nCOMP2046 35 / 58Task 5: Add a few Task 5: Add a few MChoiceMChoice  to Exam  to Exam"
+    },
+    {
+      "heading": "Modify Exam.prepare to add a few MChoice",
+      "content": "MChoice mchoice = new MChoice( \"What is the color of the sky?\" ); \nmchoice.addChoice( \"Red\"); \nmchoice.addChoice( \"Green\"); \nmchoice.addChoice( \"Blue\", true); \naddQuestion(mchoice); \nTry adding a few MChoice  to Exam  (in the prepare method)\nOn line 5, we use addQuestion(mchoice) . But addQuestion  expects"
+    },
+    {
+      "heading": "Question , not MChoice !",
+      "content": "MChoice  is acceptable as every MChoice  object is a Question  object!"
+    },
+    {
+      "heading": "Try it!",
+      "content": "COMP2046 36 / 58TrueFalse Class TrueFalse Class"
+    },
+    {
+      "heading": "Initial Version of the TrueFalse class",
+      "content": "public class TrueFalse  extends Question  { \n    public TrueFalse (String question, boolean ans) { \n        super(question, \"\" + ans); \n    } \n}"
+    },
+    {
+      "heading": "Again, TrueFalse  a subclass of Question",
+      "content": "Note how constructor of TrueFalse handles the answer, ans  (turning the\nboolean value into a String)"
+    },
+    {
+      "heading": "Work out this on your own!",
+      "content": "COMP2046 37 / 58TrueFalse Class TrueFalse Class"
+    },
+    {
+      "heading": "Initial Version of the TrueFalse  class",
+      "content": "public class TrueFalse  extends Question  { \n    public TrueFalse (String question, boolean ans) { \n        super(question, \"\" + ans); \n    } \n}"
+    },
+    {
+      "heading": "Task 1: Add chkAnswer  to TrueFalse",
+      "content": "Task 2: Add a few TrueFalse questions to Exam (via prepare)\n\nCOMP2046 38 / 58TrueFalse Class TrueFalse Class"
+    },
+    {
+      "heading": "The chkAnswer Method TrueFalse",
+      "content": "public boolean chkAnswer (String userAnswer)  { \n    if (getAnswer().compareTo( \"true\") == 0) { \n        return userAnswer.compareToIgnoreCase( \"t\")     == 0 || \n               userAnswer.compareToIgnoreCase( \"true\")  == 0; \n    } else { \n        return userAnswer.compareToIgnoreCase( \"f\")     == 0 || \n               userAnswer.compareToIgnoreCase( \"false\") == 0; \n    } \n} \nNote how TrueFalse checks answers received from users\nIn the subclass, we can perform very specific actions, tailor made for the\nsubclass itself\n\nCOMP2046 39 / 58Task 2: Add a few TrueFalse to Exam Task 2: Add a few TrueFalse to Exam\nModify Exam.prepare to add a few TrueFalse\nTrueFalse tf1 = new TrueFalse( \"Kevin is kind to everyone.\" , true);\nTrueFalse tf12= new TrueFalse( \"Assignment 1 is easy for everyone\" , false);\naddQuestion(tf1);\naddQuestion(tf2);\nTry adding a few TrueFalse to Exam (in the prepare method)\n\nCOMP2046 40 / 58Cars, cArs, cARs, CaRs, cARS... Cars, cArs, cARs, CaRs, cARS..."
+    },
+    {
+      "heading": "In this world, there are many cars",
+      "content": "Suppose we don’t just want to talk about cars in general, but something more\nspecific:"
+    },
+    {
+      "heading": "A mini van to drive your family around",
+      "content": "A sport car to drive your girlfriend in style\nA humble little vehicle to drive around town\n\nCOMP2046 41 / 58Similarities and Differences Similarities and Differences\nWhat do these three automobiles have in common?\nthey’re all vehicles!\nall can move\nall have an engine\nall have doors\nall have one driver\nall hold a number of passengers\n\nCOMP2046 42 / 58Similarities and Differences Similarities and Differences\nWhat about these three vehicles is different?\nthe sportscar: convertible top, 2 doors, moves really fast, holds small number of\npeople\nthe van: high top, 4 doors (two of which slide open), moves at moderate speed,\nholds large number of people\nthe CSMobile: normal top, 4 doors, moves slowly, holds moderate number of people"
+    },
+    {
+      "heading": "Inheritance models \"is-a\" relationships",
+      "content": "object “is an” other object if it can behave in the same way\ninheritance uses similarities and differences to model groups of related objects\nWhere there's inheritance, there's an Inheritance Hierarchy of classes"
+    },
+    {
+      "heading": "Cat is a Mammal",
+      "content": "Transitive relationship: a Cat is an Animal too"
+    },
+    {
+      "heading": "We can say:",
+      "content": "Reptile, Mammal and Fish \"inherit from\" Animal"
+    },
+    {
+      "heading": "Dog, Cat, and Moose \"inherit from\" Mammal",
+      "content": "COMP2046 45 / 58Inheritance, Even with Vehicles! Inheritance, Even with Vehicles!"
+    },
+    {
+      "heading": "What does this have to do with",
+      "content": "vehicles?\na SportsCar “is-a” Vehicle\na CSMobile “is-a” Vehicle\nyou get the picture??"
+    },
+    {
+      "heading": "We call this a tree diagram, with",
+      "content": "Vehicle as the “root” and SportsCar, CSMobile, Van as “leaves” (an upside- down tree)\nLet’s discuss some important facts about inheritance...\n\nCOMP2046 46 / 58Superclasses and Subclasses Superclasses and Subclasses"
+    },
+    {
+      "heading": "Inheritance is a way of:",
+      "content": "organizing information\ngrouping similar classes\nmodeling similarities among classes\ncreating a taxonomy (classification) of objects\nSuperclasses – classes higher up in the inheritance hierarchy (e.g., Animal,"
+    },
+    {
+      "heading": "Mammal)",
+      "content": "Subclass – classes lower in the inheritance hierarchy (e.g., Reptile, Fish, Dog,"
+    },
+    {
+      "heading": "Cat, Moose, and even Mammal, ...)",
+      "content": "COMP2046 47 / 58Superclasses and Subclasses Superclasses and Subclasses"
+    },
+    {
+      "heading": "Animal is called superclass",
+      "content": "a.k.a. base class or parent class\nin our example, Vehicle is a superclass"
+    },
+    {
+      "heading": "Fish is called subclass",
+      "content": "a.k.a. derived class or child class\nin our example, SportsCar is subclass\nA class can be both a superclass & a subclass at the same time\ne.g., Mammal is superclass of Moose and subclass of Animal\nCan inherit from only one superclass in Java\nSome programming languages allows a subclass to inherit from multiple\nsuperclasses\n\nCOMP2046 48 / 58Inheriting Methods Inheriting Methods\nSubclass inherits all public methods of its superclass\nif Animals eat and sleep, then Reptiles, Mammals, and Fish eat and sleep\nif Vehicles move, then SportsCars move!"
+    },
+    {
+      "heading": "Subclass specializes its superclass",
+      "content": "by adding new methods, overriding existing methods, and defining “abstract”\nmethods declared by parent that have no code in them\nwe’ll see these in a few slides!\nSuperclass factors out methods common among its subclasses\nsubclasses are defined by their differences from their superclass\nSubclass does not inherit private methods of its superclass\n\nCOMP2046 49 / 58Inheriting Properties Inheriting Properties\nSubclass inherits all public properties (that is, variables) of its superclass, and\nhas direct access to them\nSubclass inherits all private properties of its superclass, but has no direct\naccess to them (needs to go through getter/setter)"
+    },
+    {
+      "heading": "Subclass specializes its superclass",
+      "content": "by adding new properties, and overriding existing properties\nwe’ll see these in a few slides!\nSuperclass factors out properties common among its subclasses\n\nCOMP2046 50 / 58Inheriting Capabilities and Properties Inheriting Capabilities and Properties"
+    },
+    {
+      "heading": "As a general pattern, subclasses:",
+      "content": "inherit public capabilities (class/instance methods)\ninherit public properties (class/instance variables)\nhave direct access to them\ninherit private properties (class/instance variables)\ndo not have direct access to them\nonly indirect access via inherited superclass methods that make use of them\nfor example, accessing them via getter/setter\n\nCOMP2046 51 / 58Inheritance Example Inheritance Example"
+    },
+    {
+      "heading": "CSStudent is subclass of CollegeStudent",
+      "content": "COMP2046 52 / 58Inheritance Example Inheritance Example\nStudent has a capability (or method) study()  which\nworks by going home, opening a book, and reading 50\npages.\nCollegeStudent “is a” Student, so it inherits the study()\nmethod, but it overrides the method by:\ngoing to the library, reviewing lectures, and doing an\nassignment\nnote: overriding a method is optional, depending on the\ndesign/situation\nFinally, the CSStudent also knows how to study()  (it study()  the same way a\nCollegeStudent does), however, it adds two capabilities\ncoding() and debugging()\n\nCOMP2046 53 / 58Inheritance Example Inheritance Example\nEach subclass is a specialization of its superclass\nStudent knows how to study(), so all subclasses in hierarchy know how to\nstudy()\nbut the CollegeStudent does not study() the same way a Student does\nand the CSStudent has some capabilities that neither Student nor CollegeStudent\nhave (coding() and debugging())\n\nCOMP2046 54 / 58Variables Declared as Superclass Variables Declared as Superclass\nA variable declared with the type of a superclass can be used for referring to\nobject instances of its subclass\nE.g., a variable declared as Animal can be used for referring to a Dog, a Cat, or\na Lion\nE.g., a variable declared as Cat can be used for referring to a Lion\n\nCOMP2046 55 / 58Variables Declared as Superclass Variables Declared as Superclass\nA variable declared with the type of a superclass can only perform methods\navailable in the superclass\nE.g., a variable declared as Animal, instantiated as..."
+    },
+    {
+      "heading": "Dog can only eat and sleep like an Animal",
+      "content": "Cat or Lion can only eat (like a Cat) and sleep (like an Animal)\nE.g., a variable declared as Cat, instantiated as a Lion can only eat (like a Cat),\nsleep (like an Animal) and catchingShadow (like a Cat)\n\nCOMP2046 56 / 58Variables Declared as Subclass Variables Declared as Subclass\nA variable declared with the type of a subclass cannot be used for referring to\nobject instances of its superclass\nE.g., a variable declared as Dog or Cat or Lion cannot be used for referring to\nan Animal\nE.g., a variable declared as Lion cannot be used for referring to a Cat\n\n57 / 58Variables Declared as Subclass/Superclass Variables Declared as Subclass/Superclass"
+    },
+    {
+      "heading": "Lion lion = new Lion();",
+      "content": "void method1(Animal animal)  {...} \nvoid method2(Cat cat)  {...} \nvoid method3(Dog dog)  {...}  \nvoid method4(Lion lion)  {...}"
+    },
+    {
+      "heading": "Code Error/No Error",
+      "content": "animal = cat OK\ncat = dog; ERROR!!!\nlion = cat ERROR!!!\ncat = lion; OK\ndog = animal;ERROR!!!Code Error/No Error\nmethod1(cat) OK\nmethod4(dog)ERROR!!\nmethod1(lion)OK\nmethod4(cat) ERROR!!\nmethod4(lion)OK\n\nCOMP2046 58 / 58Object Construction Object Construction\npublic class Animal { \n  public Animal() { \n    System.out.print( \"Hello Animal...\" ); \n  } \n} \n \npublic class Cat extends Animal { \n} \npublic class Dog extends Animal { \n  public Dog() { \n    System.out.print( \"Dog barking...\" ); \n  } \n} Cat cat = new Cat();"
+    }
+  ]
+}
