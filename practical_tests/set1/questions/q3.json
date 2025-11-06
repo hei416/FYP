@@ -1,144 +1,126 @@
 {
     "question": {
-      "id": "q3",
-      "title": "Dynamic Array",
-      "description": "In Java, arrays have fixed sizes. This lesson introduces a custom `DynamicArray` class to allow resizing, adding elements, and recovering hidden elements.",
+      "title": "Clock",
+      "description": "In this question you are required to create a class called Clock and save it inside Clock.java. A clock should have two digits for hour (00 to 23), two digits for minute (00 to 59), and two digits for second (00 to 59). When a clock runs, the method runs() will be called along with the parameter stating the positive number of seconds has passed. When the clock is printed, it outputs the time in a specific format, e.g.,\n\n16:33:25\n06:13:03\n\nYou can tune a clock in two ways. The first way is to state the exact hour, minute, and second using the method setTime(). The other way is to tune by another clock (copy the time from the other clock), which is achieved by calling the overloaded method setTime().\n\nIn this class, all fields must be private. You should also best encapsulate your class without exposing any unnecessary public methods.",
       "instructions": [
-        "Implement a constructor `DynamicArray(String[] stringArray)` that copies elements into internal storage.",
-        "Implement `size()` to return the current size.",
-        "Implement `get(int index)` to return the value at index, or `\"-----\"` if out of bounds.",
-        "Implement `add(String s)` to append one string.",
-        "Implement `add(String[] s)` to append all strings.",
-        "Implement `resize(int newSize)` to hide or recover items based on the new size.",
-        "Override `toString()` to print the current size and content."
+        "Create a class named Clock.",
+        "Implement private fields for hour, minute, and second.",
+        "Implement setTime(int hour, int minute, int second) to set the time.",
+        "Implement setTime(Clock otherClock) to copy the time from another clock.",
+        "Implement runs(int seconds) to simulate the passage of time.",
+        "Override toString() to return time in HH:mm:ss format.",
+        "Ensure invalid times are handled with the message 'Invalid time'."
+      ],
+      "examples": [
+        {
+          "description": "Example of setting and running the clock",
+          "input": [
+            "Clock c = new Clock();",
+            "c.setTime(14, 44, 58);",
+            "System.out.println(c);",
+            "c.runs(2);",
+            "System.out.println(c);"
+          ],
+          "output": [
+            "14:44:58",
+            "14:45:00"
+          ]
+        },
+        {
+          "description": "Example of invalid time",
+          "input": [
+            "Clock c = new Clock();",
+            "c.setTime(25, 10, 10);",
+            "System.out.println(c);"
+          ],
+          "output": [
+            "Invalid time"
+          ]
+        }
       ],
       "expectedOutput": [
-        "Construct the array",
-        "[7] Today is Saturday How do you do",
-        "",
-        "Add element",
-        "[8] Today is Saturday How do you do ",
-        "",
-        "Get the element at 5: you",
-        "Get the element at -1: -----",
-        "",
-        "Add string array",
-        "[12] Today is Saturday How do you do  Yes it is good",
-        "",
-        "Resize the array to size 5",
-        "[5] Today is Saturday How do you",
-        "",
-        "Get the element at 6: -----",
-        "",
-        "Resize the array to size 10",
-        "[10] Today is Saturday How do you  Yes it"
+        "Invalid time",
+        "Time for the clock:\t14:44:58",
+        "Time for the clock after 1 sec:\t14:44:59",
+        "Time for the clock after another 100 sec:\t14:46:39",
+        "Time for first clock:\t14:46:40",
+        "Time for second clock:\t14:46:39"
       ]
     },
     "solution": {
-      "class": "DynamicArray",
+      "class": "Clock",
       "methods": {
-        "constructor": [
-          "public DynamicArray(String[] stringArray) {",
-          "    this.data = new ArrayList<>(Arrays.asList(stringArray));",
-          "    this.size = stringArray.length;",
+        "setTime(int, int, int)": [
+          "if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {",
+          "    this.hour = this.minute = this.second = -1;",
+          "} else {",
+          "    this.hour = hour;",
+          "    this.minute = minute;",
+          "    this.second = second;",
           "}"
         ],
-        "size": [
-          "public int size() {",
-          "    return size;",
+        "setTime(Clock)": [
+          "if (otherClock != null) {",
+          "    this.hour = otherClock.hour;",
+          "    this.minute = otherClock.minute;",
+          "    this.second = otherClock.second;",
           "}"
         ],
-        "get": [
-          "public String get(int index) {",
-          "    if (index < 0 || index >= size) return \"-----\";",
-          "    return data.get(index);",
-          "}"
-        ],
-        "addOne": [
-          "public void add(String s) {",
-          "    data.add(s);",
-          "    size++;",
-          "}"
-        ],
-        "addArray": [
-          "public void add(String[] s) {",
-          "    data.addAll(Arrays.asList(s));",
-          "    size += s.length;",
-          "}"
-        ],
-        "resize": [
-          "public void resize(int newSize) {",
-          "    if (newSize < size) {",
-          "        size = newSize;",
-          "    } else if (newSize > size) {",
-          "        size = newSize;",
-          "    }",
-          "}"
+        "runs": [
+          "if (hour == -1) return;",
+          "int total = hour * 3600 + minute * 60 + second + seconds;",
+          "total %= 24 * 3600;",
+          "this.hour = total / 3600;",
+          "total %= 3600;",
+          "this.minute = total / 60;",
+          "this.second = total % 60;"
         ],
         "toString": [
-          "public String toString() {",
-          "    StringBuilder sb = new StringBuilder(\"[\" + size + \"] \");",
-          "    for (int i = 0; i < size; i++) sb.append(data.get(i)).append(\" \");",
-          "    return sb.toString().trim();",
-          "}"
+          "if (hour == -1) return \"Invalid time\";",
+          "return String.format(\"%02d:%02d:%02d\", hour, minute, second);"
         ],
         "runApp": [
-          "String[] ordinaryStringArray = {\"Today\", \"is\", \"Saturday\", \"How\", \"do\", \"you\", \"do\"};",
-          "System.out.println(\"Construct the array\");",
-          "DynamicArray d = new DynamicArray(ordinaryStringArray);",
-          "System.out.println(d);",
-          "System.out.println(\"\\nAdd element\");",
-          "d.add(\"\");",
-          "System.out.println(d);",
-          "System.out.println(\"\\nGet the element at 5: \" + d.get(5));",
-          "System.out.println(\"\\nGet the element at -1: \" + d.get(-1));",
-          "System.out.println(\"\\nAdd string array\");",
-          "String[] newString = {\"Yes\", \"it\", \"is\", \"good\"};",
-          "d.add(newString);",
-          "System.out.println(d);",
-          "System.out.println(\"\\nResize the array to size 5\");",
-          "d.resize(5);",
-          "System.out.println(d);",
-          "System.out.println(\"\\nGet the element at 6: \" + d.get(6));",
-          "System.out.println(\"\\nResize the array to size 10\");",
-          "d.resize(10);",
-          "System.out.println(d);"
+          "Clock c = new Clock();",
+          "c.setTime(24, 44, 40);",
+          "System.out.println(c);",
+          "c.setTime(14, 44, 58);",
+          "System.out.println(\"Time for the clock:\\t\" + c);",
+          "c.runs(1);",
+          "System.out.println(\"Time for the clock after 1 sec:\\t\" + c);",
+          "c.runs(100);",
+          "System.out.println(\"Time for the clock after another 100 sec:\\t\" + c);",
+          "Clock c2 = new Clock();",
+          "c2.setTime(c);",
+          "c.runs(1);",
+          "System.out.println(\"Time for first clock:\\t\" + c);",
+          "System.out.println(\"Time for second clock:\\t\" + c2);"
         ]
       }
     },
     "baseCode": {
-      "class": "DynamicArray",
+      "class": "Clock",
       "methods": {
-        "constructor": "public DynamicArray(String[] stringArray) {}",
-        "size": "public int size() {}",
-        "get": "public String get(int index) {}",
-        "addOne": "public void add(String s) {}",
-        "addArray": "public void add(String[] s) {}",
-        "resize": "public void resize(int newSize) {}",
+        "setTime": "public void setTime(int hour, int minute, int second) {}",
+        "setTimeOverloaded": "public void setTime(Clock otherClock) {}",
+        "runs": "public void runs(int seconds) {}",
         "toString": "public String toString() {}",
         "runApp": [
           "public void runApp() {",
-          "    String[] ordinaryStringArray = {\"Today\", \"is\", \"Saturday\", \"How\", \"do\", \"you\", \"do\"};",
-          "    System.out.println(\"Construct the array\");",
-          "    DynamicArray d = new DynamicArray(ordinaryStringArray);",
-          "    System.out.println(d);",
-          "    System.out.println(\"\\nAdd element\");",
-          "    d.add(\"\");",
-          "    System.out.println(d);",
-          "    System.out.println(\"\\nGet the element at 5: \" + d.get(5));",
-          "    System.out.println(\"\\nGet the element at -1: \" + d.get(-1));",
-          "    System.out.println(\"\\nAdd string array\");",
-          "    String[] newString = {\"Yes\", \"it\", \"is\", \"good\"};",
-          "    d.add(newString);",
-          "    System.out.println(d);",
-          "    System.out.println(\"\\nResize the array to size 5\");",
-          "    d.resize(5);",
-          "    System.out.println(d);",
-          "    System.out.println(\"\\nGet the element at 6: \" + d.get(6));",
-          "    System.out.println(\"\\nResize the array to size 10\");",
-          "    d.resize(10);",
-          "    System.out.println(d);",
-          "}"
+          "\nClock c = new Clock();",
+          "\nc.setTime(24, 44, 40);",
+          "\nSystem.out.println(c);",
+          "\nc.setTime(14, 44, 58);",
+          "\nSystem.out.println(\"Time for the clock:\\t\" + c);",
+          "\nc.runs(1);",
+          "\nSystem.out.println(\"Time for the clock after 1 sec:\\t\" + c);",
+          "\nc.runs(100);",
+          "\nSystem.out.println(\"Time for the clock after another 100 sec:\\t\" + c);",
+          "\nClock c2 = new Clock();",
+          "\nc2.setTime(c);",
+          "\nc.runs(1);",
+          "\nSystem.out.println(\"Time for first clock:\\t\" + c);",
+          "\nSystem.out.println(\"Time for second clock:\\t\" + c2);",
+          "\n}"
         ]
       }
     }

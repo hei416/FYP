@@ -1,11 +1,11 @@
-import requests
+from apscheduler.schedulers.background import BackgroundScheduler
 
-url = "http://localhost:8001/explain"
-data = {
-    "user_input": "Explain NullPointerException in Java.",
-    "code_snippet": "",
-    "history": []
-}
+def test_job():
+    print("Test job executed!")
 
-response = requests.post(url, json=data)
-print(response.json())
+scheduler = BackgroundScheduler()
+scheduler.add_job(test_job, 'interval', seconds=5)
+scheduler.start()
+
+import time
+time.sleep(10)  # Keep the script running to observe the scheduler
