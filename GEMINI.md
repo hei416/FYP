@@ -55,7 +55,7 @@ The backend utilizes a PostgreSQL database primarily for caching RAG pipeline re
     ```bash
     npm start
     ```
-    The frontend will be available at `http://localhost:3000` and will automatically connect to the backend API.
+    The frontend will be available at `http://localhost:3001` and will automatically connect to the backend API.
 
 ## Development Conventions
 

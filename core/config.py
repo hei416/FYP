@@ -1,7 +1,7 @@
 import os
 
 # Configuration
-API_KEY = "aa1fd2a0-3cc8-4b6e-9491-e9602d0a2d30" # Hardcoded for testing
+API_KEY = os.getenv("GENAI_API_key")
 PAIZA_API_KEY = os.getenv("PAIZA_API_KEY", "guest")
 LESSON_DIR = "/Users/hei/IdeaProjects/fyp/lessons_raw"
 PDF_DIR = "/Users/hei/IdeaProjects/fyp/frontend/Lecture Notes-20250622"
@@ -19,12 +19,14 @@ MODEL_API_VERSIONS = {
     "gpt-4.1-mini": "2024-12-01-preview",
     "o1": "2024-12-01-preview",
     "o3-mini": "2024-12-01-preview",
+    "text-embedding-3-large": "2024-05-01-preview",
 }
 
 MODEL_ENDPOINTS = {
     "gpt": "/chat/completions",
     "gemini": "/generate_content",
     "deepseek": "/chat/completions",
+    "embedding": "/embeddings",
 }
 
 # Prompt templates

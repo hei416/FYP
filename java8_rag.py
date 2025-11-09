@@ -1,13 +1,11 @@
-import requests
-import requests.exceptions
 from bs4 import BeautifulSoup
+from services.model_service import call_model
 import re
 import json
 import sqlite3
 import time 
 from datetime import datetime
-from sentence_transformers import SentenceTransformer
-import numpy as np
+from services.model_service import call_embedding_model
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -388,22 +386,16 @@ def retry_on_exception(retries=3, delay=5, backoff_factor=2):
     return decorator
 
 @retry_on_exception(retries=5, delay=10, backoff_factor=2)
-def call_deepseek(prompt: str, model: str = "deepseek-r1") -> str:
-    """Call DeepSeek API for text generation"""
+def call_deepseek(prompt: str, model: str = "deepseek") -> str:
+    """Call DeepSeek API for text generation using the centralized model service"""
+    messages = [{"role": "user", "content": prompt}]
     try:
-        response = scraper.post(
-            "http://localhost:8001/api/generate",
-            json={"model": model, "prompt": prompt, "stream": False},
-            timeout=700  # Increased timeout for DeepSeek
-        )
-        response.raise_for_status()  # Raise an exception for bad status codes
-        return response.json().get("response", "").strip()
-    except requests.exceptions.RequestException as e:
-        # This exception will now be caught by the retry_on_exception decorator
-        # If all retries fail, the decorator will re-raise a RequestException
-        raise e
+        response = call_model(model, messages)
+        if "Model API error" in response:
+            raise Exception(response)
+        return response
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"An unexpected error occurred during DeepSeek call: {e}")
         return "Sorry, an unexpected error occurred while connecting to my knowledge source."
 
 

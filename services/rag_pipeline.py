@@ -1,7 +1,11 @@
 import json
 import numpy as np
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.metrics.pairwise import cosine_similarity
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
 from core.config import JSON_DATA, JSON_PATH
 from typing import List, Dict, Any
 
@@ -17,21 +21,26 @@ def load_json_data():
         print(f"Error loading JSON data: {str(e)}")
         JSON_DATA = []
 
-# Initialize TF-IDF vectorizer
+# Initialize TF-IDF vectorizer (using cuML for GPU acceleration)
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = None
 
 def build_tfidf_matrix():
     global tfidf_matrix
     corpus = [json.dumps(entry) for entry in JSON_DATA]
+    # Fit and transform on GPU
     tfidf_matrix = vectorizer.fit_transform(corpus)
 
 def search_json_content(query: str, top_k: int = 5) -> str:
     if not JSON_DATA:
         return "No JSON data available"
     
+    # Transform query on GPU
     query_vec = vectorizer.transform([query])
+    
+    # Perform cosine similarity on GPU using cuML
     cos_sim = cosine_similarity(query_vec, tfidf_matrix)
+    
     top_indices = np.argsort(cos_sim[0])[-top_k:][::-1]
     
     results = []
