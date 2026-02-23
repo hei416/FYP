@@ -118,7 +118,7 @@
       "*..",
       "-----",
       "Is puzzle 1 and puzzle 2 the same? true",
-      "Is puzzle 1 and puzzle 2 the same? false",
+      "Is puzzle 1 and puzzle 3 the same? false",
       "The puzzle should not be rotated or modified after the methods",
       "**.",
       ".**",

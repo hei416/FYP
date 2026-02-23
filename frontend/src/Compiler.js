@@ -33,6 +33,25 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     }, [files, activeFileId, setCode]);
 
+    // Listen for demo tour code fill — replace files directly (bypasses files.length guard)
+    useEffect(() => {
+        const handleDemoFill = (event) => {
+            if (event.detail && event.detail.code) {
+                const newCode = event.detail.code;
+                const extractedClassName = extractClassName(newCode);
+                const demoFile = {
+                    id: uuidv4(),
+                    filename: `${extractedClassName}.java`,
+                    content: newCode,
+                };
+                setFiles([demoFile]);
+                setActiveFileId(demoFile.id);
+            }
+        };
+        window.addEventListener('demo-fill-code', handleDemoFill);
+        return () => window.removeEventListener('demo-fill-code', handleDemoFill);
+    }, []);
+
     const extractClassName = (code) => {
         const match = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
         return match ? match[1] : 'Main';

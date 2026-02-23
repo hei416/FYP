@@ -28,55 +28,111 @@ def evaluate(req: CodeRequest):
     if not user_code:
         raise HTTPException(status_code=400, detail="No code provided for base class.")
 
-    # Generate runApp() method from solution lines
-    run_app_lines = question_data["solution"].get("runApp", [])
-    run_app_method = (
-        "public void runApp() {\n"
-        + "\n".join(f"    {line}" for line in run_app_lines)
-        + "\n}")
+    # Extract ONLY the class declaration and method signatures
+    # This is more aggressive - rebuild the class from scratch with only valid methods
+    
+    # Find the class name
+    class_match = re.search(r'public\s+class\s+(\w+)', user_code)
+    if not class_match:
+        raise HTTPException(status_code=400, detail="No valid class declaration found.")
+    
+    class_name = class_match.group(1)
+    
+    # Extract all complete method definitions (with opening and closing braces)
+    # This regex finds methods that have proper structure
+    method_pattern = r'(public|private|protected)?\s+(static\s+)?([\w<>\[\]]+)\s+(\w+)\s*\([^)]*\)\s*\{(?:[^{}]|\{[^{}]*\})*\}'
+    
+    methods = re.findall(method_pattern, user_code, re.DOTALL)
+    
+    # Filter out main and runApp methods
+    valid_methods = []
+    for method_match in re.finditer(method_pattern, user_code, re.DOTALL):
+        method_code = method_match.group(0)
+        # Skip if it's main or runApp
+        if 'void main' in method_code or 'void runApp' in method_code:
+            continue
+        valid_methods.append(method_code)
+    
+    # Build clean class body with only valid methods
+    class_body = "\n\n    ".join(valid_methods)
+    
+    # Generate runApp method from solution
+    run_app_lines = question_data["solution"]["methods"].get("runApp", [])
+    
+    if isinstance(run_app_lines, str):
+        run_app_lines = [run_app_lines]
+    
+    run_app_method_lines = ["    public void runApp() {"]
+    for line in run_app_lines:
+        clean_line = line.strip()
+        if clean_line:
+            run_app_method_lines.append(f"        {clean_line}")
+    run_app_method_lines.append("    }")
+    
+    run_app_method = "\n".join(run_app_method_lines)
 
-    # Extract content inside the user's class definition
-    class_body_match = re.search(r'public\s+class\s+\w+\s*\{(.*)\}', user_code, re.DOTALL)
-    user_code_body = class_body_match.group(1).strip() if class_body_match else user_code
+    # Construct clean class
+    full_class = f"""class {class_name} {{
+    {class_body}
 
-    # Remove any existing runApp method
-    user_code_body = re.sub(r'public\s+void\s+runApp\s*\(\s*\)\s*\{.*?\}', '', user_code_body, flags=re.DOTALL)
+{run_app_method}
+}}
 
-    # Construct classes
-    user_class_code = f"class {base_class_name} {{ {user_code_body}\n\n{run_app_method}\n}}"
-    main_class_code = f"public class Main {{    public static void main(String[] args) {{        new {base_class_name}().runApp();    }}}}"
-    full_source = user_class_code + "\n\n" + main_class_code
+public class Main {{
+    public static void main(String[] args) {{
+        new {class_name}().runApp();
+    }}
+}}"""
+
+    print("=" * 80)
+    print("GENERATED CODE:")
+    print("=" * 80)
+    print(full_class)
+    print("=" * 80)
 
     # Submit to Paiza API
     try:
         response = requests.post(
             "https://api.paiza.io/runners/create",
-            data={"source_code": full_source, "language": "java", "api_key": PAIZA_API_KEY},
+            data={"source_code": full_class, "language": "java", "api_key": PAIZA_API_KEY},
             timeout=10
         )
         run_id = response.json().get("id")
         
         if not run_id:
-            return {"output": "Failed to start runner."}
+            return {"success": False, "output": "", "error": "Failed to start runner."}
 
-        # Wait for completion
         start_time = datetime.now()
-        while (datetime.now() - start_time).seconds < 30:  # 30s timeout
+        while (datetime.now() - start_time).seconds < 30:
             result = requests.get(
                 "https://api.paiza.io/runners/get_details",
                 params={"id": run_id, "api_key": PAIZA_API_KEY}
             ).json()
             
             if result.get("status") == "completed":
+                stdout = (result.get("stdout") or "").strip()
+                stderr = (result.get("stderr") or "").strip()
+                build_stderr = (result.get("build_stderr") or "").strip()
+                
+                if build_stderr or stderr:
+                    return {
+                        "success": False,
+                        "output": "",
+                        "error": build_stderr or stderr
+                    }
+                
                 return {
-                    "output": result.get("stdout", "") or 
-                             result.get("stderr", "") or 
-                             result.get("build_stderr", "")
+                    "success": True,
+                    "output": stdout,
+                    "error": ""
                 }
         
-        return {"output": "Evaluation timed out"}
+        return {"success": False, "output": "", "error": "Evaluation timed out"}
     except Exception as e:
-        return {"output": f"Evaluation error: {str(e)}"}
+        return {"success": False, "output": "", "error": f"Evaluation error: {str(e)}"}
+
+
+
 
 @router.get("/questions")
 def list_questions():
