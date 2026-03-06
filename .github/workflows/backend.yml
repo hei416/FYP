@@ -29,7 +29,20 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # ── Package only backend files ───────────────────────────────
+      # ── Install Python deps into .python_packages (Azure auto-detects) ──
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies into bundle
+        run: |
+          pip install -r requirements.txt \
+            --target=.python_packages/lib/site-packages \
+            --no-cache-dir \
+            --quiet
+
+      # ── Package backend + pre-installed packages ─────────────────
       - name: Create deployment zip
         run: |
           zip -r deploy.zip . \
@@ -44,11 +57,18 @@ jobs:
             --exclude ".idea/*" \
             --exclude ".vscode/*" \
             --exclude ".VSCodeCounter/*" \
-            --exclude "deploy.zip" \
             --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      # ── Deploy via Azure CLI (works reliably on Linux App Service) 
+      # ── Disable Oryx (packages already installed) ─────────────────
+      - name: Disable Oryx build
+        run: |
+          az webapp config appsettings set \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
+
+      # ── Deploy via Azure CLI ──────────────────────────────────────
       - name: Deploy to Azure Web App
         run: |
           az webapp deploy \
