@@ -24,6 +24,7 @@ function shuffleArray(array) {
 
 export default function Quiz() {
     const selectedType = "multiple_choice";
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userAnswers, setUserAnswers] = useState({});
     const [feedback, setFeedback] = useState(null);
@@ -81,7 +82,7 @@ export default function Quiz() {
 
             setLastTopics(topicsToUse);
 
-            const res = await fetch("http://localhost:8000/api/quizzes/generate", {
+            const res = await fetch(`${API_BASE}/api/quizzes/generate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -135,7 +136,7 @@ export default function Quiz() {
         setShowTopicSelect(false);
 
         try {
-            const res = await fetch("http://localhost:8000/api/quizzes/more", {
+            const res = await fetch(`${API_BASE}/api/quizzes/more`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

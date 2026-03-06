@@ -6,12 +6,16 @@ PAIZA_API_KEY = os.getenv("PAIZA_API_KEY", "guest")
 BASE_URL = "https://genai.hkbu.edu.hk/api/v0/rest"
 
 # ============================================
-# Directory Paths
+# Directory Paths (resolved relative to project root)
 # ============================================
-LESSON_DIR = "/Users/hei/IdeaProjects/fyp/lessons_raw"
-PDF_DIR = "/Users/hei/IdeaProjects/fyp/frontend/Lecture Notes-20250622"
-JSON_PATH = "/Users/hei/IdeaProjects/fyp/oracle_java_tutorials_clean.json"
-BASE_PATH = "/Users/hei/IdeaProjects/fyp/practical_tests/set1/questions"
+# Get project root early so it can be used below
+_BASE_DIR_EARLY = os.path.dirname(os.path.abspath(__file__))  # /fyp/core
+_PROJECT_ROOT_EARLY = os.path.dirname(_BASE_DIR_EARLY)         # /fyp
+
+LESSON_DIR = os.getenv("LESSON_DIR", os.path.join(_PROJECT_ROOT_EARLY, "lessons_raw"))
+PDF_DIR = os.getenv("PDF_DIR", os.path.join(_PROJECT_ROOT_EARLY, "frontend", "Lecture Notes-20250622"))
+JSON_PATH = os.getenv("JSON_PATH", os.path.join(_PROJECT_ROOT_EARLY, "oracle_java_tutorials_clean.json"))
+BASE_PATH = os.getenv("BASE_PATH", os.path.join(_PROJECT_ROOT_EARLY, "practical_tests", "set1", "questions"))
 PDF_CHUNKS = None  # Will be initialized at startup
 JSON_DATA = []     # Will be loaded at startup
 

@@ -105,11 +105,6 @@ def convert_topic_ids_to_main_topics(topic_identifiers: List[str]) -> List[str]:
 rag_chain = None
 retriever = None
 
-
-# Global variables
-rag_chain = None
-retriever = None
-
 class ExplainRequest(BaseModel):
     user_input: str
     code_snippet: str = ""

@@ -11,6 +11,7 @@ export default function PracticalTest() {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [started, setStarted] = useState(false);
     const [currentQuestionData, setCurrentQuestionData] = useState(null);
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     
     // Grading and hints state
     const [gradingResults, setGradingResults] = useState(null);
@@ -20,12 +21,12 @@ export default function PracticalTest() {
     const [testResults, setTestResults] = useState(null);
 
     useEffect(() => {
-        fetch("http://localhost:8000/questions")
+        fetch(`${API_BASE}/questions`)
             .then(res => res.json())
             .then(async filenames => {
                 const allQuestions = await Promise.all(
                     filenames.map(async file => {
-                        const res = await fetch(`http://localhost:8000/question/${file}`);
+                        const res = await fetch(`${API_BASE}/question/${file}`);
                         const json = await res.json();
                         return { id: file, data: json };
                     })
@@ -38,7 +39,7 @@ export default function PracticalTest() {
     useEffect(() => {
         if (!selectedQuestion) return;
     
-        fetch(`http://localhost:8000/question/${selectedQuestion}`)
+        fetch(`${API_BASE}/question/${selectedQuestion}`)
             .then(res => res.json())
             .then(data => {
                 setCurrentQuestionData(data);
@@ -129,7 +130,7 @@ export default function PracticalTest() {
         };
     
         try {
-            const res = await fetch("http://localhost:8000/evaluate", {
+            const res = await fetch(`${API_BASE}/evaluate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -163,7 +164,7 @@ export default function PracticalTest() {
         };
     
         try {
-            const res = await fetch("http://localhost:8000/evaluate", {
+            const res = await fetch(`${API_BASE}/evaluate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -262,7 +263,7 @@ export default function PracticalTest() {
             const questionDesc = currentQuestionData?.question?.description || "Complete the coding task";
             const questionTitle = currentQuestionData?.question?.title || "Coding Challenge";
             
-            const response = await fetch('http://localhost:8000/api/grading/evaluate', {
+            const response = await fetch(`${API_BASE}/api/grading/evaluate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -301,7 +302,7 @@ export default function PracticalTest() {
             const expectedOutputs = testResults?.expected_outputs || [];
             const actualOutputs = testResults?.actual_outputs || [];
             
-            const response = await fetch('http://localhost:8000/api/hints/generate', {
+            const response = await fetch(`${API_BASE}/api/hints/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

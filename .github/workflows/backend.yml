@@ -1,0 +1,52 @@
+name: Deploy Backend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.py'
+      - 'requirements.txt'
+      - 'startup.sh'
+      - 'routers/**'
+      - 'services/**'
+      - 'core/**'
+      - 'vectorstore/**'
+      - 'lessons_raw/**'
+      - 'practical_tests/**'
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Package only backend files ───────────────────────────────
+      - name: Create deployment zip
+        run: |
+          zip -r deploy.zip . \
+            --exclude "*.db" \
+            --exclude "*/__pycache__/*" \
+            --exclude "*.pyc" \
+            --exclude ".git/*" \
+            --exclude "frontend/node_modules/*" \
+            --exclude "frontend/src/*" \
+            --exclude "frontend/public/*" \
+            --exclude "frontend/build/*" \
+            --exclude "*/venv/*" \
+            --exclude "*/.venv/*" \
+            --exclude ".idea/*" \
+            --exclude ".vscode/*" \
+            --exclude ".VSCodeCounter/*" \
+            --exclude "deploy.zip"
+          echo "Zip size: $(du -sh deploy.zip | cut -f1)"
+
+      # ── Deploy to Azure ──────────────────────────────────────────
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: codetutor-fyp-hei
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deploy.zip

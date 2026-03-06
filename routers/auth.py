@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt
 import os
-from passlib.context import CryptContext
+import bcrypt
 from database import get_db
 from db_models import User
 from typing import Optional
@@ -13,9 +13,6 @@ from typing import Optional
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production-12345")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 7 * 24 * 60  # 7 days
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Router
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -48,11 +45,11 @@ class UserResponse(BaseModel):
 # Helper functions
 def hash_password(password: str) -> str:
     """Hash a password"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def create_access_token(user_id: int, email: str) -> str:
     """Create JWT access token"""

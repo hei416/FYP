@@ -12,6 +12,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     const monacoRef = useRef(null);
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
     // Initialize files from parent's code prop
     useEffect(() => {
@@ -131,7 +132,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }));
 
         try {
-            const res = await fetch('http://localhost:8000/api/check-syntax', {
+            const res = await fetch(`${API_BASE}/api/check-syntax`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ files: filesToSend }),
@@ -233,7 +234,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         const mainClass = activeFile ? extractClassName(activeFile.content) : 'Main';
 
         try {
-            const res = await fetch('http://localhost:8000/api/run-code', {
+            const res = await fetch(`${API_BASE}/api/run-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ files: filesToSend, main_class: mainClass }),

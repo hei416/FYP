@@ -24,3 +24,15 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# SQLite databases (stored in /home on Azure; exclude from source)
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Deployment zip
+deploy.zip

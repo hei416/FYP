@@ -4,9 +4,10 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 function LessonLayout() {
     const [files, setFiles] = useState([]);
     const location = useLocation();
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
     useEffect(() => {
-        fetch("http://localhost:8000/lessons")
+        fetch(`${API_BASE}/lessons`)
             .then((res) => res.json())
             .then((data) => setFiles(data));
     }, []);

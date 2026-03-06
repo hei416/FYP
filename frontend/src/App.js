@@ -12,7 +12,7 @@ import LessonLayout from "./LessonLayout";
 import Playground from "./Playground"; 
 import { DemoTour } from "./DemoTour";
 import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
-import { AuthProvider, useAuth } from './AuthContext';
+import { useAuth } from './AuthContext';
 import Auth from './Auth';
 import { loadProgressFromBackend, mergeProgressWithLocal, syncProgressToBackend } from './progressService';
 
@@ -187,11 +187,9 @@ function AppContent() {
 
 function App() {
     return (
-        <AuthProvider>
-            <Router>
-                <AppContent />
-            </Router>
-        </AuthProvider>
+        <Router>
+            <AppContent />
+        </Router>
     );
 }
 

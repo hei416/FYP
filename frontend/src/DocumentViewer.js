@@ -6,6 +6,7 @@ export default function DocumentViewer({ isOpen, onClose, documentFile, document
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('text'); // 'text' or 'web'
+  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
   const fetchDocumentContent = useCallback(async () => {
     setLoading(true);
@@ -14,7 +15,7 @@ export default function DocumentViewer({ isOpen, onClose, documentFile, document
     setMetadata(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/document/content', {
+      const response = await fetch(`${API_BASE}/api/document/content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -152,7 +153,7 @@ export default function DocumentViewer({ isOpen, onClose, documentFile, document
 {!loading && !error && viewMode === 'web' && metadata?.url && (
             <div className="h-full overflow-hidden">
                 <iframe
-                src={`http://localhost:8000/api/proxy/webpage?url=${encodeURIComponent(metadata.url)}`}
+                src={`${API_BASE}/api/proxy/webpage?url=${encodeURIComponent(metadata.url)}`}
                 className="w-full h-full border-0"
                 title={metadata.title || documentFile}
                 sandbox="allow-same-origin allow-scripts allow-popups"

@@ -5,6 +5,7 @@ import { colors, radii, font, spacing, btn, shadows, transition } from './theme'
 
 export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPage }) {
     // Removed: const [showChat, setShowChat] = useState(false);
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     
     const [splitView, setSplitView] = useState(false);
     const [history, setHistory] = useState([]);
@@ -26,7 +27,7 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
     const fetchChunkContext = async (sourceFile, chunkContent) => {
         setLoadingContext(true);
         try {
-            const res = await fetch("http://localhost:8000/api/get-chunk-context", {
+            const res = await fetch(`${API_BASE}/api/get-chunk-context`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -59,7 +60,7 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
         setLoading(true);
 
         try {
-            const res = await fetch("http://localhost:8000/ragAI", {
+            const res = await fetch(`${API_BASE}/ragAI`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

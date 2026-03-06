@@ -1,0 +1,54 @@
+name: Deploy Frontend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/**'
+      - 'frontend/public/**'
+      - 'frontend/package.json'
+      - 'frontend/server.js'
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── Install deps & build React ────────────────────────────────
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build React app
+        working-directory: frontend
+        env:
+          # Points the React app at the backend API
+          REACT_APP_API_BASE: https://codetutor-fyp-hei.azurewebsites.net
+          CI: false   # treat ESLint warnings as warnings, not errors
+        run: npm run build
+
+      # ── Package frontend (build/ + server.js + package.json) ─────
+      - name: Create deployment zip
+        working-directory: frontend
+        run: |
+          zip -r ../frontend-deploy.zip build/ server.js package.json package-lock.json
+          echo "Zip size: $(du -sh ../frontend-deploy.zip | cut -f1)"
+
+      # ── Deploy to Azure ───────────────────────────────────────────
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: codetutor-frontend-hei
+          publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
+          package: frontend-deploy.zip
