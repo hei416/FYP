@@ -8,7 +8,7 @@ on:
       - 'frontend/public/**'
       - 'frontend/package.json'
       - 'frontend/server.js'
-  workflow_dispatch:   # allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,6 +17,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # ── Azure login via service principal ────────────────────────
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
@@ -33,9 +39,8 @@ jobs:
       - name: Build React app
         working-directory: frontend
         env:
-          # Points the React app at the backend API
           REACT_APP_API_BASE: https://codetutor-fyp-hei.azurewebsites.net
-          CI: false   # treat ESLint warnings as warnings, not errors
+          CI: false
         run: npm run build
 
       # ── Package frontend (build/ + server.js + package.json) ─────
@@ -45,10 +50,12 @@ jobs:
           zip -r ../frontend-deploy.zip build/ server.js package.json package-lock.json
           echo "Zip size: $(du -sh ../frontend-deploy.zip | cut -f1)"
 
-      # ── Deploy to Azure ───────────────────────────────────────────
+      # ── Deploy via Azure CLI ──────────────────────────────────────
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: codetutor-frontend-hei
-          publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
-          package: frontend-deploy.zip
+        run: |
+          az webapp deploy \
+            --name codetutor-frontend-hei \
+            --resource-group codetutor-rg \
+            --src-path frontend-deploy.zip \
+            --type zip \
+            --async false

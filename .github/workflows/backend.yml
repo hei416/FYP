@@ -13,7 +13,7 @@ on:
       - 'vectorstore/**'
       - 'lessons_raw/**'
       - 'practical_tests/**'
-  workflow_dispatch:   # allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -22,6 +22,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # ── Azure login via service principal ────────────────────────
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       # ── Package only backend files ───────────────────────────────
       - name: Create deployment zip
@@ -43,10 +49,12 @@ jobs:
             --exclude "deploy.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      # ── Deploy to Azure ──────────────────────────────────────────
+      # ── Deploy via Azure CLI (works reliably on Linux App Service) 
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: codetutor-fyp-hei
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: deploy.zip
+        run: |
+          az webapp deploy \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --src-path deploy.zip \
+            --type zip \
+            --async false
