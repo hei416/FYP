@@ -1,30 +1,194 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import AI from "./AI";
 import Compiler from "./Compiler";
 import HomePage from "./HomePage";
+import TopicDetailPage from "./TopicDetailPage";
 import Quiz from "./Quiz";
 import PracticalTest from "./PracticalTest";
 import Lessons from "./Lessons";
 import LessonLayout from "./LessonLayout";
+import Playground from "./Playground"; 
+import { DemoTour } from "./DemoTour";
+import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
+import { useAuth } from './AuthContext';
+import Auth from './Auth';
+import { loadProgressFromBackend, mergeProgressWithLocal, syncProgressToBackend } from './progressService';
+
+// Create a wrapper component that has access to useNavigate
+function AppContent() {
+    const [showChat, setShowChat] = useState(false);
+    const [demoTour, setDemoTour] = useState(null);
+    const [showDemoButtons, setShowDemoButtons] = useState(true);
+    const navigate = useNavigate();
+    const { isAuthenticated, user } = useAuth();
+
+    const toggleChat = () => setShowChat(prev => !prev);
+
+    // Load backend progress and merge with local on login
+    useEffect(() => {
+        if (isAuthenticated) {
+            // First push local → backend (upload guest progress)
+            const localProgress = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
+            const roadmapCompleted = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
+            syncProgressToBackend(localProgress, roadmapCompleted).then(() => {
+                // Then pull backend → local (merge any older backend data)
+                loadProgressFromBackend().then((backendProgress) => {
+                    if (backendProgress) {
+                        mergeProgressWithLocal(
+                            backendProgress,
+                            'codetutor_learning_progress',
+                            'java-roadmap-completed'
+                        );
+                    }
+                });
+            });
+        }
+    }, [isAuthenticated]);
+
+
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem('hasSeenDemoTour');
+        
+        if (!hasSeenTour) {
+            const timer = setTimeout(() => {
+                startGuidedTour();
+                localStorage.setItem('hasSeenDemoTour', 'true');
+            }, 3000);
+
+            return () => clearTimeout(timer);
+        }
+    }, []);
+
+    // Keyboard shortcut
+    useEffect(() => {
+        const handleKeyPress = (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                setShowDemoButtons(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, []);
+
+    // Start Guided Tour function - PASS navigate to tour
+    const startGuidedTour = () => {
+        if (demoTour) {
+            demoTour.start();
+        } else {
+            const tour = new DemoTour(navigate);  // PASS navigate here!
+            setDemoTour(tour);
+            tour.start();
+        }
+    };
+
+    return (
+        <>
+            <Navbar toggleChat={toggleChat} />
+            <AI showChat={showChat} setShowChat={setShowChat} />
+            
+            {/* Demo Control Buttons */}
+            {showDemoButtons && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: 20,
+                    left: 20,
+                    zIndex: 1000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: spacing.sm
+                }}>
+                    <button 
+                        onClick={startGuidedTour}
+                        style={{
+                            ...btn.accent,
+                        }}
+                        onMouseOver={(e) => {
+                            Object.assign(e.currentTarget.style, btn.accentHover);
+                        }}
+                        onMouseOut={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.backgroundColor = colors.accent;
+                            e.currentTarget.style.boxShadow = btn.accent.boxShadow;
+                        }}
+                    >
+                        <span style={{ fontSize: '18px' }}>🎓</span>
+                        <span>Start Tour</span>
+                    </button>
+
+                    <button 
+                        onClick={() => setShowDemoButtons(false)}
+                        style={{
+                            padding: spacing.sm,
+                            background: colors.textMuted,
+                            color: colors.surface,
+                            border: 'none',
+                            borderRadius: radii.sm,
+                            cursor: 'pointer',
+                            fontSize: font.sizeXs,
+                            opacity: 0.7,
+                            transition
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.opacity = 1}
+                        onMouseOut={(e) => e.currentTarget.style.opacity = 0.7}
+                        title="Hide demo buttons (Ctrl+Shift+D to toggle)"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
+            {!showDemoButtons && (
+                <button 
+                    onClick={() => setShowDemoButtons(true)}
+                    style={{
+                        position: 'fixed',
+                        bottom: 20,
+                        left: 20,
+                        zIndex: 1000,
+                        padding: spacing.sm,
+                        background: colors.accent,
+                        color: colors.surface,
+                        border: 'none',
+                        borderRadius: radii.full,
+                        cursor: 'pointer',
+                        fontSize: font.sizeXl,
+                        width: 48,
+                        height: 48,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: shadows.md
+                    }}
+                    title="Show demo buttons"
+                >
+                    ?
+                </button>
+            )}
+
+            <div style={{ paddingTop: navbar.height }} className="bg-white min-h-screen">
+                <Routes>
+                    <Route path="/login" element={<Auth />} />
+                    <Route path="/home" element={<HomePage />} />
+                    <Route path="/topic/:topicId" element={<TopicDetailPage />} />
+                    <Route path="/playground" element={<Playground />} />
+                    <Route path="/quiz" element={<Quiz />} />
+                    <Route path="/practical-test" element={<PracticalTest />} />
+                    <Route path="/compiler" element={<Navigate to="/playground" replace />} />
+                    <Route path="/" element={<Navigate to="/home" replace />} />
+                </Routes>
+            </div>
+        </>
+    );
+}
+
 
 function App() {
     return (
         <Router>
-            <Navbar />
-            <AI />
-            <div style={{ paddingTop: 70 }} className="bg-white min-h-screen">
-                <Routes>
-                    <Route path="/home" element={<HomePage />} />
-                    <Route path="/compiler" element={<Compiler />} />
-                    <Route path="/quiz" element={<Quiz />} />
-                    <Route path="/practical-test" element={<PracticalTest />} />
-                    <Route path="/lessons" element={<LessonLayout />}>
-                        <Route path=":id" element={<Lessons />} />
-                    </Route>
-                </Routes>
-            </div>
+            <AppContent />
         </Router>
     );
 }

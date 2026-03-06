@@ -1,3 +1,103 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   CodeTutor Design System — CSS Custom Properties
+   Keep in sync with theme.js
+   ============================================================ */
+:root {
+  /* Brand */
+  --ct-primary:        #2563EB;
+  --ct-primary-hover:  #1D4ED8;
+  --ct-primary-light:  #EFF6FF;
+  --ct-primary-border: #BFDBFE;
+
+  /* AI / Accent */
+  --ct-accent:        #0D9488;
+  --ct-accent-hover:  #0F766E;
+  --ct-accent-light:  #F0FDFA;
+  --ct-accent-border: #99F6E4;
+
+  /* Semantic */
+  --ct-success:        #16A34A;
+  --ct-success-light:  #F0FDF4;
+  --ct-success-border: #BBF7D0;
+  --ct-danger:         #DC2626;
+  --ct-danger-light:   #FEF2F2;
+  --ct-danger-border:  #FECACA;
+  --ct-warning:        #D97706;
+  --ct-warning-light:  #FFFBEB;
+  --ct-warning-border: #FDE68A;
+
+  /* Neutrals */
+  --ct-text:           #111827;
+  --ct-text-secondary: #4B5563;
+  --ct-text-muted:     #9CA3AF;
+  --ct-border:         #E5E7EB;
+  --ct-divider:        #F3F4F6;
+  --ct-bg:             #F9FAFB;
+  --ct-surface:        #FFFFFF;
+
+  /* Radii */
+  --ct-radius-sm:   6px;
+  --ct-radius-md:  10px;
+  --ct-radius-lg:  14px;
+  --ct-radius-xl:  20px;
+
+  /* Shadows */
+  --ct-shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+  --ct-shadow-md:  0 4px 12px rgba(0,0,0,0.1);
+  --ct-shadow-lg:  0 8px 24px rgba(0,0,0,0.12);
+
+  /* Navbar */
+  --ct-navbar-height: 64px;
+
+  /* Transitions */
+  --ct-transition: all 0.2s ease;
+}
+
+/* Global base font size for readability */
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ct-text);
+  background-color: var(--ct-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure minimum readable sizes */
+p, li, label, span, td, th {
+  font-size: inherit;
+}
+
+/* ── Smooth scrollbar ───────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ct-border) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--ct-border);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--ct-text-muted); }
+
+/* Override small Tailwind defaults where used */
+@layer utilities {
+  .text-readable {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  .text-readable-sm {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.5;
+  }
+}

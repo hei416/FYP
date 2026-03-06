@@ -4,9 +4,10 @@ import { useParams } from "react-router-dom";
 function Lessons() {
     const { id } = useParams();
     const [lesson, setLesson] = useState(null);
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
     useEffect(() => {
-        fetch(`http://localhost:8000/lessons/${id}`)
+        fetch(`${API_BASE}/lessons/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 console.log("Fetched lesson data:", data); // Debug log

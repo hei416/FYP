@@ -1,13 +1,21 @@
-import React, { useState, useEffect } from "react";
-import quizData from "./quizQuestions.json";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { ProgressTracker } from "./ProgressTracker";
+import { TOPIC_GROUPS } from "./HomePage";
+import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
-const questionTypes = [
-    { label: "All", value: "all" },
-    { label: "Short Answer", value: "short_answer" },
-    { label: "Code Trace", value: "code_trace" },
-    { label: "Multiple Choice", value: "multiple_choice" },
-    { label: "Code Understanding", value: "code_understanding" },
-    { label: "Java Syntax", value: "syntax" },
+const DEFAULT_TOPICS = [
+    "Bridging from Python",
+    "Problem Solving with Java",
+    "String",
+    "Array",
+    "Methods",
+    "Exception Handling and File IO",
+    "Class - constructor/attributes/methods",
+    "Class - access modifier/static",
+    "Inheritance",
+    "Polymorphism",
+    "Interface and Lambda expression",
+    "Recursion and Revision"
 ];
 
 function shuffleArray(array) {
@@ -15,46 +23,208 @@ function shuffleArray(array) {
 }
 
 export default function Quiz() {
-    const [selectedType, setSelectedType] = useState("all");
+    const selectedType = "multiple_choice";
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userAnswers, setUserAnswers] = useState({});
     const [feedback, setFeedback] = useState(null);
+    const [hasAnswered, setHasAnswered] = useState(false);
     const [shuffledOptions, setShuffledOptions] = useState([]);
     const [score, setScore] = useState(0);
     const [completed, setCompleted] = useState(false);
-    // Store user answers for all questions to show after quiz ends
     const [allUserAnswers, setAllUserAnswers] = useState({});
+    const [showExplanation, setShowExplanation] = useState(false);
+
+    // Topic selection state
+    const [showTopicSelect, setShowTopicSelect] = useState(true);
+    const [selectedTopics, setSelectedTopics] = useState([]);
+
+    // AI quiz state
+    const isFetchingRef = useRef(false);
+    const [quizData, setQuizData] = useState([]);
+    const [loadingQuiz, setLoadingQuiz] = useState(false);
+    const [quizSource, setQuizSource] = useState("");
+    const [generatingMore, setGeneratingMore] = useState(false);
+    const [moreProgress, setMoreProgress] = useState({ received: 0, total: 5 });
+    const [poolSize, setPoolSize] = useState(0);
+    const [lastTopics, setLastTopics] = useState([]);
+
+    const tracker = useMemo(() => new ProgressTracker(), []);
+
+   const generateAIQuiz = useCallback(async (topicsOverride = null) => {
+        if (isFetchingRef.current) return; // ← block duplicate calls
+        isFetchingRef.current = true;
+
+        setLoadingQuiz(true);
+        setQuizData([]);
+        setCurrentIndex(0);
+        setScore(0);
+        setCompleted(false);
+        setAllUserAnswers({});
+
+        try {
+            const completedTopics = tracker.getCompletedTopics();
+            // Only allow completed topics - no fallback to all topics
+            const topicsToUse = topicsOverride || (completedTopics.length > 0 ? completedTopics : null);
+            
+            if (!topicsToUse || topicsToUse.length === 0) {
+                alert("⚠️ You haven't completed any topics on the Roadmap yet. Complete some topics first so we can generate relevant questions!");
+                setLoadingQuiz(false);
+                isFetchingRef.current = false;
+                return;
+            }
+
+            const sourceLabel = topicsOverride ? "selected topics" : "completed topics";
+
+            setQuizSource(
+                `AI-generated from ${sourceLabel}: ${topicsToUse.slice(0, 3).join(", ")}${topicsToUse.length > 3 ? "..." : ""}`
+            );
+
+            setLastTopics(topicsToUse);
+
+            const res = await fetch(`${API_BASE}/api/quizzes/generate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    completed_topics: topicsToUse,
+                    num_questions: 10
+                })
+            });
+
+            if (!res.ok) {
+                throw new Error(`Backend error: ${res.status}`);
+            }
+
+            const data = await res.json();
+            const normalized = data.questions.map((q) => ({
+                ...q,
+                type: q.type ?? (Array.isArray(q.options) ? "multiple_choice" : "short_answer")
+            }));
+            const filtered = normalized.filter(
+                (q) => selectedType === "all" || q.type === selectedType
+            );
+
+            setQuizData(filtered);
+            setPoolSize(data.metadata?.pool_size || filtered.length);
+            tracker.trackAIInteraction();
+        } catch (error) {
+            console.error("Quiz generation failed:", error);
+            alert("Failed to generate quiz. Make sure backend is running.");
+            setQuizData([]);
+        } finally {
+            setLoadingQuiz(false);
+            isFetchingRef.current = false;
+            setShowTopicSelect(false);
+        }
+    }, [tracker]);
+
+
+
+    const generateMoreQuestions = useCallback(async () => {
+        if (isFetchingRef.current || lastTopics.length === 0) return;
+        isFetchingRef.current = true;
+        setGeneratingMore(true);
+        setMoreProgress({ received: 0, total: 5 });
+
+        // Reset quiz state for new questions
+        setQuizData([]);
+        setCurrentIndex(0);
+        setScore(0);
+        setCompleted(false);
+        setAllUserAnswers({});
+        setQuizSource(`✨ Generating new questions for: ${lastTopics.slice(0, 3).join(", ")}${lastTopics.length > 3 ? "..." : ""}`);
+        setShowTopicSelect(false);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/quizzes/more`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    completed_topics: lastTopics,
+                    num_questions: 5
+                })
+            });
+
+            if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let count = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || ""; // keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (!line.startsWith("data: ")) continue;
+                    const jsonStr = line.slice(6).trim();
+                    if (!jsonStr) continue;
+
+                    try {
+                        const parsed = JSON.parse(jsonStr);
+
+                        // Done signal
+                        if (parsed.done) {
+                            setPoolSize(parsed.total_pool || 0);
+                            continue;
+                        }
+
+                        // Error from backend
+                        if (parsed.error) {
+                            console.warn("Stream error:", parsed.error);
+                            continue;
+                        }
+
+                        // It's a question — append it
+                        const q = {
+                            ...parsed,
+                            type: parsed.type ?? (Array.isArray(parsed.options) ? "multiple_choice" : "short_answer")
+                        };
+                        count++;
+                        setMoreProgress((prev) => ({ ...prev, received: count }));
+                        setQuizData((prev) => [...prev, q]);
+                    } catch (parseErr) {
+                        console.warn("SSE parse error:", parseErr, jsonStr);
+                    }
+                }
+            }
+
+            setQuizSource(`✨ ${count} new questions generated for: ${lastTopics.slice(0, 3).join(", ")}${lastTopics.length > 3 ? "..." : ""}`);
+        } catch (error) {
+            console.error("More questions streaming failed:", error);
+            alert("Failed to generate more questions. Try again.");
+        } finally {
+            setGeneratingMore(false);
+            isFetchingRef.current = false;
+        }
+    }, [lastTopics]);
 
     const filteredQuestions =
-        selectedType === "all"
-            ? quizData
-            : quizData.filter((q) => q.type === selectedType);
+        selectedType === "all" ? quizData : quizData.filter((q) => q.type === selectedType);
 
     const currentQ = filteredQuestions[currentIndex] || null;
 
     useEffect(() => {
-        if (currentQ?.type === "multiple_choice") {
-            setShuffledOptions(shuffleArray([...currentQ.options]));
-        } else {
+        if (!currentQ?.options) {
             setShuffledOptions([]);
+            return;
         }
-
-        if (currentQ) {
-            if (currentQ.type === "code_trace" || currentQ.type === "syntax") {
-                const blanksCount = currentQ.blanks?.length || 0;
-                const initAnswers = {};
-                for (let i = 0; i < blanksCount; i++) {
-                    initAnswers[i] = "";
-                }
-                setUserAnswers(initAnswers);
-            } else {
-                setUserAnswers({ answer: "" });
-            }
+        setShuffledOptions(shuffleArray([...currentQ.options]));
+        if (currentQ.type === "code_trace" || currentQ.type === "syntax") {
+            // ... blank logic
+        } else {
+            setUserAnswers({ answer: "" });
         }
         setFeedback(null);
+        setShowExplanation(false);
+        setHasAnswered(false);
     }, [currentIndex, selectedType, currentQ]);
 
-    if (!currentQ && !completed) return <p>No questions of this type.</p>;
 
     // Handle input changes, support multiple blanks or single answer
     const handleInputChange = (e, index = null) => {
@@ -67,332 +237,442 @@ export default function Quiz() {
     };
 
     const checkAnswer = () => {
-        if (!currentQ) return;
-        let isCorrect = false;
-        if (
-            currentQ.type === "short_answer" ||
-            currentQ.type === "code_understanding"
-        ) {
-            isCorrect = (userAnswers.answer || "").trim() === currentQ.answer;
-        } else if (currentQ.type === "code_trace") {
-            isCorrect = currentQ.answers.every(
-                (ans, idx) => ans.trim() === (userAnswers[idx] || "").trim()
-            );
-        } else if (currentQ.type === "syntax") {
-            isCorrect = currentQ.answers.every(
-                (ans, idx) =>
-                    (userAnswers[idx] || "").toLowerCase().trim() ===
-                    ans.toLowerCase().trim()
-            );
-        } else if (currentQ.type === "multiple_choice") {
-            isCorrect = userAnswers.answer === currentQ.answer;
-        }
+    if (!currentQ) return;
 
-        setFeedback(isCorrect ? "Correct!" : "Incorrect. Try again.");
+    console.log("🔍 DEBUG currentQ:", JSON.stringify(currentQ, null, 2));
+    console.log("🔍 userAnswers:", userAnswers);
 
-        if (isCorrect) {
-            setScore((prev) => prev + 1);
-        }
+    let isCorrect = false;
+    let correctAnswer = "";
 
-        // Save user's answer for review later
-        setAllUserAnswers((prev) => ({
-            ...prev,
-            [currentIndex]: { ...userAnswers },
-        }));
-    };
+    // backend has no "type" field - treat all questions with options as MCQ
+    if (Array.isArray(currentQ.options) && currentQ.correct_index !== undefined) {
+        correctAnswer = currentQ.options[currentQ.correct_index];
+        isCorrect = userAnswers.answer === correctAnswer;
+        console.log(`✅ Compare: "${userAnswers.answer}" === "${correctAnswer}" = ${isCorrect}`);
+    } else if (currentQ.answer) {
+        correctAnswer = currentQ.answer;
+        isCorrect = (userAnswers.answer || "").trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+    } else {
+        console.log("❌ Unknown question format");
+    }
+
+    const feedbackMsg = isCorrect ? "✅ Correct!" : `❌ Incorrect. Correct: "${correctAnswer}"`;
+    setFeedback(feedbackMsg);
+    setHasAnswered(true);
+    if (isCorrect) setScore((prev) => prev + 1);
+    setAllUserAnswers((prev) => ({ ...prev, [currentIndex]: { ...userAnswers } }));
+};
+
+
+
 
     const nextQuestion = () => {
         setFeedback(null);
         setUserAnswers({});
-        if (currentIndex + 1 === filteredQuestions.length) {
-            // Quiz completed
-            setCompleted(true);
+        if (currentIndex + 1 >= filteredQuestions.length) {
+            if (generatingMore) {
+                // More questions are still streaming in — stay on the last question
+                // The useEffect on currentQ will auto-update when a new question arrives
+                setCurrentIndex(filteredQuestions.length); // will pick up next question when it arrives
+            } else {
+                setCompleted(true);
+            }
         } else {
             setCurrentIndex((idx) => idx + 1);
         }
     };
 
-    // Show review after quiz ends
-    if (completed) {
+    // Topic Selection Screen
+    if (showTopicSelect) {
+        const completedTopics = tracker.getCompletedTopics();
+        const topicGroupMap = {
+            "Bridging from Python": 0,
+            "Problem Solving with Java": 1,
+            "String": 2,
+            "Array": 3,
+            "Methods": 4,
+            "Exception Handling and File IO": 5,
+            "Class - constructor/attributes/methods": 6,
+            "Class - access modifier/static": 7,
+            "Inheritance": 8,
+            "Polymorphism": 9,
+            "Interface and Lambda expression": 10,
+            "Recursion and Revision": 11,
+        };
+
+        const isTopicAvailable = (topic) => {
+            const groupIdx = topicGroupMap[topic];
+            if (groupIdx === undefined) return false;
+            const group = TOPIC_GROUPS[groupIdx];
+            return Array.isArray(group?.subtopics) && group.subtopics.some((id) => completedTopics.includes(id));
+        };
+
+        const availableTopics = DEFAULT_TOPICS.filter(isTopicAvailable);
+
         return (
-            <div style={{ padding: 20, maxWidth: 800, margin: "auto" }}>
-                <h2>Quiz Completed!</h2>
-                <p>
-                    Your score: {score} out of {filteredQuestions.length}
+            <div style={pageContainer(800)}>
+                <h2 style={pageHeading}>🎯 Select Quiz Topics</h2>
+                <p style={pageSubheading}>
+                    {availableTopics.length > 0
+                        ? `${availableTopics.length} topic(s) completed. All topics are available — uncompleted ones are marked with ⚠️:`
+                        : "All topics are available. Complete subtopics on the Roadmap to track your progress!"}
                 </p>
-                <h3>Review your answers:</h3>
-                {filteredQuestions.map((q, idx) => {
-                    const userAns = allUserAnswers[idx];
-                    return (
-                        <div
-                            key={idx}
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    {availableTopics.length > 0 && (
+                        <button
+                            onClick={() => setSelectedTopics([...availableTopics])}
                             style={{
-                                marginBottom: 20,
-                                padding: 10,
-                                border: "1px solid #ccc",
-                                borderRadius: 8,
+                                ...btn.outline,
                             }}
                         >
-                            <p>
-                                <strong>Q{idx + 1}:</strong> {q.question}
-                            </p>
+                            Select All Completed
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setSelectedTopics([...DEFAULT_TOPICS])}
+                        style={{
+                            ...btn.outline,
+                        }}
+                    >
+                        Select All Topics
+                    </button>
+                </div>
 
-                            {/* Show code blocks if present */}
-                            {q.javaCode && (
-                                <pre
-                                    style={{
-                                        backgroundColor: "#272822",
-                                        color: "#f8f8f2",
-                                        padding: 16,
-                                        borderRadius: 8,
-                                        fontFamily: "Source Code Pro, monospace",
-                                        whiteSpace: "pre-wrap",
-                                        overflowX: "auto",
-                                    }}
-                                >
-                  {q.javaCode}
-                </pre>
-                            )}
-                            {q.codeSnippet && (
-                                <pre
-                                    style={{
-                                        background: "#f0f0f0",
-                                        padding: 10,
-                                        whiteSpace: "pre-wrap",
-                                        fontFamily: "monospace",
-                                        borderRadius: 6,
-                                    }}
-                                >
-                  {q.codeSnippet}
-                </pre>
-                            )}
-
-                            <p>
-                                <strong>Your answer:</strong>{" "}
-                                {q.type === "syntax" || q.type === "code_trace"
-                                    ? q.blanks
-                                        .map((_, i) => userAns?.[i] ?? "(no answer)")
-                                        .join(", ")
-                                    : userAns?.answer || "(no answer)"}
-                            </p>
-                            <p>
-                                <strong>Correct answer:</strong>{" "}
-                                {q.type === "syntax" || q.type === "code_trace"
-                                    ? q.answers.join(", ")
-                                    : q.answer}
-                            </p>
-                        </div>
-                    );
-                })}
-
-                <button
-                    onClick={() => {
-                        setCompleted(false);
-                        setScore(0);
-                        setAllUserAnswers({});
-                        setCurrentIndex(0);
-                        setSelectedType("all");
-                    }}
+                <div
                     style={{
-                        marginTop: 12,
-                        padding: "8px 20px",
-                        cursor: "pointer",
-                        backgroundColor: "#128C7E",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        fontWeight: "bold",
-                        fontSize: 16,
+                        maxHeight: 350,
+                        overflowY: "auto",
+                        margin: "20px 0",
+                        padding: spacing.md,
+                        ...card.base,
+                        textAlign: "left",
                     }}
                 >
-                    Restart Quiz
-                </button>
+                    {DEFAULT_TOPICS.map((topic, idx) => {
+                        const completed = isTopicAvailable(topic);
+                        return (
+                            <label
+                                key={idx}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    margin: "8px 0",
+                                    padding: "10px 14px",
+                                    borderRadius: radii.sm,
+                                    backgroundColor: completed
+                                        ? (selectedTopics.includes(topic) ? colors.successLight : colors.surface)
+                                        : (selectedTopics.includes(topic) ? '#FEF3C7' : colors.surface),
+                                    border: `1px solid ${completed ? colors.border : '#F59E0B'}`,
+                                    opacity: 1,
+                                    cursor: "pointer",
+                                    fontSize: font.sizeMd,
+                                    lineHeight: 1.4,
+                                    gap: 10,
+                                    transition,
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedTopics.includes(topic)}
+                                    onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setSelectedTopics(
+                                            checked
+                                                ? [...selectedTopics, topic]
+                                                : selectedTopics.filter((t) => t !== topic)
+                                        );
+                                    }}
+                                    style={{ width: 18, height: 18, marginTop: 1 }}
+                                />
+                                <span style={{ flex: 1 }}>{completed ? "" : "⚠️ "}{topic}</span>
+                                {completed ? (
+                                    <span
+                                        style={{
+                                            fontSize: font.sizeXs,
+                                            color: colors.success,
+                                            fontWeight: font.weightSemibold,
+                                        }}
+                                    >
+                                        ✓ Completed
+                                    </span>
+                                ) : (
+                                    <span
+                                        style={{
+                                            fontSize: font.sizeXs,
+                                            color: '#D97706',
+                                            fontWeight: font.weightSemibold,
+                                        }}
+                                    >
+                                        Not completed
+                                    </span>
+                                )}
+                            </label>
+                        );
+                    })}
+                </div>
+
+                <div>
+                    <button
+                        onClick={() => {
+                            if (selectedTopics.length === 0) {
+                                alert("Please select at least one topic!");
+                                return;
+                            }
+                            generateAIQuiz(selectedTopics);
+                        }}
+                        disabled={loadingQuiz || selectedTopics.length === 0}
+                        style={{
+                            ...(selectedTopics.length > 0 ? btn.accent : btn.disabled),
+                            ...btn.large,
+                            marginRight: 10,
+                        }}
+                    >
+                        {loadingQuiz ? "Generating..." : `🚀 Start Quiz (${selectedTopics.length} topics)`}
+                    </button>
+
+                    {availableTopics.length > 0 && (
+                        <button
+                            onClick={() => generateAIQuiz(availableTopics)}
+                            disabled={loadingQuiz}
+                            style={{
+                                ...btn.primary,
+                                ...btn.large,
+                            }}
+                        >
+                            🤖 Quiz All Completed Topics ({availableTopics.length})
+                        </button>
+                    )}
+                </div>
             </div>
         );
     }
 
-    return (
-        <div style={{ padding: 20, maxWidth: 800, margin: "auto" }}>
-            {/* Question type selector */}
-            <div style={{ marginBottom: 16 }}>
-                {questionTypes.map(({ label, value }) => (
+    if (loadingQuiz && !generatingMore) {
+        return (
+            <div style={{ ...pageContainer(800), textAlign: "center" }}>
+                <h2 style={pageHeading}>Generating AI Quiz...</h2>
+                <p style={pageSubheading}>Fetching content from your selected topics</p>
+            </div>
+        );
+    }
+
+    if (!currentQ && !completed && !generatingMore) {
+        return (
+            <div style={{ ...pageContainer(800), textAlign: "center" }}>
+                <p style={{ color: colors.textSecondary }}>No questions available.</p>
+                <button onClick={() => setShowTopicSelect(true)} style={btn.ghost}>← Back to Topics</button>
+            </div>
+        );
+    }
+
+    if (!currentQ && !completed && generatingMore) {
+        return (
+            <div style={{ ...pageContainer(800), textAlign: "center" }}>
+                <h2 style={pageHeading}>✨ Generating New Questions...</h2>
+                <p style={pageSubheading}>
+                    {moreProgress.received > 0
+                        ? `${moreProgress.received} of ${moreProgress.total} questions ready`
+                        : "Waiting for the first question..."}
+                </p>
+                <div style={{
+                    width: 200, height: 6, backgroundColor: colors.divider,
+                    borderRadius: radii.sm, margin: '20px auto', overflow: 'hidden'
+                }}>
+                    <div style={{
+                        width: `${(moreProgress.received / moreProgress.total) * 100}%`,
+                        height: '100%', backgroundColor: colors.primary,
+                        borderRadius: radii.sm, transition: 'width 0.3s ease'
+                    }} />
+                </div>
+            </div>
+        );
+    }
+
+    if (completed) {
+        return (
+            <div style={pageContainer(800)}>
+                <h2 style={pageHeading}>Quiz Completed! 🎉</h2>
+                <p style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.accent }}>
+                    Score: {score} / {filteredQuestions.length} ({Math.round((score / filteredQuestions.length) * 100)}%)
+                </p>
+                <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, marginBottom: spacing.lg }}>Review Answers:</h3>
+                {filteredQuestions.map((q, idx) => {
+                    const userAns = allUserAnswers[idx];
+                    const correctAns = q.options ? q.options[q.correct_index] : q.answer;
+                    const isCorrect = userAns?.answer === correctAns;
+                    return (
+                        <div
+                            key={idx}
+                            style={{
+                                marginBottom: spacing.xl,
+                                padding: spacing.lg,
+                                ...(isCorrect ? card.success : card.danger),
+                            }}
+                        >
+                            <p><strong>Q{idx + 1}:</strong> {q.question}</p>
+                            <p><strong>You:</strong> {userAns?.answer || "(no answer)"}</p>
+                            <p><strong>Correct:</strong> {correctAns}</p>
+                        </div>
+                    );
+                })}
+
+                <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', marginTop: spacing.lg }}>
                     <button
-                        key={value}
                         onClick={() => {
-                            setSelectedType(value);
-                            setCurrentIndex(0);
+                            setShowTopicSelect(true);
                             setScore(0);
-                            setCompleted(false);
                             setAllUserAnswers({});
+                            setCurrentIndex(0);
                         }}
+                        style={btn.accent}
+                    >
+                        🔄 New Quiz (Same Pool)
+                    </button>
+                    <button
+                        onClick={() => generateAIQuiz(lastTopics)}
+                        disabled={loadingQuiz || lastTopics.length === 0}
                         style={{
-                            marginRight: 8,
-                            padding: "6px 12px",
-                            backgroundColor: selectedType === value ? "#128C7E" : "#eee",
-                            color: selectedType === value ? "white" : "black",
-                            border: "none",
-                            borderRadius: 6,
-                            cursor: "pointer",
+                            ...btn.primary,
+                            opacity: loadingQuiz ? 0.6 : 1,
                         }}
                     >
-                        {label}
+                        {loadingQuiz ? "Shuffling..." : "🔀 Reshuffle from Pool"}
                     </button>
-                ))}
+                    <button
+                        onClick={generateMoreQuestions}
+                        disabled={generatingMore}
+                        style={{
+                            ...btn.warning,
+                            opacity: generatingMore ? 0.6 : 1,
+                        }}
+                    >
+                        {generatingMore ? "⏳ Generating..." : "✨ Generate More Questions"}
+                    </button>
+                </div>
+                {poolSize > 0 && (
+                    <p style={{ marginTop: spacing.md, color: colors.textSecondary, fontSize: font.sizeSm }}>
+                        📚 Question pool: {poolSize} questions stored for your topics
+                    </p>
+                )}
+            </div>
+        );
+    }
+
+    // Quiz in progress
+    return (
+        <div style={pageContainer(800)}>
+            <div style={{ marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <p style={{ margin: 0, color: colors.textSecondary, fontStyle: 'italic', fontSize: font.sizeSm }}>{quizSource}</p>
+                <button
+                    onClick={() => setShowTopicSelect(true)}
+                    style={{
+                        ...btn.danger,
+                        ...btn.small,
+                    }}
+                >
+                    ← Change Topics
+                </button>
             </div>
 
-            <h3>
+            <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.text }}>
                 Question {currentIndex + 1} of {filteredQuestions.length}
+                {generatingMore && (
+                    <span style={{ fontSize: font.sizeSm, color: colors.primary, fontWeight: font.weightNormal, marginLeft: 8 }}>
+                        ⏳ generating {moreProgress.received}/{moreProgress.total}...
+                    </span>
+                )}
             </h3>
-            <p>{currentQ.question}</p>
+            <p style={{ fontSize: font.sizeMd, lineHeight: 1.6, color: colors.textSecondary }}>{currentQ?.question}</p>
 
-            {currentQ.javaCode && (
-                <pre
-                    style={{
-                        backgroundColor: "#272822",
-                        color: "#f8f8f2",
-                        padding: 16,
-                        borderRadius: 8,
-                        fontFamily: "Source Code Pro, monospace",
-                        whiteSpace: "pre-wrap",
-                        overflowX: "auto",
-                    }}
-                >
-          {currentQ.javaCode}
-        </pre>
-            )}
-
-            {currentQ.codeSnippet && (
-                <pre
-                    style={{
-                        background: "#f0f0f0",
-                        padding: 10,
-                        whiteSpace: "pre-wrap",
-                        fontFamily: "monospace",
-                        borderRadius: 6,
-                    }}
-                >
-          {currentQ.codeSnippet}
-        </pre>
-            )}
-
-            {/* Single answer input */}
-            {["short_answer", "code_understanding"].includes(currentQ.type) && (
-                <input
-                    type="text"
-                    placeholder="Type your answer"
-                    value={userAnswers.answer || ""}
-                    onChange={(e) => handleInputChange(e)}
-                    style={{ width: "100%", padding: 8, fontSize: 16 }}
-                />
-            )}
-
-            {/* Multiple blanks for code_trace */}
-            {currentQ.type === "code_trace" && (
-                <div>
-                    {currentQ.blanks.map((blank, idx) => (
-                        <div key={idx} style={{ marginBottom: 8 }}>
-                            <label>
-                                {blank} ={" "}
-                                <input
-                                    type="text"
-                                    value={userAnswers[idx] || ""}
-                                    onChange={(e) => handleInputChange(e, idx)}
-                                    style={{ width: 80, padding: 4, fontSize: 16 }}
-                                />
-                            </label>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Multiple blanks for syntax */}
-            {currentQ.type === "syntax" && (
-                <div>
-                    {currentQ.blanks.map((_, idx) => (
-                        <div key={idx} style={{ marginBottom: 8 }}>
-                            <label>
-                                Blank {idx + 1}:{" "}
-                                <input
-                                    type="text"
-                                    value={userAnswers[idx] || ""}
-                                    onChange={(e) => handleInputChange(e, idx)}
-                                    style={{ width: "100%", padding: 8 }}
-                                />
-                            </label>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Multiple choice */}
-            {currentQ.type === "multiple_choice" && (
-                <div>
+            {/* Multiple choice options */}
+            {currentQ?.options && (
+                <div style={{ margin: `${spacing.xl}px 0` }}>
                     {shuffledOptions.map((opt, idx) => (
-                        <div key={idx} style={{ marginBottom: 6 }}>
-                            <label>
+                        <div key={idx} style={{ marginBottom: spacing.sm }}>
+                            <label style={{
+                                display: "flex",
+                                alignItems: "center",
+                                cursor: "pointer",
+                                padding: '10px 14px',
+                                borderRadius: radii.sm,
+                                border: `1px solid ${userAnswers.answer === opt ? colors.primary : colors.border}`,
+                                backgroundColor: userAnswers.answer === opt ? colors.primaryLight : colors.surface,
+                                transition,
+                            }}>
                                 <input
                                     type="radio"
                                     name="mcq"
                                     value={opt}
                                     checked={userAnswers.answer === opt}
                                     onChange={(e) => handleInputChange(e)}
-                                />{" "}
-                                {opt}
+                                    style={{ marginRight: spacing.sm }}
+                                />
+                                <span style={{ fontSize: font.sizeMd }}>{opt}</span>
                             </label>
                         </div>
                     ))}
                 </div>
             )}
 
+            {/* Check Answer button */}
             <button
                 onClick={checkAnswer}
-                disabled={feedback === "Correct!"}
+                disabled={feedback?.startsWith("✅") || hasAnswered}
                 style={{
-                    marginTop: 12,
-                    padding: "8px 20px",
-                    cursor: feedback === "Correct!" ? "not-allowed" : "pointer",
-                    backgroundColor: feedback === "Correct!" ? "#aaa" : "#128C7E",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    fontWeight: "bold",
-                    fontSize: 16,
+                    ...(feedback?.startsWith("✅") || hasAnswered ? btn.disabled : btn.accent),
+                    marginTop: spacing.md,
                 }}
             >
-                Check Answer
+                {feedback?.startsWith("✅") ? "✅ Correct!" : "Check Answer"}
             </button>
 
             {feedback && (
-                <p
-                    style={{
-                        marginTop: 12,
-                        color: feedback === "Correct!" ? "green" : "red",
-                        fontWeight: "bold",
-                    }}
-                >
+                <p style={{
+                    marginTop: spacing.lg,
+                    ...(feedback.startsWith("✅") ? alert.success : alert.error),
+                }}>
                     {feedback}
                 </p>
             )}
-
-            {feedback === "Correct!" && (
+            {feedback && currentQ?.explanation && (
                 <button
-                    onClick={nextQuestion}
+                    onClick={() => setShowExplanation((prev) => !prev)}
                     style={{
-                        marginTop: 12,
-                        padding: "6px 12px",
-                        cursor: "pointer",
-                        backgroundColor: "#007AFF",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
+                        ...btn.warning,
+                        ...btn.small,
+                        marginTop: spacing.sm,
                     }}
                 >
-                    Next Question
+                    {showExplanation ? "🙈 Hide Explanation" : "💡 Explain"}
                 </button>
             )}
 
-            {/* Show current score in the quiz */}
-            <p style={{ marginTop: 20, fontWeight: "bold" }}>
+            {showExplanation && currentQ?.explanation && (
+                <div style={{
+                    ...alert.warning,
+                    marginTop: spacing.sm,
+                    fontWeight: font.weightNormal,
+                    lineHeight: 1.6,
+                }}>
+                    <strong>💡 Explanation:</strong> {currentQ.explanation}
+                </div>
+            )}
+
+            {hasAnswered && (
+                <button
+                    onClick={nextQuestion}
+                    style={{
+                        ...btn.primary,
+                        marginTop: spacing.md,
+                    }}
+                >
+                    Next Question →
+                </button>
+            )}
+
+            <p style={{ marginTop: spacing.xxl, fontWeight: font.weightBold, fontSize: font.sizeLg, color: colors.text }}>
                 Score: {score} / {filteredQuestions.length}
             </p>
         </div>
