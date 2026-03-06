@@ -37,16 +37,15 @@ jobs:
             --exclude "*/__pycache__/*" \
             --exclude "*.pyc" \
             --exclude ".git/*" \
-            --exclude "frontend/node_modules/*" \
-            --exclude "frontend/src/*" \
-            --exclude "frontend/public/*" \
-            --exclude "frontend/build/*" \
-            --exclude "*/venv/*" \
-            --exclude "*/.venv/*" \
+            --exclude ".github/*" \
+            --exclude "frontend/*" \
+            --exclude "venv/*" \
+            --exclude ".venv/*" \
             --exclude ".idea/*" \
             --exclude ".vscode/*" \
             --exclude ".VSCodeCounter/*" \
-            --exclude "deploy.zip"
+            --exclude "deploy.zip" \
+            --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
       # ── Deploy via Azure CLI (works reliably on Linux App Service) 
