@@ -1,25 +1,114 @@
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import traceback
 from datetime import datetime
 from enum import Enum
-import requests
+import httpx
 import json
-import sqlite3
 import time
+import asyncio
 import hashlib
 import random
+from sqlalchemy import func
+from database import SessionLocal
+from db_models import QuizQuestion as QuizQuestionModel
 
 router = APIRouter()
-CACHE_DB = "quiz_cache.db"
+
+# Mapping from subtopic IDs to main topic names (MUST match TOPIC_GROUPS in Frontend)
+SUBTOPIC_TO_MAIN_TOPIC = {
+    # Bridging from Python
+    "python_syntax": "Bridging from Python",
+    "python_types": "Bridging from Python",
+    "python_compilation": "Bridging from Python",
+    "python_structure": "Bridging from Python",
+    # Problem Solving with Java
+    "ps_algorithm": "Problem Solving with Java",
+    "ps_pseudocode": "Problem Solving with Java",
+    "ps_debugging": "Problem Solving with Java",
+    "ps_optimization": "Problem Solving with Java",
+    # String
+    "string_basics": "String",
+    "string_methods": "String",
+    "string_builder": "String",
+    "string_pool": "String",
+    # Array
+    "array_basics": "Array",
+    "array_traversal": "Array",
+    "array_multidim": "Array",
+    "array_utilities": "Array",
+    # Methods
+    "method_declaration": "Methods",
+    "method_params": "Methods",
+    "method_overloading": "Methods",
+    "method_varargs": "Methods",
+    # Exception Handling & File IO
+    "exception_trycatch": "Exception Handling and File IO",
+    "exception_types": "Exception Handling and File IO",
+    "exception_custom": "Exception Handling and File IO",
+    "file_io": "Exception Handling and File IO",
+    # Class Basics
+    "class_declaration": "Class - constructor/attributes/methods",
+    "class_constructor": "Class - constructor/attributes/methods",
+    "class_attributes": "Class - constructor/attributes/methods",
+    "class_methods": "Class - constructor/attributes/methods",
+    "class_this": "Class - constructor/attributes/methods",
+    # Access Modifier/Static
+    "modifier_access": "Class - access modifier/static",
+    "modifier_static_var": "Class - access modifier/static",
+    "modifier_static_method": "Class - access modifier/static",
+    "modifier_static_block": "Class - access modifier/static",
+    "modifier_final": "Class - access modifier/static",
+    # Inheritance
+    "inherit_extends": "Inheritance",
+    "inherit_override": "Inheritance",
+    "inherit_super": "Inheritance",
+    "inherit_chain": "Inheritance",
+    "inherit_types": "Inheritance",
+    # Polymorphism
+    "poly_overload": "Polymorphism",
+    "poly_override": "Polymorphism",
+    "poly_dynamic": "Polymorphism",
+    "poly_casting": "Polymorphism",
+    # Interface & Lambda
+    "interface_basics": "Interface and Lambda expression",
+    "interface_implement": "Interface and Lambda expression",
+    "interface_default": "Interface and Lambda expression",
+    "interface_functional": "Interface and Lambda expression",
+    "lambda_syntax": "Interface and Lambda expression",
+    # Recursion & Revision
+    "recursion_basics": "Recursion and Revision",
+    "recursion_vs_iterative": "Recursion and Revision",
+    "recursion_patterns": "Recursion and Revision",
+    "revision_comprehensive": "Recursion and Revision",
+}
+
+def convert_topic_ids_to_main_topics(topic_identifiers: List[str]) -> List[str]:
+    """
+    Convert subtopic IDs to main topic names.
+    If input is already a main topic name, pass it through.
+    Returns unique main topic names.
+    """
+    main_topics = set()
+    for identifier in topic_identifiers:
+        if identifier in SUBTOPIC_TO_MAIN_TOPIC:
+            # It's a subtopic ID - convert to main topic
+            main_topics.add(SUBTOPIC_TO_MAIN_TOPIC[identifier])
+        else:
+            # Assume it's already a main topic name
+            main_topics.add(identifier)
+    return list(main_topics)
 
 # Global variables
 rag_chain = None
 retriever = None
 
 
-# ==================== MODELS ====================
+# Global variables
+rag_chain = None
+retriever = None
 
 class ExplainRequest(BaseModel):
     user_input: str
@@ -69,8 +158,7 @@ class GradingResponse(BaseModel):
 
 class QuizGenerateRequest(BaseModel):
     completed_topics: List[str]
-    num_questions: int = 5
-    variation_seed: Optional[int] = None
+    num_questions: int = 10
 
 class MCQ(BaseModel):
     id: str
@@ -85,166 +173,224 @@ class QuizGenerateResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
-# ==================== SQLITE CACHE ====================
+# ==================== DB HELPERS ====================
 
-def get_cache(topics: List[str], variation: int):
-    topic_hash = hashlib.md5("".join(sorted(topics)).encode()).hexdigest()
-    key = f"quiz:{topic_hash}:{variation}"
+def get_questions_from_db(topic_ids: List[str]) -> List[dict]:
+    """Fetch all stored questions for the given topics."""
     try:
-        conn = sqlite3.connect(CACHE_DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT data FROM cache WHERE key = ? AND expires > ?",
-            (key, int(time.time()))
-        )
-        row = cursor.fetchone()
-        conn.close()
-        return json.loads(row['data']) if row else None
-    except:
-        return None
+        if not topic_ids:
+            print(f"⚠️ No topics provided to get_questions_from_db")
+            return []
+        
+        # Convert subtopic IDs to main topic names for database lookup
+        main_topics = convert_topic_ids_to_main_topics(topic_ids)
+        print(f"📍 Converting topic IDs: {topic_ids} → {main_topics}")
 
-def set_cache(topics: List[str], variation: int, questions: List):
-    topic_hash = hashlib.md5("".join(sorted(topics)).encode()).hexdigest()
-    key = f"quiz:{topic_hash}:{variation}"
-    expires = int(time.time()) + 86400
-    try:
-        conn = sqlite3.connect(CACHE_DB)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cache (
-                key TEXT PRIMARY KEY, data TEXT, expires INTEGER
-            )
-        """)
-        cursor.execute(
-            "INSERT OR REPLACE INTO cache (key, data, expires) VALUES (?, ?, ?)",
-            (key, json.dumps(questions), expires)
-        )
-        conn.commit()
-        conn.close()
-        print(f"✅ Cached: {key}")
+        db = SessionLocal()
+        try:
+            rows = db.query(QuizQuestionModel).filter(
+                QuizQuestionModel.topic_id.in_(main_topics)
+            ).all()
+            print(f"🔍 DB query for topics {main_topics}: found {len(rows)} questions")
+            return [
+                {
+                    "id": row.id,
+                    "topic_id": row.topic_id,
+                    "question": row.question,
+                    "options": row.options,
+                    "correct_index": row.correct_index,
+                    "explanation": row.explanation,
+                }
+                for row in rows
+            ]
+        finally:
+            db.close()
     except Exception as e:
-        print(f"Cache save error: {e}")
+        print(f"🔴 DB read error: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return []
 
 
-# ==================== QUIZ ENDPOINT ====================
+def save_questions_to_db(questions: List[dict]):
+    """Insert new questions into the DB, skipping duplicates."""
+    try:
+        if not questions:
+            print(f"⚠️ No questions to save")
+            return
+
+        db = SessionLocal()
+        try:
+            inserted_count = 0
+            existing_ids = {
+                row.id for row in db.query(QuizQuestionModel.id).filter(
+                    QuizQuestionModel.id.in_([q["id"] for q in questions])
+                ).all()
+            }
+            for q in questions:
+                if q["id"] not in existing_ids:
+                    db.add(QuizQuestionModel(
+                        id=q["id"],
+                        topic_id=q["topic_id"],
+                        question=q["question"],
+                        options=q["options"],
+                        correct_index=q["correct_index"],
+                        explanation=q["explanation"],
+                    ))
+                    inserted_count += 1
+            db.commit()
+            print(f"✅ Saved {inserted_count} new questions to DB (attempted {len(questions)})")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"🔴 DB save error: {type(e).__name__}: {e}")
+        traceback.print_exc()
+
+
+def count_questions_by_topic(topic_ids: List[str]) -> Dict[str, int]:
+    """Count stored questions per topic."""
+    try:
+        if not topic_ids:
+            return {}
+
+        # Convert subtopic IDs to main topic names for database lookup
+        main_topics = convert_topic_ids_to_main_topics(topic_ids)
+
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(QuizQuestionModel.topic_id, func.count(QuizQuestionModel.id).label("cnt"))
+                .filter(QuizQuestionModel.topic_id.in_(main_topics))
+                .group_by(QuizQuestionModel.topic_id)
+                .all()
+            )
+            return {row.topic_id: row.cnt for row in rows}
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"🔴 DB count error: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return {}
+
+
+def sample_questions_with_topic_coverage(
+    questions: List[dict],
+    num_questions: int,
+    main_topics: List[str]
+) -> List[dict]:
+    """
+    Sample questions ensuring each topic is represented at least once.
+    If we have more topics than questions requested, increase num_questions to match.
+    """
+    # Ensure at least one question per topic
+    num_topics = len(main_topics)
+    actual_num = max(num_questions, num_topics)
+    
+    if actual_num > num_questions:
+        print(f"📈 Adjusting num_questions from {num_questions} to {actual_num} (one per topic)")
+    
+    # Group questions by topic
+    questions_by_topic = {}
+    for q in questions:
+        topic = q["topic_id"]
+        if topic not in questions_by_topic:
+            questions_by_topic[topic] = []
+        questions_by_topic[topic].append(q)
+    
+    # Select one question from each topic (guaranteed coverage)
+    selected = []
+    selected_ids = set()  # Track selected question IDs
+    
+    for topic in main_topics:
+        if topic in questions_by_topic and questions_by_topic[topic]:
+            q = random.choice(questions_by_topic[topic])
+            selected.append(q)
+            selected_ids.add(q["id"])
+    
+    # If we need more questions, fill remaining slots from the pool
+    remaining_needed = actual_num - len(selected)
+    if remaining_needed > 0:
+        available_pool = [q for q in questions if q["id"] not in selected_ids]
+        if available_pool:
+            additional = random.sample(
+                available_pool,
+                min(remaining_needed, len(available_pool))
+            )
+            selected.extend(additional)
+    
+    # Shuffle the final selection
+    random.shuffle(selected)
+    
+    return selected[:actual_num]
+
+
+# ==================== QUIZ ENDPOINTS ====================
 
 @router.post("/api/quizzes/generate", response_model=QuizGenerateResponse)
 async def generate_mcq_quiz(req: QuizGenerateRequest):
-    """⚡ SQLite cached quiz generator"""
-    print(f"📥 REQ received: {req.completed_topics}, var_seed={req.variation_seed}")
+    """Serve quiz from DB (random pick). If not enough questions exist, auto-generate via AI."""
+    print(f"📥 Quiz request: {req.completed_topics}, num={req.num_questions}")
 
     try:
-        variation = req.variation_seed if req.variation_seed is not None else random.randint(0, 4)
-        print(f"🎲 Variation: {variation}")
+        # Convert topic IDs to main topic names
+        main_topics = convert_topic_ids_to_main_topics(req.completed_topics)
+        print(f"📍 Main topics: {main_topics}")
+        
+        # Adjust num_questions if needed (ensure at least one per topic)
+        adjusted_num = max(req.num_questions, len(main_topics))
+        if adjusted_num > req.num_questions:
+            print(f"📈 Adjusted num_questions: {req.num_questions} → {adjusted_num} (one per topic)")
+        
+        # 1) Check DB for existing questions
+        db_questions = get_questions_from_db(req.completed_topics)
+        print(f"💾 DB has {len(db_questions)} questions for these topics")
 
-        cached_questions = get_cache(req.completed_topics, variation)
-        print(f"💾 Cache check: {'HIT' if cached_questions else 'MISS'}")
+        # 2) If we have enough, ensure topic coverage and sample
+        if len(db_questions) >= adjusted_num:
+            sampled = sample_questions_with_topic_coverage(
+                db_questions,
+                adjusted_num,
+                main_topics
+            )
+            mcq_list = [MCQ(**q) for q in sampled]
+            print(f"✅ Served {len(mcq_list)} from DB (pool: {len(db_questions)})")
+            return QuizGenerateResponse(
+                questions=mcq_list,
+                metadata={
+                    "source": "database",
+                    "pool_size": len(db_questions),
+                    "served": len(mcq_list),
+                    "topics_covered": list(set(q.topic_id for q in mcq_list)),
+                }
+            )
 
-        # ✅ CACHE HIT - convert dicts to MCQ objects
-        if cached_questions:
-            try:
-                mcq_list = [MCQ(**q) for q in cached_questions]  # ← KEY FIX
-                print(f"⚡ SQLITE HIT: {len(mcq_list)} questions")
-                return QuizGenerateResponse(
-                    questions=mcq_list,
-                    metadata={"cache_hit": True, "variation": variation}
-                )
-            except Exception as e:
-                print(f"⚠️ Cache corrupt, regenerating: {e}")
-                # Fall through to regenerate
-
-        print(f"🤖 AI GENERATE: {req.completed_topics} (var:{variation})")
-
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG not initialized")
-
-        # RAG context retrieval
-        topic_contexts = []
-        for topic_id in req.completed_topics:
-            try:
-                docs = retriever.invoke(topic_id)
-                combined = "\n\n".join([d.page_content[:800] for d in docs[:2]])
-                if combined:
-                    topic_contexts.append(f"Topic ID: {topic_id}\n{combined}")
-                    print(f"  ✅ Retrieved: {topic_id} ({len(docs)} docs)")
-            except Exception as e:
-                print(f"  ⚠️ Retriever failed for {topic_id}: {e}")
-                continue
-
-        if not topic_contexts:
-            raise HTTPException(status_code=400, detail="No content found for topics")
-
-        context_text = "\n\n---\n\n".join(topic_contexts)
-        print(f"📄 Context: {len(context_text)} chars")
-
-        prompt = f"""You are a Java tutor generating multiple-choice questions.
-
-Only use the following study material to create questions:
-
-{context_text}
-
-Generate exactly {req.num_questions} multiple-choice questions.
-Mix questions across the different topic IDs above.
-Each question MUST:
-- Be directly answerable from the material
-- Target understanding, not trivial memorization
-- Have 4 options, with EXACTLY one correct answer
-
-Respond as a JSON object with this schema:
-
-{{
-  "questions": [
-    {{
-      "id": "q1",
-      "topic_id": "topic id from above",
-      "question": "Question text...",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct_index": 1,
-      "explanation": "Why this option is correct"
-    }}
-  ]
-}}"""
-
-        print("🤖 Calling LLM...")
-        start_time = datetime.now()
-
-        llm_result = call_llm_json(
-            messages=[
-                {"role": "system", "content": "You are an expert Java instructor. Respond with valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.4,
-            max_tokens=1500,
-            timeout=90
+        # 3) Not enough — generate via AI and store
+        print(f"🤖 Need more questions. DB has {len(db_questions)}, need {adjusted_num}. Generating...")
+        new_questions = await _generate_new_questions(
+            topics=req.completed_topics,
+            num_questions=adjusted_num,
+            existing_questions=db_questions,
         )
 
-        raw_questions = llm_result.get("questions", [])
-        elapsed = (datetime.now() - start_time).total_seconds()
-        print(f"✅ LLM returned {len(raw_questions)} questions in {elapsed:.1f}s")
+        # Save newly generated questions to DB
+        save_questions_to_db(new_questions)
 
-        if not raw_questions:
-            raise HTTPException(status_code=500, detail="LLM returned no questions")
-
-        # ✅ Validate format before caching
-        try:
-            mcq_list = [MCQ(**q) for q in raw_questions]  # ← KEY FIX
-        except Exception as e:
-            print(f"❌ LLM format invalid: {e}")
-            print(f"❌ Raw: {raw_questions[:1]}")  # Show first question
-            raise HTTPException(status_code=500, detail=f"LLM format error: {e}")
-
-        set_cache(req.completed_topics, variation, raw_questions)
-        print(f"✅ Cached {len(mcq_list)} questions")
+        # Combine existing + new and ensure topic coverage
+        all_questions = db_questions + new_questions
+        sampled = sample_questions_with_topic_coverage(
+            all_questions,
+            adjusted_num,
+            main_topics
+        )
+        mcq_list = [MCQ(**q) for q in sampled]
 
         return QuizGenerateResponse(
             questions=mcq_list,
             metadata={
-                "cache_miss": True,
-                "variation": variation,
-                "count": len(mcq_list),
-                "generation_time_sec": round(elapsed, 1)
+                "source": "ai_generated",
+                "new_generated": len(new_questions),
+                "pool_size": len(all_questions),
+                "served": len(mcq_list),
+                "topics_covered": list(set(q.topic_id for q in mcq_list)),
             }
         )
 
@@ -254,6 +400,402 @@ Respond as a JSON object with this schema:
         print(f"🔴 EXCEPTION: {type(e).__name__}: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
+
+@router.post("/api/quizzes/more")
+async def stream_more_questions(req: QuizGenerateRequest):
+    """Stream NEW questions via SSE, one at a time as they are generated."""
+    print(f"📥 'More Questions' SSE request: {req.completed_topics}, num={req.num_questions}")
+
+    # Pre-fetch everything we need before entering the generator
+    global retriever
+    if retriever is None:
+        raise HTTPException(status_code=500, detail="RAG not initialized")
+
+    existing = get_questions_from_db(req.completed_topics)
+    print(f"💾 DB has {len(existing)} existing questions to avoid")
+
+    # Pre-fetch RAG context once (shared across all single-question calls)
+    topics = req.completed_topics
+    num_topics = len(topics)
+    if num_topics <= 3:
+        max_docs, max_chars = 2, 800
+    elif num_topics <= 6:
+        max_docs, max_chars = 2, 500
+    else:
+        max_docs, max_chars = 1, 400
+
+    async def retrieve_topic(topic_id: str):
+        try:
+            docs = await asyncio.to_thread(retriever.invoke, topic_id)
+            combined = "\n\n".join([d.page_content[:max_chars] for d in docs[:max_docs]])
+            if combined:
+                return f"Topic ID: {topic_id}\n{combined}"
+        except Exception as e:
+            print(f"  ⚠️ Retriever failed for {topic_id}: {e}")
+        return None
+
+    results = await asyncio.gather(*[retrieve_topic(t) for t in topics])
+    topic_contexts = [r for r in results if r is not None]
+
+    if not topic_contexts:
+        raise HTTPException(status_code=400, detail="No content found for topics")
+
+    context_text = "\n\n---\n\n".join(topic_contexts)
+
+    async def event_generator():
+        all_existing = list(existing)  # copy to accumulate
+        num_to_generate = req.num_questions
+
+        for i in range(num_to_generate):
+            try:
+                question = await _generate_single_question(
+                    context_text=context_text,
+                    existing_questions=all_existing,
+                    question_index=i,
+                )
+                if question:
+                    save_questions_to_db([question])
+                    all_existing.append(question)
+                    yield f"data: {json.dumps(question)}\n\n"
+                    print(f"  ✅ Streamed question {i+1}/{num_to_generate}")
+            except Exception as e:
+                print(f"  ❌ Failed to generate question {i+1}: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        # Send done signal with pool size
+        total_pool = len(get_questions_from_db(req.completed_topics))
+        yield f"data: {json.dumps({'done': True, 'total_pool': total_pool})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+class QuizCountRequest(BaseModel):
+    topics: List[str]
+
+
+class TopicContentRequest(BaseModel):
+    topic_id: str
+    topic_name: str
+
+
+# ==================== TOPIC CONTENT GENERATION ====================
+
+@router.post("/api/topics/generate-content")
+async def generate_topic_content(req: TopicContentRequest):
+    """Generate learning material for a topic using RAG + LLM."""
+    try:
+        global retriever
+        if retriever is None:
+            raise HTTPException(status_code=500, detail="RAG system not initialized")
+
+        print(f"📚 Generating content for topic: {req.topic_name}")
+        start_time = datetime.now()
+
+        # Retrieve relevant Java content for this topic
+        docs = await asyncio.to_thread(retriever.invoke, req.topic_name)
+        context_snippets = "\n\n".join([
+            d.page_content[:600] for d in docs[:3]
+        ])
+
+        if not context_snippets:
+            raise HTTPException(status_code=400, detail=f"No content found for topic: {req.topic_name}")
+
+        prompt = f"""You are an expert Java tutor creating comprehensive learning material.
+
+TOPIC: {req.topic_name}
+
+Using ONLY the following Java documentation and examples, create detailed learning material:
+
+{context_snippets}
+
+Generate a JSON object with this exact structure:
+{{
+  "title": "Clear topic title",
+  "overview": "2-3 sentence overview of what students will learn",
+  "keyConceptsHtml": "<div class='concept'><h3>1. Concept Name</h3><p>Explanation...</p><pre><code>// Java code example</code></pre></div><div class='concept'><h3>2. Another Concept</h3><p>More explanation...</p></div>",
+  "codeExamples": [
+    {{
+      "title": "Example 1 Title",
+      "java": "// Complete Java code example\\nint x = 10;"
+    }},
+    {{
+      "title": "Example 2 Title", 
+      "java": "// Another Java example\\nString name = \\"Alice\\";"
+    }},
+    {{
+      "title": "Example 3 Title",
+      "java": "// Third example showing real usage"
+    }}
+  ],
+  "keyTakeaways": [
+    "First important concept to remember",
+    "Second key point",
+    "Third important takeaway",
+    "Fourth learning point",
+    "Fifth key concept",
+    "Sixth related concept"
+  ]
+}}
+
+IMPORTANT:
+- Include ONLY Java code examples (no Python, no comparisons)
+- Use HTML with <div class='concept'> for structured content
+- Include 3+ code examples showing practical usage
+- Write 6 key takeaways
+- Keep language clear and educational
+- Focus on practical Java concepts students will use"""
+
+        content_result = await call_llm_json(
+            messages=[
+                {"role": "system", "content": "You are an expert Java instructor. Create comprehensive learning material. Respond with valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2500,
+            timeout=60
+        )
+
+        elapsed = (datetime.now() - start_time).total_seconds()
+        
+        return {
+            "topic_id": req.topic_id,
+            "content": content_result,
+            "metadata": {
+                "generated_at": datetime.now().isoformat(),
+                "generation_time_sec": round(elapsed, 2),
+                "model": "qwen3-max",
+                "retrieval_docs": len(docs),
+                "content_source": "RAG + LLM"
+            }
+        }
+
+    except HTTPException:
+        raise
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse LLM JSON: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to parse generated content: {str(e)}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Content generation error: {str(e)}")
+
+
+@router.post("/api/topics/batch-generate")
+async def batch_generate_topic_content(topics: List[TopicContentRequest]):
+    """Generate learning material for multiple topics in parallel."""
+    try:
+        print(f"📚 Batch generating content for {len(topics)} topics")
+        
+        # Generate all topics in parallel
+        tasks = [generate_topic_content(topic) for topic in topics]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        successful = [r for r in results if isinstance(r, dict) and "content" in r]
+        failed = [str(r) for r in results if isinstance(r, Exception)]
+        
+        return {
+            "total_requested": len(topics),
+            "successful": len(successful),
+            "failed": len(failed),
+            "contents": successful,
+            "errors": failed
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Batch generation error: {str(e)}")
+
+
+
+async def quiz_question_count(req: QuizCountRequest):
+    """Return how many questions are stored per topic."""
+    counts = count_questions_by_topic(req.topics)
+    total = sum(counts.values())
+    return {"counts_by_topic": counts, "total": total}
+
+
+# ==================== AI GENERATION HELPER ====================
+
+async def _generate_new_questions(
+    topics: List[str],
+    num_questions: int,
+    existing_questions: List[dict],
+) -> List[dict]:
+    """Call AI to generate new unique questions, avoiding duplicates."""
+    global retriever
+    if retriever is None:
+        raise HTTPException(status_code=500, detail="RAG not initialized")
+
+    # Convert subtopic IDs to main topic names for RAG retrieval
+    main_topics = convert_topic_ids_to_main_topics(topics)
+    print(f"📍 Converting topics for generation: {topics} → {main_topics}")
+
+    # RAG context retrieval (parallel)
+    retrieval_start = time.time()
+    num_topics = len(main_topics)
+
+    if num_topics <= 3:
+        max_docs, max_chars = 2, 800
+    elif num_topics <= 6:
+        max_docs, max_chars = 2, 500
+    else:
+        max_docs, max_chars = 1, 400
+
+    async def retrieve_topic(topic_id: str):
+        try:
+            docs = await asyncio.to_thread(retriever.invoke, topic_id)
+            combined = "\n\n".join([d.page_content[:max_chars] for d in docs[:max_docs]])
+            if combined:
+                return f"Topic ID: {topic_id}\n{combined}"
+        except Exception as e:
+            print(f"  ⚠️ Retriever failed for {topic_id}: {e}")
+        return None
+
+    results = await asyncio.gather(*[retrieve_topic(t) for t in main_topics])
+    topic_contexts = [r for r in results if r is not None]
+    print(f"⏱️ Retrieval: {time.time() - retrieval_start:.2f}s ({num_topics} topics)")
+
+    if not topic_contexts:
+        raise HTTPException(status_code=400, detail="No content found for topics")
+
+    context_text = "\n\n---\n\n".join(topic_contexts)
+
+    # Build exclusion list so AI doesn't repeat existing questions
+    exclusion_block = ""
+    if existing_questions:
+        existing_texts = [q["question"] for q in existing_questions[-20:]]  # last 20 to keep prompt short
+        exclusion_block = "\n\nDo NOT repeat any of these existing questions:\n" + "\n".join(
+            f"- {q}" for q in existing_texts
+        )
+
+    # Unique IDs: use a timestamp prefix to avoid collisions
+    id_prefix = f"q{int(time.time())}_"
+
+    prompt = f"""You are a Java tutor generating multiple-choice questions.
+
+Only use the following study material to create questions:
+
+{context_text}
+
+Generate exactly {num_questions} NEW and UNIQUE multiple-choice questions.
+Mix questions across the different topic IDs above.
+Each question MUST:
+- Be directly answerable from the material
+- Target understanding, not trivial memorization
+- Have 4 options, with EXACTLY one correct answer
+- Use IDs starting with "{id_prefix}" (e.g. "{id_prefix}1", "{id_prefix}2", ...)
+{exclusion_block}
+
+Respond as a JSON object with this schema:
+
+{{
+  "questions": [
+    {{
+      "id": "{id_prefix}1",
+      "topic_id": "topic id from above",
+      "question": "Question text...",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_index": 1,
+      "explanation": "Why this option is correct"
+    }}
+  ]
+}}"""
+
+    print("🤖 Calling LLM...")
+    start_time = datetime.now()
+
+    llm_result = await call_llm_json(
+        messages=[
+            {"role": "system", "content": "You are an expert Java instructor. Respond with valid JSON only."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.5,
+        max_tokens=2000,
+        timeout=90
+    )
+
+    raw_questions = llm_result.get("questions", [])
+    elapsed = (datetime.now() - start_time).total_seconds()
+    print(f"✅ LLM returned {len(raw_questions)} questions in {elapsed:.1f}s")
+
+    if not raw_questions:
+        raise HTTPException(status_code=500, detail="LLM returned no questions")
+
+    # Validate
+    try:
+        [MCQ(**q) for q in raw_questions]
+    except Exception as e:
+        print(f"❌ LLM format invalid: {e}")
+        raise HTTPException(status_code=500, detail=f"LLM format error: {e}")
+
+    return raw_questions
+
+
+async def _generate_single_question(
+    context_text: str,
+    existing_questions: List[dict],
+    question_index: int,
+) -> Optional[dict]:
+    """Generate exactly ONE new question via a fast LLM call."""
+    # Build exclusion list
+    exclusion_block = ""
+    if existing_questions:
+        existing_texts = [q["question"] for q in existing_questions[-15:]]
+        exclusion_block = "\n\nDo NOT repeat any of these existing questions:\n" + "\n".join(
+            f"- {q}" for q in existing_texts
+        )
+
+    id_prefix = f"q{int(time.time())}_{question_index}"
+
+    prompt = f"""You are a Java tutor. Generate exactly 1 multiple-choice question.
+
+Only use the following study material:
+
+{context_text}
+
+The question MUST:
+- Be directly answerable from the material
+- Target understanding, not trivial memorization
+- Have 4 options, with EXACTLY one correct answer
+{exclusion_block}
+
+Respond as a JSON object:
+
+{{
+  "id": "{id_prefix}",
+  "topic_id": "the topic id from the material above",
+  "question": "Question text",
+  "options": ["A", "B", "C", "D"],
+  "correct_index": 0,
+  "explanation": "Why correct"
+}}"""
+
+    result = await call_llm_json(
+        messages=[
+            {"role": "system", "content": "You are an expert Java instructor. Respond with valid JSON only."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.6,
+        max_tokens=500,
+        timeout=30
+    )
+
+    # The LLM might return {"questions": [...]} or a direct question object
+    if "questions" in result and isinstance(result["questions"], list):
+        q = result["questions"][0]
+    else:
+        q = result
+
+    # Validate
+    MCQ(**q)
+    return q
 
 
 
@@ -269,34 +811,34 @@ def get_api_config():
         }
     }
 
-def call_llm(messages: List[Dict], temperature: float = 0.7, max_tokens: int = 1000, timeout: int = 90):
+async def call_llm(messages: List[Dict], temperature: float = 0.7, max_tokens: int = 1000, timeout: int = 90):
     config = get_api_config()
-    response = requests.post(
-        config["url"],
-        headers=config["headers"],
-        json={"messages": messages, "temperature": temperature, "max_tokens": max_tokens},
-        timeout=timeout
-    )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            config["url"],
+            headers=config["headers"],
+            json={"messages": messages, "temperature": temperature, "max_tokens": max_tokens},
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
 
-def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_tokens: int = 1500, timeout: int = 90):
+async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_tokens: int = 1500, timeout: int = 90):
     config = get_api_config()
-    response = requests.post(
-        config["url"],
-        headers=config["headers"],
-        json={
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "response_format": {"type": "json_object"}
-        },
-        timeout=timeout
-    )
-    response.raise_for_status()
-    result = response.json()["choices"][0]["message"]["content"]
-    result = result.replace("```json", "").replace("```", "").strip()
-    return json.loads(result)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            config["url"],
+            headers=config["headers"],
+            json={
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "response_format": {"type": "json_object"}
+            },
+        )
+        response.raise_for_status()
+        result = response.json()["choices"][0]["message"]["content"]
+        result = result.replace("```json", "").replace("```", "").strip()
+        return json.loads(result)
 
 
 # ==================== RAG ====================
@@ -369,7 +911,7 @@ Keep feedback constructive and educational."""
 
         print(f"[Code Review] Analyzing {len(req.code)} chars...")
         start_time = datetime.now()
-        review = call_llm(
+        review = await call_llm(
             messages=[{"role": "user", "content": review_prompt}],
             temperature=0.7, max_tokens=1000, timeout=90
         )
@@ -384,7 +926,7 @@ Keep feedback constructive and educational."""
                 "timestamp": datetime.now().isoformat()
             }
         }
-    except requests.exceptions.Timeout:
+    except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="Review timed out")
     except Exception as e:
         traceback.print_exc()
@@ -470,7 +1012,7 @@ Guidelines:
 Generate a detailed hint now:"""
         }
 
-        hint_text = call_llm(
+        hint_text = await call_llm(
             messages=[
                 {"role": "system", "content": "You are an expert Java tutor who provides progressive hints."},
                 {"role": "user", "content": prompts[req.hint_level]}
@@ -563,7 +1105,7 @@ Respond in JSON:
   "code_quality_notes": "Style and readability notes"
 }}"""
 
-        ai_evaluation = call_llm_json(
+        ai_evaluation = await call_llm_json(
             messages=[
                 {"role": "system", "content": "You are a fair Java instructor. Respond with valid JSON only."},
                 {"role": "user", "content": grading_prompt}

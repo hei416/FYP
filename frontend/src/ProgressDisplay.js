@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ProgressTracker } from './ProgressTracker';
+import { colors, radii, shadows, spacing, font, transition } from './theme';
 
 export default function ProgressDisplay() {
     const [progress, setProgress] = useState({ completed: 0, total: 1 });
@@ -80,22 +81,22 @@ export default function ProgressDisplay() {
                 style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
-                    padding: '8px 16px',
-                    background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-                    borderRadius: '20px',
-                    border: '2px solid #2196F3',
-                    boxShadow: '0 2px 6px rgba(33, 150, 243, 0.2)',
+                    gap: spacing.md,
+                    padding: `${spacing.sm}px ${spacing.lg}px`,
+                    background: colors.primaryLight,
+                    borderRadius: radii.xl,
+                    border: `2px solid ${colors.primary}`,
+                    boxShadow: shadows.sm,
                     cursor: 'pointer',
-                    transition: 'all 0.3s'
+                    transition
                 }}
                 onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
+                    e.currentTarget.style.boxShadow = shadows.md;
                 }}
                 onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(33, 150, 243, 0.2)';
+                    e.currentTarget.style.boxShadow = shadows.sm;
                 }}
             >
                 {/* Progress Circle */}
@@ -110,7 +111,7 @@ export default function ProgressDisplay() {
                             cy="20"
                             r="16"
                             fill="none"
-                            stroke="#e0e7ff"
+                            stroke={colors.primaryBorder}
                             strokeWidth="4"
                         />
                         <circle
@@ -118,7 +119,7 @@ export default function ProgressDisplay() {
                             cy="20"
                             r="16"
                             fill="none"
-                            stroke="#2196F3"
+                            stroke={colors.primary}
                             strokeWidth="4"
                             strokeDasharray={`${2 * Math.PI * 16}`}
                             strokeDashoffset={`${2 * Math.PI * 16 * (1 - percentage / 100)}`}
@@ -132,8 +133,8 @@ export default function ProgressDisplay() {
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
                         fontSize: '10px',
-                        fontWeight: 'bold',
-                        color: '#2196F3'
+                        fontWeight: font.weightBold,
+                        color: colors.primary
                     }}>
                         {percentage}%
                     </div>
@@ -142,17 +143,17 @@ export default function ProgressDisplay() {
                 {/* Progress Text */}
                 <div>
                     <div style={{ 
-                        fontSize: '12px', 
-                        fontWeight: '500',
-                        color: '#64748b',
+                        fontSize: font.sizeXs, 
+                        fontWeight: font.weightMedium,
+                        color: colors.textSecondary,
                         lineHeight: '1.2'
                     }}>
                         Progress
                     </div>
                     <div style={{ 
-                        fontSize: '16px', 
-                        fontWeight: 'bold',
-                        color: '#2196F3',
+                        fontSize: font.sizeMd, 
+                        fontWeight: font.weightBold,
+                        color: colors.primary,
                         lineHeight: '1.2'
                     }}>
                         {progress.completed}/{progress.total}
@@ -172,7 +173,7 @@ export default function ProgressDisplay() {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: 'rgba(0, 0, 0, 0.6)',
+                            background: colors.backdrop,
                             zIndex: 9997
                         }}
                     />
@@ -184,15 +185,15 @@ export default function ProgressDisplay() {
                             top: '50%',
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
-                            background: 'white',
-                            borderRadius: '16px',
-                            padding: '32px',
+                            background: colors.surface,
+                            borderRadius: radii.lg,
+                            padding: spacing.xxl,
                             maxWidth: '500px',
                             width: '90%',
                             maxHeight: '80vh',
                             overflowY: 'auto',
                             zIndex: 9998,
-                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+                            boxShadow: shadows.xl
                         }}
                     >
                         {/* Header */}
@@ -204,9 +205,9 @@ export default function ProgressDisplay() {
                         }}>
                             <h2 style={{
                                 margin: 0,
-                                fontSize: '24px',
-                                color: '#2196F3',
-                                fontWeight: 'bold'
+                                fontSize: font.sizeXxl,
+                                color: colors.primary,
+                                fontWeight: font.weightBold
                             }}>
                                 📊 Learning Progress
                             </h2>
@@ -217,7 +218,7 @@ export default function ProgressDisplay() {
                                     border: 'none',
                                     fontSize: '28px',
                                     cursor: 'pointer',
-                                    color: '#9ca3af',
+                                    color: colors.textMuted,
                                     padding: '0',
                                     lineHeight: 1
                                 }}
@@ -228,38 +229,38 @@ export default function ProgressDisplay() {
 
                         {/* Overall Progress */}
                         <div style={{
-                            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-                            padding: '20px',
-                            borderRadius: '12px',
-                            marginBottom: '24px',
-                            border: '2px solid #2196F3'
+                            background: colors.primaryLight,
+                            padding: spacing.xl,
+                            borderRadius: radii.md,
+                            marginBottom: spacing.xl,
+                            border: `2px solid ${colors.primary}`
                         }}>
                             <div style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                marginBottom: '12px'
+                                marginBottom: spacing.md
                             }}>
-                                <span style={{ fontSize: '16px', fontWeight: '600', color: '#1976D2' }}>
+                                <span style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.primary }}>
                                     Overall Progress
                                 </span>
-                                <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#2196F3' }}>
+                                <span style={{ fontSize: font.sizeXl, fontWeight: font.weightBold, color: colors.primary }}>
                                     {progress.completed}/{progress.total}
                                 </span>
                             </div>
                             <div style={{
                                 width: '100%',
                                 height: '12px',
-                                background: '#e0e7ff',
-                                borderRadius: '6px',
+                                background: colors.primaryBorder,
+                                borderRadius: radii.sm,
                                 overflow: 'hidden'
                             }}>
                                 <div style={{
                                     width: `${percentage}%`,
                                     height: '100%',
-                                    background: 'linear-gradient(90deg, #2196F3 0%, #1976D2 100%)',
+                                    background: colors.primary,
                                     transition: 'width 0.5s ease',
-                                    borderRadius: '6px'
+                                    borderRadius: radii.sm
                                 }}></div>
                             </div>
                         </div>
@@ -312,19 +313,19 @@ export default function ProgressDisplay() {
 
                             {/* AI Interactions */}
                             <div style={{
-                                padding: '16px',
-                                background: '#f9fafb',
-                                borderRadius: '8px',
+                                padding: spacing.lg,
+                                background: colors.bg,
+                                borderRadius: radii.sm,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '12px'
+                                gap: spacing.md
                             }}>
                                 <span style={{ fontSize: '24px' }}>🤖</span>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.text }}>
                                         AI Tutor Interactions
                                     </div>
-                                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                    <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
                                         {detailedProgress.aiInteractions} questions asked
                                     </div>
                                 </div>
@@ -337,18 +338,18 @@ export default function ProgressDisplay() {
                                 onClick={closeModal}
                                 style={{
                                     width: '100%',
-                                    padding: '12px',
-                                    background: '#2196F3',
+                                    padding: `${spacing.md}px`,
+                                    background: colors.primary,
                                     border: 'none',
-                                    borderRadius: '8px',
+                                    borderRadius: radii.sm,
                                     cursor: 'pointer',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    color: 'white',
-                                    transition: 'all 0.2s'
+                                    fontSize: font.sizeSm,
+                                    fontWeight: font.weightSemibold,
+                                    color: colors.surface,
+                                    transition
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#1976D2'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = '#2196F3'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = colors.primaryDark}
+                                onMouseLeave={(e) => e.currentTarget.style.background = colors.primary}
                             >
                                 Close
                             </button>
@@ -366,10 +367,10 @@ function ProgressItem({ icon, title, completed, total, subtitle, color }) {
 
     return (
         <div style={{
-            padding: '16px',
-            background: '#f9fafb',
-            borderRadius: '8px',
-            border: '1px solid #e5e7eb'
+            padding: spacing.lg,
+            background: colors.bg,
+            borderRadius: radii.sm,
+            border: `1px solid ${colors.divider}`
         }}>
             <div style={{
                 display: 'flex',
@@ -380,20 +381,20 @@ function ProgressItem({ icon, title, completed, total, subtitle, color }) {
                 <span style={{ fontSize: '24px' }}>{icon}</span>
                 <div style={{ flex: 1 }}>
                     <div style={{ 
-                        fontSize: '14px', 
-                        fontWeight: '600', 
-                        color: '#374151',
+                        fontSize: font.sizeSm, 
+                        fontWeight: font.weightSemibold, 
+                        color: colors.text,
                         marginBottom: '2px'
                     }}>
                         {title}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                    <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
                         {subtitle}
                     </div>
                 </div>
                 <div style={{ 
-                    fontSize: '16px', 
-                    fontWeight: 'bold',
+                    fontSize: font.sizeMd, 
+                    fontWeight: font.weightBold,
                     color: color
                 }}>
                     {completed}/{total}
@@ -402,8 +403,8 @@ function ProgressItem({ icon, title, completed, total, subtitle, color }) {
             <div style={{
                 width: '100%',
                 height: '8px',
-                background: '#e5e7eb',
-                borderRadius: '4px',
+                background: colors.divider,
+                borderRadius: radii.sm,
                 overflow: 'hidden'
             }}>
                 <div style={{
@@ -411,7 +412,7 @@ function ProgressItem({ icon, title, completed, total, subtitle, color }) {
                     height: '100%',
                     background: color,
                     transition: 'width 0.5s ease',
-                    borderRadius: '4px'
+                    borderRadius: radii.sm
                 }}></div>
             </div>
         </div>

@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProgressDisplay from './ProgressDisplay';
+import { colors, radii, shadows, font, spacing, btn, navbar, sidebar, transition } from './theme';
+import { useAuth } from './AuthContext';
 
 export default function Navbar({ toggleChat }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { user, logout, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -31,15 +35,15 @@ export default function Navbar({ toggleChat }) {
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 70,
-                    background: 'white',
-                    borderBottom: '2px solid #e5e7eb',
+                    height: navbar.height,
+                    background: navbar.bg,
+                    borderBottom: `1px solid ${colors.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0 24px',
                     zIndex: 100,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                    boxShadow: navbar.shadow
                 }}
             >
                 {/* Left: Hamburger Menu + Logo */}
@@ -61,40 +65,40 @@ export default function Navbar({ toggleChat }) {
                         <div style={{
                             width: '24px',
                             height: '3px',
-                            background: '#2196F3',
+                            background: colors.primary,
                             borderRadius: '2px',
-                            transition: 'all 0.3s',
+                            transition,
                             transform: isSidebarOpen ? 'rotate(45deg) translateY(7px)' : 'none'
                         }}></div>
                         <div style={{
                             width: '24px',
                             height: '3px',
-                            background: '#2196F3',
+                            background: colors.primary,
                             borderRadius: '2px',
-                            transition: 'all 0.3s',
+                            transition,
                             opacity: isSidebarOpen ? 0 : 1
                         }}></div>
                         <div style={{
                             width: '24px',
                             height: '3px',
-                            background: '#2196F3',
+                            background: colors.primary,
                             borderRadius: '2px',
-                            transition: 'all 0.3s',
+                            transition,
                             transform: isSidebarOpen ? 'rotate(-45deg) translateY(-7px)' : 'none'
                         }}></div>
                     </button>
 
                     <h1 style={{ 
                         margin: 0, 
-                        fontSize: '24px', 
-                        color: '#2196F3',
-                        fontWeight: 'bold'
+                        fontSize: font.sizeXxl, 
+                        color: colors.primary,
+                        fontWeight: font.weightBold
                     }}>
                         ☕ CodeTutor
                     </h1>
                 </div>
 
-                {/* Right: Progress + AI Button */}
+                {/* Right: Progress + AI Button + User */}
                 <div style={{ 
                     display: 'flex', 
                     gap: '16px', 
@@ -106,32 +110,84 @@ export default function Navbar({ toggleChat }) {
                         data-tour="ai-button"
                         onClick={toggleChat}
                         style={{
-                            padding: '10px 20px',
-                            background: 'linear-gradient(135deg, #128C7E 0%, #0f7566 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.3s',
-                            boxShadow: '0 2px 8px rgba(18, 140, 126, 0.3)'
+                            ...btn.accent,
+                            ...btn.small,
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(18, 140, 126, 0.4)';
+                            Object.assign(e.currentTarget.style, btn.accentHover);
                         }}
                         onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = colors.accent;
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(18, 140, 126, 0.3)';
+                            e.currentTarget.style.boxShadow = btn.accent.boxShadow;
                         }}
                     >
                         <span>🤖</span>
                         <span>Ask AI</span>
                     </button>
+
+                    {isAuthenticated ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{
+                                fontSize: font.sizeSm,
+                                color: colors.textSecondary,
+                                maxWidth: '140px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                👤 {user?.email}
+                            </span>
+                            <button
+                                onClick={() => { logout(); navigate('/home'); }}
+                                style={{
+                                    padding: '6px 14px',
+                                    background: 'transparent',
+                                    border: `1px solid ${colors.border}`,
+                                    borderRadius: radii.sm,
+                                    color: colors.textSecondary,
+                                    fontSize: font.sizeSm,
+                                    cursor: 'pointer',
+                                    transition
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = colors.error || '#ef4444';
+                                    e.currentTarget.style.color = colors.error || '#ef4444';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = colors.border;
+                                    e.currentTarget.style.color = colors.textSecondary;
+                                }}
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => navigate('/login')}
+                            style={{
+                                padding: '6px 18px',
+                                background: 'transparent',
+                                border: `1px solid ${colors.primary}`,
+                                borderRadius: radii.sm,
+                                color: colors.primary,
+                                fontSize: font.sizeSm,
+                                fontWeight: font.weightMedium,
+                                cursor: 'pointer',
+                                transition
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = colors.primary;
+                                e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = colors.primary;
+                            }}
+                        >
+                            Login / Register
+                        </button>
+                    )}
                 </div>
             </nav>
 
@@ -145,7 +201,7 @@ export default function Navbar({ toggleChat }) {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        background: 'rgba(0, 0, 0, 0.5)',
+                        background: colors.backdrop,
                         zIndex: 998,
                         animation: 'fadeIn 0.3s ease'
                     }}
@@ -157,16 +213,16 @@ export default function Navbar({ toggleChat }) {
                 style={{
                     position: 'fixed',
                     top: 0,
-                    left: isSidebarOpen ? 0 : '-300px',
-                    width: '280px',
+                    left: isSidebarOpen ? 0 : `-${sidebar.width + 20}px`,
+                    width: sidebar.width,
                     height: '100vh',
-                    background: 'white',
-                    boxShadow: '4px 0 12px rgba(0, 0, 0, 0.15)',
+                    background: sidebar.bg,
+                    boxShadow: sidebar.shadow,
                     zIndex: 999,
                     transition: 'left 0.3s ease',
                     display: 'flex',
                     flexDirection: 'column',
-                    padding: '20px'
+                    padding: spacing.xl
                 }}
             >
                 {/* Sidebar Header */}
@@ -174,15 +230,15 @@ export default function Navbar({ toggleChat }) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: '30px',
-                    paddingBottom: '20px',
-                    borderBottom: '2px solid #e5e7eb'
+                    marginBottom: 30,
+                    paddingBottom: spacing.xl,
+                    borderBottom: `2px solid ${colors.border}`
                 }}>
                     <h2 style={{ 
                         margin: 0, 
-                        fontSize: '20px', 
-                        color: '#2196F3',
-                        fontWeight: 'bold'
+                        fontSize: font.sizeXl, 
+                        color: colors.primary,
+                        fontWeight: font.weightBold
                     }}>
                         Java Learning Hub
                     </h2>
@@ -191,10 +247,10 @@ export default function Navbar({ toggleChat }) {
                         style={{
                             background: 'none',
                             border: 'none',
-                            fontSize: '24px',
+                            fontSize: 24,
                             cursor: 'pointer',
-                            color: '#9ca3af',
-                            padding: '4px'
+                            color: colors.textMuted,
+                            padding: 4
                         }}
                     >
                         ×
@@ -208,127 +264,49 @@ export default function Navbar({ toggleChat }) {
                     gap: '8px',
                     flex: 1
                 }}>
-                    <Link 
-                        to="/home" 
-                        onClick={toggleSidebar}
-                        style={{ 
-                            textDecoration: 'none', 
-                            color: '#374151',
-                            fontWeight: '500',
-                            padding: '12px 16px',
-                            borderRadius: '8px',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            fontSize: '15px'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f0f9ff';
-                            e.currentTarget.style.color = '#2196F3';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#374151';
-                        }}
-                    >
-                        <span style={{ fontSize: '20px' }}>🏠</span>
-                        <span>Home</span>
-                    </Link>
-
-                    <Link 
-                        to="/playground" 
-                        data-tour="playground-link"
-                        onClick={toggleSidebar}
-                        style={{ 
-                            textDecoration: 'none', 
-                            color: '#374151',
-                            fontWeight: '500',
-                            padding: '12px 16px',
-                            borderRadius: '8px',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            fontSize: '15px'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f0f9ff';
-                            e.currentTarget.style.color = '#2196F3';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#374151';
-                        }}
-                    >
-                        <span style={{ fontSize: '20px' }}>💻</span>
-                        <span>Playground</span>
-                    </Link>
-
-                    <Link 
-                        to="/quiz" 
-                        data-tour="quiz-link"
-                        onClick={toggleSidebar}
-                        style={{ 
-                            textDecoration: 'none', 
-                            color: '#374151',
-                            fontWeight: '500',
-                            padding: '12px 16px',
-                            borderRadius: '8px',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            fontSize: '15px'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f0f9ff';
-                            e.currentTarget.style.color = '#2196F3';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#374151';
-                        }}
-                    >
-                        <span style={{ fontSize: '20px' }}>📝</span>
-                        <span>Quiz</span>
-                    </Link>
-
-                    <Link 
-                        to="/practical-test" 
-                        data-tour="test-link"
-                        onClick={toggleSidebar}
-                        style={{ 
-                            textDecoration: 'none', 
-                            color: '#374151',
-                            fontWeight: '500',
-                            padding: '12px 16px',
-                            borderRadius: '8px',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            fontSize: '15px'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f0f9ff';
-                            e.currentTarget.style.color = '#2196F3';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#374151';
-                        }}
-                    >
-                        <span style={{ fontSize: '20px' }}>🎯</span>
-                        <span>Tests</span>
-                    </Link>
+                    {[
+                        { to: '/home', icon: '🏠', label: 'Home' },
+                        { to: '/playground', icon: '💻', label: 'Playground', 'data-tour': 'playground-link' },
+                        { to: '/quiz', icon: '📝', label: 'Quiz', 'data-tour': 'quiz-link' },
+                        { to: '/practical-test', icon: '🎯', label: 'Tests', 'data-tour': 'test-link' },
+                    ].map(({ to, icon, label, ...rest }) => (
+                        <Link
+                            key={to}
+                            to={to}
+                            onClick={toggleSidebar}
+                            {...rest}
+                            style={{
+                                textDecoration: 'none',
+                                color: colors.textSecondary,
+                                fontWeight: font.weightMedium,
+                                padding: '12px 16px',
+                                borderRadius: radii.sm,
+                                transition,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                                fontSize: font.sizeMd
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = colors.primaryLight;
+                                e.currentTarget.style.color = colors.primary;
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = colors.textSecondary;
+                            }}
+                        >
+                            <span style={{ fontSize: 20 }}>{icon}</span>
+                            <span>{label}</span>
+                        </Link>
+                    ))}
                 </div>
 
                 {/* Sidebar Footer */}
                 <div style={{
                     marginTop: 'auto',
-                    paddingTop: '20px',
-                    borderTop: '2px solid #e5e7eb'
+                    paddingTop: spacing.xl,
+                    borderTop: `2px solid ${colors.border}`
                 }}>
                     <p style={{
                         margin: '0 0 10px 0',

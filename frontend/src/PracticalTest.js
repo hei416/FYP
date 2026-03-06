@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Compiler from "./Compiler";
+import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, codeOutput, transition } from './theme';
 
 export default function PracticalTest() {
     const [questions, setQuestions] = useState([]);
@@ -335,33 +336,25 @@ export default function PracticalTest() {
     const formatTime = secs => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 
     return (
-        <div style={{ padding: 24 }}>
-            <h2>Code Exercise</h2>
+        <div style={pageContainer(1100)}>
+            <h2 style={pageHeading}>🎯 Code Exercise</h2>
 
             {!started ? (
                 <>
                     <div
                         style={{
-                            background: "#f4f4f4",
-                            padding: 16,
-                            marginTop: 16,
-                            border: "1px solid #ccc",
+                            ...card.base,
+                            marginTop: spacing.lg,
                             maxHeight: 300,
-                            overflowY: "auto"
+                            overflowY: "auto",
                         }}
                         dangerouslySetInnerHTML={{ __html: instruction }}
                     />
                     <button 
                         onClick={handleStart} 
                         style={{ 
-                            marginTop: 16,
-                            padding: '10px 20px',
-                            backgroundColor: '#4CAF50',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '16px'
+                            ...btn.success,
+                            marginTop: spacing.lg,
                         }}
                     >
                         Start Test
@@ -369,10 +362,15 @@ export default function PracticalTest() {
                 </>
             ) : (
                 <>
-                    <div style={{ marginTop: 16 }}>
-                        <label>
+                    <div style={{ marginTop: spacing.lg }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: font.sizeMd, color: colors.textSecondary }}>
                             Select Question:
-                            <select value={selectedQuestion} onChange={e => setSelectedQuestion(e.target.value)} style={{ marginLeft: 8 }}>
+                            <select value={selectedQuestion} onChange={e => setSelectedQuestion(e.target.value)} style={{
+                                padding: '8px 12px',
+                                borderRadius: radii.sm,
+                                border: `1px solid ${colors.border}`,
+                                fontSize: font.sizeMd,
+                            }}>
                                 {questions.map((q, i) => (
                                     <option key={q.id} value={q.id}>
                                        {q.id.replace(".json", "")}
@@ -382,18 +380,16 @@ export default function PracticalTest() {
                         </label>
                     </div>
 
-                    <div style={{ marginTop: 8, fontWeight: "bold" }}>
+                    <div style={{ marginTop: spacing.sm, fontWeight: font.weightBold, color: colors.text, fontSize: font.sizeMd }}>
                         Time Elapsed: {formatTime(elapsedTime)}
                     </div>
 
                     <div
                         style={{
-                            background: "#f4f4f4",
-                            padding: 16,
-                            marginTop: 16,
-                            border: "1px solid #ccc",
+                            ...card.base,
+                            marginTop: spacing.lg,
                             maxHeight: 300,
-                            overflowY: "auto"
+                            overflowY: "auto",
                         }}
                         dangerouslySetInnerHTML={{ __html: instruction }}
                     />
@@ -406,59 +402,41 @@ export default function PracticalTest() {
                         hideRunButton={true}
                     />
                     
-                    <div style={{ marginTop: 16, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
                         <button 
                             onClick={handleRun}
-                            style={{
-                                padding: '10px 20px',
-                                backgroundColor: '#2196F3',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '16px'
-                            }}
+                            style={btn.primary}
                         >
-                            Run Code
+                            ▶ Run Code
                         </button>
                         <button 
                             onClick={handleSubmit}
-                            style={{
-                                padding: '10px 20px',
-                                backgroundColor: '#4CAF50',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '16px'
-                            }}
+                            style={btn.success}
                         >
-                            Submit Code
+                            📤 Submit Code
                         </button>
                     </div>
 
                     {/* HINTS SECTION - ALWAYS AVAILABLE */}
                     <div style={{
-                        background: '#fff9e6',
-                        padding: 20,
-                        borderRadius: 8,
-                        margin: '20px 0',
-                        border: '2px solid #ffc107'
+                        ...card.warning,
+                        padding: spacing.xl,
+                        margin: `${spacing.xl}px 0`,
                     }}>
-                        <h3 style={{ marginTop: 0 }}>💡 Need Help?</h3>
+                        <h3 style={{ marginTop: 0, color: colors.text, fontSize: font.sizeLg }}>💡 Need Help?</h3>
                         
                         {testResults ? (
                             testResults.failed && testResults.failed.length > 0 ? (
-                                <p style={{ marginBottom: 15, color: '#856404' }}>
+                                <p style={{ marginBottom: spacing.lg, color: colors.warning }}>
                                     You have {testResults.failed.length} failed test(s). Get AI hints to help you fix your code!
                                 </p>
                             ) : (
-                                <p style={{ marginBottom: 15, color: '#28a745' }}>
+                                <p style={{ marginBottom: spacing.lg, color: colors.success }}>
                                     ✅ All tests passed! Want to learn how to improve your code further?
                                 </p>
                             )
                         ) : (
-                            <p style={{ marginBottom: 15, color: '#666' }}>
+                            <p style={{ marginBottom: spacing.lg, color: colors.textSecondary }}>
                                 Stuck on this problem? Request AI hints to guide you through the solution!
                             </p>
                         )}
@@ -467,15 +445,8 @@ export default function PracticalTest() {
                             onClick={requestHint}
                             disabled={hintLoading || hints.length >= 3}
                             style={{
-                                padding: '10px 20px',
-                                backgroundColor: hints.length >= 3 ? '#ddd' : '#ffc107',
-                                color: hints.length >= 3 ? '#999' : '#000',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: hints.length >= 3 ? 'not-allowed' : 'pointer',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                marginBottom: 15
+                                ...(hints.length >= 3 ? btn.disabled : btn.warning),
+                                marginBottom: spacing.lg,
                             }}
                         >
                             {hintLoading ? '⏳ Generating hint...' : 
@@ -485,48 +456,46 @@ export default function PracticalTest() {
                         </button>
                         
                         {hints.length >= 3 && (
-                            <p style={{ color: '#856404', fontStyle: 'italic', marginBottom: 15 }}>
+                            <p style={{ color: colors.warning, fontStyle: 'italic', marginBottom: spacing.lg }}>
                                 ✋ You've used all 3 hint levels. Try implementing the solution based on the hints above!
                             </p>
                         )}
                         
                         {hints.map((hintData, idx) => (
                             <div key={idx} style={{
-                                background: 'white',
-                                padding: 15,
-                                borderRadius: 4,
-                                marginBottom: 15,
-                                borderLeft: '4px solid #ffc107',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                ...card.base,
+                                marginBottom: spacing.lg,
+                                borderLeft: `4px solid ${colors.warning}`,
                             }}>
                                 <div style={{ 
                                     display: 'flex', 
                                     justifyContent: 'space-between',
-                                    marginBottom: 10
+                                    marginBottom: spacing.sm
                                 }}>
-                                    <strong>Hint {idx + 1}</strong>
+                                    <strong style={{ color: colors.text }}>Hint {idx + 1}</strong>
                                     <span style={{
-                                        background: '#ffc107',
-                                        color: '#000',
+                                        background: colors.warningLight,
+                                        color: colors.warning,
                                         padding: '2px 8px',
-                                        borderRadius: 12,
-                                        fontSize: 12,
+                                        borderRadius: radii.full,
+                                        fontSize: font.sizeXs,
                                         textTransform: 'uppercase',
-                                        fontWeight: 'bold'
+                                        fontWeight: font.weightBold,
+                                        border: `1px solid ${colors.warningBorder}`,
                                     }}>
                                         {hintData.hint_level}
                                     </span>
                                 </div>
-                                <p style={{ fontSize: 16, lineHeight: 1.6, color: '#333', margin: 0 }}>
+                                <p style={{ fontSize: font.sizeMd, lineHeight: 1.6, color: colors.textSecondary, margin: 0 }}>
                                     {hintData.hint}
                                 </p>
                                 {hintData.sources && hintData.sources.length > 0 && (
                                     <div style={{ 
-                                        marginTop: 10, 
-                                        paddingTop: 10, 
-                                        borderTop: '1px solid #eee' 
+                                        marginTop: spacing.sm, 
+                                        paddingTop: spacing.sm, 
+                                        borderTop: `1px solid ${colors.border}` 
                                     }}>
-                                        <small style={{ color: '#666' }}>
+                                        <small style={{ color: colors.textMuted }}>
                                             📚 Sources: {hintData.sources.map(s => s.file).join(', ')}
                                         </small>
                                     </div>
@@ -538,87 +507,69 @@ export default function PracticalTest() {
                     {/* AI Grading Results */}
                     {gradingResults && (
                         <div style={{
-                            background: '#e7f3ff',
-                            padding: 20,
-                            borderRadius: 8,
-                            margin: '20px 0',
-                            border: '2px solid #007bff'
+                            ...card.info,
+                            padding: spacing.xl,
+                            margin: `${spacing.xl}px 0`,
                         }}>
-                            <h3 style={{ color: '#007bff', marginBottom: 15 }}>
+                            <h3 style={{ color: colors.primary, marginBottom: spacing.lg, fontSize: font.sizeLg }}>
                                 📊 Your Score: {gradingResults.total_score}/100 ({gradingResults.grade_letter})
                             </h3>
                             
                             <div style={{ 
                                 display: 'grid', 
                                 gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                                gap: 15,
-                                marginBottom: 20
+                                gap: spacing.lg,
+                                marginBottom: spacing.xl
                             }}>
-                                <div style={{ background: 'white', padding: 15, borderRadius: 4, textAlign: 'center' }}>
-                                    <div style={{ fontWeight: 'bold', color: '#666', marginBottom: 5 }}>Test Cases</div>
-                                    <div style={{ fontSize: 24, color: '#007bff', fontWeight: 'bold' }}>
-                                        {gradingResults.breakdown.test_cases}/50
+                                {[{ label: 'Test Cases', val: gradingResults.breakdown.test_cases, max: 50 },
+                                  { label: 'Approach', val: gradingResults.breakdown.approach, max: 30 },
+                                  { label: 'Code Quality', val: gradingResults.breakdown.code_quality, max: 20 },
+                                ].map((item, i) => (
+                                    <div key={i} style={{ ...card.base, textAlign: 'center' }}>
+                                        <div style={{ fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 5, fontSize: font.sizeSm }}>{item.label}</div>
+                                        <div style={{ fontSize: font.sizeXxl, color: colors.primary, fontWeight: font.weightBold }}>
+                                            {item.val}/{item.max}
+                                        </div>
                                     </div>
-                                </div>
-                                <div style={{ background: 'white', padding: 15, borderRadius: 4, textAlign: 'center' }}>
-                                    <div style={{ fontWeight: 'bold', color: '#666', marginBottom: 5 }}>Approach</div>
-                                    <div style={{ fontSize: 24, color: '#007bff', fontWeight: 'bold' }}>
-                                        {gradingResults.breakdown.approach}/30
-                                    </div>
-                                </div>
-                                <div style={{ background: 'white', padding: 15, borderRadius: 4, textAlign: 'center' }}>
-                                    <div style={{ fontWeight: 'bold', color: '#666', marginBottom: 5 }}>Code Quality</div>
-                                    <div style={{ fontSize: 24, color: '#007bff', fontWeight: 'bold' }}>
-                                        {gradingResults.breakdown.code_quality}/20
-                                    </div>
-                                </div>
+                                ))}
                             </div>
 
-                            <div style={{ background: 'white', padding: 15, borderRadius: 4, marginBottom: 15 }}>
-                                <h4>📝 Feedback:</h4>
-                                <p>{gradingResults.feedback}</p>
+                            <div style={{ ...card.base, marginBottom: spacing.lg }}>
+                                <h4 style={{ color: colors.text, margin: `0 0 ${spacing.sm}px 0` }}>📝 Feedback:</h4>
+                                <p style={{ color: colors.textSecondary, margin: 0 }}>{gradingResults.feedback}</p>
                             </div>
 
                             {gradingResults.breakdown.test_cases < 50 && (
                                 <div style={{ 
-                                    background: '#fff3cd', 
-                                    padding: 15, 
-                                    borderRadius: 4,
-                                    borderLeft: '4px solid #ffc107',
-                                    marginBottom: 15
+                                    ...alert.warning,
+                                    fontWeight: font.weightNormal,
+                                    marginBottom: spacing.lg
                                 }}>
-                                    <h5>💡 Partial Credit:</h5>
-                                    <p>{gradingResults.partial_credit_reasoning}</p>
+                                    <h5 style={{ margin: `0 0 ${spacing.xs}px 0` }}>💡 Partial Credit:</h5>
+                                    <p style={{ margin: 0 }}>{gradingResults.partial_credit_reasoning}</p>
                                 </div>
                             )}
 
                             {gradingResults.suggestions && gradingResults.suggestions.length > 0 && (
-                                <div style={{ background: 'white', padding: 15, borderRadius: 4, marginBottom: 15 }}>
-                                    <h5>🔧 How to Improve:</h5>
-                                    <ul style={{ paddingLeft: 20 }}>
+                                <div style={{ ...card.base, marginBottom: spacing.lg }}>
+                                    <h5 style={{ color: colors.text, margin: `0 0 ${spacing.sm}px 0` }}>🔧 How to Improve:</h5>
+                                    <ul style={{ paddingLeft: 20, margin: 0, color: colors.textSecondary }}>
                                         {gradingResults.suggestions.map((suggestion, idx) => (
-                                            <li key={idx} style={{ marginBottom: 8 }}>{suggestion}</li>
+                                            <li key={idx} style={{ marginBottom: spacing.sm }}>{suggestion}</li>
                                         ))}
                                     </ul>
                                 </div>
                             )}
 
-                            <div style={{ background: 'white', padding: 15, borderRadius: 4 }}>
-                                <h5>✨ Code Quality Notes:</h5>
-                                <p>{gradingResults.code_quality_notes}</p>
+                            <div style={card.base}>
+                                <h5 style={{ color: colors.text, margin: `0 0 ${spacing.sm}px 0` }}>✨ Code Quality Notes:</h5>
+                                <p style={{ color: colors.textSecondary, margin: 0 }}>{gradingResults.code_quality_notes}</p>
                             </div>
                         </div>
                     )}
 
                     {result && (
-                        <pre
-                            style={{
-                                background: "#e8e8e8",
-                                padding: 16,
-                                marginTop: 16,
-                                whiteSpace: "pre-wrap"
-                            }}
-                        >
+                        <pre style={{ ...codeOutput, marginTop: spacing.lg }}>
                             {result}
                         </pre>
                     )}

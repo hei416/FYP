@@ -118,16 +118,33 @@ async def check_syntax(request: Request):
             
             errors = []
             if compile_result.stderr:
-                for line in compile_result.stderr.splitlines():
-                    # Match: filename.java:line: error: message
-                    match = re.match(r'([a-zA-Z0-9_]+\.java):(\d+):\s+error:\s+(.*)', line)
+                stderr_lines = compile_result.stderr.splitlines()
+                i = 0
+                while i < len(stderr_lines):
+                    line = stderr_lines[i]
+                    # Match full-path or relative: /tmp/.../Main.java:3: error: msg
+                    match = re.match(r'(.+\.java):(\d+):\s+(error|warning):\s+(.*)', line)
                     if match:
+                        filepath = match.group(1)
+                        filename = os.path.basename(filepath)
+                        error_line = int(match.group(2))
+                        severity = match.group(3)
+                        message = match.group(4).strip()
+
+                        # Try to find column from the caret (^) line
+                        column = None
+                        if i + 2 < len(stderr_lines) and '^' in stderr_lines[i + 2]:
+                            column = stderr_lines[i + 2].index('^') + 1
+
                         errors.append({
-                            "file": match.group(1),
-                            "line": int(match.group(2)),
-                            "message": match.group(3).strip()
+                            "file": filename,
+                            "line": error_line,
+                            "column": column,
+                            "severity": severity,
+                            "message": message
                         })
-            
+                    i += 1
+
             return {"errors": errors}
             
         except subprocess.TimeoutExpired:

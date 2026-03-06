@@ -43,6 +43,24 @@ export class DemoTour {
         });
     }
 
+    _hideTourUI() {
+        if (!this._hideStyle) {
+            this._hideStyle = document.createElement('style');
+            this._hideStyle.id = 'shepherd-hide-override';
+            this._hideStyle.textContent = `
+                .shepherd-element, .shepherd-modal-overlay-container { display: none !important; }
+            `;
+        }
+        if (!document.getElementById('shepherd-hide-override')) {
+            document.head.appendChild(this._hideStyle);
+        }
+    }
+
+    _showTourUI() {
+        const el = document.getElementById('shepherd-hide-override');
+        if (el) el.remove();
+    }
+
     setupSteps() {
         // Step 1: Welcome
         this.tour.addStep({
@@ -155,7 +173,7 @@ export class DemoTour {
         System.out.println("Learning Java is fun and easy!");
         
         // Try modifying this code
-        int number = 42;
+        int number = 67;
         System.out.println("The answer is: " + number);
     }
 }`;
@@ -180,80 +198,65 @@ export class DemoTour {
             ]
         });
 
-        // Step 6: Show Run Button
+        // Step 6: Show Run Button — user must click Run, Next appears after output
         this.tour.addStep({
             id: 'run-button',
+            attachTo: {
+                element: '[data-tour="run-button"]',
+                on: 'top'
+            },
             text: `
                 <h3 style="margin: 0 0 10px 0; color: #128C7E;">▶️ Run Your Code</h3>
-                <p style="margin: 0; line-height: 1.6;">
-                    Click the <strong>Run Code</strong> button to compile and execute the Java code.
-                    The tour will continue automatically once the output appears!
+                <p style="margin: 0; line-height: 1.6;" id="run-step-desc">
+                    Click the <strong>Run Code</strong> button below to compile and execute the demo code.
                 </p>
-                <p style="margin: 10px 0 0 0; font-size: 13px; color: #6b7280;">
-                    👆 Click <strong>Run Code</strong> below to continue...
+                <p style="margin: 10px 0 0 0; font-size: 13px; color: #f59e0b; font-weight: 600;" id="run-step-hint">
+                    ⚠️ You must click <strong>Run Code</strong> to proceed.
                 </p>
             `,
             when: {
                 show: () => {
-                    // Pin popup to top-right so it never covers the editor or output
-                    setTimeout(() => {
-                        const shepherdEl = document.querySelector('.shepherd-element');
-                        if (shepherdEl) {
-                            shepherdEl.style.position = 'fixed';
-                            shepherdEl.style.top = '90px';
-                            shepherdEl.style.right = '24px';
-                            shepherdEl.style.left = 'auto';
-                            shepherdEl.style.bottom = 'auto';
-                            shepherdEl.style.transform = 'none';
-                        }
-                    }, 50);
+                    if (this._runPollTimer) return;
 
-                    const runButton = document.querySelector('[data-tour="run-button"]');
-                    if (!runButton) return;
+                    // Poll the DOM for the output <pre> element to appear
+                    // This avoids all event listener / overlay click issues
+                    this._runPollTimer = setInterval(() => {
+                        const outputEl = document.querySelector('[data-tour="code-editor"] pre');
+                        if (outputEl && outputEl.textContent && !outputEl.textContent.includes('Running code...')) {
+                            clearInterval(this._runPollTimer);
+                            this._runPollTimer = null;
 
-                    const clickHandler = () => {
-                        // Hide both the popup AND the dark overlay while code runs
-                        const shepherdEl = document.querySelector('.shepherd-element');
-                        const overlayEl = document.querySelector('.shepherd-modal-overlay-container');
-                        if (shepherdEl) shepherdEl.style.display = 'none';
-                        if (overlayEl) overlayEl.style.display = 'none';
-
-                        this._outputHandler = () => {
-                            window.removeEventListener('demo-code-output', this._outputHandler);
-                            this._outputHandler = null;
+                            // Wait a moment so user can read the output
                             setTimeout(() => {
-                                const el = document.querySelector('.shepherd-element');
-                                const overlay = document.querySelector('.shepherd-modal-overlay-container');
-                                if (el) el.style.display = '';
-                                if (overlay) overlay.style.display = '';
-                                this.tour.next();
-                            }, 800);
-                        };
-                        window.addEventListener('demo-code-output', this._outputHandler);
-                    };
-                    runButton.addEventListener('click', clickHandler, { once: true });
+                                const desc = document.getElementById('run-step-desc');
+                                const hint = document.getElementById('run-step-hint');
+                                if (desc) desc.innerHTML = '✅ Output received! Click <strong>Next</strong> to continue.';
+                                if (hint) hint.style.display = 'none';
+
+                                const footer = document.querySelector('.shepherd-footer');
+                                if (footer && !footer.querySelector('.demo-next-btn')) {
+                                    const nextBtn = document.createElement('button');
+                                    nextBtn.textContent = 'Next: Quiz →';
+                                    nextBtn.className = 'shepherd-button demo-next-btn';
+                                    nextBtn.addEventListener('click', () => this.tour.next());
+                                    footer.appendChild(nextBtn);
+                                }
+                            }, 500);
+                        }
+                    }, 500);
                 },
                 hide: () => {
-                    // Restore display if user skips via Back/Skip before running
-                    if (this._outputHandler) {
-                        window.removeEventListener('demo-code-output', this._outputHandler);
-                        this._outputHandler = null;
+                    if (this._runPollTimer) {
+                        clearInterval(this._runPollTimer);
+                        this._runPollTimer = null;
                     }
-                    const el = document.querySelector('.shepherd-element');
-                    const overlay = document.querySelector('.shepherd-modal-overlay-container');
-                    if (el) el.style.display = '';
-                    if (overlay) overlay.style.display = '';
                 }
             },
             buttons: [
                 {
-                    text: 'Back',
+                    text: '← Back',
                     action: () => this.tour.back(),
                     secondary: true
-                },
-                {
-                    text: 'Skip →',
-                    action: () => this.tour.next()
                 }
             ]
         });

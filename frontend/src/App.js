@@ -4,21 +4,48 @@ import Navbar from "./Navbar";
 import AI from "./AI";
 import Compiler from "./Compiler";
 import HomePage from "./HomePage";
+import TopicDetailPage from "./TopicDetailPage";
 import Quiz from "./Quiz";
 import PracticalTest from "./PracticalTest";
 import Lessons from "./Lessons";
 import LessonLayout from "./LessonLayout";
 import Playground from "./Playground"; 
 import { DemoTour } from "./DemoTour";
+import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
+import { AuthProvider, useAuth } from './AuthContext';
+import Auth from './Auth';
+import { loadProgressFromBackend, mergeProgressWithLocal, syncProgressToBackend } from './progressService';
 
 // Create a wrapper component that has access to useNavigate
 function AppContent() {
     const [showChat, setShowChat] = useState(false);
     const [demoTour, setDemoTour] = useState(null);
     const [showDemoButtons, setShowDemoButtons] = useState(true);
-    const navigate = useNavigate();  // NOW we can use navigate!
+    const navigate = useNavigate();
+    const { isAuthenticated, user } = useAuth();
 
     const toggleChat = () => setShowChat(prev => !prev);
+
+    // Load backend progress and merge with local on login
+    useEffect(() => {
+        if (isAuthenticated) {
+            // First push local → backend (upload guest progress)
+            const localProgress = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
+            const roadmapCompleted = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
+            syncProgressToBackend(localProgress, roadmapCompleted).then(() => {
+                // Then pull backend → local (merge any older backend data)
+                loadProgressFromBackend().then((backendProgress) => {
+                    if (backendProgress) {
+                        mergeProgressWithLocal(
+                            backendProgress,
+                            'codetutor_learning_progress',
+                            'java-roadmap-completed'
+                        );
+                    }
+                });
+            });
+        }
+    }, [isAuthenticated]);
 
 
     useEffect(() => {
@@ -71,32 +98,20 @@ function AppContent() {
                     zIndex: 1000,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px'
+                    gap: spacing.sm
                 }}>
                     <button 
                         onClick={startGuidedTour}
                         style={{
-                            padding: '12px 20px',
-                            background: 'linear-gradient(135deg, #128C7E 0%, #0f7566 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            fontSize: '15px',
-                            fontWeight: '600',
-                            boxShadow: '0 4px 12px rgba(18, 140, 126, 0.4)',
-                            transition: 'all 0.3s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px'
+                            ...btn.accent,
                         }}
                         onMouseOver={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(18, 140, 126, 0.5)';
+                            Object.assign(e.currentTarget.style, btn.accentHover);
                         }}
                         onMouseOut={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(18, 140, 126, 0.4)';
+                            e.currentTarget.style.backgroundColor = colors.accent;
+                            e.currentTarget.style.boxShadow = btn.accent.boxShadow;
                         }}
                     >
                         <span style={{ fontSize: '18px' }}>🎓</span>
@@ -106,15 +121,15 @@ function AppContent() {
                     <button 
                         onClick={() => setShowDemoButtons(false)}
                         style={{
-                            padding: '8px',
-                            background: '#6b7280',
-                            color: 'white',
+                            padding: spacing.sm,
+                            background: colors.textMuted,
+                            color: colors.surface,
                             border: 'none',
-                            borderRadius: '8px',
+                            borderRadius: radii.sm,
                             cursor: 'pointer',
-                            fontSize: '12px',
+                            fontSize: font.sizeXs,
                             opacity: 0.7,
-                            transition: 'opacity 0.3s'
+                            transition
                         }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = 1}
                         onMouseOut={(e) => e.currentTarget.style.opacity = 0.7}
@@ -133,19 +148,19 @@ function AppContent() {
                         bottom: 20,
                         left: 20,
                         zIndex: 1000,
-                        padding: '10px',
-                        background: '#128C7E',
-                        color: 'white',
+                        padding: spacing.sm,
+                        background: colors.accent,
+                        color: colors.surface,
                         border: 'none',
-                        borderRadius: '50%',
+                        borderRadius: radii.full,
                         cursor: 'pointer',
-                        fontSize: '20px',
-                        width: '50px',
-                        height: '50px',
+                        fontSize: font.sizeXl,
+                        width: 48,
+                        height: 48,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(18, 140, 126, 0.4)'
+                        boxShadow: shadows.md
                     }}
                     title="Show demo buttons"
                 >
@@ -153,14 +168,16 @@ function AppContent() {
                 </button>
             )}
 
-            <div style={{ paddingTop: 70 }} className="bg-white min-h-screen">
+            <div style={{ paddingTop: navbar.height }} className="bg-white min-h-screen">
                 <Routes>
+                    <Route path="/login" element={<Auth />} />
                     <Route path="/home" element={<HomePage />} />
-                    <Route path="/" element={<Navigate to="/home" replace />} />
-                    <Route path="/compiler" element={<Navigate to="/playground" replace />} />
-                    <Route path="/playground" element={<Playground />} /> 
+                    <Route path="/topic/:topicId" element={<TopicDetailPage />} />
+                    <Route path="/playground" element={<Playground />} />
                     <Route path="/quiz" element={<Quiz />} />
                     <Route path="/practical-test" element={<PracticalTest />} />
+                    <Route path="/compiler" element={<Navigate to="/playground" replace />} />
+                    <Route path="/" element={<Navigate to="/home" replace />} />
                 </Routes>
             </div>
         </>
@@ -170,9 +187,11 @@ function AppContent() {
 
 function App() {
     return (
-        <Router>
-            <AppContent />
-        </Router>
+        <AuthProvider>
+            <Router>
+                <AppContent />
+            </Router>
+        </AuthProvider>
     );
 }
 

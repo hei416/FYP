@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ProgressTracker } from "./ProgressTracker";
+import { TOPIC_GROUPS } from "./HomePage";
+import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
 const DEFAULT_TOPICS = [
     "Bridging from Python",
@@ -41,6 +43,10 @@ export default function Quiz() {
     const [quizData, setQuizData] = useState([]);
     const [loadingQuiz, setLoadingQuiz] = useState(false);
     const [quizSource, setQuizSource] = useState("");
+    const [generatingMore, setGeneratingMore] = useState(false);
+    const [moreProgress, setMoreProgress] = useState({ received: 0, total: 5 });
+    const [poolSize, setPoolSize] = useState(0);
+    const [lastTopics, setLastTopics] = useState([]);
 
     const tracker = useMemo(() => new ProgressTracker(), []);
 
@@ -57,12 +63,23 @@ export default function Quiz() {
 
         try {
             const completedTopics = tracker.getCompletedTopics();
-            const topicsToUse = topicsOverride || (completedTopics.length > 0 ? completedTopics : DEFAULT_TOPICS);
-            const sourceLabel = topicsOverride ? "selected topics" : (completedTopics.length > 0 ? "completed topics" : "default topics");
+            // Only allow completed topics - no fallback to all topics
+            const topicsToUse = topicsOverride || (completedTopics.length > 0 ? completedTopics : null);
+            
+            if (!topicsToUse || topicsToUse.length === 0) {
+                alert("⚠️ You haven't completed any topics on the Roadmap yet. Complete some topics first so we can generate relevant questions!");
+                setLoadingQuiz(false);
+                isFetchingRef.current = false;
+                return;
+            }
+
+            const sourceLabel = topicsOverride ? "selected topics" : "completed topics";
 
             setQuizSource(
                 `AI-generated from ${sourceLabel}: ${topicsToUse.slice(0, 3).join(", ")}${topicsToUse.length > 3 ? "..." : ""}`
             );
+
+            setLastTopics(topicsToUse);
 
             const res = await fetch("http://localhost:8000/api/quizzes/generate", {
                 method: "POST",
@@ -87,6 +104,7 @@ export default function Quiz() {
             );
 
             setQuizData(filtered);
+            setPoolSize(data.metadata?.pool_size || filtered.length);
             tracker.trackAIInteraction();
         } catch (error) {
             console.error("Quiz generation failed:", error);
@@ -100,6 +118,90 @@ export default function Quiz() {
     }, [tracker]);
 
 
+
+    const generateMoreQuestions = useCallback(async () => {
+        if (isFetchingRef.current || lastTopics.length === 0) return;
+        isFetchingRef.current = true;
+        setGeneratingMore(true);
+        setMoreProgress({ received: 0, total: 5 });
+
+        // Reset quiz state for new questions
+        setQuizData([]);
+        setCurrentIndex(0);
+        setScore(0);
+        setCompleted(false);
+        setAllUserAnswers({});
+        setQuizSource(`✨ Generating new questions for: ${lastTopics.slice(0, 3).join(", ")}${lastTopics.length > 3 ? "..." : ""}`);
+        setShowTopicSelect(false);
+
+        try {
+            const res = await fetch("http://localhost:8000/api/quizzes/more", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    completed_topics: lastTopics,
+                    num_questions: 5
+                })
+            });
+
+            if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let count = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || ""; // keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (!line.startsWith("data: ")) continue;
+                    const jsonStr = line.slice(6).trim();
+                    if (!jsonStr) continue;
+
+                    try {
+                        const parsed = JSON.parse(jsonStr);
+
+                        // Done signal
+                        if (parsed.done) {
+                            setPoolSize(parsed.total_pool || 0);
+                            continue;
+                        }
+
+                        // Error from backend
+                        if (parsed.error) {
+                            console.warn("Stream error:", parsed.error);
+                            continue;
+                        }
+
+                        // It's a question — append it
+                        const q = {
+                            ...parsed,
+                            type: parsed.type ?? (Array.isArray(parsed.options) ? "multiple_choice" : "short_answer")
+                        };
+                        count++;
+                        setMoreProgress((prev) => ({ ...prev, received: count }));
+                        setQuizData((prev) => [...prev, q]);
+                    } catch (parseErr) {
+                        console.warn("SSE parse error:", parseErr, jsonStr);
+                    }
+                }
+            }
+
+            setQuizSource(`✨ ${count} new questions generated for: ${lastTopics.slice(0, 3).join(", ")}${lastTopics.length > 3 ? "..." : ""}`);
+        } catch (error) {
+            console.error("More questions streaming failed:", error);
+            alert("Failed to generate more questions. Try again.");
+        } finally {
+            setGeneratingMore(false);
+            isFetchingRef.current = false;
+        }
+    }, [lastTopics]);
 
     const filteredQuestions =
         selectedType === "all" ? quizData : quizData.filter((q) => q.type === selectedType);
@@ -167,126 +269,234 @@ export default function Quiz() {
     const nextQuestion = () => {
         setFeedback(null);
         setUserAnswers({});
-        if (currentIndex + 1 === filteredQuestions.length) {
-            setCompleted(true);
+        if (currentIndex + 1 >= filteredQuestions.length) {
+            if (generatingMore) {
+                // More questions are still streaming in — stay on the last question
+                // The useEffect on currentQ will auto-update when a new question arrives
+                setCurrentIndex(filteredQuestions.length); // will pick up next question when it arrives
+            } else {
+                setCompleted(true);
+            }
         } else {
             setCurrentIndex((idx) => idx + 1);
         }
     };
 
-    // NEW: Topic Selection Screen
+    // Topic Selection Screen
     if (showTopicSelect) {
+        const completedTopics = tracker.getCompletedTopics();
+        const topicGroupMap = {
+            "Bridging from Python": 0,
+            "Problem Solving with Java": 1,
+            "String": 2,
+            "Array": 3,
+            "Methods": 4,
+            "Exception Handling and File IO": 5,
+            "Class - constructor/attributes/methods": 6,
+            "Class - access modifier/static": 7,
+            "Inheritance": 8,
+            "Polymorphism": 9,
+            "Interface and Lambda expression": 10,
+            "Recursion and Revision": 11,
+        };
+
+        const isTopicAvailable = (topic) => {
+            const groupIdx = topicGroupMap[topic];
+            if (groupIdx === undefined) return false;
+            const group = TOPIC_GROUPS[groupIdx];
+            return Array.isArray(group?.subtopics) && group.subtopics.some((id) => completedTopics.includes(id));
+        };
+
+        const availableTopics = DEFAULT_TOPICS.filter(isTopicAvailable);
+
         return (
-            <div style={{ padding: 20, maxWidth: 800, margin: "auto", textAlign: "center" }}>
-                <h2>🎯 Select Quiz Topics</h2>
-                <p>Choose topics to quiz yourself on (or use auto-detection):</p>
-                <button
-                    onClick={() => setSelectedTopics(DEFAULT_TOPICS)}
+            <div style={pageContainer(800)}>
+                <h2 style={pageHeading}>🎯 Select Quiz Topics</h2>
+                <p style={pageSubheading}>
+                    {availableTopics.length > 0
+                        ? `${availableTopics.length} topic(s) completed. All topics are available — uncompleted ones are marked with ⚠️:`
+                        : "All topics are available. Complete subtopics on the Roadmap to track your progress!"}
+                </p>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    {availableTopics.length > 0 && (
+                        <button
+                            onClick={() => setSelectedTopics([...availableTopics])}
+                            style={{
+                                ...btn.outline,
+                            }}
+                        >
+                            Select All Completed
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setSelectedTopics([...DEFAULT_TOPICS])}
+                        style={{
+                            ...btn.outline,
+                        }}
+                    >
+                        Select All Topics
+                    </button>
+                </div>
+
+                <div
                     style={{
-                        marginBottom: 12,
-                        padding: "8px 16px",
-                        borderRadius: 8,
-                        border: "1px solid #128C7E",
-                        background: "white",
-                        color: "#128C7E",
-                        cursor: "pointer",
-                        fontWeight: "bold"
+                        maxHeight: 350,
+                        overflowY: "auto",
+                        margin: "20px 0",
+                        padding: spacing.md,
+                        ...card.base,
+                        textAlign: "left",
                     }}
                 >
-                    All Topics
-                </button>
-                
-                <div style={{ 
-                    maxHeight: 300, 
-                    overflowY: "auto", 
-                    margin: "20px 0",
-                    padding: 10,
-                    border: "2px solid #eee",
-                    borderRadius: 8
-                }}>
-                    {DEFAULT_TOPICS.map((topic, idx) => (
-                        <label key={idx} style={{ display: "block", margin: "8px 0" }}>
-                            <input
-                                type="checkbox"
-                                checked={selectedTopics.includes(topic)}
-                                onChange={(e) => {
-                                    const checked = e.target.checked;
-                                    setSelectedTopics(checked 
-                                        ? [...selectedTopics, topic] 
-                                        : selectedTopics.filter(t => t !== topic)
-                                    );
+                    {DEFAULT_TOPICS.map((topic, idx) => {
+                        const completed = isTopicAvailable(topic);
+                        return (
+                            <label
+                                key={idx}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    margin: "8px 0",
+                                    padding: "10px 14px",
+                                    borderRadius: radii.sm,
+                                    backgroundColor: completed
+                                        ? (selectedTopics.includes(topic) ? colors.successLight : colors.surface)
+                                        : (selectedTopics.includes(topic) ? '#FEF3C7' : colors.surface),
+                                    border: `1px solid ${completed ? colors.border : '#F59E0B'}`,
+                                    opacity: 1,
+                                    cursor: "pointer",
+                                    fontSize: font.sizeMd,
+                                    lineHeight: 1.4,
+                                    gap: 10,
+                                    transition,
                                 }}
-                            />{" "}
-                            {topic}
-                        </label>
-                    ))}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedTopics.includes(topic)}
+                                    onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setSelectedTopics(
+                                            checked
+                                                ? [...selectedTopics, topic]
+                                                : selectedTopics.filter((t) => t !== topic)
+                                        );
+                                    }}
+                                    style={{ width: 18, height: 18, marginTop: 1 }}
+                                />
+                                <span style={{ flex: 1 }}>{completed ? "" : "⚠️ "}{topic}</span>
+                                {completed ? (
+                                    <span
+                                        style={{
+                                            fontSize: font.sizeXs,
+                                            color: colors.success,
+                                            fontWeight: font.weightSemibold,
+                                        }}
+                                    >
+                                        ✓ Completed
+                                    </span>
+                                ) : (
+                                    <span
+                                        style={{
+                                            fontSize: font.sizeXs,
+                                            color: '#D97706',
+                                            fontWeight: font.weightSemibold,
+                                        }}
+                                    >
+                                        Not completed
+                                    </span>
+                                )}
+                            </label>
+                        );
+                    })}
                 </div>
 
                 <div>
                     <button
-                        onClick={() => generateAIQuiz(selectedTopics.length > 0 ? selectedTopics : null)}
-                        disabled={loadingQuiz}
+                        onClick={() => {
+                            if (selectedTopics.length === 0) {
+                                alert("Please select at least one topic!");
+                                return;
+                            }
+                            generateAIQuiz(selectedTopics);
+                        }}
+                        disabled={loadingQuiz || selectedTopics.length === 0}
                         style={{
-                            padding: "12px 24px",
+                            ...(selectedTopics.length > 0 ? btn.accent : btn.disabled),
+                            ...btn.large,
                             marginRight: 10,
-                            backgroundColor: "#128C7E",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 8,
-                            fontSize: 16,
-                            fontWeight: "bold",
-                            cursor: loadingQuiz ? "not-allowed" : "pointer"
                         }}
                     >
-                        {loadingQuiz ? "Generating..." : "🚀 Start Quiz"}
+                        {loadingQuiz ? "Generating..." : `🚀 Start Quiz (${selectedTopics.length} topics)`}
                     </button>
-                    
-                    <button
-                        onClick={() => generateAIQuiz(null)} // Use auto-detection
-                        disabled={loadingQuiz}
-                        style={{
-                            padding: "12px 24px",
-                            backgroundColor: "#007AFF",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 8,
-                            fontSize: 16,
-                            cursor: loadingQuiz ? "not-allowed" : "pointer"
-                        }}
-                    >
-                        🤖 Auto-Detect Completed Topics
-                    </button>
+
+                    {availableTopics.length > 0 && (
+                        <button
+                            onClick={() => generateAIQuiz(availableTopics)}
+                            disabled={loadingQuiz}
+                            style={{
+                                ...btn.primary,
+                                ...btn.large,
+                            }}
+                        >
+                            🤖 Quiz All Completed Topics ({availableTopics.length})
+                        </button>
+                    )}
                 </div>
             </div>
         );
     }
 
-    if (loadingQuiz) {
+    if (loadingQuiz && !generatingMore) {
         return (
-            <div style={{ padding: 20, maxWidth: 800, margin: "auto", textAlign: "center" }}>
-                <h2>Generating AI Quiz...</h2>
-                <p>Fetching content from your selected topics</p>
+            <div style={{ ...pageContainer(800), textAlign: "center" }}>
+                <h2 style={pageHeading}>Generating AI Quiz...</h2>
+                <p style={pageSubheading}>Fetching content from your selected topics</p>
             </div>
         );
     }
 
-    if (!currentQ && !completed) {
+    if (!currentQ && !completed && !generatingMore) {
         return (
-            <div style={{ padding: 20, maxWidth: 800, margin: "auto", textAlign: "center" }}>
-                <p>No questions available.</p>
-                <button onClick={() => setShowTopicSelect(true)}>← Back to Topics</button>
+            <div style={{ ...pageContainer(800), textAlign: "center" }}>
+                <p style={{ color: colors.textSecondary }}>No questions available.</p>
+                <button onClick={() => setShowTopicSelect(true)} style={btn.ghost}>← Back to Topics</button>
+            </div>
+        );
+    }
+
+    if (!currentQ && !completed && generatingMore) {
+        return (
+            <div style={{ ...pageContainer(800), textAlign: "center" }}>
+                <h2 style={pageHeading}>✨ Generating New Questions...</h2>
+                <p style={pageSubheading}>
+                    {moreProgress.received > 0
+                        ? `${moreProgress.received} of ${moreProgress.total} questions ready`
+                        : "Waiting for the first question..."}
+                </p>
+                <div style={{
+                    width: 200, height: 6, backgroundColor: colors.divider,
+                    borderRadius: radii.sm, margin: '20px auto', overflow: 'hidden'
+                }}>
+                    <div style={{
+                        width: `${(moreProgress.received / moreProgress.total) * 100}%`,
+                        height: '100%', backgroundColor: colors.primary,
+                        borderRadius: radii.sm, transition: 'width 0.3s ease'
+                    }} />
+                </div>
             </div>
         );
     }
 
     if (completed) {
         return (
-            <div style={{ padding: 20, maxWidth: 800, margin: "auto" }}>
-                <h2>Quiz Completed! 🎉</h2>
-                <p style={{ fontSize: 24, fontWeight: "bold", color: "#128C7E" }}>
+            <div style={pageContainer(800)}>
+                <h2 style={pageHeading}>Quiz Completed! 🎉</h2>
+                <p style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.accent }}>
                     Score: {score} / {filteredQuestions.length} ({Math.round((score / filteredQuestions.length) * 100)}%)
                 </p>
-                <h3>Review Answers:</h3>
+                <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, marginBottom: spacing.lg }}>Review Answers:</h3>
                 {filteredQuestions.map((q, idx) => {
                     const userAns = allUserAnswers[idx];
                     const correctAns = q.options ? q.options[q.correct_index] : q.answer;
@@ -295,11 +505,9 @@ export default function Quiz() {
                         <div
                             key={idx}
                             style={{
-                                marginBottom: 20,
-                                padding: 15,
-                                border: `2px solid ${isCorrect ? "#4CAF50" : "#f44336"}`,
-                                borderRadius: 8,
-                                backgroundColor: isCorrect ? "#E8F5E8" : "#FFEBEE"
+                                marginBottom: spacing.xl,
+                                padding: spacing.lg,
+                                ...(isCorrect ? card.success : card.danger),
                             }}
                         >
                             <p><strong>Q{idx + 1}:</strong> {q.question}</p>
@@ -309,69 +517,98 @@ export default function Quiz() {
                     );
                 })}
 
-                <button
-                    onClick={() => {
-                        setShowTopicSelect(true);
-                        setScore(0);
-                        setAllUserAnswers({});
-                        setCurrentIndex(0);
-                    }}
-                    style={{
-                        padding: "12px 24px",
-                        backgroundColor: "#128C7E",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 8,
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        cursor: "pointer"
-                    }}
-                >
-                    🔄 New Quiz
-                </button>
+                <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', marginTop: spacing.lg }}>
+                    <button
+                        onClick={() => {
+                            setShowTopicSelect(true);
+                            setScore(0);
+                            setAllUserAnswers({});
+                            setCurrentIndex(0);
+                        }}
+                        style={btn.accent}
+                    >
+                        🔄 New Quiz (Same Pool)
+                    </button>
+                    <button
+                        onClick={() => generateAIQuiz(lastTopics)}
+                        disabled={loadingQuiz || lastTopics.length === 0}
+                        style={{
+                            ...btn.primary,
+                            opacity: loadingQuiz ? 0.6 : 1,
+                        }}
+                    >
+                        {loadingQuiz ? "Shuffling..." : "🔀 Reshuffle from Pool"}
+                    </button>
+                    <button
+                        onClick={generateMoreQuestions}
+                        disabled={generatingMore}
+                        style={{
+                            ...btn.warning,
+                            opacity: generatingMore ? 0.6 : 1,
+                        }}
+                    >
+                        {generatingMore ? "⏳ Generating..." : "✨ Generate More Questions"}
+                    </button>
+                </div>
+                {poolSize > 0 && (
+                    <p style={{ marginTop: spacing.md, color: colors.textSecondary, fontSize: font.sizeSm }}>
+                        📚 Question pool: {poolSize} questions stored for your topics
+                    </p>
+                )}
             </div>
         );
     }
 
     // Quiz in progress
     return (
-        <div style={{ padding: 20, maxWidth: 800, margin: "auto" }}>
-            <div style={{ marginBottom: 16 }}>
-                <p><em>{quizSource}</em></p>
+        <div style={pageContainer(800)}>
+            <div style={{ marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <p style={{ margin: 0, color: colors.textSecondary, fontStyle: 'italic', fontSize: font.sizeSm }}>{quizSource}</p>
                 <button
                     onClick={() => setShowTopicSelect(true)}
                     style={{
-                        marginLeft: 8,
-                        padding: "6px 12px",
-                        backgroundColor: "#FF3B30",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: "pointer"
+                        ...btn.danger,
+                        ...btn.small,
                     }}
                 >
                     ← Change Topics
                 </button>
             </div>
 
-            <h3>Question {currentIndex + 1} of {filteredQuestions.length}</h3>
-            <p style={{ fontSize: 16, lineHeight: 1.5 }}>{currentQ?.question}</p>
+            <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.text }}>
+                Question {currentIndex + 1} of {filteredQuestions.length}
+                {generatingMore && (
+                    <span style={{ fontSize: font.sizeSm, color: colors.primary, fontWeight: font.weightNormal, marginLeft: 8 }}>
+                        ⏳ generating {moreProgress.received}/{moreProgress.total}...
+                    </span>
+                )}
+            </h3>
+            <p style={{ fontSize: font.sizeMd, lineHeight: 1.6, color: colors.textSecondary }}>{currentQ?.question}</p>
 
             {/* Multiple choice options */}
             {currentQ?.options && (
-                <div style={{ margin: "20px 0" }}>
+                <div style={{ margin: `${spacing.xl}px 0` }}>
                     {shuffledOptions.map((opt, idx) => (
-                        <div key={idx} style={{ marginBottom: 10 }}>
-                            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                        <div key={idx} style={{ marginBottom: spacing.sm }}>
+                            <label style={{
+                                display: "flex",
+                                alignItems: "center",
+                                cursor: "pointer",
+                                padding: '10px 14px',
+                                borderRadius: radii.sm,
+                                border: `1px solid ${userAnswers.answer === opt ? colors.primary : colors.border}`,
+                                backgroundColor: userAnswers.answer === opt ? colors.primaryLight : colors.surface,
+                                transition,
+                            }}>
                                 <input
                                     type="radio"
                                     name="mcq"
                                     value={opt}
                                     checked={userAnswers.answer === opt}
                                     onChange={(e) => handleInputChange(e)}
-                                    style={{ marginRight: 8 }}
+                                    style={{ marginRight: spacing.sm }}
                                 />
-                                <span style={{ fontSize: 15 }}>{opt}</span>
+                                <span style={{ fontSize: font.sizeMd }}>{opt}</span>
                             </label>
                         </div>
                     ))}
@@ -383,33 +620,18 @@ export default function Quiz() {
                 onClick={checkAnswer}
                 disabled={feedback?.startsWith("✅") || hasAnswered}
                 style={{
-                    padding: "12px 24px",
-                    marginTop: 12,
-                    cursor: feedback?.startsWith("✅") || hasAnswered ? "not-allowed" : "pointer",
-                    backgroundColor: feedback?.startsWith("✅") || hasAnswered ? "#aaa" : "#128C7E",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    fontWeight: "bold",
-                    fontSize: 16
+                    ...(feedback?.startsWith("✅") || hasAnswered ? btn.disabled : btn.accent),
+                    marginTop: spacing.md,
                 }}
             >
                 {feedback?.startsWith("✅") ? "✅ Correct!" : "Check Answer"}
             </button>
 
             {feedback && (
-                <p
-                    style={{
-                        marginTop: 16,
-                        padding: "12px 16px",
-                        borderRadius: 8,
-                        fontWeight: "bold",
-                        fontSize: 16,
-                        backgroundColor: feedback.startsWith("✅") ? "#E8F5E8" : "#FFEBEE",
-                        color: feedback.startsWith("✅") ? "#2E7D32" : "#C62828",
-                        borderLeft: `4px solid ${feedback.startsWith("✅") ? "#4CAF50" : "#f44336"}`
-                    }}
-                >
+                <p style={{
+                    marginTop: spacing.lg,
+                    ...(feedback.startsWith("✅") ? alert.success : alert.error),
+                }}>
                     {feedback}
                 </p>
             )}
@@ -417,15 +639,9 @@ export default function Quiz() {
                 <button
                     onClick={() => setShowExplanation((prev) => !prev)}
                     style={{
-                        marginTop: 10,
-                        padding: "8px 18px",
-                        backgroundColor: "#FF9500",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                        fontSize: 15
+                        ...btn.warning,
+                        ...btn.small,
+                        marginTop: spacing.sm,
                     }}
                 >
                     {showExplanation ? "🙈 Hide Explanation" : "💡 Explain"}
@@ -433,18 +649,12 @@ export default function Quiz() {
             )}
 
             {showExplanation && currentQ?.explanation && (
-                <div
-                    style={{
-                        marginTop: 10,
-                        padding: "12px 16px",
-                        borderRadius: 8,
-                        backgroundColor: "#FFF8E1",
-                        color: "#5D4037",
-                        borderLeft: "4px solid #FF9500",
-                        fontSize: 15,
-                        lineHeight: 1.6
-                    }}
-                >
+                <div style={{
+                    ...alert.warning,
+                    marginTop: spacing.sm,
+                    fontWeight: font.weightNormal,
+                    lineHeight: 1.6,
+                }}>
                     <strong>💡 Explanation:</strong> {currentQ.explanation}
                 </div>
             )}
@@ -453,21 +663,15 @@ export default function Quiz() {
                 <button
                     onClick={nextQuestion}
                     style={{
-                        marginTop: 12,
-                        padding: "10px 20px",
-                        backgroundColor: "#007AFF",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        fontWeight: "bold"
+                        ...btn.primary,
+                        marginTop: spacing.md,
                     }}
                 >
                     Next Question →
                 </button>
             )}
 
-            <p style={{ marginTop: 24, fontWeight: "bold", fontSize: 18 }}>
+            <p style={{ marginTop: spacing.xxl, fontWeight: font.weightBold, fontSize: font.sizeLg, color: colors.text }}>
                 Score: {score} / {filteredQuestions.length}
             </p>
         </div>

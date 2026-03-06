@@ -1,5 +1,13 @@
 // Import the topic IDs from HomePage
 import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from './HomePage';
+import {
+    syncProgressToBackend,
+    recordQuizAttempt,
+    recordTestAttempt,
+    recordPlaygroundUse,
+    recordAIInteraction,
+    markTopicCompleteOnBackend
+} from './progressService';
 
 // Progress Tracker that perfectly syncs with HomePage
 export class ProgressTracker {
@@ -132,6 +140,8 @@ export class ProgressTracker {
             progress.playground.completed = true;
         }
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
+        // Sync to backend (non-blocking)
+        recordPlaygroundUse().catch(() => {});
     }
 
     // Mark quiz as completed
@@ -142,6 +152,8 @@ export class ProgressTracker {
         }
         progress.quizzes.attempted++;
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
+        // Sync to backend (non-blocking)
+        recordQuizAttempt(quizId, score).catch(() => {});
     }
 
     // Mark test as passed
@@ -152,6 +164,8 @@ export class ProgressTracker {
         }
         progress.tests.attempted++;
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
+        // Sync to backend (non-blocking)
+        recordTestAttempt(testId, score, true).catch(() => {});
     }
 
     // Track AI interaction
@@ -159,6 +173,8 @@ export class ProgressTracker {
         const progress = this.getProgress();
         progress.aiInteractions++;
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
+        // Sync to backend (non-blocking)
+        recordAIInteraction().catch(() => {});
     }
 
     // Check if topic is completed

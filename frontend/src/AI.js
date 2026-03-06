@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import TextareaAutosize from "react-textarea-autosize";
+import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 
 export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPage }) {
     // Removed: const [showChat, setShowChat] = useState(false);
@@ -97,12 +98,12 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                 {/* Performance metrics */}
                 {msg.debug_log && (
                     <div style={{
-                        fontSize: 12,
-                        color: "#666",
-                        marginTop: 8,
-                        padding: "8px 10px",
-                        backgroundColor: "#f8f9fa",
-                        borderRadius: 5,
+                        fontSize: font.sizeSm,
+                        color: colors.textMuted,
+                        marginTop: spacing.sm,
+                        padding: '8px 10px',
+                        backgroundColor: colors.divider,
+                        borderRadius: radii.sm,
                     }}>
                         ⚡ {msg.debug_log.response_time_sec}s 
                         
@@ -112,15 +113,15 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                 {/* Source chunks */}
                 {msg.pdf_matches && msg.pdf_matches.length > 0 && (
                     <div style={{
-                        marginTop: 14,
-                        paddingTop: 14,
-                        borderTop: "1px solid #e0e0e0",
+                        marginTop: spacing.lg,
+                        paddingTop: spacing.lg,
+                        borderTop: `1px solid ${colors.border}`,
                     }}>
                         <div style={{
-                            fontSize: 13,
-                            fontWeight: "bold",
-                            color: "#555",
-                            marginBottom: 10,
+                            fontSize: font.sizeMd,
+                            fontWeight: font.weightBold,
+                            color: colors.textSecondary,
+                            marginBottom: spacing.sm,
                         }}>
                             📚 Retrieved Sources ({msg.pdf_matches.length}):
                         </div>
@@ -135,20 +136,20 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                     {/* Source title button */}
                                     <button
                                         style={{
-                                            backgroundColor: isExpanded ? "#28a745" : "#007AFF",
-                                            color: "white",
-                                            padding: "12px 16px",
-                                            borderRadius: 8,
+                                            backgroundColor: isExpanded ? colors.success : colors.primary,
+                                            color: colors.surface,
+                                            padding: '12px 16px',
+                                            borderRadius: radii.md,
                                             border: "none",
                                             cursor: "pointer",
-                                            fontSize: 13,
-                                            fontWeight: 600,
+                                            fontSize: font.sizeMd,
+                                            fontWeight: font.weightSemibold,
                                             width: "100%",
                                             textAlign: "left",
                                             display: "flex",
                                             justifyContent: "space-between",
                                             alignItems: "center",
-                                            transition: "all 0.2s",
+                                            transition,
                                         }}
                                         onClick={() => {
                                             if (isExpanded) {
@@ -162,7 +163,7 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                         <span>
                                             {isExpanded ? "📖" : "📄"} {m.file.replace(".txt", "").split("/").pop()}
                                         </span>
-                                        <span style={{ fontSize: 12, opacity: 0.9 }}>
+                                        <span style={{ fontSize: font.sizeSm, opacity: 0.9 }}>
                                             {isExpanded ? "▼ Collapse" : "▶ Expand"}
                                         </span>
                                     </button>
@@ -170,12 +171,12 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                     {/* Retrieved chunk (always shown when expanded) */}
                                     {isExpanded && (
                                         <div style={{
-                                            marginTop: 8,
-                                            padding: 16,
-                                            backgroundColor: "#fffbea",
-                                            borderRadius: 8,
-                                            border: "2px solid #fbbf24",
-                                            fontSize: 14,
+                                            marginTop: spacing.sm,
+                                            padding: spacing.lg,
+                                            backgroundColor: colors.warningLight,
+                                            borderRadius: radii.md,
+                                            border: `2px solid ${colors.warningBorder}`,
+                                            fontSize: font.sizeMd,
                                             lineHeight: 1.8,
                                             whiteSpace: "pre-wrap",
                                             maxHeight: 400,
@@ -183,7 +184,7 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                             fontFamily: "Georgia, serif"
                                         }}>
                                             <div style={{
-                                                fontSize: 12,
+                                                fontSize: 14,
                                                 color: "#92400e",
                                                 marginBottom: 12,
                                                 fontWeight: "bold",
@@ -200,7 +201,7 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                                         border: "none",
                                                         padding: "6px 12px",
                                                         borderRadius: 5,
-                                                        fontSize: 11,
+                                                        fontSize: 13,
                                                         cursor: "pointer",
                                                         fontWeight: 600,
                                                     }}
@@ -224,19 +225,19 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                     {/* Context view (chunks before and after) */}
                                     {isExpanded && hasContext && (
                                         <div style={{
-                                            marginTop: 8,
-                                            padding: 16,
-                                            backgroundColor: "#f0f9ff",
-                                            borderRadius: 8,
-                                            border: "2px solid #3b82f6",
+                                            marginTop: spacing.sm,
+                                            padding: spacing.lg,
+                                            backgroundColor: colors.primaryLight,
+                                            borderRadius: radii.md,
+                                            border: `2px solid ${colors.primaryBorder}`,
                                             maxHeight: 500,
                                             overflowY: "auto",
                                         }}>
                                             <div style={{
-                                                fontSize: 12,
-                                                color: "#1e40af",
-                                                marginBottom: 12,
-                                                fontWeight: "bold",
+                                                fontSize: font.sizeSm,
+                                                color: colors.primary,
+                                                marginBottom: spacing.md,
+                                                fontWeight: font.weightBold,
                                             }}>
                                                 📚 Full Context ({chunkContext.chunks.length} chunks, {chunkContext.total_chunks} total in document):
                                             </div>
@@ -277,7 +278,7 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                                             </div>
                                                         )}
                                                         <div style={{
-                                                            fontSize: 11,
+                                                            fontSize: 13,
                                                             color: "#6b7280",
                                                             marginBottom: 6,
                                                             fontFamily: "system-ui",
@@ -306,43 +307,44 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
             {showChat && (
                 <div style={{
                     position: "fixed",
-                    top: splitView ? 0 : 70,
+                    top: splitView ? 0 : 64,
                     right: splitView ? 0 : 20,
                     left: splitView ? 0 : "auto",
                     bottom: splitView ? 0 : "auto",
                     width: splitView ? "100vw" : 800,
                     height: splitView ? "100vh" : "75vh",
-                    backgroundColor: "white",
-                    boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-                    borderRadius: splitView ? 0 : 10,
+                    backgroundColor: colors.surface,
+                    boxShadow: shadows.lg,
+                    borderRadius: splitView ? 0 : radii.lg,
                     zIndex: 10000,
                     display: "flex",
                     flexDirection: "column",
                 }}>
                     {/* Header */}
                     <div style={{
-                        padding: 14,
-                        borderBottom: "1px solid #ccc",
+                        padding: spacing.lg,
+                        borderBottom: `1px solid ${colors.border}`,
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        backgroundColor: "#128C7E",
-                        borderRadius: "10px 10px 0 0",
-                        color: "white"
+                        backgroundColor: colors.accent,
+                        borderRadius: `${radii.lg}px ${radii.lg}px 0 0`,
+                        color: colors.surface
                     }}>
-                        <h3 style={{ margin: 0 }}>☕ AI Java Tutor</h3>
+                        <h3 style={{ margin: 0, fontSize: font.sizeLg, fontWeight: font.weightSemibold }}>☕ AI Java Tutor</h3>
                         <div>
                             <button
                                 onClick={toggleSplitView}
                                 style={{
-                                    marginRight: 8,
+                                    ...btn.small,
+                                    marginRight: spacing.sm,
                                     padding: "6px 12px",
                                     cursor: "pointer",
-                                    borderRadius: 5,
+                                    borderRadius: radii.sm,
                                     border: "none",
-                                    backgroundColor: "white",
-                                    color: "#128C7E",
-                                    fontWeight: "600"
+                                    backgroundColor: colors.surface,
+                                    color: colors.accent,
+                                    fontWeight: font.weightSemibold
                                 }}
                             >
                                 {splitView ? "⬇ Shrink" : "⬆ Enlarge"}
@@ -352,11 +354,11 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                                 style={{
                                     padding: "6px 12px",
                                     cursor: "pointer",
-                                    borderRadius: 5,
+                                    borderRadius: radii.sm,
                                     border: "none",
-                                    backgroundColor: "#dc3545",
-                                    color: "white",
-                                    fontWeight: "600"
+                                    backgroundColor: colors.danger,
+                                    color: colors.surface,
+                                    fontWeight: font.weightSemibold
                                 }}
                             >
                                 ✕ Close
@@ -367,22 +369,22 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                     {/* Messages */}
                     <div style={{
                         flex: 1,
-                        padding: 16,
+                        padding: spacing.lg,
                         overflowY: "auto",
-                        backgroundColor: "#f0f0f0",
+                        backgroundColor: colors.bg,
                     }}>
                         {history.map((msg, idx) => (
                             <div key={idx} style={{
                                 display: "flex",
                                 justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-                                marginBottom: 16,
+                                marginBottom: spacing.lg,
                             }}>
                                 <div style={{
-                                    padding: 14,
-                                    borderRadius: 12,
-                                    backgroundColor: msg.role === "user" ? "#007AFF" : "white",
-                                    color: msg.role === "user" ? "white" : "black",
-                                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                    padding: spacing.lg,
+                                    borderRadius: radii.md,
+                                    backgroundColor: msg.role === "user" ? colors.primary : colors.surface,
+                                    color: msg.role === "user" ? colors.surface : colors.text,
+                                    boxShadow: shadows.sm,
                                     maxWidth: "90%",
                                     wordBreak: "break-word",
                                 }}>
@@ -401,10 +403,10 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                     <form
                         onSubmit={handleSubmit}
                         style={{
-                            padding: 14,
-                            borderTop: "2px solid #ddd",
-                            backgroundColor: "white",
-                            borderRadius: "0 0 10px 10px"
+                            padding: spacing.lg,
+                            borderTop: `2px solid ${colors.border}`,
+                            backgroundColor: colors.surface,
+                            borderRadius: `0 0 ${radii.lg}px ${radii.lg}px`
                         }}
                     >
                         <TextareaAutosize
@@ -415,27 +417,18 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                             maxRows={6}
                             style={{
                                 width: "100%",
-                                padding: 10,
-                                marginBottom: 10,
-                                borderRadius: 8,
-                                border: "2px solid #ddd",
-                                fontSize: 14,
-                                fontFamily: "system-ui"
+                                padding: spacing.sm,
+                                marginBottom: spacing.sm,
+                                borderRadius: radii.sm,
+                                border: `2px solid ${colors.border}`,
+                                fontSize: font.sizeMd,
+                                fontFamily: font.family
                             }}
                         />
                         <button
                             type="submit"
                             disabled={loading}
-                            style={{
-                                backgroundColor: loading ? "#95a5a6" : "#128C7E",
-                                color: "white",
-                                padding: "10px 20px",
-                                border: "none",
-                                borderRadius: 8,
-                                fontWeight: "bold",
-                                fontSize: 14,
-                                cursor: loading ? "not-allowed" : "pointer",
-                            }}
+                            style={loading ? btn.disabled : btn.accent}
                         >
                             {loading ? "⏳ Thinking..." : "📤 Send"}
                         </button>
@@ -451,16 +444,17 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
                     bottom: 20,
                     right: 20,
                     zIndex: 9999,
-                    backgroundColor: "#128C7E",
-                    color: "white",
-                    borderRadius: "50%",
-                    width: 80,
-                    height: 80,
+                    backgroundColor: colors.accent,
+                    color: colors.surface,
+                    borderRadius: radii.full,
+                    width: 72,
+                    height: 72,
                     border: "none",
                     cursor: "pointer",
-                    fontWeight: "bold",
-                    fontSize: 16,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                    fontWeight: font.weightBold,
+                    fontSize: font.sizeMd,
+                    boxShadow: shadows.lg,
+                    transition,
                 }}
                 onClick={toggleChat}
             >

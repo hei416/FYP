@@ -1,31 +1,19 @@
-
 import traceback
-from fastapi import FastAPI
+import time
+import asyncio
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
-from routers import code_execution, lessons, pdfs, practical_tests, rag
+from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress
 from core.config import PDF_CHUNKS
-from fastapi import Request
 from fastapi.responses import JSONResponse
 from rag_system import setup_rag_system
 import routers.rag as rag_router
-import importlib
-sqlite3 = importlib.import_module('sqlite3')
-def init_cache_db():
-    """Pre-create SQLite cache so it's ready immediately"""
-    db_path = "quiz_cache.db"
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS cache (
-            key TEXT PRIMARY KEY,
-            data TEXT,
-            expires INTEGER
-        )
-    """)
-    conn.commit()
-    conn.close()
-    print(f"✅ Cache DB ready: {db_path}")
+from database import engine, Base
+from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 
 
@@ -55,10 +43,9 @@ def refresh_knowledge_base():
 
 @app.on_event("startup")
 async def startup():
-    init_cache_db() 
-
     global PDF_CHUNKS
     
+    startup_start = time.time()
     print("="*70)
     print("🚀 STARTING JAVA LEARNING PLATFORM")
     print("="*70)
@@ -69,13 +56,15 @@ async def startup():
     print("\n[1/2] Initializing FAISS RAG System...")
     print("-"*70)
     try:
+        rag_start = time.time()
         rag_chain, retriever = setup_rag_system(rebuild_vectorstore=False)
         
         # Inject into rag router
         rag_router.rag_chain = rag_chain
         rag_router.retriever = retriever
         
-        print("✅ FAISS RAG system initialized!")
+        rag_elapsed = time.time() - rag_start
+        print(f"✅ FAISS RAG system initialized! ({rag_elapsed:.2f}s)")
         print(f"   • Model: qwen3-max")
         print(f"   • NLI Faithfulness: 97.62% (46/47 claims)")  # ← Updated
         print(f"   • Semantic Similarity: 80.78%")  # ← Added
@@ -96,8 +85,10 @@ async def startup():
         print("\n[2/2] Loading PDF chunks...")
         print("-"*70)
         try:
+            pdf_start = time.time()
             PDF_CHUNKS = extract_pdf_chunks()
-            print(f"✅ Loaded {len(PDF_CHUNKS)} PDF documents")
+            pdf_elapsed = time.time() - pdf_start
+            print(f"✅ Loaded {len(PDF_CHUNKS)} PDF documents ({pdf_elapsed:.2f}s)")
         except Exception as e:
             print(f"⚠️ PDF loading warning: {e}")
             PDF_CHUNKS = []
@@ -116,12 +107,18 @@ async def startup():
         print("✅ Background scheduler started")
     except Exception as e:
         print(f"⚠️ Scheduler warning: {e}")
+
+    # ============================================
+    # Pre-warm quiz cache (background)
+    # ============================================
+    asyncio.create_task(prewarm_quiz_cache())
     
     # ============================================
     # Startup Complete
     # ============================================
+    total_elapsed = time.time() - startup_start
     print("\n" + "="*70)
-    print("✅ JAVA LEARNING PLATFORM READY")
+    print(f"✅ JAVA LEARNING PLATFORM READY (total: {total_elapsed:.2f}s)")
     print("="*70)
     print("\n📚 Available Features:")
     print("   • AI Tutor (NLI-Verified RAG) → POST /ragAI")
@@ -138,7 +135,70 @@ async def startup():
     print("📖 API Docs: http://localhost:8000/docs")
     print("="*70 + "\n")
 
+# ============================================
+# Background Cache Pre-warming
+# ============================================
+ALL_TOPICS = [
+    "Bridging from Python",
+    "Problem Solving with Java",
+    "String",
+    "Array",
+    "Methods",
+    "Exception Handling and File IO",
+    "Class - constructor/attributes/methods",
+    "Class - access modifier/static",
+    "Inheritance",
+    "Polymorphism",
+    "Interface and Lambda expression",
+    "Recursion and Revision",
+]
+
+async def prewarm_quiz_cache():
+    """Pre-generate quizzes for common topic combos in the background."""
+    # Disabled: get_cache function doesn't exist
+    # from routers.rag import generate_mcq_quiz, QuizGenerateRequest, get_cache
+    print("⏭️ Quiz cache pre-warming disabled (get_cache not implemented)")
+    # Original code commented out:
+    # # Progressive topic combos: first N topics as students unlock them
+    # combos = []
+    # for i in range(1, len(ALL_TOPICS) + 1):
+    #     combos.append(ALL_TOPICS[:i])
+    #
+    # # 5 variations per combo
+    # total = len(combos) * 5
+    # generated = 0
+    # skipped = 0
+    #
+    # print(f"\n🔥 Pre-warming quiz cache ({len(combos)} combos × 5 variations = {total} entries)...")
+    # start = time.time()
+    #
+    # for combo in combos:
+    #     for var in range(5):
+    #         # Skip if already cached
+    #         if get_cache(combo, var):
+    #             skipped += 1
+    #             continue
+    #         try:
+    #             req = QuizGenerateRequest(
+    #                 completed_topics=combo,
+    #                 num_questions=10,
+    #                 variation_seed=var,
+    #             )
+    #             await generate_mcq_quiz(req)
+    #             generated += 1
+    #             print(f"  🔥 Warmed: {len(combo)} topics, var={var} ({generated} generated, {skipped} skipped)")
+    #         except Exception as e:
+    #             print(f"  ⚠️ Pre-warm failed ({len(combo)} topics, var={var}): {e}")
+    #         # Small delay to avoid hammering the API
+    #         await asyncio.sleep(1)
+    #
+    # elapsed = time.time() - start
+    # print(f"✅ Cache pre-warm done: {generated} generated, {skipped} already cached ({elapsed:.1f}s)")
+
+
 # Include routers
+app.include_router(auth.router, tags=["Auth"])
+app.include_router(progress.router, tags=["Progress"])
 app.include_router(rag.router, tags=["AI Tutor"])
 app.include_router(code_execution.router, tags=["Code Execution"])
 app.include_router(lessons.router, tags=["Lessons"])
