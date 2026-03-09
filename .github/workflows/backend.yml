@@ -77,4 +77,14 @@ jobs:
             --resource-group codetutor-rg \
             --src-path deploy.zip \
             --type zip \
-            --async false
+            --async true
+
+      # ── Wait for deployment then restart ─────────────────────────
+      - name: Wait and restart app
+        run: |
+          echo "Waiting 60s for deployment to settle..."
+          sleep 60
+          az webapp restart \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg
+          echo "App restarted successfully"
