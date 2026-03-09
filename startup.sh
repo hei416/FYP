@@ -1,24 +1,31 @@
 #!/bin/bash
 # Azure App Service startup script for CodeTutor (FastAPI + React)
-
-set -e
+# Log everything to /home/startup.log for diagnostics
+exec > >(tee -a /home/startup.log) 2>&1
 
 echo "=========================================="
-echo "  CodeTutor - Azure Startup"
+echo "  CodeTutor - Azure Startup $(date)"
 echo "=========================================="
 
-# Activate the Oryx-created virtualenv (packages installed by pip during build)
+# Always work from the app directory
+cd /home/site/wwwroot
+echo "CWD: $(pwd)"
+echo "FILES: $(ls -1 | head -20)"
+
+# Activate the Oryx-created virtualenv
 ANTENV="/home/site/wwwroot/antenv"
 if [ -f "$ANTENV/bin/activate" ]; then
   echo "Activating Oryx virtualenv: $ANTENV"
   source "$ANTENV/bin/activate"
+  echo "Python: $(which python) $(python --version)"
 else
-  echo "WARNING: antenv not found at $ANTENV, using system Python"
+  echo "WARNING: antenv not found, searching..."
+  find /home/site/wwwroot -name "activate" 2>/dev/null | head -5
 fi
 
-# Azure sets HOME=/home for persistent storage
-# Store SQLite databases in /home so they survive restarts
-export DATABASE_URL="sqlite:////home/learning_platform.db"
+# Azure persistent storage for SQLite
+export DATABASE_URL="${DATABASE_URL:-sqlite:////home/learning_platform.db}"
+echo "DATABASE_URL: $DATABASE_URL"
 
 # Run DB migrations / create tables (idempotent)
 echo "[1/3] Initialising database..."
@@ -27,12 +34,12 @@ from database import engine, Base
 from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion
 Base.metadata.create_all(bind=engine)
 print('  DB tables ready.')
-"
+" || echo "WARNING: DB init failed, continuing..."
 
 # Seed the test account if it does not exist
 echo "[2/3] Seeding test account (if missing)..."
 python -c "
-import os, sys
+import os
 os.environ.setdefault('DATABASE_URL', 'sqlite:////home/learning_platform.db')
 import bcrypt
 from database import SessionLocal
@@ -46,11 +53,10 @@ if not db.query(User).filter(User.email=='test@test.com').first():
 else:
     print('  Test account already exists.')
 db.close()
-"
+" || echo "WARNING: Seed failed, continuing..."
 
 # Start the application
-# Single worker required for SQLite (no concurrent writes across processes)
-echo "[3/3] Starting uvicorn..."
+echo "[3/3] Starting gunicorn on port ${PORT:-8000}..."
 exec gunicorn main:app \
     --workers 1 \
     --worker-class uvicorn.workers.UvicornWorker \
