@@ -7,6 +7,15 @@ echo "=========================================="
 echo "  CodeTutor - Azure Startup"
 echo "=========================================="
 
+# Activate the Oryx-created virtualenv (packages installed by pip during build)
+ANTENV="/home/site/wwwroot/antenv"
+if [ -f "$ANTENV/bin/activate" ]; then
+  echo "Activating Oryx virtualenv: $ANTENV"
+  source "$ANTENV/bin/activate"
+else
+  echo "WARNING: antenv not found at $ANTENV, using system Python"
+fi
+
 # Azure sets HOME=/home for persistent storage
 # Store SQLite databases in /home so they survive restarts
 export DATABASE_URL="sqlite:////home/learning_platform.db"
