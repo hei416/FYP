@@ -5,10 +5,28 @@ import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './HomePage';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';
 
+// Maps each TOPIC_GROUPS index (0-based) to its quiz topic name
+const GROUP_QUIZ_TOPICS = [
+    "Bridging from Python",
+    "Problem Solving with Java",
+    "String",
+    "Array",
+    "Methods",
+    "Exception Handling and File IO",
+    "Class - constructor/attributes/methods",
+    "Class - access modifier/static",
+    "Inheritance",
+    "Polymorphism",
+    "Interface and Lambda expression",
+    "Recursion and Revision",
+];
+
 export default function TopicDetailPage() {
     const { topicId } = useParams();
     const navigate = useNavigate();
     const [viewingDocument, setViewingDocument] = useState(null);
+    const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+    const [milestoneTopics, setMilestoneTopics] = useState([]);
     const [completedTopics, setCompletedTopics] = useState(() => {
         const saved = localStorage.getItem('java-roadmap-completed');
         return saved ? JSON.parse(saved) : [];
@@ -23,6 +41,11 @@ export default function TopicDetailPage() {
     // Find current group
     const currentGroupIndex = TOPIC_GROUPS.findIndex(g => g.subtopics.includes(topicId));
     const currentGroup = TOPIC_GROUPS[currentGroupIndex];
+
+    // Check if this is the last subtopic of an even-numbered group (1-indexed: 2, 4, 6, ...)
+    const isLastTopicOfGroup = currentGroup &&
+        currentGroup.subtopics[currentGroup.subtopics.length - 1] === topicId;
+    const isMilestoneGroup = currentGroupIndex >= 1 && (currentGroupIndex + 1) % 2 === 0;
 
     const isCompleted = completedTopics.includes(topicId);
     const content = topicContent[topicId];
@@ -39,12 +62,24 @@ export default function TopicDetailPage() {
     const toggleCompletion = () => {
         setCompletedTopics((prev) => {
             let updated;
+            const markingComplete = !prev.includes(topicId);
             if (prev.includes(topicId)) {
                 updated = prev.filter((id) => id !== topicId);
             } else {
                 updated = [...prev, topicId];
             }
             localStorage.setItem('java-roadmap-completed', JSON.stringify(updated));
+
+            // Show milestone modal when completing the last topic of every 2nd chapter group
+            if (markingComplete && isLastTopicOfGroup && isMilestoneGroup) {
+                const topics = [
+                    GROUP_QUIZ_TOPICS[currentGroupIndex - 1],
+                    GROUP_QUIZ_TOPICS[currentGroupIndex],
+                ];
+                setMilestoneTopics(topics);
+                setShowMilestoneModal(true);
+            }
+
             return updated;
         });
     };
@@ -374,6 +409,64 @@ export default function TopicDetailPage() {
                 documentFile={viewingDocument?.file}
                 documentSource={viewingDocument?.source}
             />
+
+            {/* Milestone Modal — suggested Quiz & Practical Test every 2 chapters */}
+            {showMilestoneModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+                        <div className="text-5xl mb-4">🎉</div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Great Progress!</h2>
+                        <p className="text-gray-600 mb-2">
+                            You've completed two chapters:
+                        </p>
+                        <div className="flex flex-col gap-2 mb-6">
+                            {milestoneTopics.map((t, i) => (
+                                <span key={i} className="inline-flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-sm">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    {t}
+                                </span>
+                            ))}
+                        </div>
+                        <p className="text-gray-600 mb-6 text-sm">
+                            Now's a great time to test your understanding with a <strong>quiz</strong> or <strong>practical test</strong>!
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowMilestoneModal(false);
+                                    navigate('/quiz', { state: { preSelectedTopics: milestoneTopics } });
+                                }}
+                                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Take Quiz
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowMilestoneModal(false);
+                                    navigate('/practical-test');
+                                }}
+                                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                                Take Practical Test
+                            </button>
+                            <button
+                                onClick={() => setShowMilestoneModal(false)}
+                                className="w-full text-gray-500 hover:text-gray-700 font-medium py-2 px-6 rounded-xl transition-colors text-sm"
+                            >
+                                Continue Learning
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

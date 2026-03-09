@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from rag_system import setup_rag_system
 import routers.rag as rag_router
 from database import engine, Base
-from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion
+from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion, PracticalTestQuestion
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

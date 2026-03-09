@@ -82,3 +82,20 @@ class QuizQuestion(Base):
     correct_index = Column(Integer, nullable=False)
     explanation = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PracticalTestQuestion(Base):
+    """AI-generated practical test (coding exercise) questions stored by topic."""
+    __tablename__ = "practical_test_questions"
+
+    id = Column(String(255), primary_key=True)          # unique ID, e.g. pt_<timestamp>_<n>
+    topic_id = Column(String(255), nullable=False, index=True)  # main topic name
+    title = Column(String(500), nullable=False)
+    description = Column(Text, nullable=False)
+    note = Column(Text, nullable=True)
+    methods = Column(JSON, nullable=False)               # list of {name, description}
+    expected_output = Column(JSON, nullable=False)       # list of strings
+    base_class = Column(String(255), nullable=False)     # e.g. "Solution"
+    base_methods = Column(JSON, nullable=False)          # {methodName: "signature {}"}
+    solution_methods = Column(JSON, nullable=False)      # {methodName: [...lines]}
+    created_at = Column(DateTime, default=datetime.utcnow)
