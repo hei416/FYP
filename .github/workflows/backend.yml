@@ -30,20 +30,15 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # ── Install Python deps into .python_packages (Azure auto-detects) ──
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies into bundle
+      # ── Enable Oryx so Azure runs pip install on the server ───────
+      - name: Enable Oryx build
         run: |
-          pip install -r requirements.txt \
-            --target=.python_packages/lib/site-packages \
-            --no-cache-dir \
-            --quiet
+          az webapp config appsettings set \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true
 
-      # ── Package backend + pre-installed packages ─────────────────
+      # ── Package only source files (~10MB, no venv/node_modules) ──
       - name: Create deployment zip
         run: |
           zip -r deploy.zip . \
@@ -55,21 +50,15 @@ jobs:
             --exclude "frontend/*" \
             --exclude "venv/*" \
             --exclude ".venv/*" \
+            --exclude ".python_packages/*" \
             --exclude ".idea/*" \
             --exclude ".vscode/*" \
             --exclude ".VSCodeCounter/*" \
             --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      # ── Disable Oryx (packages already installed) ─────────────────
-      - name: Disable Oryx build
-        run: |
-          az webapp config appsettings set \
-            --name codetutor-fyp-hei \
-            --resource-group codetutor-rg \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
-
       # ── Deploy via Azure CLI ──────────────────────────────────────
+      # Oryx will run pip install -r requirements.txt on the server
       - name: Deploy to Azure Web App
         run: |
           az webapp deploy \
@@ -79,11 +68,11 @@ jobs:
             --type zip \
             --async true
 
-      # ── Wait for deployment then restart ─────────────────────────
+      # ── Wait for Oryx build + restart ────────────────────────────
       - name: Wait and restart app
         run: |
-          echo "Waiting 60s for deployment to settle..."
-          sleep 60
+          echo "Waiting 120s for Oryx pip install to complete..."
+          sleep 120
           az webapp restart \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg
