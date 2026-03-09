@@ -8,6 +8,7 @@ on:
       - 'frontend/public/**'
       - 'frontend/package.json'
       - 'frontend/server.js'
+      - '.github/workflows/frontend.yml'
   workflow_dispatch:
 
 jobs:
@@ -43,11 +44,27 @@ jobs:
           CI: false
         run: npm run build
 
-      # ── Package frontend (build/ + server.js + package.json) ─────
+      # ── Install only express (runtime dep) into a clean node_modules ──
+      - name: Install production server deps only
+        working-directory: frontend
+        run: |
+          rm -rf node_modules
+          npm install express --no-save
+          echo "node_modules size: $(du -sh node_modules | cut -f1)"
+
+      # ── Disable Oryx (node_modules already bundled) ───────────────
+      - name: Disable Oryx build
+        run: |
+          az webapp config appsettings set \
+            --name codetutor-frontend-hei \
+            --resource-group codetutor-rg \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
+
+      # ── Package frontend (build/ + server.js + package.json + node_modules) ─
       - name: Create deployment zip
         working-directory: frontend
         run: |
-          zip -r ../frontend-deploy.zip build/ server.js package.json package-lock.json
+          zip -r ../frontend-deploy.zip build/ server.js package.json node_modules/
           echo "Zip size: $(du -sh ../frontend-deploy.zip | cut -f1)"
 
       # ── Deploy via Azure CLI ──────────────────────────────────────
