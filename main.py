@@ -41,6 +41,10 @@ app.add_middleware(
 RAG_INITIALIZED = False
 RAG_INIT_LOCK = asyncio.Lock()
 
+# Lazy loading: PDF chunks load on first request, not during startup
+PDF_INITIALIZED = False
+PDF_INIT_LOCK = asyncio.Lock()
+
 async def ensure_rag_initialized():
     """Lazy load RAG system on first use"""
     global RAG_INITIALIZED
@@ -75,6 +79,34 @@ async def ensure_rag_initialized():
             import traceback
             traceback.print_exc()
 
+async def ensure_pdf_chunks_loaded():
+    """Lazy load PDF chunks on first use"""
+    global PDF_CHUNKS, PDF_INITIALIZED
+    
+    if PDF_INITIALIZED:
+        return
+    
+    async with PDF_INIT_LOCK:
+        # Double-check after acquiring lock
+        if PDF_INITIALIZED:
+            return
+        
+        if not HAS_PDF_SERVICE:
+            PDF_INITIALIZED = True
+            return
+        
+        print("\n🔄 Loading PDF chunks (lazy init on first request)...")
+        try:
+            pdf_start = time.time()
+            PDF_CHUNKS = extract_pdf_chunks()
+            pdf_elapsed = time.time() - pdf_start
+            print(f"✅ Loaded {len(PDF_CHUNKS)} PDF documents ({pdf_elapsed:.2f}s)")
+            PDF_INITIALIZED = True
+        except Exception as e:
+            print(f"⚠️ PDF loading warning: {e}")
+            PDF_CHUNKS = []
+            PDF_INITIALIZED = True
+
 def refresh_knowledge_base():
     """Background task - currently empty, can add future refresh logic"""
     print("Background refresh check...")
@@ -100,18 +132,11 @@ async def startup():
     # [2/2] Load PDF chunks (if service exists)
     # ============================================
     if HAS_PDF_SERVICE:
-        print("\n[2/2] Loading PDF chunks...")
+        print("\n[2/2] PDF Chunks: Lazy loading enabled (will load on first use)")
         print("-"*70)
-        try:
-            pdf_start = time.time()
-            PDF_CHUNKS = extract_pdf_chunks()
-            pdf_elapsed = time.time() - pdf_start
-            print(f"✅ Loaded {len(PDF_CHUNKS)} PDF documents ({pdf_elapsed:.2f}s)")
-        except Exception as e:
-            print(f"⚠️ PDF loading warning: {e}")
-            PDF_CHUNKS = []
+        print("⏸️  Skipping PDF init to speed up deployment")
     else:
-        print("\n[2/2] Skipping PDF chunks (service not available)")
+        print("\n[2/2] PDF service not available")
         PDF_CHUNKS = []
     
     # ============================================
