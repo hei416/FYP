@@ -37,6 +37,44 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Lazy loading: RAG system loads on first request, not during startup
+RAG_INITIALIZED = False
+RAG_INIT_LOCK = asyncio.Lock()
+
+async def ensure_rag_initialized():
+    """Lazy load RAG system on first use"""
+    global RAG_INITIALIZED
+    
+    if RAG_INITIALIZED:
+        return
+    
+    async with RAG_INIT_LOCK:
+        # Double-check after acquiring lock
+        if RAG_INITIALIZED:
+            return
+        
+        print("\n🔄 Loading FAISS RAG System (lazy init on first request)...")
+        try:
+            rag_start = time.time()
+            rag_chain, retriever = setup_rag_system(rebuild_vectorstore=False)
+            
+            # Inject into rag router
+            rag_router.rag_chain = rag_chain
+            rag_router.retriever = retriever
+            
+            rag_elapsed = time.time() - rag_start
+            print(f"✅ FAISS RAG system loaded! ({rag_elapsed:.2f}s)")
+            print(f"   • Model: qwen3-max")
+            print(f"   • NLI Faithfulness: 97.62% (46/47 claims)")
+            print(f"   • Semantic Similarity: 80.78%")
+            print(f"   • Context Recall: 74.21%")
+            print(f"   • Avg Response Time: 6.73s")
+            RAG_INITIALIZED = True
+        except Exception as e:
+            print(f"❌ FAISS RAG initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+
 def refresh_knowledge_base():
     """Background task - currently empty, can add future refresh logic"""
     print("Background refresh check...")
@@ -52,33 +90,12 @@ async def startup():
     print("="*70)
     
     # ============================================
-    # [1/2] Initialize FAISS RAG System
+    # [1/2] RAG System: Lazy loading enabled
     # ============================================
-    print("\n[1/2] Initializing FAISS RAG System...")
+    print("\n[1/2] RAG System: Lazy loading enabled (loads on first /ragAI request)")
     print("-"*70)
-    try:
-        rag_start = time.time()
-        rag_chain, retriever = setup_rag_system(rebuild_vectorstore=False)
-        
-        # Inject into rag router
-        rag_router.rag_chain = rag_chain
-        rag_router.retriever = retriever
-        
-        rag_elapsed = time.time() - rag_start
-        print(f"✅ FAISS RAG system initialized! ({rag_elapsed:.2f}s)")
-        print(f"   • Model: qwen3-max")
-        print(f"   • NLI Faithfulness: 97.62% (46/47 claims)")  # ← Updated
-        print(f"   • Semantic Similarity: 80.78%")  # ← Added
-        print(f"   • Context Recall: 74.21%")  # ← Added
-        print(f"   • Avg Response Time: 6.73s")  # ← Updated
-    except Exception as e:
-        print(f"❌ FAISS RAG initialization failed: {e}")
-        print("   RAG endpoint will not work.")
-        import traceback
-        traceback.print_exc()
+    print("⏸️  Skipping RAG init to speed up deployment")
     
-
-
     # ============================================
     # [2/2] Load PDF chunks (if service exists)
     # ============================================

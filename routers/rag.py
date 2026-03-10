@@ -842,8 +842,13 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 async def rag_ai(req: ExplainRequest):
     try:
         global rag_chain, retriever
+        
+        # Lazy load RAG system if not initialized
+        from main import ensure_rag_initialized
+        await ensure_rag_initialized()
+        
         if rag_chain is None or retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
+            raise HTTPException(status_code=500, detail="RAG system failed to initialize")
 
         query = req.user_input.strip()
         if req.code_snippet:
