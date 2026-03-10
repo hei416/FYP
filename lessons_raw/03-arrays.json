@@ -1,0 +1,250 @@
+{
+  "title": "03-Arrays",
+  "intro": "= in-class quiz content\nThis course is colocated with COMP2026 Problem Solving Using Object Oriented Programming\nCOMP2045 2 / 67Basic of Arrays Basic of Arrays\nSuppose you have many variables, all of the same\ntype (e.g., all integers)\nName them as a0, a1, a2, ..., a5201314 ...",
+  "sections": [
+    {
+      "heading": "Let say, find all number > 30...",
+      "content": "if (a0 > 30) \n    System.out.print(a0);\nif (a1 > 30)\n    System.out.print(a1);\n...\nif (a5201314 > 30)\n    System.out.print(a5201314);\nNeed a better way to organize your variables.\n\nCOMP2045 3 / 67Basic of Arrays Basic of Arrays\n\nCOMP2045 4 / 67Basic of Arrays Basic of Arrays\nimage credit: https://solecollector.com/news/2015/05/how-to-store-sneakers\nCOMP2045 5 / 67Basic of Arrays Basic of Arrays"
+    },
+    {
+      "heading": "A set of variables",
+      "content": "A consecutive memory that consists of the same type\n(int/float/double/...)."
+    },
+    {
+      "heading": "Each element is identified by an index",
+      "content": "Memory location of each element can be calculated from\nits index\n\nCOMP2045 6 / 67Basic of Arrays Basic of Arrays"
+    },
+    {
+      "heading": "The first element has the index 0",
+      "content": "The size of an array can be obtained by array.length\nIndex is represented inside square bracket []:\narray[0], array[1], array[2], ... array[n-1]\nIndex must be an integer between 0 to array.length - 1 ."
+    },
+    {
+      "heading": "Example",
+      "content": "//assume arr is an int array of size 3."
+    },
+    {
+      "heading": "System.out.println(arr.length); //print 3",
+      "content": "arr[0] = 1;\narr[1] = 5;\narr[2] = 6;\nfor (int i = 0; i < 3; i++) \n    System.out.print(arr[i] + \" \"); //print 1 5 6\n\nCOMP2045 7 / 67Array declaration Array declaration"
+    },
+    {
+      "heading": "To declare an integer array...",
+      "content": "int[] myArray = new int[5];\nThis declare myArray  as an array so that holds 5 integers.\n\nCOMP2045 8 / 67When Declaring a variable When Declaring a variable\nThis is what actually happens when you declare and initialize a variable...\nint myInt = 100; myInt 100"
+    },
+    {
+      "heading": "3. From then on, whenever myInt is used, the program refers to the value stored",
+      "content": "in this memory location"
+    },
+    {
+      "heading": "4. Of course, you can assign some other values to it",
+      "content": "COMP2045 9 / 67When Declaring an array When Declaring an array\nThis is what actually happens when you declare and initialize an array...\nint[] myArray = new int[5]; myArray\n[0]\n[1]\n[2]\n[3]\n[4]"
+    },
+    {
+      "heading": "1. A piece of memory enough for storing a memory address is reserved (the",
+      "content": "pointer to an array)"
+    },
+    {
+      "heading": "2. A chunk of consecutive memory, good enough for storing 5 integers, is",
+      "content": "reserved (the array)"
+    },
+    {
+      "heading": "4. From then on, whenever myArray is used, the program refers to the pointer",
+      "content": "COMP2045 10 / 67When Declaring an array When Declaring an array\n\nCOMP2045 11 / 67Syntax for Arrays Syntax for Arrays\nArrays must be declared and allocated before use."
+    },
+    {
+      "heading": "Array Declaration: <type>[] <array-name>;",
+      "content": "int[] intArray; \nboolean[] boolArray, anotherBoolArray;\nYet, array can't be used now because they have not been associated with any\nmemory yet.\nArray allocation: <array-name> = new <type>[<size>];\nintArray = new int[10];\nboolArray = new boolean[4];"
+    },
+    {
+      "heading": "Array Declaration + Allocation:",
+      "content": "int[] intArray = new int[10];\nboolean[] boolArray = new boolean[numOfPeople];\n\nCOMP2045 12 / 67Syntax for Arrays Syntax for Arrays\nUse an index to access an array element such as\nint[] intArray = new int[10];\nintArray[ 0] = 10;\nintArray[ 1] = 5;\nAn index must be between 0 and array.length - 1  inclusively."
+    },
+    {
+      "heading": "ArrayIndexOutOfBoundsException .",
+      "content": "int[] intArray = new int[10];\nintArray[- 1] = 10; //error!\nintArray[ 10]; //error! maximum index is 9\n\nCOMP2045 13 / 67Syntax for Arrays Syntax for Arrays\nWhen an array is allocated, all numeric elements are automatically initialized\nwith 0, or false for booleans.\nint[] intArray = new int[3];\nboolean[] boolArray = new boolean[1]; \nSystem.out.println(intArray[ 0]); //print 0\nSystem.out.println(boolArray[ 0]); //print false\nYou can also allocate an array with a different way\nint[] myArray = { 0,1,4,9,16,25,36};\nint[] myArray2 = new int[7];\nfor (int i = 0; i < 7; i++)\n    myArray2[i] = i * i;  \n//effectively they are the same\n\nCOMP2045 14 / 67Ex1: Array Declaration Ex1: Array Declaration"
+    },
+    {
+      "heading": "Error? No Error? That’s the Question!",
+      "content": "int[] intArray = new int[10]; \nint[] intArray = new int[-1]; \nint[] intArray = new int[3.14]; \nint[] intArray = new float[10]; \nint[] intArray = new short[10];\nint[] intArray = new int[0];  is weird but no error.\n\nCOMP2045 15 / 67Enhanced for loop Enhanced for loop"
+    },
+    {
+      "heading": "Sometimes also known as for-each loop.",
+      "content": "Will revisit again when we have array and enumerable like Vector , List .\nfor (<declaration> : <array or enumerable>) {\n    <loop body>\n}"
+    },
+    {
+      "heading": "Example",
+      "content": "int[] array = { 2,0,2,6};\nfor (int i : array) {\n    System.out.println( \"i: \" + i);\n}i: 2\ni: 0\ni: 2\ni: 6\n\nCOMP2045 16 / 67Enhanced for loop Enhanced for loop\nfor (<declaration> : <array or enumerable>) {\n    <loop body>\n}\n<declaration>"
+    },
+    {
+      "heading": "Declare exactly ONE variable.",
+      "content": "Type compatible with the elements of the array/enumerable.\nThe scope of the variable is inside the loop only.\n<array or enumerable>\nThe array or enumerable you need to loop through\n\nCOMP2045 17 / 67Remarks about Enhanced for loop Remarks about Enhanced for loop\nIt is useful when you need to process all elements of the array\nCan be used for stepping through elements of an array in first-to-last order"
+    },
+    {
+      "heading": "Simple but less flexible",
+      "content": "The variable is copied by value not by reference\nDo not know the index of the current element\nYou may find this page difficult to understand when you first read this\nat the beginning of the semester. You will (hopefully) understand that a\nfew weeks after. This page will not be part of the first quiz.\n\nCOMP2045 18 / 67Syntax for Array Syntax for Array\nRecall enhanced for loop (for-each loop), which works with arrays nicely.\nint[] intArray = { 1, 4, 7, 11, 14};\nfor (int i : intArray) {\n    System.out.printf( \"%d * %d = %d  \\n\" , i, i, i*i);\n}1 * 1 = 1\n4 * 4 = 16\n7 * 7 = 49\n11 * 11 = 121\n14 * 14 = 196\nHowever, updating value in the counter does not affect the value in the array\nint[] intArray = { 1, 4, 7, 11, 14};\nfor (int i : intArray)\n    i = 1;\nfor (int i : intArray) {\n    System.out.printf( \"%d * %d = %d  \\n\" , i, i, i*i);\n}1 * 1 = 1\n4 * 4 = 16\n7 * 7 = 49\n11 * 11 = 121\n14 * 14 = 196"
+    },
+    {
+      "heading": "COMP2045 19 / 67Reference Reference",
+      "content": "myArray  is a variable which\ncontains a special type of value\ncalled address or reference."
+    },
+    {
+      "heading": "An extended for simply copy the",
+      "content": "content from the array to the\ncounter i\nfor (int i : myArray) { ... }\nbasically means\nfor (int counter = 0; counter < myArray.length; counter++) {\n    int i = myArray[counter];\n    ...\n}\nReference and address are not exactly the same, treat them the same here for convenient.\nCOMP2045 20 / 67Reference - new array Reference - new array"
+    },
+    {
+      "heading": "What happen if...",
+      "content": "int[] myArray = new int[5];\nmyArray[ 0] = 4;\nmyArray = new int[10];\nSystem.out.println(myArray[ 0]); //print ??\n\nCOMP2045 21 / 67Reference - new array Reference - new array"
+    },
+    {
+      "heading": "1. myArray was first allocated with a 5-",
+      "content": "elements memory block from the address"
+    },
+    {
+      "heading": "3. A new block of 10-elements is allocated",
+      "content": "from the address 4400."
+    },
+    {
+      "heading": "4. The value of myArray (which is a",
+      "content": "reference) is changed to where the new\narray is.\n\nCOMP2045 22 / 67Reference - another variable Reference - another variable"
+    },
+    {
+      "heading": "What happen if...",
+      "content": "int[] myArray = new int[5];\nint[] newArray = myArray;\nmyArray[ 0] = 4;\nSystem.out.println(newArray[ 0]); //print ?? \nnewArray[ 1] = 5;\nSystem.out.println(myArray[ 1]); //print ??\n\nCOMP2045 23 / 67Reference - another variable Reference - another variable"
+    },
+    {
+      "heading": "1. myArray  has been allocated with a",
+      "content": "5-elements memory block."
+    },
+    {
+      "heading": "2. The value of the first element of the",
+      "content": "memory block (myArray[0] ) is\nupdated to 4"
+    },
+    {
+      "heading": "3. newArray  points to the same 5-",
+      "content": "elements memory block as myArray\ndoes."
+    },
+    {
+      "heading": "4. The value of the first element of the memory block (newArray[1]  /",
+      "content": "myArray[0] ) is updated to 4\nCommon mistake: students wrongly copy an array by:\nnewArray = myArray;\n\nCOMP2045 24 / 67Ex - Copying an array Ex - Copying an array"
+    },
+    {
+      "heading": "A proper way to copy an array",
+      "content": "int[] sourceArray = { 1,3,5,13,414};\n//declare and allocate an array with the same length of the source\nint[] destinationArray = new int[sourceArray.length];\nfor (int i = 0; i < sourceArray.length; i++)\n    destinationArray[i] = sourceArray[i];\n\nCOMP2045 25 / 67Ex - Summing an array Ex - Summing an array \nint[] array = { 15, 22, 34, 5, 41, 56, 9, 33}; \nint sum = 0;  //important\nfor (int i = 0; i < array.length; i++) { \n   sum += array[i]; \n} \nSystem.out.println( \"Sum: \" + sum);  //print Sum: 215\nor using extended for loop\nint[] array = { 15, 22, 34, 5, 41, 56, 9, 33}; \nint sum = 0;  //important\nfor (int i : array) { \n   sum += i; \n} \nSystem.out.println( \"Sum: \" + sum);  //print Sum: 215\n\nCOMP2045 26 / 67Ex - Finding Max Ex - Finding Max \nint[] array = { 15, 22, 34, 5, 41, 56, 9, 33}; \nint max = array[ 0];               // why this line?? \nfor (int i : array) \n   if (max < i) \n       max = i; \nSystem.out.println( \"Max: \" + max); //print Max: 56\nor\nint[] array = { 15, 22, 34, 5, 41, 56, 9, 33}; \nint max = array[ 0];               // why this line?? \nfor (int i = 1; i < array.length; i++) {  //why i starts from 1?\n   if (max < array[i]) { \n       max = array[i]; \n   } \n} \nSystem.out.println( \"Max: \" + max); //print Max: 56\n\nCOMP2045 27 / 67Ex - Finding the best Student Ex - Finding the best Student\nint[] scores = { 67, 50, 69, 83, 55, 94}; \nString[] names = { \"Alice\", \"Bob\", \"Carol\", \"Dave\", \"Eva\", \"Fred\"};\nint maxIndex = 0;\nfor (int i = 1; i < scores.length; i++)\n    if (scores[maxIndex] < scores[i])\n        maxIndex = i;\nSystem.out.println( \"Best student: \"  + names[maxIndex]);\nSystem.out.println( \"Score: \"  + scores[maxIndex]);"
+    },
+    {
+      "heading": "IndicesScoresNames Remarks",
+      "content": "0 67 Alice initial value of maxIndex  = 0\n1 50 Bob\n2 69 CarolmaxIndex  updates to 2 when i is 2\n3 83 DavemaxIndex  updates to 3 when i is 3\n4 55 Eva\n5 94 FredmaxIndex  updates to 5 when i is 5\n\nCOMP2045 28 / 67Ex - Finding best students Ex - Finding best students \nWhat if there are multiple students top the list at the same time?\nint[] scores = { 83, 50, 69, 83, 55, 83}; \nString[] names = { \"Alice\", \"Bob\", \"Carol\", \"Dave\", \"Eva\", \"Fred\"};\nint max = scores[ 0];\nfor (int i : scores) \n   if (max < i) \n       max = i;"
+    },
+    {
+      "heading": "System.out.print( \"Best Student(s): \" );",
+      "content": "for (int i = 0; i < scores.length; i++)\n   if (scores[i] == max) \n       System.out.print(names[i] + \" \");"
+    },
+    {
+      "heading": "System.out.println();",
+      "content": "System.out.println( \"Score: \"  + max);"
+    },
+    {
+      "heading": "Score: 83",
+      "content": "COMP2045 29 / 67Ex - Histogram Ex - Histogram\nint[] array = { 15, 22, 34, 5, 41, 56, 9, 33}; \nfor (int i = 0; i < array.length; i++) { \n   System.out.print(i + \"  \"); \n   for (int j = 0; j < array[i]; j++) { \n      System.out.print( \"*\"); \n   } \n   System.out.println(); \n} \n0  ***************\n1  **********************\n2  **********************************\n3  *****\n4  *****************************************\n5  ********************************************************\n6  *********\n7  *********************************"
+    },
+    {
+      "heading": "COMP2045 30 / 67Ex - Voting Ex - Voting",
+      "content": "Given the following array, print a histogram\nString[] ballots = { \"Ada\", \"Bob\", \"Ada\", \"Eva\", \"Ada\", \"Bob\", \"Eva\", \"Bob\", \"Ada\",...};"
+    },
+    {
+      "heading": "Tim  ***********",
+      "content": "Yet, we don't know the name of the candidates.\nFun fact: US presidential election allow a voter to write in a name that\nis not on the election ballot. Search write-in candidate.\n\nCOMP2045 31 / 67Ex - Voting - Build candidate list Ex - Voting - Build candidate list"
+    },
+    {
+      "heading": "2. Counting the vote and print",
+      "content": "String[] ballots = { \"Ada\", \"Bob\", \"Ada\", \"Eva\",  ...}; //list too long\nString[] candidates = new String[ballots.length];\nint numOfCand = 0; //keep track the number of candidates\nfor (int i = 0; i < ballots.length; i++) {\n    //check if candidate is already in the candidates list\n    if (....) {\n        //skip\n    } else {\n        //add the candidate into the list\n        candidates[numOfCand] = ballots[i];\n        numOfCand++;\n    }\n}\nfor (int i = 0; i < numOfCand; i++)\n    System.out.println( \"Candidate \"  + i + \" : \" + candidates[i]);\n\nCOMP2045 32 / 67Ex - Voting - Build candidate list Ex - Voting - Build candidate list\nString[] ballots = { \"Ada\", \"Bob\", \"Ada\", \"Eva\",  ...}; //list too long\nString[] candidates = new String[ballots.length];\nint numOfCand = 0; //keep track the number of candidates\nfor (int i = 0; i < ballots.length; i++) {\n    //check if candidate is already in the candidates list\n    boolean onList = false;\n    for (int j = 0; j < numOfCand; j++)\n        if (ballots[i].equals(candidates[j]))\n            onList = true;\n    if (onList) {\n        continue ;   //we can invert the logic to save keep it clean\n    } else {\n        //add the candidate into the list\n        candidates[numOfCand] = ballots[i];\n        numOfCand++;\n    }\n}\nfor (int i = 0; i < numOfCand; i++)\n    System.out.println( \"Candidate \"  + i + \" : \" + candidates[i]);\n\nCOMP2045 33 / 67Ex - Voting - Build candidate list Ex - Voting - Build candidate list\nString[] ballots = { \"Ada\", \"Bob\", \"Ada\", \"Eva\",  ...}; //list too long\nString[] candidates = new String[ballots.length];\nint numOfCand = 0; //keep track the number of candidates\nfor (int i = 0; i < ballots.length; i++) {\n    //check if candidate is already in the candidates list\n    boolean onList = false;\n    for (int j = 0; j < numOfCand; j++)\n        if (ballots[i].equals(candidates[j]))\n            onList = true;\n    if (!onList) {\n        //add the candidate into the list\n        candidates[numOfCand] = ballots[i];\n        numOfCand++;\n    }\n}\nfor (int i = 0; i < numOfCand; i++)\n    System.out.println( \"Candidate \"  + i + \" : \" + candidates[i]);\n// Count votes...\n\nCOMP2045 34 / 67Ex - Voting - Build candidate list Ex - Voting - Build candidate list"
+    },
+    {
+      "heading": "Count the vote would be very similar.",
+      "content": "Need another int[]  array to keep track of the votes\nint[] votes = new int[numOfCand];\nfor (String v : ballots)\n    for (int index = 0; index < numOfCand; index++)\n        if (v.equals(candidates[index])) {\n            votes[index]++;\n            break;\n        }\n\nCOMP2045 35 / 67Ex - Voting - Combining two steps Ex - Voting - Combining two steps\nString[] ballots = { \"Ada\", \"Bob\", \"Ada\", \"Eva\",  ...}; //list too long\nString[] candidates = new String[ballots.length];\nint[] votes = new int[ballots.length];\nint numOfCand = 0; //keep track the number of candidat\nfor (int i = 0; i < ballots.length; i++) {\n    //check if candidate is already in the candidates list\n    boolean onList = false;\n    for (int j = 0; j < numOfCand; j++)\n        if (ballots[i].equals(candidates[j])) {\n            onList = true;\n            votes[j]++;\n        }\n    if (!onList) {\n        //add the candidate into the list\n        candidates[numOfCand] = ballots[i];\n        votes[numOfCand] = 1;\n        numOfCand++;\n    }\n}\n//con't\n\nCOMP2045 36 / 67Ex - Voting - Combining two steps Ex - Voting - Combining two steps\nfor (int i = 0; i < numOfCand; i++) {\n    System.out.print(candidates[i] + \":\");\n    for (int j = 0; j < votes[i]; j++)\n        System.out.print( \"*\");\n    System.out.println();\n}\n\nCOMP2045 37 / 67Ex - Enlarging Arrays Ex - Enlarging Arrays \nOnce memory spaces are allocated for an array, the size can't be changed\narray.length = array.length + 10; //error! read-only data\nTo enlarge an array dynamically we should declare a new array and copy the\ncontent\nString[] oldArray = { \"apple\", \"banana\" , \"carrot\" };\n//wish to add one more element into oldArray\nString[] newArray = new String[oldArray.length + 1]; \nfor (int i = 0; i < oldArray.length; i++)\n    newArray[i] = oldArray[i];\nnewArray[newArray.length - 1] = \"new data\" ;\noldArray = newArray; //replace the existing reference by the new reference\n\nCOMP2045 38 / 67Ex - Shrinking Arrays Ex - Shrinking Arrays\nIf you wish to remove an element from an array, there are two options"
+    },
+    {
+      "heading": "1. Recreate a smaller size array and",
+      "content": "copy all content except the deleted\none; or"
+    },
+    {
+      "heading": "You need another variable to tell the",
+      "content": "effective size of the array.\n\nCOMP2045 39 / 67Ex - Shrinking Arrays - 1 Ex - Shrinking Arrays - 1 \nString[] oldArray = { \"apple\", \"banana\" , \"carrot\" , \"mango\", \"lemon\"};\n//wish to remove third item - oldArray[2]\nString[] newArray = new String[oldArray.length - 1]; \nint indexToRemove = 2;\nif ( indexToRemove >= 0 && indexToRemove < oldArray.length) {\n    for (int i = 0; i < indexToRemove; i++)\n        newArray[i] = oldArray[i];\n    for (int i = indexToRemove; i < newArray.length; i++ )\n        newArray[i] = oldArray[i + 1];     \n    //replace the existing reference by the new reference\n    oldArray = newArray; \n}\nfor (String s : oldArray)\n    System.out.println(s);\nSystem.out.println( \"The lenth of oldArray is: \"  + oldArray.length);\nSystem.out.println( \"The lenth of newArray is: \"  + newArray.length);\n\nCOMP2045 40 / 67Ex - Shrinking Arrays - 2 Ex - Shrinking Arrays - 2\nString[] oldArray = { \"apple\", \"banana\" , \"carrot\" , \"mango\", \"lemon\"};\nint size = oldArray.length;\n//wish to remove third item - oldArray[2]\nint indexToRemove = 2;\nif (size > 0) {\n  for (int i = indexToRemove; i < size - 1; i++ )\n    oldArray[i] = oldArray[i + 1];  \n  size--;\n}\nfor (int i = 0; i < size; i++)\n  System.out.println(oldArray[i]);\n  \nSystem.out.println( \"The length of oldArray is: \"  + oldArray.length);\nSystem.out.println( \"The value of size is: \"  + size);\n\nCOMP2045 41 / 67Common Mistakes Common Mistakes\nint[] array;\narray[0] = 10; \n Array has not been allocated yet\nint array[10];\narray[0] = 10;\n C-style array declaration. Invalid in Java.\nint[] array = new int[];\narray[0] = 10;\n Allocate array without a size\n\nCOMP2045 42 / 67Common Mistakes Common Mistakes\nint[] array = new int[10];\narray.length++;\n array.length  is read-only\nint[] array = new char[10];\n incompatible type int vs char.\nint[] array = new int[10];\nfor (int i = 1; i <= 10; i++)\n    array[i] = i;\n arrays always start with 0 end with length - 1.\n\nCOMP2045 43 / 67Common Mistakes Common Mistakes\nint[] array = new int[10];\narray[] = { 5, 5, 3};\n array[]  is an incorrect syntax.\nint[] array = new int[10];\nfor (int i = 0; i < 10; i++)\n    array = i;\n array  is an array, not to store just one integer. You may want to type\narray[i]  instead.\n\nCOMP2045 Dr. Kevin Wang 2023/20242D Arrays 2D Arrays"
+    },
+    {
+      "heading": "COMP2045 45 / 672D Arrays 2D Arrays",
+      "content": "What we have discussed so far is Linear Array\nBut there are applications where linear isn’t just\nenough"
+    },
+    {
+      "heading": "Suppose we wanted to model a chess board",
+      "content": "not a linear group of squares\nmore like a grid of squares\nlinear array would not be appropriate\n\nCOMP2045 46 / 672D Arrays - other applications 2D Arrays - other applications\nimage credit: 1, 2 3\nCOMP2045 47 / 672D Array - Declaration and Allocation 2D Array - Declaration and Allocation"
+    },
+    {
+      "heading": "We declare an 2D array by",
+      "content": "int[][] array2D = new int[4][];\narray2D[ 0] = new int[3];\narray2D[ 1] = new int[3];\narray2D[ 2] = new int[3];\narray2D[ 3] = new int[3];\narray2D[ 1][2] = 1111;\narray2D  - It is an array of type int[]\nIt has four elements. Each element is an int\narray.\narray2D[0]  - It is an array of type int\nIt has three elements. Each element is an int.\narray2D[0][0]  - It is an element of type\nint\n\nCOMP2045 48 / 672D Array - Declaration and Allocation 2D Array - Declaration and Allocation"
+    },
+    {
+      "heading": "We declare an 2D array by",
+      "content": "int[][] array2D = new int[4][3];\narray2D[ 1][2] = 1111;\narray2D  - It is an array of type int[]\nIt has four elements. Each element is an int\narray.\narray2D[0]  - It is an array of type int\nIt has three elements. Each element is an int.\narray2D[0][0]  - It is an element of type\nint\n\nCOMP2045 49 / 672D Array - length 2D Array - length\nint[][] array2D = new int[4][3];\narray2D[ 1][2] = 1111;\narray2D.length  is 4. Because it has four elements in this array.\narray2D[2].length  is 3. Because it has three elements in this array.\narray2D[0][1].length  is undefined because it is not an array!\nConceptually it has almost no different if you draw the array is a 3-by-4 rectangle\nor 4-by-3 rectangle on a paper. By convention, we treat the first bracket as row\nand the second bracket as column.\narray2D"
+    },
+    {
+      "heading": "COMP2045 50 / 672D Array 2D Array",
+      "content": "int [][] array = new int [5][4]; \nSystem.out.println( \"array: \"  + array.length + \" rows\"); \nfor (int r = 0; r < array.length; r++) \n   for (int c = 0; c < array[r].length; c++) { \n       if ((r+c) % 2 == 0) { \n          array[r][c] = 1; \n       } else { \n          array[r][c] = 0; \n       } \n   } \nfor (int r = 0; r < array.length; r++) { \n   System.out.print(r + \" (\" + array[r].length + \" columns): \" ); \n   for (int c = 0; c < array[r].length; c++) { \n       System.out.print(array[r][c] + \" \"); \n   } \n   System.out.println(); \n} \n0 1 2 3\n0 1 0 1 0\n1 0 1 0 1\n2 1 0 1 0\n3 0 1 0 1\n4 1 0 1 0\narray: 5 rows \n0 (4 columns): 1 0 1 0  \n1 (4 columns): 0 1 0 1  \n2 (4 columns): 1 0 1 0  \n3 (4 columns): 0 1 0 1  \n4 (4 columns): 1 0 1 0  \nCOMP2045 51 / 672D Array Alternative Allocation 2D Array Alternative Allocation\nSimilar to 1D array, you can allocate and initialize a 2D array using bracelet\ndirectly\nint[][] array = {{ 1,2,3},{4,5,6},{7,8,9},{10,11,12}};\n0 1 2\n01 2 3\n14 5 6\n27 8 9\n310 11 12\n\nCOMP2045 52 / 67Irregular 2D Array Irregular 2D Array \nWith crazy reasons you may even do the following!\nint[][] twoDArray = new int[4][]; \ntwoDArray[ 0] = new int[4]; \ntwoDArray[ 1] = new int[7]; \ntwoDArray[ 2] = new int[2]; \ntwoDArray[ 3] = new int[5]; \n0123456\n0\n1\n2\n3"
+    },
+    {
+      "heading": "Same as the following",
+      "content": "int[][] twoDArray = {{ 0, 0 ,0 ,0}, {0, 0 ,0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0, 0, 0}};\n//twoDArray.length = 4\n//twoDArray[3].length = 5\n\nCOMP2045 53 / 67Multi-Dimensional Arrays Multi-Dimensional Arrays"
+    },
+    {
+      "heading": "Can declare an array to be 2-dimensional",
+      "content": "int[][] twoDArray = new int[5][4]; \ntwoDArray[ 2][3] = 9;"
+    },
+    {
+      "heading": "Can declare an array to be 5-dimensional",
+      "content": "int[][][][][] fiveDArray = new int[7][3][19][32][3]; \nfiveDArray[ 3][0][15][3][0] = 7428; \nIn fact, you can create array of any dimension!\n\nCOMP2045 54 / 67Multi-Dimensional Arrays Multi-Dimensional Arrays\nint[][]...[] mDArray = new int[a1][a2][a3]...[aM];\n///|-- m --|                   |------ m -------|\nint[][][][][] array = new int[7][3][19][32][3]; \nint cnt = 0; \nfor (int d1 = 0; d1 < array.length; d1++) { \n   for (int d2 = 0; d2 < array[d1].length; d2++) { \n       for (int d3 = 0; d3 < array[d1][d2].length; d3++) { \n          for (int d4 = 0; d4 < array[d1][d2][d3].length; d4++) { \n              for (int d5 = 0; d5 < array[d1][d2][d3][d4].length; d5++) { \n                 array[d1][d2][d3][d4][d5] = d1 * d2 * d3 * d4 * d5; \n                 cnt++; \n              } \n          } \n       } \n   } \n} \nSystem.out.println( \"cnt: \" + cnt);   //print cnt:38304"
+    },
+    {
+      "heading": "COMP2045 55 / 67Tic-tac-toe Tic-tac-toe",
+      "content": "Player 1, your turn! 0 1                  \n_ x _\n_ _ _\n_ _ _"
+    },
+    {
+      "heading": "Player 1, your turn! 0 2",
+      "content": "_ x x\n_ _ _\n_ o _\n...\nx x x\n_ _ _\no o _"
+    },
+    {
+      "heading": "Create a no-loop version",
+      "content": "COMP2045 57 / 67Tic-tac-toe 1D version Tic-tac-toe 1D version\nchar[] cells = new char[9]; \nfor (int i = 0; i < cells.length; i++)\n    cells[i] = '_';\n//input\n...\n//print cells\nfor (int i = 0; i < 3; i++)\n    System.out.print(cells[i] + \" \");"
+    },
+    {
+      "heading": "System.out.println();",
+      "content": "for (int i = 3; i < 6; i++)\n    System.out.print(cells[i] + \" \");"
+    },
+    {
+      "heading": "System.out.println();",
+      "content": "for (int i = 6; i < 9; i++)\n    System.out.print(cells[i] + \" \");"
+    },
+    {
+      "heading": "System.out.println();",
+      "content": "...\n//check wins\n0 1 2\n3 4 5\n6 7 8\nCOMP2045 58 / 67Tic-tac-toe v1D - simplified print cells Tic-tac-toe v1D - simplified print cells"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "char[] cells = new char[9]; \nfor (int i = 0; i < cells.length; i++)\n    cells[i] = '_';\n//input\n...\n//print cells\nfor (int j = 0; j < 3; j++) {\n    for (int i = 0; i < 3; i++)\n        System.out.print(cells[j * 3 + i] + \" \");\n    System.out.println();\n}\n...\nijj * 3 + i\n1 1 4\n0 2 6\n2 1 5\n0 1 2\n3 4 5\n6 7 8\nCOMP2045 59 / 67Tic-tac-toe v1D - adding input Tic-tac-toe v1D - adding input"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "char[] cells = new char[9]; \nfor (int i = 0; i < cells.length; i++)\n    cells[i] = '_';\n//input\nSystem.out.print( \"Player 1, your turn! \" );\nint row = scanner.nextInt();\nint col = scanner.nextInt();\n//validate inputs\n...\n//print cells\nfor (int j = 0; j < 3; j++) {\n    for (int i = 0; i < 3; i++)\n        System.out.print(cells[j * 3 + i] + \" \");\n    System.out.println();\n}\n//check wins\n...\n0 1 2\n3 4 5\n6 7 8\nCOMP2045 60 / 67Tic-tac-toe v1D - validate inputs Tic-tac-toe v1D - validate inputs\n...\n//input\nSystem.out.print( \"Player 1, your turn! \" );\nint row = scanner.nextInt();\nint col = scanner.nextInt();\n//validates input\nboolean valid = true;\nif (row < 0 || row > 2 || col < 0 || col > 2)\n    valid = false;\nif (!valid || cells[row * 3 + col] != '_')\n    valid = false;\n// if invalid, input again\n//print cells\n...\n//check wins\n...\n\nCOMP2045 61 / 67Tic-tac-toe v1D - check horizontal Tic-tac-toe v1D - check horizontal\n...\n//print cells\n...\n//input\nint row, col;\nrow = col = 0;\ndo {\n    System.out.print( \"Player 1, your turn! \" );\n    row = scanner.nextInt();\n    col = scanner.nextInt();\n    if (row >= 0 && row <= 2 && col >= 0 && col <= 2 && cells[row * 3 + col] == '_')\n        break;\n} while (true);\ncells[row * 3 + col] = 'x'; //for player 1\n//check wins\nboolean win = false;\n//check horizontal\nif (cells[ 0] == cells[ 1] && cells[ 0] == cells[ 2] && cells[ 0] == 'x')\n    win = true;\nif (cells[ 3] == cells[ 4] && cells[ 3] == cells[ 5] && cells[ 3] == 'x')\n    win = true;\nif (cells[ 6] == cells[ 7] && cells[ 6] == cells[ 8] && cells[ 6] == 'x')\n    win = true;\n//check vertical\n//check diagonal\n...\n0 1 2\n3 4 5\n6 7 8\nCOMP2045 62 / 67Tic-tac-toe v1D - check wins Tic-tac-toe v1D - check wins\n//check wins\nboolean win = false;\n//check horizontal\nfor (int r = 0; r < 3; r++)\n    if (cells[r * 3] == cells[r * 3 + 1] && \n        cells[r * 3] == cells[r * 3 + 2] && cells[r * 3] == 'x')\n        win = true;\n//check vertical\nfor (int c = 0; c < 3; c++)\n    if (cells[c] == cells[c + 3] && \n        cells[c] == cells[c + 6] && cells[c] == 'x')\n        win = true;\n//check diagonal\nif (cells[ 0] == cells[ 4] && cells[ 0] == cells[ 8] && cells[ 0] == 'x')\n    win = true;\nif (cells[ 3] == cells[ 4] && cells[ 3] == cells[ 6] && cells[ 3] == 'x')\n    win = true;\nif (win)\n    System.out.println( \"Player 1 you win!\" );\n...\n\nCOMP2045 63 / 67Tic-tac-toe v1D - adding loops and player Tic-tac-toe v1D - adding loops and player\nboolean win = false;\nboolean p1Turn = true;\ndo {\n    char symbol = p1Turn ? 'x' : 'o';\n    ...\n    //validate\n    ...\n    if (cells[ 0] == cells[ 4] && cells[ 0] == cells[ 8] && cells[ 0] == symbol)\n        win = true;\n    ...\n    if (win)\n        System.out.println( \"Player \"  + (p1Turn ? 1 : 2) + \" you win!\" );\n    //change player\n    p1Turn = !p1Turn;\n} while (!win);\n\nCOMP2045 64 / 67Tic-tac-toe v1D - final Tic-tac-toe v1D - final\nboolean win = false;\nboolean p1Turn = true;"
+    },
+    {
+      "heading": "Scanner scanner = new Scanner(System.in);",
+      "content": "char[] cells = new char[9];\nfor (int i = 0; i < cells.length; i++)\n    cells[i] = '_';\ndo {\n    char symbol = p1Turn ? 'x' : 'o';\n    String player = p1Turn ? \"Player 1\"  : \"Player 2\" ;\n    int row = 0 , col = 0;\n    do {\n        System.out.print(player + \", your turn! \" );\n        row = scanner.nextInt();\n        col = scanner.nextInt();\n        if (row >= 0 && row <= 2 && col >= 0 && \n            col <= 2 && cells[row * 3 + col] == '_')\n            break;\n        System.out.println( \"Invalid\" );\n    } while (true);\n    cells[row * 3 + col] = symbol;\n    //print cells\n    for (int j = 0; j < 3; j++) {\n        for (int i = 0; i < 3; i++)\n            System.out.print(cells[j * 3 + i] + \" \");\n        System.out.println();\n    }   //check horizontal\n    for (int r = 0; r < 3; r++)\n        if (cells[r * 3] == cells[r * 3 + 1] &&\n            cells[r * 3] == cells[r * 3 + 2] &&\n            cells[r * 3] == symbol)\n            win = true;\n    //check vertical\n    for (int c = 0; c < 3; c++)\n        if (cells[c] == cells[c + 3] &&\n            cells[c] == cells[c + 6] &&\n            cells[c] == symbol)\n            win = true;\n    //check diagonal\n    if (cells[ 0] == cells[ 4] &&\n        cells[ 0] == cells[ 8] &&\n        cells[ 0] == symbol)\n        win = true;\n    if (cells[ 2] == cells[ 4] &&\n        cells[ 2] == cells[ 6] &&\n        cells[ 2] == symbol)\n        win = true;\n    if (win)\n        System.out.println(player + \" you win!\" );\n    p1Turn = !p1Turn;\n} while (!win);\n\nCOMP2045 65 / 67Tic-Tac-Toe 2D version Tic-Tac-Toe 2D version\n2D version works very similar to the 1D version"
+    },
+    {
+      "heading": "Set the cell be a 3x3 arrays",
+      "content": "char[][] cells = new char[3][3];\nfor (int i = 0; i < 3; i++)\n    for (int j = 0; j < 3; j++)\n        cells[i][j] = '_';\nAlternatively, you can also allocate a 2D array by\nchar[][] cells = {{ '_','_','_'},\n                  { '_','_','_'},\n                  { '_','_','_'}};\n\nCOMP2045 66 / 67Tic-Tac-Toe v2D - checking Tic-Tac-Toe v2D - checking"
+    },
+    {
+      "heading": "To check a horizontal line",
+      "content": "boolean win = false;\nfor (int r = 0; r < 3; r++) {\n    boolean formLine = true; //assume that row forms a line\n    for (int c = 0; c < 3; c++) \n        if (cells[r][c] != symbol)\n            formLine = false; //oh it is not\n    if (formLine) //only happen when all cells == symbol\n        win = true; \n}\n//if win == true, the cells form at least one horizontal line.\n//check vertical\n//check diagonals\n0 1 2\n0___\n1___\n2___"
+    }
+  ]
+}
