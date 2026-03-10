@@ -30,6 +30,14 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # ── Configure startup command (runs before Oryx build) ──────────
+      - name: Set startup file
+        run: |
+          az webapp config set \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --startup-file startup.sh
+
       # ── Enable Oryx so Azure runs pip install on the server ───────
       - name: Enable Oryx build
         run: |
@@ -71,8 +79,8 @@ jobs:
       # ── Wait for Oryx build + restart ────────────────────────────
       - name: Wait and restart app
         run: |
-          echo "Waiting 120s for Oryx pip install to complete..."
-          sleep 120
+          echo "Waiting 300s for Oryx pip install to complete..."
+          sleep 300
           az webapp restart \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg

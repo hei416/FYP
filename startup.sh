@@ -19,8 +19,17 @@ if [ -f "$ANTENV/bin/activate" ]; then
   source "$ANTENV/bin/activate"
   echo "Python: $(which python) $(python --version)"
 else
-  echo "WARNING: antenv not found, searching..."
-  find /home/site/wwwroot -name "activate" 2>/dev/null | head -5
+  echo "WARNING: antenv not found at $ANTENV, searching..."
+  FOUND_ACTIVATE=$(find /home/site/wwwroot -name "activate" -path "*/bin/activate" 2>/dev/null | head -1)
+  if [ -n "$FOUND_ACTIVATE" ]; then
+    echo "Found virtualenv at: $FOUND_ACTIVATE"
+    source "$FOUND_ACTIVATE"
+    echo "Python: $(which python) $(python --version)"
+  else
+    echo "ERROR: No virtualenv found! Packages may be missing."
+    # Try to use system python with site-packages
+    export PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages:$PYTHONPATH"
+  fi
 fi
 
 # Azure persistent storage for SQLite

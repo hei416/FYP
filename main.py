@@ -22,8 +22,8 @@ Base.metadata.create_all(bind=engine)
 try:
     from services.pdf_service import extract_pdf_chunks
     HAS_PDF_SERVICE = True
-except ImportError:
-    print("⚠️ pdf_service not found, PDF features disabled")
+except Exception:
+    print("⚠️ pdf_service unavailable, PDF features disabled")
     HAS_PDF_SERVICE = False
 
 # Initialize FastAPI app
