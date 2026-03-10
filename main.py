@@ -23,7 +23,13 @@ app.add_middleware(
 
 # Import routers AFTER app is created - wrap in try-catch
 try:
-    from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress
+    from routers import code_execution
+    from routers import lessons
+    from routers import pdfs
+    from routers import practical_tests
+    from routers import rag
+    from routers import auth
+    from routers import progress
     import routers.rag as rag_router
 except Exception as e:
     # If routers fail to import, log it but continue
