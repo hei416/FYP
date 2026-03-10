@@ -17,16 +17,22 @@ ANTENV="/home/site/wwwroot/antenv"
 if [ -f "$ANTENV/bin/activate" ]; then
   echo "Activating Oryx virtualenv: $ANTENV"
   source "$ANTENV/bin/activate"
+  # CRITICAL: Unset Azure's auto-injected PYTHONPATH which points to stale
+  # .python_packages (may contain pydantic v1) and takes priority over antenv.
+  unset PYTHONPATH
   echo "Python: $(which python) $(python --version)"
+  echo "Pydantic: $(python -c 'import pydantic; print(pydantic.__version__)' 2>/dev/null || echo 'NOT FOUND')"
 else
   echo "WARNING: antenv not found at $ANTENV, searching..."
   FOUND_ACTIVATE=$(find /home/site/wwwroot -name "activate" -path "*/bin/activate" 2>/dev/null | head -1)
   if [ -n "$FOUND_ACTIVATE" ]; then
     echo "Found virtualenv at: $FOUND_ACTIVATE"
     source "$FOUND_ACTIVATE"
+    unset PYTHONPATH
     echo "Python: $(which python) $(python --version)"
+    echo "Pydantic: $(python -c 'import pydantic; print(pydantic.__version__)' 2>/dev/null || echo 'NOT FOUND')"
   else
-    echo "ERROR: No virtualenv found! Packages may be missing."
+    echo "ERROR: No virtualenv found — using .python_packages as fallback"
     export PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages:$PYTHONPATH"
   fi
 fi
@@ -76,7 +82,7 @@ fi
 
 # Start the application — bind to port ASAP so Azure health check passes
 echo "[3/3] Starting gunicorn on port ${PORT:-8000}..."
-exec gunicorn main:app \
+exec python -m gunicorn main:app \
     --workers 1 \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind "0.0.0.0:${PORT:-8000}" \
