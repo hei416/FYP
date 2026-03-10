@@ -8,6 +8,7 @@ on:
       - 'frontend/public/**'
       - 'frontend/package.json'
       - 'frontend/server.js'
+      - 'frontend/.env.production'
       - '.github/workflows/frontend.yml'
   workflow_dispatch:
 
