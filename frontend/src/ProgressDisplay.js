@@ -277,26 +277,6 @@ export default function ProgressDisplay() {
                                 color="#6366F1"
                             />
 
-                            {/* Playground */}
-                            <div style={{
-                                padding: spacing.lg,
-                                background: colors.bg,
-                                borderRadius: radii.sm,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: spacing.md
-                            }}>
-                                <span style={{ fontSize: '24px' }}>💻</span>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.text }}>
-                                        Code Playground
-                                    </div>
-                                    <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
-                                        {detailedProgress.playground.executions} code executions
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* Quizzes - always shown with fixed target */}
                             <ProgressItem
                                 icon="📝"
@@ -316,6 +296,26 @@ export default function ProgressDisplay() {
                                 subtitle={`${detailedProgress.tests.attempted} attempted · aim for ≥${detailedProgress.tests.passScore}%`}
                                 color="#F44336"
                             />
+
+                            {/* Playground */}
+                            <div style={{
+                                padding: spacing.lg,
+                                background: colors.bg,
+                                borderRadius: radii.sm,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: spacing.md
+                            }}>
+                                <span style={{ fontSize: '24px' }}>💻</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.text }}>
+                                        Code Playground
+                                    </div>
+                                    <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
+                                        {detailedProgress.playground.executions} code executions
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* AI Interactions */}
                             <div style={{

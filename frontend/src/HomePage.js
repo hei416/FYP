@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ProgressTracker } from './ProgressTracker';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
 import topicContent from './topicContent.json';
 import ReactFlow, {
@@ -781,6 +782,35 @@ export default function JavaRoadmap() {
   });
   const [selectedNode, setSelectedNode] = useState(null);
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [suggestionTopics, setSuggestionTopics] = useState([]);
+
+  // Show quiz/test suggestion when ≥2 groups are complete but user has no attempts yet
+  useEffect(() => {
+    const dismissed = sessionStorage.getItem('suggestionDismissed');
+    if (dismissed) return;
+
+    const progress = new ProgressTracker().getProgress();
+    const quizAttempts = progress?.quizzes?.attempted || 0;
+    const testAttempts = progress?.tests?.attempted || 0;
+    if (quizAttempts > 0 || testAttempts > 0) return; // already attempted
+
+    // Count fully-completed groups
+    const completedGroups = TOPIC_GROUPS.filter(g =>
+      g.subtopics.every(id => completedTopics.includes(id))
+    );
+    if (completedGroups.length < 2) return;
+
+    // Take the two most recently completed groups to suggest
+    const suggested = completedGroups.slice(-2).map(g => g.label);
+    setSuggestionTopics(suggested);
+    setShowSuggestion(true);
+  }, [completedTopics]);
+
+  const dismissSuggestion = () => {
+    sessionStorage.setItem('suggestionDismissed', '1');
+    setShowSuggestion(false);
+  };
 
   const handleViewDocument = useCallback((file, source) => {
     setViewingDocument({ file, source });
@@ -1197,6 +1227,64 @@ export default function JavaRoadmap() {
         documentFile={viewingDocument?.file}
         documentSource={viewingDocument?.source}
       />
+
+      {/* Quiz & Test Suggestion Popup */}
+      {showSuggestion && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="text-5xl mb-3">🎯</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Ready to Test Yourself?</h2>
+            <p className="text-gray-500 text-sm mb-4">
+              You've completed chapters including:
+            </p>
+            <div className="flex flex-col gap-2 mb-5">
+              {suggestionTopics.map((t, i) => (
+                <span key={i} className="inline-flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 font-semibold py-2 px-4 rounded-lg text-sm">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  {t}
+                </span>
+              ))}
+            </div>
+            <p className="text-gray-600 text-sm mb-6">
+              Put your knowledge to the test! Aim for <strong>≥70%</strong> on the quiz and <strong>≥60%</strong> on the practical test to count toward your progress.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  dismissSuggestion();
+                  navigate('/quiz', { state: { preSelectedTopics: suggestionTopics } });
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Take Quiz
+              </button>
+              <button
+                onClick={() => {
+                  dismissSuggestion();
+                  navigate('/practical-test');
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                Take Practical Test
+              </button>
+              <button
+                onClick={dismissSuggestion}
+                className="w-full text-gray-400 hover:text-gray-600 font-medium py-2 px-6 rounded-xl transition-colors text-sm"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ jobs:
             --settings \
               SCM_DO_BUILD_DURING_DEPLOYMENT=true \
               ENABLE_ORYX_BUILD=true \
-              WEBSITE_CONTAINER_START_TIME_LIMIT=900
+              WEBSITE_CONTAINER_START_TIME_LIMIT=1800
 
       # ── Package only source files (~10MB, no venv/node_modules) ──
       - name: Create deployment zip

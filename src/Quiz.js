@@ -35,6 +35,7 @@ export default function Quiz() {
     const [completed, setCompleted] = useState(false);
     const [allUserAnswers, setAllUserAnswers] = useState({});
     const [showExplanation, setShowExplanation] = useState(false);
+    const [openExplanations, setOpenExplanations] = useState({});
 
     // Topic selection state
     const [showTopicSelect, setShowTopicSelect] = useState(true);
@@ -338,7 +339,7 @@ export default function Quiz() {
                                 ...btn.outline,
                             }}
                         >
-                            Select All Completed
+                            Select All Completed Topics
                         </button>
                     )}
                     <button
@@ -443,18 +444,7 @@ export default function Quiz() {
                         {loadingQuiz ? "Generating..." : `🚀 Start Quiz (${selectedTopics.length} topics)`}
                     </button>
 
-                    {availableTopics.length > 0 && (
-                        <button
-                            onClick={() => generateAIQuiz(availableTopics)}
-                            disabled={loadingQuiz}
-                            style={{
-                                ...btn.primary,
-                                ...btn.large,
-                            }}
-                        >
-                            🤖 Quiz All Completed Topics ({availableTopics.length})
-                        </button>
-                    )}
+
                 </div>
             </div>
         );
@@ -513,6 +503,7 @@ export default function Quiz() {
                     const userAns = allUserAnswers[idx];
                     const correctAns = q.options ? q.options[q.correct_index] : q.answer;
                     const isCorrect = userAns?.answer === correctAns;
+                    const isExplainOpen = !!openExplanations[idx];
                     return (
                         <div
                             key={idx}
@@ -524,7 +515,35 @@ export default function Quiz() {
                         >
                             <p><strong>Q{idx + 1}:</strong> {q.question}</p>
                             <p><strong>You:</strong> {userAns?.answer || "(no answer)"}</p>
-                            <p><strong>Correct:</strong> {correctAns}</p>
+                            <p style={{ marginBottom: q.explanation ? spacing.sm : 0 }}><strong>Correct:</strong> {correctAns}</p>
+                            {q.explanation && (
+                                <>
+                                    <button
+                                        onClick={() => setOpenExplanations(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                        style={{
+                                            ...btn.warning,
+                                            ...btn.small,
+                                            marginTop: spacing.xs ?? 4,
+                                        }}
+                                    >
+                                        {isExplainOpen ? "🙈 Hide Explanation" : "💡 Explain"}
+                                    </button>
+                                    {isExplainOpen && (
+                                        <div style={{
+                                            marginTop: spacing.sm,
+                                            padding: '10px 14px',
+                                            backgroundColor: 'rgba(251,191,36,0.12)',
+                                            borderLeft: '3px solid #F59E0B',
+                                            borderRadius: radii.sm,
+                                            fontSize: font.sizeSm,
+                                            lineHeight: 1.6,
+                                            color: colors.text,
+                                        }}>
+                                            <strong>💡 Explanation:</strong> {q.explanation}
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     );
                 })}

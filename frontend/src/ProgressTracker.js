@@ -7,9 +7,9 @@ import {
     recordAIInteraction,
 } from './progressService';
 
-// Fixed targets for quiz and test completion
-export const QUIZ_TARGET    = 3;  // need 3 quizzes with passing score
-export const TEST_TARGET    = 1;  // need 1 practical test with passing score
+// Fixed targets for quiz and test completion (one per every 2 chapter groups = 6 milestones)
+export const QUIZ_TARGET    = 6;  // need 6 quizzes with passing score
+export const TEST_TARGET    = 6;  // need 6 practical tests with passing score
 export const QUIZ_PASS_SCORE = 70; // minimum % to count a quiz as passed
 export const TEST_PASS_SCORE = 60; // minimum % to count a test as passed
 

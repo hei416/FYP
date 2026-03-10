@@ -103,54 +103,17 @@ async def ensure_pdf_chunks_loaded():
 
 @app.on_event("startup")
 async def startup():
-    global PDF_CHUNKS
-    
+    """Minimal startup — just bind to port ASAP"""
     startup_start = time.time()
-    print("="*70)
-    print("🚀 STARTING JAVA LEARNING PLATFORM")
-    print("="*70)
+    print("🚀 Java Learning Platform starting...")
     
-    # ============================================
-    # [0/3] Initialize Database Tables
-    # ============================================
-    database_url = os.getenv("DATABASE_URL", "")
-    if database_url and "sqlite" not in database_url:
-        print("\n[0/3] Database tables: Using external DB (assuming pre-created)")
-        print("-"*70)
-    else:
-        print("\n[0/3] Initializing database tables...")
-        print("-"*70)
-        db_start = time.time()
-        try:
-            # ── Defer database import to here ──
-            from database import engine, Base
-            Base.metadata.create_all(bind=engine)
-            db_elapsed = time.time() - db_start
-            print(f"✅ Database tables ready ({db_elapsed:.2f}s)")
-        except Exception as e:
-            print(f"⚠️ Database init warning (continuing anyway): {e}")
+    # Skip heavy operations at startup:
+    # - Database init happens on first DB access (routers)
+    # - RAG loads on first /ragAI request (lazy)
+    # - PDF loads on first PDF access (lazy)
     
-    # ============================================
-    # [1/3] RAG System: Lazy loading enabled
-    # ============================================
-    print("\n[1/3] RAG System: Lazy loading enabled (loads on first /ragAI request)")
-    print("-"*70)
-    print("⏸️  Skipping RAG init to speed up deployment")
-    
-    # ============================================
-    # [2/3] PDF Chunks: Lazy loading enabled
-    # ============================================
-    print("\n[2/3] PDF Chunks: Lazy loading enabled (will load on first use)")
-    print("-"*70)
-    print("⏸️  Skipping PDF init to speed up deployment")
-    
-    # ============================================
-    # Startup Complete
-    # ============================================
     total_elapsed = time.time() - startup_start
-    print("\n" + "="*70)
-    print(f"✅ JAVA LEARNING PLATFORM READY (total: {total_elapsed:.2f}s)")
-    print("="*70 + "\n")
+    print(f"✅ Ready ({total_elapsed:.2f}s)\n")
 
 # Include routers
 app.include_router(auth.router, tags=["Auth"])
