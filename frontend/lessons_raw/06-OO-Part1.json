@@ -1,0 +1,298 @@
+{
+  "title": "06-Oo-Part1",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "OOP Part 1",
+      "content": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming"
+    },
+    {
+      "heading": "Constructor, Instance Variables & Methods",
+      "content": "new , ., toString , this , pubic , private , final ,...\nCreating objects of a class from another class\n\nCOMP2045 3 / 60Structured Programming Structured Programming\nSo far, we have been talking about fundamental programming concepts, mostly\nstructured programming"
+    },
+    {
+      "heading": "Selection (if-then-else, switch)",
+      "content": "Repetition (for-loop, while-loop, do-while-loop)\nSequence (compound statement/block, methods/functions)\nimg ref: https://users.ece.utexas.edu/~valvano/Volume1/E-Book/C5_IntroductionToC.htm\nCOMP2045 4 / 60Object-Oriented Programming Object-Oriented Programming\nStructured Programming is fundamental to Object-Oriented Programming"
+    },
+    {
+      "heading": "Models everything as objects;",
+      "content": "Considers how objects interact with each other; and\nModels how objects change through interactions\n\nCOMP2045 5 / 60What is an Object? What is an Object?\nObjects – an encapsulation of (1) fields and (2) methods\nFields – also known as instance variables / data attributes\nthe data;\nany meaningful, useful, relevant information about the object\nMethods – known as member functions in other languages\nactions that to retrieve the data or to modify the data.\ninteract with other objects and to achieve certain goal\n\nCOMP2045 6 / 60Example of Objects Example of Objects"
+    },
+    {
+      "heading": "Context – a simple drawing application",
+      "content": "Objects – circles, squares, rectangles, ellipses..."
+    },
+    {
+      "heading": "Methods –",
+      "content": "actions that to retrieve the color/sharp or to change its color, fill...\ninteract with other objects like collision, bouncing\n\nCOMP2045 7 / 60What is a Class? What is a Class?"
+    },
+    {
+      "heading": "A class is a category of objects",
+      "content": "A class is a blueprint for creating objects"
+    },
+    {
+      "heading": "Shall see from some examples",
+      "content": "COMP2045 8 / 60What is a Class? What is a Class?"
+    },
+    {
+      "heading": "A class is a category of objects",
+      "content": "A class is a blueprint for creating objects"
+    },
+    {
+      "heading": "A class is reusable",
+      "content": "a = new CircleSq();\nb = new CircleSq();\nc = new CircleSq();\na.setColor(yellow);\nb.setCircleColor(red);\nc.rotateSq( 45);\nc.setCircleColor(green);\nc.setSqColor(yellow);\n...\n\nCOMP2045 9 / 60What is a Class? What is a Class?"
+    },
+    {
+      "heading": "5. . . .",
+      "content": "So, for each CircleSq , we have a few properties:\ncircleColor\nsqColor\nsqAngle\n\n10 / 60What is a Class? What is a Class?"
+    },
+    {
+      "heading": "5. . . .",
+      "content": "So, for each CircleSq , we have a few methods:\nsetCircleColor\nsetSqColor\nsetColor\nrotateSq\nAll CircleSq  objects operate independently\n\nCOMP2045 11 / 60What is a Class? What is a Class?"
+    },
+    {
+      "heading": "We can create objects based on a class",
+      "content": "Fields of an object – data we need to remember\ncircleColor\nsqColor\nsqAngle\nMethods of an object – operations we can apply to an object\nsetCircleColor\nsetSqColor\nsetColor\nrotateSq"
+    },
+    {
+      "heading": "COMP2045 12 / 60Person Person",
+      "content": "To deepen our understanding, let’s see an example – the Person  class"
+    },
+    {
+      "heading": "Hello, I am Fname Lname!",
+      "content": "Step by step, we will build this class together"
+    },
+    {
+      "heading": "Overall Structure of a Class",
+      "content": "public class Person { \n    private String lName; \n    private String fName; \n    private char gender; \n    public Person(String firstN, String lastN, char gender)  { \n       fName = firstN; \n       lName = lastN; \n       gender = gender; \n    } \n    public void sayHello (String p)  {\n       System.out.print( \"Hello, \"  + p + \"! \");\n       System.out.println( \"I am \" + fName + \". Nice to meet you!\" );\n    }\n}\n\nCOMP2045 14 / 60Class Declaration Class Declaration\npublic class Person {\n  ...\n}"
+    },
+    {
+      "heading": "This is the class declaration",
+      "content": "public  - indicates the visibility of a class. There are four different types of\nvisibility: public , package (empty), protected , private . (see lecture 7)\nclass  - a keyword telling the compiler we are defining a class.\nPerson  - the name of the class. Same rule for variable naming. By convention,\nfirst character is upper case. By convention, it is a noun.\nAll objects created from this class follow this blueprint."
+    },
+    {
+      "heading": "COMP2045 15 / 60Fields Fields",
+      "content": "private String lName;\nprivate String fName;\nprivate char gender;\nThey are fields for storing data of an object.\nFields somethings are also called instance variables, data variables, data\nmembers, member variables, etc...\nAll objects created from this class would have these variables; one object, one\nset\nprivate  - indicates the visibility of a class - not accessible outside this object.\nMost of the time we will simply add private  in front of our fields, for\nencapsulation."
+    },
+    {
+      "heading": "COMP2045 16 / 60Methods Methods",
+      "content": "public Person(String firstN, String lastN, char gender)  { \n   fName = firstN; \n   lName = lastN; \n   gender = gender; \n}\npublic void sayHello (String p)  {\n  System.out.print( \"Hello, \"  + p + \"! \");\n  System.out.println( \"I am \" + fName + \". Nice to meet you!\" );\n}"
+    },
+    {
+      "heading": "Two methods of the class",
+      "content": "Person  - having the same name as the class and no return type. This is a\nconstructor.\nsayHello  - another methods."
+    },
+    {
+      "heading": "COMP2045 17 / 60Constructor Constructor",
+      "content": "public Person(String firstN, String lastN, char gender)  { \n   fName = firstN; \n   lName = lastN; \n   gender = gender; \n}"
+    },
+    {
+      "heading": "Must have the same name as the method",
+      "content": "Whenever an object of this class is instantiated (i.e. new ), the constructor is\ncalled"
+    },
+    {
+      "heading": "Usually constructor is public.",
+      "content": "There could be more than one constructor for a class (with different\nparameters).\n\nCOMP2045 18 / 60Instantiation Instantiation\npublic static void main(String[] args)  {\n  Person p = new Person( \"Kevin\", \"Wang\", 'M');\n  //...\n}\nPerson p  - declares the variable p with the type Person .\nnew  - to create a new object.\nPerson(\"Kevin\", \"Wang\", 'M')  - the constructor of the class Person . It\nshould always follow the keyword new .\nThe method main  can be inside or outside the class Person .\n\nCOMP2045 19 / 60Instantiation Instantiation"
+    },
+    {
+      "heading": "The Person  class acts like a factory",
+      "content": "to produce(instantiate) an object\nusing the constructor."
+    },
+    {
+      "heading": "An object usually takes up a large",
+      "content": "block of memory (because it needs\nto store other fields inside the\nobject).\nnew  operator is to create a new\ninstance of Person."
+    },
+    {
+      "heading": "COMP2045 20 / 60Dot Operator Dot Operator",
+      "content": "public static void main(String[] args)  {\n  Person p = new Person( \"Kevin\", \"Wang\", 'M');\n  p.sayHello( \"Java\");\n}\nThe dot . operator always refer to the object on the left side of the dot.\nThe method executed using the data from the corresponding object.\np1.sayHello(\"Java\")  invokes the sayHello  method of the new instance"
+    },
+    {
+      "heading": "Person .",
+      "content": "Other than instance methods, the dot . operator could be used for referencing\ninstance variables.\n\nCOMP2045 Dr. Kevin Wang 2023/2024Person (V2) Person (V2)"
+    },
+    {
+      "heading": "Adding new method toString",
+      "content": "COMP2045 22 / 60Adding a New Method - Adding a New Method - toStringtoString\npublic String toString () {\n  return fName + \" \" + lName + \" (\" + gender + \")\";\n}\npublic  - visibility\nString  - the type of object returned from the method"
+    },
+    {
+      "heading": "Noted: String  is a class.",
+      "content": "Remember you can actually type myString.charAt(0) ? This calls the\nmethod charAt  of the object myString !\n\nCOMP2045 23 / 60Adding a New Method - Adding a New Method - toStringtoString\npublic String toString () {\n  return fName + \" \" + lName + \" (\" + gender + \")\";\n}\ntoString  needs public and no parameters.\ngender  looks funny!!\n\nCOMP2045 24 / 60More on More on toStringtoString\nThe method toString  is a special method defined in Java.\nWhen an object is printed, its toString  method will be automatically called by"
+    },
+    {
+      "heading": "Invoking the toString  method, you can:",
+      "content": "Explicitly invoked the method - p.toString()\nPerson p = new Person( \"Kevin\", \"Wang\", 'M');"
+    },
+    {
+      "heading": "System.out.println(p.toString());",
+      "content": "Implicitly invoked the method and returns a String"
+    },
+    {
+      "heading": "System.out.println(p);",
+      "content": "COMP2045 25 / 60The The gendergender  Problem  Problem\nHello, Java! I am Kevin. Nice to meet you!"
+    },
+    {
+      "heading": "Kevin Wang ()",
+      "content": "public Person(String firstN, String lastN, char gender)  { \n    fName = firstN; \n    lName = lastN; \n    gender = gender; \n}"
+    },
+    {
+      "heading": "Wait! gender is not printed!",
+      "content": "COMP2045 26 / 60The The gendergender  problem  problem\nProblem: is with the constructor - gender = gender;\ngender  references to the parameter variable, not the field (see flipped lecture\nnote Scope).\nHere, we are only updating the parameter variable gender ."
+    },
+    {
+      "heading": "COMP2045 27 / 60thisthis  is it  is it",
+      "content": "public Person(String firstN, String lastN, char gender)  { \n    this.fName = firstN; \n    this.lName = lastN; \n    this.gender = gender; \n}\nThe problem could be fixed by using this !"
+    },
+    {
+      "heading": "The problem explained:",
+      "content": "Inside a method, if a field is within the scope, we can access it implicitly,\ndirectly (e.g., fName  or lName )\nInside a method, if a field (e.g., gender ) is hidden by another local/parameter\nvariable (e.g., gender  parameter), the field must be specified using the this\nkeyword."
+    },
+    {
+      "heading": "COMP2045 28 / 60thisthis",
+      "content": "The keyword this  allow you to explicitly refer a field rather than a local\nvariable or parameter.\nRecalls from the scope lecture, Java allows a field to have the same name as a\nlocal variable or have the same name as a parameter.\nthis  also provide a reference to the object itself (will see more later).\n\nCOMP2045 Dr. Kevin Wang 2023/2024Person (V3) Person (V3)"
+    },
+    {
+      "heading": "Encapsulation",
+      "content": "public  & private\nfinal  keyword\n\nCOMP2045 30 / 60Adding getter and setter Adding getter and setter\npublic String getfName () {\n  return fName;\n}\npublic void setfName (String fName)  {\n  this.fName = fName;\n}\nThe above are the getter and setter for the field fName ."
+    },
+    {
+      "heading": "A setter - to set the value of the field",
+      "content": "COMP2045 31 / 60Adding getter and setter Adding getter and setter\npublic String getfName () {\n  return fName;\n}\npublic void setfName (String fName)  {\n  this.fName = fName;\n}\nTypically, an object provides these helper methods so that other parts of the\nprogram cannot access its fields directly\nThe object can control how others access its field (the concept of\nencapsulation)\nAs an exercise, add the getter & setter for lName  & gender\n\nCOMP2045 32 / 60Encapsulation Encapsulation\nEncapsulation is an important concept of OO programming"
+    },
+    {
+      "heading": "An object has all the data about itself",
+      "content": "“It is my own info, my own data, don’t touch!”\nAn object manipulates its own data, and less likely to be corrupted by others\n\nCOMP2045 33 / 60Encapsulation Encapsulation"
+    },
+    {
+      "heading": "If others want data from me, use getter",
+      "content": "If others want to update data of me, use setter\nNote: getter and setter are not always provided, as the object may not want\nothers to read or write its own data\nEncapsulation helps protecting an object’s data integrity & consistency\n\nCOMP2045 34 / 60publicpublic  and  and privateprivate\nprivate String fName; \npublic String getfName () { \n    return fName; \n} \n \npublic void setfName (String fName)  { \n    this.fName = fName; \n}\npublic  and private  are called the visibility modifier of variables/methods.\npublic  - all other classes can access it\nprivate  - no object from other class is allowed to touch it."
+    },
+    {
+      "heading": "COMP2045 35 / 60public public",
+      "content": "public String getfName () { \n    return fName; \n} \n \npublic void setfName (String fName)  { \n    this.fName = fName; \n} \npublic  – all other classes can access it\nAllow other objects to access my getter and setter methods directly\nMay allow access to my other members as well"
+    },
+    {
+      "heading": "COMP2045 36 / 60private private",
+      "content": "private String fName;\nprivate – no object from other class is allowed to touch it.\nDon’t want others to access fName directly (e.g., don’t want\np.fName = \"Calvin\";  or p.gender = 'z'; )\nProtecting others from messing around my data\nYet, objects from the same class can still access!!\n\nCOMP2045 Dr. Kevin Wang 2023/2024Person (V4) Person (V4)"
+    },
+    {
+      "heading": "Adding the final  keyword",
+      "content": "Protect our field by final, remove unnecessary setters\n\nCOMP2045 38 / 60The The finalfinal  keyword  keyword\nprivate final String lName;\nprivate final String fName;\nprivate final char gender;\nA final  variable cannot be updated once the variable is set for one time.\nValue must be set either inside the constructor or inline initiation.\nEven the object itself cannot update a final  variable."
+    },
+    {
+      "heading": "A final  variable can be read anywhere.",
+      "content": "Good for avoiding possible programming errors."
+    },
+    {
+      "heading": "COMP2045 39 / 60Mistakes Mistakes",
+      "content": "private final String fName = \"Kevin\";\npublic void setfName (String fName)  {\n  this.fName = fName; //error!\n}\nThis is an error because the field fName  is final. It can only be set inside a\nconstructor or during inline initiation.\nAlso, fName  is set to \"Kevin\" already. It cannot be updated."
+    },
+    {
+      "heading": "COMP2045 40 / 60Mistakes Mistakes",
+      "content": "private final String fName;\npublic Person() {\n  //do nothing\n}\nThis is an error because neither the constructor nor the field inline initiation\nhas set a value for fName ."
+    },
+    {
+      "heading": "COMP2045 41 / 60Mistakes Mistakes",
+      "content": "private final String fName = \"Kevin\";\npublic Person(String fName)  {\n  this.fName = fName;\n}\nThis is an error because the variable cannot be updated once the variable is set\nfor one time."
+    },
+    {
+      "heading": "Similar, the following is an error too",
+      "content": "private final String fName;\npublic Person() {\n  fName = \"Kevin\"; //ok\n  fName = \"Anya\"; //error\n}"
+    },
+    {
+      "heading": "COMP2045 42 / 60finalfinal  array  array",
+      "content": "When final  mix with array, it could be tricky, e.g.:\nprivate final int[] myArray = new int[5];\nWhat you cannot do for sure is to set the variable myArray in your code, like\nmyArray = new int[30]; //Error! because it is final\nmyArray = anotherArray; //Error! because it is final"
+    },
+    {
+      "heading": "COMP2045 43 / 60finalfinal  array  array",
+      "content": "However, you can actually set the value inside the final array like\nprivate final int[] myArray = new int[5];\n...\nmyArray[ 0] = 10; //OK\nmyArray[ 0] = 5; //OK\n//myArray is still pointing to that array!\nThe final  keyword applies to the variable myArray only. This holds\nthe reference of the actually array.\n\nCOMP2045 44 / 60finalfinal  2D array  2D array"
+    },
+    {
+      "heading": "Similarly.. if it is not crazy enough",
+      "content": "private final int[][] my2DArray = new int[5][4];\n...\nmy2DArray[ 3][2] = 4; //OK\nmy2DArray[ 2][0] = 3; //OK"
+    },
+    {
+      "heading": "Even this is allowed",
+      "content": "my2DArray[ 2] = new int[8]; //OK"
+    },
+    {
+      "heading": "COMP2045 45 / 60Person (V4) Person (V4)",
+      "content": "public class Person {\n  private final String fName;\n  private final String lName;\n  private final char gender;\n  \n  public Person(String firstN, String lastN, char gender)  { \n    this.fName = firstN; \n    this.lName = lastN; \n    this.gender = gender; \n  }\n  public void sayHello (String p)  {\n    System.out.print( \"Hello, \"  + p + \"! \");\n    System.out.println( \"I am \" + fName + \". Nice to meet you!\" );\n  }\n  public String toString () {\n    return fName + \" \" + lName + \" (\" + gender + \")\";\n  }\n //getter and remove setter\n  public String getfName () {\n    return fName;\n  }\n  public char getGender () {\n    return gender;\n  }\n}\n\nCOMP2045 Dr. Kevin Wang 2023/2024Person (V5) Person (V5)\nCreate more Person s to interact each other"
+    },
+    {
+      "heading": "Adding the field friends",
+      "content": "Adding the methods makeFriend  and listFriends"
+    },
+    {
+      "heading": "COMP2045 47 / 60Greet Greet",
+      "content": "Person kevin = new Person( \"Kevin\", \"Wang\", 'M');\nPerson anya = new Person( \"Anya\", \"Forger\" , 'F');\nkevin.greet(anya);"
+    },
+    {
+      "heading": "Hi, Anya! My name is Kevin.",
+      "content": "Similar to sayHello  except the method should be able to extract the name of\nthe person we greet."
+    },
+    {
+      "heading": "COMP2045 48 / 60Greet Greet",
+      "content": "At the first glance, we might work out something like this:\npublic void greet(Person a)  {\n  System.out.print( \"Hi, \" + a.getfName());\n  System.out.println( \"! My name is \"  + getfName() + \".\");\n}\na.getfName()  returns fName  of the object a.\ngetfName()  is the same as this.getfName() , returns fName  of this object."
+    },
+    {
+      "heading": "In the example kevin.greet(anya) :",
+      "content": "a.getfName() - Anya\nfName() - Kevin"
+    },
+    {
+      "heading": "COMP2045 49 / 60Greet Greet",
+      "content": "In fact we don't need getter here, because greet()  method is inside the class\nPerson , we are allowed to use the private variable directly!\npublic void greet(Person a)  {\n  System.out.print( \"Hi, \" + a.fName);\n  System.out.println( \"! My name is \"  + fName + \".\");\n}\na.fName  refers to the field of the object a.\nfName  is the same as this.fName , refers to fName  of this object."
+    },
+    {
+      "heading": "It also works!",
+      "content": "A private variable forbids only other classes access it but not other\nobjects\n\nCOMP2045 50 / 60Making Friends Making Friends\n//in Person class: \nprivate Person[] friends = new Person[ 5]; \n//max 5 friends\n...\n//in main\nkevin.makeFriend(anya);\nkevin.makeFriend(bond);\nkevin.listFriends();\nbond.listFriends();Friends of Kevin:"
+    },
+    {
+      "heading": "Kevin Wang (M)",
+      "content": "We want to keep a list of friends in a Person"
+    },
+    {
+      "heading": "Assume we can't make more than 5 friends",
+      "content": "COMP2045 51 / 60Making Friends Making Friends\n//in Person class\nprivate Person[] friends = new Person[ 5]; \nint numOfFriend = 0; \nneed an extra counter numOfFriend  to tell how many friends I am having now\npublic void makeFriend (Person a)  {\n  if (numOfFriend < 5)\n    friends[numOfFriend++] = a;\n}\npublic void listFriend () {\n  System.out.println( \"\\nFriends of \"  + fName + \":\");\n  for (int i = 0; i < numOfFriend; i++)\n    System.out.println(friends[i]);\n}\n\nCOMP2045 52 / 60Making Friends Making Friends"
+    },
+    {
+      "heading": "The code got a little problem",
+      "content": "kevin.makeFriend(anya);\nkevin.makeFriend(bond);\nkevin.listFriends();\nbond.listFriends();Friends of Kevin:"
+    },
+    {
+      "heading": "Need to respond to the friend request",
+      "content": "image: https://me.me/i/the-most-dangerous-creature-on-this-earth-is-a-fake-12511313\nCOMP2045 53 / 60Make Friends - Attempt 1 Make Friends - Attempt 1\npublic void makeFriend (Person a)  {\n  if (numOfFriend < 5)\n    friends[numOfFriend++] = a;\n  a.makeFriend( new Person( \"Kevin\", \"Wang\", 'M'));\n}"
+    },
+    {
+      "heading": "It does not work!",
+      "content": "You are asking Bond to make friend with a clone of Kevin.\nAnd in fact this will ends up in an infinite recursion!\nException in thread \"main\" java.lang.StackOverflowError\nmake friend make friend make friendKevin Bond Kevin_1 Kevin_2 infinity\n\nCOMP2045 54 / 60Make Friends - Attempt 2 Make Friends - Attempt 2\npublic void makeFriend (Person a)  {\n  if (numOfFriend < 5) {\n    friends[numOfFriend++] = a;\n    a.makeFriend( this);\n  }\n}\nThe keyword this  refer to the reference of the current object.\nThe reference of an object is the address of the object.\nThe statement a.makeFried(this);  is to ask a make this  as a friend."
+    },
+    {
+      "heading": "This one is also incorrect, why?",
+      "content": "55 / 60Make Friends - Attempt 2 Make Friends - Attempt 2\nkevin.makeFriend(anya);\nkevin.listFriends();\nanya.listFriends();\nmake friend\nmake friendKevin AnyaFriends of Kevin:"
+    },
+    {
+      "heading": "Kevin Wang (M)",
+      "content": "The methods kevin::makeFriend  and anya::makeFriend  calls each other\nrecursively.\nWe had unintentionally discovered a recursion.\nWill talk about that in the very last part of our course.\n\nCOMP2045 56 / 60Make Friends - Attempt 3 Make Friends - Attempt 3\npublic void makeFriend (Person a)  {\n  if (numOfFriends == 5 || a.numOfFriends == 5) //full\n      return;\n  if (isFriend(a) || a.isFriend( this)) //already friend\n      return;\n  if (a == this) //not making friend with himself!\n      return; \n  friends[numOfFriends++] = a;\n  a.friends[a.numOfFriends++] = this;\n}\nThis requires a method isFriend  which determines if a is a friend of mine.\n\nCOMP2045 57 / 60The method The method isFriendisFriend\nprivate boolean isFriend (Person a)  {\n  for (Person p : Friends) {\n    if (p == a) \n      return true;\n  }\n  return false;\n}\nWhy setting the method private? If it is not needed by other objects, just make\nit private\nThe less fields and methods exposed, the cleaner the method would be"
+    },
+    {
+      "heading": "Expose on the necessary",
+      "content": "COMP2045 58 / 60Final Version Final Version\npublic class Person {\n  private final String fName;\n  private final String lName;\n  private final char gender;\n  private final Person[] friends = new Person[ 5];  \n  private int numOfFriends = 0;\n  public Person(String firstN, String lastN, char gender)  { ... }\n  public void greet(Person a)  {  ...  }\n  public void makeFriend (Person a)  { ... }\n  public void listFriends () { ... }\n  public void sayHello (String p)  { ... }\n  public String toString () { ... }\n  public String getfName () { ... }\n  public char getGender () { ... }\n  private boolean isFriend (Person a)  { ... }\n}\n\nCOMP2045 59 / 60Are these allowed? Are these allowed?\nAssume the following codes are executed in the Main  class."
+    },
+    {
+      "heading": "1.",
+      "content": "kevin.sayHello(anya);2. \nkevin.makeFriend(kevin);"
+    },
+    {
+      "heading": "3.",
+      "content": "kevin.greet( this); 4. \nfinal Person p = new Person( \"final\", \n     \"person\" , 'F');\np.makeFriend(kevin);\n\nCOMP2045 60 / 60Are these allowed? Are these allowed?\nAssume the following codes are executed in the Main  class."
+    },
+    {
+      "heading": "1.",
+      "content": "kevin.sayHello(anya);\n sayHello  requires a String object,\nnot a Person  object2. \nkevin.makeFriend(kevin);\n Not allowed as a == this ."
+    },
+    {
+      "heading": "3.",
+      "content": "kevin.greet( this); \n this  refer to the current object,\nwhich is an object of Main  class.4. \nfinal Person p = new Person( \"final\", \n     \"person\" , 'F');\np.makeFriend(kevin);\n final  means the reference of p\ncannot be changed. The object itself is\nstill mutable."
+    }
+  ]
+}

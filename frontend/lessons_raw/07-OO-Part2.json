@@ -1,0 +1,182 @@
+{
+  "title": "07-Oo-Part2",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "OOP Part 2",
+      "content": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming\nCOMP2046 2 / 40Some Logistic Some Logistic\nOK, this is a break point for COMP2045 and COMP2046.\nFor students who take COMP2045 only (where you are 100% sure you do not\ndo COMP2046), you can stop coming to the lecture now. But you need to come\nto the lab. You will be doing alternative lab exercise.\nFor students who may take COMP2045 only (where you are not very sure if\nyou will eventually finish COMP2046), you should keep coming until you have\nmade your decision. You will be doing the ordinary lab exercise."
+    },
+    {
+      "heading": "The static  keyword",
+      "content": "COMP2046 4 / 40Object and null Object and null"
+    },
+    {
+      "heading": "Person p = null;",
+      "content": "This statement only declare p is a variable pointing to an object of class"
+    },
+    {
+      "heading": "Person .",
+      "content": "But no object has been created, p is pointing to nowhere."
+    },
+    {
+      "heading": "Person[] persons = new Person[ 4];",
+      "content": "This statement only declare persons  is a variable pointing to an array of"
+    },
+    {
+      "heading": "Person  objects.",
+      "content": "But no object has been created, persons[0]  is pointing to nowhere.\n\nCOMP2046 5 / 40Object and null Object and null\nWe says such variable p and persons[0]  are null pointers because they are\npointing to the value null .\nnull  means it is not a valid object address.\nWhen a null pointer's fields is referenced, it crashes and throws"
+    },
+    {
+      "heading": "Person p = null;",
+      "content": "p.accessibleField; //crash"
+    },
+    {
+      "heading": "Person[] persons = new Person[ 4];",
+      "content": "persons[ 1].accessibleField; //crash\nSimilarly, if a null pointer's method is invoke, it crashes too!"
+    },
+    {
+      "heading": "Person p = null;",
+      "content": "p.toString(); //crash\n\nCOMP2046 6 / 40Remarks on a few Special Methods Remarks on a few Special Methods\nA few special methods typically in a class…\ntoString()  -\nConverts this object into a String ; good for debugging\nequals  - Compares this object with another object (true  if identical; false\notherwise)\nConstructor - Constructs and prepare the object before use\n\nCOMP2046 7 / 40The Point Class The Point Class\nLet’s begin our discussion using the Point  Class\npublic class Point { \n    private final int x; \n    private final int y; \n \n    public Point(int x, int y) { \n       this.x = x; \n       this.y = y; \n    } \n} \nfinal  – a keyword, indicating that the variable cannot be updated after its\ninitialization\nTask: Add getter  methods and toString  to Point"
+    },
+    {
+      "heading": "Next, add an equals  method to Point",
+      "content": "COMP2046 8 / 40The equals Method #1 The equals Method #1"
+    },
+    {
+      "heading": "Let’s add the equals method to Point",
+      "content": "public boolean equals(int x, int y) { \n    return this.x == x && this.y == y; \n} \nThe equals  method #1 accepts two integers, x and y, as parameters\nIt check whether the x and y coordinates of the current Point object are the\nsame as the given ones\nNext, add one more equals  method to Point\n\nCOMP2046 9 / 40The equals Method #2 The equals Method #2"
+    },
+    {
+      "heading": "Let’s add one more equals method to Point",
+      "content": "public boolean equals(Point p)  { \n    return this.x == p.x && this.y == p.y; \n} \nThe equals method #2 accepts a Point  object, p, as parameter\nIt check whether the x and y coordinates of the current Point object are the\nsame as those of p's\n\nCOMP2046 10 / 40Method Overloading Method Overloading\nNote that we now have two equals  methods. Which one do we use??"
+    },
+    {
+      "heading": "That depends on the arguments provided",
+      "content": "//equals Method #1 \npublic boolean equals(int x, int y) { \n    return this.x == x && this.y == y; \n} \n//equals Method #2 \npublic boolean equals(Point p)  { \n    return this.x == p.x && this.y == p.y; \n} \n\nCOMP2046 11 / 40Method Overloading Method Overloading\n//equals Method #1 \npublic boolean equals(int x, int y) { \n    return this.x == x && this.y == y; \n} \n//equals Method #2 \npublic boolean equals(Point p)  { \n    return this.x == p.x && this.y == p.y; \n} \nCalling which constructor depends on the arguments you provide\nIf you do p1.equals(1, 2) , method #1 is called\nIf you do p1.equals(p2) , method #2 is called"
+    },
+    {
+      "heading": "Note: p1 & p2 are Point objects",
+      "content": "COMP2046 12 / 40Method Overloading Method Overloading\nIn Java, we can have many methods of the same name as long as the data types\nof their parameter lists are different"
+    },
+    {
+      "heading": "Method name – is just a method name",
+      "content": "Method signature – is the method name plus the data type of the parameters\n(but not the names of the parameters)"
+    },
+    {
+      "heading": "For example:",
+      "content": "equals method #1: equals-int-int\nequals method #2: equals-Point\nThis is called method overloading as we are overloading the method name\nOverloading methods may have different return types\n\nCOMP2046 13 / 40Method Overloading Method Overloading\nNote that we only keep the data type of the parameters, but not name of the\nparameters\nTo the Java compiler, it will see the following as the same:"
+    },
+    {
+      "heading": "1.",
+      "content": "public boolean equals(int x, int y) {...}"
+    },
+    {
+      "heading": "Signature: equals-int-int 2.",
+      "content": "public boolean equals(int y, int x) {...}"
+    },
+    {
+      "heading": "Signature: equals-int-int",
+      "content": "Same method signature  they are the same  not acceptable by Java\n\nCOMP2046 14 / 40More on the Two equals Methods More on the Two equals Methods"
+    },
+    {
+      "heading": "Improving equals method #2",
+      "content": "public boolean equals(Point p)  { \n    return equals(p.x, p.y)); \n} \nLine 2 of the equals  method #2 could be improved to the one shown above\nIt calls the equals  method #1 and returns the result (Improved?? Why???)\nIn case we want to revise how we check for equality, we only need to update\nthe original one\nAlso, if the original one works, this one works too!\n\nCOMP2046 15 / 40Notes on the equals Method Notes on the equals Method\nWhen developing a new class, developers are recommended to provide the\nequals  method (also the toString  method)\nTypically, only the developer of a class can decide how to check for the\nequality of two objects\nBest if the developer of a class to provide methods for testing equality\n\nCOMP2046 16 / 40equalsequals  vs  vs compareTocompareTo"
+    },
+    {
+      "heading": "In the String class",
+      "content": "str1.equals(str2)  [ returns boolean  ]\ntrue if str1 and str2 are identical\nfalse if str1 and str2 are not identical\nstr1.compareTo(str2)  [ returns int  ]\n0 -- if str1 and str2 are identical\n-ve –- if str1 is lexicographically less than str2 (e.g., str1 is \"apple\" and str2 is\n\"orange\")\n+ve –- if str1 is lexicographically greater than str2 (e.g., str1 is \"dog\" and str2 is\n\"cat\")\n\nCOMP2046 17 / 40Default Constructor Default Constructor"
+    },
+    {
+      "heading": "Default Constructor for the Point Class",
+      "content": "public Point() { \n    this.x = 0; \n    this.y = 0; \n}"
+    },
+    {
+      "heading": "This is invoked by new Point()",
+      "content": "COMP2046 18 / 40Default Constructor Default Constructor"
+    },
+    {
+      "heading": "Default Constructor for the Point Class",
+      "content": "public Point() { \n    this(0, 0); \n} \nWith similar argument as the two equals methods, the default constructor\npresented on the last slide could be improved to the one shown above\nLine 2 of the above, this(0, 0);  will call the original constructor with \"(0, 0)\"\nIn case we want to update the constructors, we only need to update the\noriginal one\nTo call a constructor of a class from another constructor of the same class, you\ncan use the this  keyword followed by parentheses, \"()\", containing the\nconstructor arguments\n\nCOMP2046 19 / 40Copy Constructor Copy Constructor"
+    },
+    {
+      "heading": "Copy Constructor for the Point Class",
+      "content": "public Point(Point p)  { \n    this(p.x, p.y); \n} \nThis constructor constructs a new object based on another existing object of\nthe same class"
+    },
+    {
+      "heading": "This is called the Copy Constructor",
+      "content": "In total, we now have three constructors (the original one, and the two new\nones). Which one do we use??\nMethod overloading  depends on the arguments provided\n\nCOMP2046 20 / 40Which Constructor??? Which Constructor???"
+    },
+    {
+      "heading": "The Original Constructor",
+      "content": "public Point(int x, int y) { \n    this.x = x; \n    this.y = y; \n}"
+    },
+    {
+      "heading": "The Default Constructor",
+      "content": "public Point() { \n    this(0, 0); \n}"
+    },
+    {
+      "heading": "The Copy Constructor",
+      "content": "public Point(Point p)  { \n    this(p.x, p.y); \n} Method Overloading – the arguments\ndecides which constructor to call\nnew Point(1, 2)  Original\nconstructor\nnew Point()  Default constructor\nnew Point(p)  Copy constructor\nhttps://trinket.io/java/7644575cba\nCOMP2046 21 / 40More on Constructors... More on Constructors...\nTo call the constructor of a class from another constructor of the same class,\nyou can use the this  keyword followed by parentheses, \"()\", containing the\nconstructor arguments\nSuch a constructor call must appear as the first statement in the constructor’s\nbody\nIf no constructors are provided in a class, the compiler creates a default\nconstructor\nIf a class declares constructors, the compiler will not create a default\nconstructor. In this case, you must declare a no- argument constructor if\ndefault initialization is required\nNext, create another class, MyApp , to work with Point\n\nCOMP2046 22 / 40The MyApp Class The MyApp Class\npublic class MyApp { \n    public static void main(String [] args)  { \n        Point p1 = new Point(1, 1); \n    } \n} \nA class can create objects of another class\nIn MyApp, try printing p1.x . Can you do it?\nIn Point, try changing x from private  to public , and try running MyApp  again."
+    },
+    {
+      "heading": "In Point, change x back to private",
+      "content": "COMP2046 23 / 40Public vs. Private Public vs. Private\npublic class MyApp { \n    public static void main(String [] args)  { \n        Point p1 = new Point(1, 1); \n    } \n} \npublic – you allow other classes to access that member\nprivate – you do not allow other classes to access that member\nYet, objects of the same class can always access those members\n\nCOMP2046 24 / 40The Line Class The Line Class\nTo Deepen our Understanding, the Line Class\npublic class Line { \n    private final Point p1 \n    private final Point p2; \n \n    public Line(Point p1, Point p2)  { \n       this.p1 = p1; \n       this.p2 = p2; \n    } \n} \nAssume p1 does not equal to p2 (What if they are?? Handle later!)\nTask #1: Add the following Points to MyApp:\np2: ( 5, 5 ), p3: ( 2, 6 ), p4: ( 4, 8 )   \nTask #2: Add a new Line to MyApp using p1 and p2\n\nCOMP2046 25 / 40The Line Class The Line Class\npublic class Line { \n    private final Point p1 \n    private final Point p2; \n \n    public Line(Point p1, Point p2)  { \n       this.p1 = p1; \n       this.p2 = p2; \n    } \n} \nTry This: Can we add a new Line to MyApp using new Line()? What’s wrong??\nThe Line class does not have a default constructor"
+    },
+    {
+      "heading": "Now, remove this new Line().",
+      "content": "COMP2046 26 / 40The Line Class The Line Class\npublic class Line { \n    private final Point p1 \n    private final Point p2; \n \n    public Line(Point p1, Point p2)  { \n       this.p1 = p1; \n       this.p2 = p2; \n    } \n} \nTask 1: Add a getter methods for p1 and p2 to Line (Trivial!)\nTask 2: Add toString method to Line (Trivial!)\nTask 3: Add a copy constructor to Line (Trivial!)"
+    },
+    {
+      "heading": "Task 4: Add getSlope method to Line",
+      "content": "COMP2046 27 / 40The Line Class The Line Class\npublic class Line { \n    private final Point p1; \n    private final Point p2; \n \n    public Line(Point p1, Point p2)  { \n       this.p1 = p1; \n       this.p2 = p2; \n    } \n} \nTask 5: Add isParallelWith  method to Line"
+    },
+    {
+      "heading": "Task 7: Add equals  method to Line",
+      "content": "Task 8: Add a few more tests to the MyApp class to test our work\n\nCOMP2046 28 / 40Task 4 of the Line Class Task 4 of the Line Class"
+    },
+    {
+      "heading": "Adding the getSlope  method",
+      "content": "public double getSlope () { \n    double x1 = p1.getX(); \n    double y1 = p1.getY(); \n    double x2 = p2.getX(); \n    double y2 = p2.getY(); \n    if (x1 == x2)\n        return EXTREME_LARGE;\n    return (y2-y1) / (x2-x1); \n}"
+    },
+    {
+      "heading": "For accuracy reason, let's use double",
+      "content": "COMP2046 29 / 40Task 5 of the Line Class Task 5 of the Line Class"
+    },
+    {
+      "heading": "Adding the isParallelWith Method",
+      "content": "private final double THRESHOLD = 0.001; \npublic boolean isParallelWith (Line line)  { \n    return Math.abs( this.getSlope() - line.getSlope()) < THRESHOLD; \n} \nTo check if two lines are parallel, check their slopes (same slope  parallel)\nMath.abs  – calculates absolute value, a method from Math  class\nTo check if two floating point numbers are equal, check if their difference is\nsmaller than THRESHOLD  (a constant we defined)\nBy convention, constants are indicated with all upper case\n\nCOMP2046 30 / 40Task 6 of the Line Class Task 6 of the Line Class"
+    },
+    {
+      "heading": "Adding the isOnLine  Method",
+      "content": "public boolean isOnLine (Point p)  { \n    if (this.p1.equals(p) || this.p2.equals(p)) { \n       return true; \n    } \n    Line line1 = new Line(this.p1, p); \n    Line line2 = new Line(this.p2, p); \n \n    return line1.isParallelWith(line2); \n}"
+    },
+    {
+      "heading": "2. the two lines,  and , are parallel",
+      "content": "p p1 p2\n pp1  pp1\nCOMP2046 31 / 40Task 7 of the Line Class Task 7 of the Line Class\npublic boolean equals(Line line)  { \n    return this.isOnLine(line.p1) && this.isOnLine(line.p2); \n} \nA line equals  to this line if p1 and p2 are both on this line\n\nCOMP2046 32 / 40Points to Note about OO Design Points to Note about OO Design\nPoints to Note about Object Oriented Design:\nMethods are often short and do very simple and little thing\nA method often relies on the “service” provided by other methods\nOnce a method is designed and developed well, tested thoroughly, it would be\nreliable and useable by others"
+    },
+    {
+      "heading": "COMP2046 33 / 40staticstatic",
+      "content": "public class Point { \n    private static int ptCnt = 0; \n    private final int serialNo; \n    private final int x; \n    private final int y; \nNow, modify our Point  class by adding line 2 & 3\nAnd in the original constructor, add the following:\nserialNo = ++ptCnt; \nAlso, modify toString() as illustrated below:\nreturn \"Point-\"  + serialNo + \": (\" + x + \", \" + y + \")\";"
+    },
+    {
+      "heading": "COMP2046 34 / 40staticstatic",
+      "content": "public static int getPtCnt () { \n    return ptCnt; \n} \nTry adding the above, and see what it returns\nstatic  are members (fields or methods) shared among all objects of the same\nclass\nstatic  methods can be called without an object linking to it; should be called\nthrough the class"
+    },
+    {
+      "heading": "Examples:",
+      "content": "public static void main(...)"
+    },
+    {
+      "heading": "COMP2046 37 / 40staticstatic",
+      "content": "A static  variable represents classwide information that’s shared among the\nclass’s objects\nStatic variables have class scope, exist as soon as the class is loaded into\nmemory\nStatic members can be accessed by any methods of the same class (both static\nand non-static methods)\nA static method can access non-static members if an object reference is\nprovided\nIf no object reference is provided, a static method cannot access non-static\nmembers, because a static method can be called even when no objects of the\nclass have been instantiated\nThe this  reference cannot be used in a static method"
+    },
+    {
+      "heading": "COMP2046 38 / 40staticstatic",
+      "content": "A class’s public static members can be accessed in two ways:"
+    },
+    {
+      "heading": "2. accessed through a reference to any object of the class (e.g.,",
+      "content": "myInt.parseInt(...)  where myInt  is an Integer  object)\nPrivate static class members can only be accessed through methods provided\nby the class\n\nCOMP2046 39 / 40More about More about thisthis  ... ...\nA non-static method of an object implicitly uses keyword this  to refer to the\nobject’s instance variables and other methods\nIf needed, the keyword this  can also be used explicitly\n\nCOMP2046 40 / 40More on More on publicpublic  &  & privateprivate  ... ...\nThe public  & private  keywords control the accessibility of members of a\nclass, commonly known as access modifiers\nThe public  methods of a class are also known as the class's public services or\npublic interface\nClients of the class only need to concern the public interface of the class, and\ndo not need to concern with how the class accomplishes its tasks\nprivate  members, for internal use only!"
+    }
+  ]
+}
