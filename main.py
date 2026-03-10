@@ -4,38 +4,15 @@ import asyncio
 import os
 import sys
 
-# Diagnostic logging
-print("=" * 60, file=sys.stderr)
-print(f"🔧 FastAPI app starting... (PID: {os.getpid()})", file=sys.stderr)
-print("=" * 60, file=sys.stderr)
-
+# Ultra-simple startup - minimize any blocking code
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# ── Light imports only (routers are thin wrappers) ──────────────
-print("📦 Importing routers...", file=sys.stderr)
-try:
-    from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress
-    import routers.rag as rag_router
-    print("✓ Routers imported successfully", file=sys.stderr)
-except Exception as e:
-    print(f"✗ Failed to import routers: {e}", file=sys.stderr)
-    traceback.print_exc()
-    raise
-
-# ── Defer heavy imports to avoid slow startup on Azure ──────────
-# These are NOT imported at module level:
-#   - rag_system (pulls in FAISS, langchain, scipy, sklearn)
-#   - services.pdf_service (pulls in PyMuPDF)
-#   - database (pulls in SQLAlchemy engine creation)
-# They are imported lazily inside the functions that need them.
-
-HAS_PDF_SERVICE = True  # will be verified lazily
-
-# Initialize FastAPI app
+# Initialize FastAPI app FIRST before any other imports
 app = FastAPI(title="Java Learning Platform - NLI-Verified RAG")
 
+# Add CORS middleware immediately
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,6 +20,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Import routers AFTER app is created - wrap in try-catch
+try:
+    from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress
+    import routers.rag as rag_router
+except Exception as e:
+    # If routers fail to import, log it but continue
+    print(f"ERROR importing routers: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    rag = None  # Set to None so we can check later
 
 # Lazy loading: RAG system loads on first request, not during startup
 RAG_INITIALIZED = False
@@ -118,66 +105,21 @@ async def ensure_pdf_chunks_loaded():
 @app.on_event("startup")
 async def startup():
     """Minimal startup — just bind to port ASAP"""
-    startup_start = time.time()
-    print("🚀 Java Learning Platform starting...")
-    
-    # Skip heavy operations at startup:
-    # - Database init happens on first DB access (routers)
-    # - RAG loads on first /ragAI request (lazy)
-    # - PDF loads on first PDF access (lazy)
-    
-    total_elapsed = time.time() - startup_start
-    print(f"✅ Ready ({total_elapsed:.2f}s)\n")
+    pass  # Do nothing - all initialization is lazy
 
-# Include routers with error handling
-try:
-    app.include_router(auth.router, tags=["Auth"])
-    print("✓ Auth router included")
-except Exception as e:
-    print(f"✗ Failed to include auth router: {e}")
-    traceback.print_exc()
-
-try:
-    app.include_router(progress.router, tags=["Progress"])
-    print("✓ Progress router included")
-except Exception as e:
-    print(f"✗ Failed to include progress router: {e}")
-    traceback.print_exc()
-
-try:
-    app.include_router(rag.router, tags=["AI Tutor"])
-    print("✓ RAG router included")
-except Exception as e:
-    print(f"✗ Failed to include RAG router: {e}")
-    traceback.print_exc()
-
-try:
-    app.include_router(code_execution.router, tags=["Code Execution"])
-    print("✓ Code execution router included")
-except Exception as e:
-    print(f"✗ Failed to include code execution router: {e}")
-    traceback.print_exc()
-
-try:
-    app.include_router(lessons.router, tags=["Lessons"])
-    print("✓ Lessons router included")
-except Exception as e:
-    print(f"✗ Failed to include lessons router: {e}")
-    traceback.print_exc()
-
-try:
-    app.include_router(pdfs.router, tags=["PDFs"])
-    print("✓ PDFs router included")
-except Exception as e:
-    print(f"✗ Failed to include PDFs router: {e}")
-    traceback.print_exc()
-
-try:
-    app.include_router(practical_tests.router, tags=["Tests"])
-    print("✓ Practical tests router included")
-except Exception as e:
-    print(f"✗ Failed to include practical tests router: {e}")
-    traceback.print_exc()
+# Include routers - simple, no error handling bloat
+if rag:
+    try:
+        app.include_router(auth.router, tags=["Auth"])
+        app.include_router(progress.router, tags=["Progress"])
+        app.include_router(rag.router, tags=["AI Tutor"])
+        app.include_router(code_execution.router, tags=["Code Execution"])
+        app.include_router(lessons.router, tags=["Lessons"])
+        app.include_router(pdfs.router, tags=["PDFs"])
+        app.include_router(practical_tests.router, tags=["Tests"])
+    except Exception as e:
+        print(f"ERROR including routers: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -204,25 +146,7 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Instant health check - used by Azure load balancer"""
-    try:
-        # Try a simple database check if DB is available
-        try:
-            from database import get_engine
-            engine = get_engine()
-            # Don't actually execute a query, just check the object exists
-            _ = engine
-        except Exception as db_err:
-            print(f"⚠️ DB check warning: {db_err}")
-            # Return 200 anyway - DB might not be needed yet
-        
-        return {"status": "ok", "message": "Service is healthy"}
-    except Exception as e:
-        print(f"❌ Health check error: {e}")
-        traceback.print_exc()
-        return JSONResponse(
-            status_code=503,
-            content={"status": "error", "detail": str(e)}
-        )
+    return {"status": "ok"}
 
 
 @app.middleware("http")
