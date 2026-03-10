@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { ProgressTracker } from "./ProgressTracker";
 import { TOPIC_GROUPS } from "./HomePage";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
@@ -50,6 +51,16 @@ export default function Quiz() {
     const [lastTopics, setLastTopics] = useState([]);
 
     const tracker = useMemo(() => new ProgressTracker(), []);
+
+    const location = useLocation();
+
+    // Pre-populate selected topics if navigated from a milestone prompt
+    useEffect(() => {
+        const preSelected = location.state?.preSelectedTopics;
+        if (preSelected && Array.isArray(preSelected) && preSelected.length > 0) {
+            setSelectedTopics(preSelected);
+        }
+    }, [location.state]);
 
    const generateAIQuiz = useCallback(async (topicsOverride = null) => {
         if (isFetchingRef.current) return; // ← block duplicate calls
