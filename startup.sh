@@ -47,8 +47,9 @@ if echo "$DATABASE_URL" | grep -qi 'sqlite'; then
   timeout 30 python -c "
 import sys
 try:
-    from database import engine, Base
+    from database import get_engine, Base
     from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion
+    engine = get_engine()
     Base.metadata.create_all(bind=engine)
     print('  DB tables ready.')
 except Exception as e:
@@ -61,9 +62,9 @@ import sys, os
 os.environ.setdefault('DATABASE_URL', 'sqlite:////home/learning_platform.db')
 try:
     import bcrypt
-    from database import SessionLocal
+    from database import get_session_local
     from db_models import User
-    db = SessionLocal()
+    db = get_session_local()()
     if not db.query(User).filter(User.email=='test@test.com').first():
         pwd = bcrypt.hashpw('test1234'.encode(), bcrypt.gensalt()).decode()
         db.add(User(email='test@test.com', password_hash=pwd, full_name='Test User'))

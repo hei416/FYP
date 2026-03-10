@@ -65,6 +65,10 @@ jobs:
             --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
+      # ── Wait for management operations to complete (avoid SCM conflict) ──
+      - name: Wait before deployment
+        run: sleep 30
+
       # ── Deploy via Azure CLI (async — don't poll; Azure may take >10min) ─
       - name: Deploy to Azure Web App
         run: |

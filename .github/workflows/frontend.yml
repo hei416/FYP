@@ -70,6 +70,10 @@ jobs:
           zip -r ../frontend-deploy.zip build/ server.js package.json node_modules/
           echo "Zip size: $(du -sh ../frontend-deploy.zip | cut -f1)"
 
+      # ── Wait for management operations to complete (avoid SCM conflict) ──
+      - name: Wait before deployment
+        run: sleep 30
+
       # ── Deploy via Azure CLI ──────────────────────────────────────
       - name: Deploy to Azure Web App
         run: |
