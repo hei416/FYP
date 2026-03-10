@@ -150,21 +150,24 @@ async def startup():
         PDF_CHUNKS = []
     
     # ============================================
-    # Start Background Scheduler (Optional)
+    # [3/3] Starting background scheduler (DISABLED for deployment)
     # ============================================
-    print("\n[3/3] Starting background scheduler...")
-    try:
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(refresh_knowledge_base, 'interval', hours=24)
-        scheduler.start()
-        print("✅ Background scheduler started")
-    except Exception as e:
-        print(f"⚠️ Scheduler warning: {e}")
-
-    # ============================================
-    # Pre-warm quiz cache (background)
-    # ============================================
-    asyncio.create_task(prewarm_quiz_cache())
+    print("\n[3/3] Background scheduler: Disabled during Azure deployment")
+    print("-"*70)
+    # The scheduler will be started in local development but not in Azure
+    # to avoid blocking the startup sequence
+    # if HAS_BACKGROUND_SCHEDULER:
+    #     try:
+    #         scheduler = BackgroundScheduler()
+    #         scheduler.add_job(refresh_knowledge_base, 'interval', hours=24)
+    #         scheduler.start()
+    #         print("✅ Background scheduler started")
+    #     except Exception as e:
+    #         print(f"⚠️ Scheduler warning: {e}")
+    
+    # Skip quiz cache pre-warming during deployment
+    print("\n⏭️  Quiz cache pre-warming: Disabled during deployment")
+    # asyncio.create_task(prewarm_quiz_cache())
     
     # ============================================
     # Startup Complete
