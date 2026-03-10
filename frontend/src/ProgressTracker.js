@@ -1,13 +1,17 @@
 // Import the topic IDs from HomePage
 import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from './HomePage';
 import {
-    syncProgressToBackend,
     recordQuizAttempt,
     recordTestAttempt,
     recordPlaygroundUse,
     recordAIInteraction,
-    markTopicCompleteOnBackend
 } from './progressService';
+
+// Fixed targets for quiz and test completion
+export const QUIZ_TARGET    = 3;  // need 3 quizzes with passing score
+export const TEST_TARGET    = 1;  // need 1 practical test with passing score
+export const QUIZ_PASS_SCORE = 70; // minimum % to count a quiz as passed
+export const TEST_PASS_SCORE = 60; // minimum % to count a test as passed
 
 // Progress Tracker that perfectly syncs with HomePage
 export class ProgressTracker {
@@ -45,12 +49,13 @@ export class ProgressTracker {
                 quizzes: {
                     attempted: 0,
                     completed: [],
-                    totalQuizzes: 0
+                    passed: [],
+                    totalQuizzes: QUIZ_TARGET
                 },
                 tests: {
                     attempted: 0,
                     passed: [],
-                    totalTests: 0
+                    totalTests: TEST_TARGET
                 },
                 roadmapTopics: {
                     total: this.totalTopics,
@@ -89,16 +94,11 @@ export class ProgressTracker {
         
         // Use EXACT same calculation as HomePage
         const roadmapCompleted = progress.roadmapTopics.completed.length;
-        const quizzesCompleted = progress.quizzes.completed.length;
-        const testsCompleted = progress.tests.passed.length;
-        const playgroundCompleted = progress.playground.completed ? 1 : 0;
+        const quizzesPassed = Math.min((progress.quizzes.passed || []).length, QUIZ_TARGET);
+        const testsPassed = Math.min(progress.tests.passed.length, TEST_TARGET);
         
-        const completed = roadmapCompleted + quizzesCompleted + testsCompleted + playgroundCompleted;
-        const total = 
-            this.totalTopics + // Same as HomePage's totalTopics
-            progress.quizzes.totalQuizzes +
-            progress.tests.totalTests +
-            1; // playground
+        const completed = roadmapCompleted + quizzesPassed + testsPassed;
+        const total = this.totalTopics + QUIZ_TARGET + TEST_TARGET; // roadmap + quizzes + tests
         
         return { completed, total };
     }
@@ -144,28 +144,36 @@ export class ProgressTracker {
         recordPlaygroundUse().catch(() => {});
     }
 
-    // Mark quiz as completed
+    // Mark quiz as completed (score is 0–100 percentage)
     markQuizCompleted(quizId, score = 0) {
         const progress = this.getProgress();
         if (!progress.quizzes.completed.includes(quizId)) {
             progress.quizzes.completed.push(quizId);
         }
         progress.quizzes.attempted++;
+        // Track as "passed" only when score meets threshold
+        if (score >= QUIZ_PASS_SCORE) {
+            if (!progress.quizzes.passed) progress.quizzes.passed = [];
+            if (!progress.quizzes.passed.includes(quizId)) {
+                progress.quizzes.passed.push(quizId);
+            }
+        }
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
         // Sync to backend (non-blocking)
         recordQuizAttempt(quizId, score).catch(() => {});
     }
 
-    // Mark test as passed
+    // Mark test as attempted; adds to passed[] only if score meets threshold
     markTestPassed(testId, score = 0) {
         const progress = this.getProgress();
-        if (!progress.tests.passed.includes(testId)) {
+        progress.tests.attempted++;
+        const didPass = score >= TEST_PASS_SCORE;
+        if (didPass && !progress.tests.passed.includes(testId)) {
             progress.tests.passed.push(testId);
         }
-        progress.tests.attempted++;
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
         // Sync to backend (non-blocking)
-        recordTestAttempt(testId, score, true).catch(() => {});
+        recordTestAttempt(testId, score, didPass).catch(() => {});
     }
 
     // Track AI interaction
@@ -202,14 +210,16 @@ export class ProgressTracker {
                 executions: progress.playground.codeExecutions
             },
             quizzes: {
-                completed: progress.quizzes.completed.length,
-                total: progress.quizzes.totalQuizzes,
-                attempted: progress.quizzes.attempted
+                passed: Math.min((progress.quizzes.passed || []).length, QUIZ_TARGET),
+                target: QUIZ_TARGET,
+                attempted: progress.quizzes.attempted,
+                passScore: QUIZ_PASS_SCORE
             },
             tests: {
-                passed: progress.tests.passed.length,
-                total: progress.tests.totalTests,
-                attempted: progress.tests.attempted
+                passed: Math.min(progress.tests.passed.length, TEST_TARGET),
+                target: TEST_TARGET,
+                attempted: progress.tests.attempted,
+                passScore: TEST_PASS_SCORE
             },
             aiInteractions: progress.aiInteractions
         };

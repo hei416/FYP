@@ -33,11 +33,12 @@ fi
 
 # Azure persistent storage for SQLite
 export DATABASE_URL="${DATABASE_URL:-sqlite:////home/learning_platform.db}"
-echo "DATABASE_URL: $DATABASE_URL"
+echo "DATABASE_URL type: ${DATABASE_URL%%:*}"
 
-# Run DB migrations / create tables (with 30s timeout to avoid hanging)
-echo "[1/3] Initialising database..."
-timeout 30 python -c "
+# Only run DB init/seed for SQLite (external DBs are pre-created and connection attempts are slow)
+if echo "$DATABASE_URL" | grep -qi 'sqlite'; then
+  echo "[1/3] SQLite detected — initialising database..."
+  timeout 30 python -c "
 import sys
 try:
     from database import engine, Base
@@ -48,9 +49,8 @@ except Exception as e:
     print(f'  WARNING: DB init failed: {e}', file=sys.stderr)
 " || echo "WARNING: DB init timed out or failed (continuing anyway)"
 
-# Seed the test account (with 30s timeout)
-echo "[2/3] Seeding test account (if missing)..."
-timeout 30 python -c "
+  echo "[2/3] Seeding test account (if missing)..."
+  timeout 30 python -c "
 import sys, os
 os.environ.setdefault('DATABASE_URL', 'sqlite:////home/learning_platform.db')
 try:
@@ -69,6 +69,10 @@ try:
 except Exception as e:
     print(f'  WARNING: Seed failed: {e}', file=sys.stderr)
 " || echo "WARNING: Seed timed out or failed (continuing anyway)"
+else
+  echo "[1/3] External DB detected — skipping DB init (handled by app startup)"
+  echo "[2/3] External DB detected — skipping seed"
+fi
 
 # Start the application — bind to port ASAP so Azure health check passes
 echo "[3/3] Starting gunicorn on port ${PORT:-8000}..."

@@ -44,7 +44,10 @@ jobs:
           az webapp config appsettings set \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true
+            --settings \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
+              ENABLE_ORYX_BUILD=true \
+              WEBSITE_CONTAINER_START_TIME_LIMIT=900
 
       # ── Package only source files (~10MB, no venv/node_modules) ──
       - name: Create deployment zip
@@ -65,8 +68,7 @@ jobs:
             --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      # ── Deploy via Azure CLI ──────────────────────────────────────
-      # Oryx will run pip install -r requirements.txt on the server
+      # ── Deploy via Azure CLI (async — don't poll; Azure may take >10min) ─
       - name: Deploy to Azure Web App
         run: |
           az webapp deploy \
@@ -74,12 +76,26 @@ jobs:
             --resource-group codetutor-rg \
             --src-path deploy.zip \
             --type zip \
-            --timeout 600
+            --async true
+          echo "Deployment triggered (async)."
 
-      # ── Restart after deploy to pick up new startup.sh ───────────
-      - name: Restart app
+      # ── Restart and poll /health until the site responds ─────────────────
+      - name: Restart and wait for healthy response
         run: |
+          echo "Restarting app..."
           az webapp restart \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg
-          echo "App restarted successfully"
+          echo "Polling https://codetutor-fyp-hei.azurewebsites.net/health ..."
+          for i in $(seq 1 40); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              https://codetutor-fyp-hei.azurewebsites.net/health || echo "000")
+            echo "  Attempt $i — HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Site is healthy!"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "❌ Site did not respond within 20 minutes."
+          exit 1
