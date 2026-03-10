@@ -121,7 +121,7 @@ async def startup():
     print("="*70)
     
     # ============================================
-    # [0/3] Initialize Database Tables
+    # [0/3] Initialize Database Tables (skip if hangs)
     # ============================================
     print("\n[0/3] Initializing database tables...")
     print("-"*70)
@@ -131,7 +131,9 @@ async def startup():
         db_elapsed = time.time() - db_start
         print(f"✅ Database tables ready ({db_elapsed:.2f}s)")
     except Exception as e:
-        print(f"⚠️ Database init warning: {e}")
+        print(f"⚠️ Database init warning (continuing anyway): {e}")
+        import traceback
+        traceback.print_exc()
     
     # ============================================
     # [1/3] RAG System: Lazy loading enabled
