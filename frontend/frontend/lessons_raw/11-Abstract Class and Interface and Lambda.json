@@ -1,0 +1,194 @@
+{
+  "title": "11-Abstract Class And Interface And Lambda",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "Abstract Class",
+      "content": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming"
+    },
+    {
+      "heading": "Lambda Expression",
+      "content": "COMP2046 3 / 39Class Hierarchy Class Hierarchy\nSuperclass is designed for the purpose of abstraction\nSometimes the superclass class does not have a reasonable implementation on\na method.\nclass Shape {\n  private String color;\n  void setColor (String c)  { color = c; }\n  double getArea() {\n    return ??;\n  }\n  void print() {\n    System.out.print( \"This is a \"  + color);\n  }\n}class Rectangle  extends Shape {\n  private int width, height;\n  @Override\n  double getArea() { return width * height;  }\n  @Override\n  void print() {\n    super.print();\n    System.out.println( \" rectangle!\" );\n  }\n}\nclass Circle extends Shape { \n  private int radius;\n  @Override\n  double getArea() { return PI * radius * radius; }\n  @Override\n  void print() {\n    super.print();\n    System.out.println( \" circle!\" );\n  }\n}\n\nCOMP2046 4 / 39The superclass The superclass\nclass Shape {\n  private int color;\n  void setColor (int c) { color = c; }\n  double getArea() {\n    return ??;\n  }\n  void print() {\n    System.out.print( \"This is a \"  + color);\n  }\n}"
+    },
+    {
+      "heading": "What should we put in the ?? 0?",
+      "content": "It is not a really big problem, you would not instantiate a Shape  object anyway\nA shape object does not make sense. A shape must be either a Rectangle, a circle, a\nsquare...\nOh.. but what if someone make a Shape object?\n\nCOMP2046 5 / 39Abstract Class Abstract Class\nAn abstract class holds the generalized logic of classes.\nAn abstract class should never been instantiated. And it is NOT allowed to\ninstantiated.\nThe reason for having abstract class is that some method of the abstract is not\ndefined in that level (e.g. getArea() )"
+    },
+    {
+      "heading": "Java defines an abstract as follows.",
+      "content": "public abstract  class Shape {\n  private int color;\n  void setColor (int c) { color = c; }\n  abstract  double getArea();\n  void print() {\n    System.out.print( \"This is a \"  + color);\n  }\n}\n\nCOMP2046 6 / 39Abstract Class Abstract Class\npublic abstract  class Shape {\n  private int color;\n  void setColor (int c) { color = c; }\n  public abstract  double getArea();\n  void print() {\n    System.out.print( \"This is a \"  + color);\n  }\n}"
+    },
+    {
+      "heading": "The keyword abstract  appears twice.",
+      "content": "public abstract class  says this class is abstract.\npublic abstract double getArea();  say the method getArea()  is\nabstract.\n\nCOMP2046 7 / 39About Abstract Class About Abstract Class\nAn abstract class is like other normal class. Follow the same set of rules of\nconstructor, method overloading, method overriding, polymorphism, etc...\nAn abstract class can never been instantiated."
+    },
+    {
+      "heading": "Shape s = new Shape(); //error!",
+      "content": "Unless it is an abstract class, a class cannot have abstract method.\nAn abstract class can be inherited as an abstract class or an ordinary class\npublic abstract  class RoundShape  extends Shape {}"
+    },
+    {
+      "heading": "An abstract class cannot be final.",
+      "content": "COMP2046 8 / 39About Abstract Method About Abstract Method\nAn abstract method is a method that has no implementation.\nAll non abstract subclass must has an implementation of the abstract method.\nA subclass that does not have an implementation of the abstract method can only\nbe an abstract class!\nclass Square extends Shape {\n  private int width;\n  public double getArea() {  return width*width;  }\n}\n\nCOMP2046 9 / 39More about Abstract class More about Abstract class\nabstract  class A {\n  abstract  void aMethod();\n}\nabstract  class B extends A {\n  void bMethod() { }\n}\nclass C extends B {\n  void aMethod() { }\n}\nclass D extends C {}\nClass B does not implement the abstract method, thus, it is abstract\nClass C implements the abstract method, thus it is allowed to be declared as\nnon-abstract class.\nClass D does not implement on its own. But it has an implementation (from C),\nthus, it is can be declared as non-abstract. \n\nCOMP2046 10 / 39Multiple inheritance is not allowed Multiple inheritance is not allowed"
+    },
+    {
+      "heading": "What is multiple inheritance?",
+      "content": "e.g. Bat-man, want to be a bat and a man at the same time. Inherit from both Bat\nclass and Man class."
+    },
+    {
+      "heading": "Why not allowed?",
+      "content": "Suppose both superclass have the same method eat. Do you eat like a bat or eat like\na man?\nEven they don't share the same method, which superclass's constructor to call?"
+    },
+    {
+      "heading": "Who first?",
+      "content": "But then how can I create something that is a vehicle that can also fly like a\nbird?\nclass Bird {\n  void fly() {}\n}class Vehicle {\n  ...\n}class Passenger  {\n  void getOn(Vehicle v)  \n  {..}\n}"
+    },
+    {
+      "heading": "COMP2046 11 / 39Interface Interface",
+      "content": "Interface works almost like an abstract class\nIt does not have any implementation, no constructor, and no field except for\npublic static final  variables.\npublic interface  Flyable {\n  public void fly();\n}\nSyntax of an interface starts with the keyword interface .\nNo implementation should be provided inside an interface^ - Just a ; after\nthe method name"
+    },
+    {
+      "heading": "All methods are by default public .",
+      "content": "All variables are by default public static final .\n^Another lie. For those who want to uncover it, search: interface default java\n\nCOMP2046 12 / 39Implements an Interface Implements an Interface\nWe don't extends  an interface, instead, we implements  it.\nclass Bird implements  Flyable {\n  @Override\n  public void fly() {...}\n}"
+    },
+    {
+      "heading": "Or interface and inherit at the same time",
+      "content": "class Aeroplane  extends Vehicle implements  Flyable {\n  @Override\n  public void fly() {...}\n  @Override\n  public void move() {...}\n}"
+    },
+    {
+      "heading": "COMP2046 13 / 39Interface Interface",
+      "content": "class Passenger  {\n  void getOn(Vehicle v)  \n  {..}\n}class Radar {\n  void detect(Flyable f)\n  {..}\n}\nA passenger is expecting a vehicle to get on. Apparently an Aeroplane  is a\nvehicle\nRadar can detect every Flyable  object, so a Aeroplane of course!\n\nCOMP2046 14 / 39More about Interface More about Interface\nInterface is a description about objects “Trust me, the object can do this!”\nInterface is a contract about objects “I promise you that the object can do\nthis!”\nInterface groups (completely different) objects by what they can do (even\nthough they could be doing it in a completely different way)\nSuppose we write a method that expects an object that is writable as its\nparameter"
+    },
+    {
+      "heading": "Interface can make this very flexible",
+      "content": "public void writingTo  (Writable obj)  {...} \nWith Interface, code becomes flexible, general, and we don’t even need to\nknow what class the object belongs to, but only what the object is capable of\ndoing\n\nCOMP2046 15 / 39More about Interface More about Interface\nMuch like two objects are related if they inherit from the same superclass,\nobjects can be related if they implement the same interface (that is, both of\nthem are capable of doing something)"
+    },
+    {
+      "heading": "Mainly used to factor out",
+      "content": "responsibilities among similar\nclasses."
+    },
+    {
+      "heading": "Every pencil and crayon is-a penInterface",
+      "content": "ainly used to factor out capability\namong very different classes."
+    },
+    {
+      "heading": "COMP2046 16 / 39Interface Interface",
+      "content": "Interface only declares capabilities that the objects must have – there is no\ndefinition of code\nthus no code to re-use! (only declarations)\npurely “contractual” mechanism (in this sense, similar to abstract methods)\nallows the compiler to do error checking!\nInterface is even more abstract than abstract class, because it does not\ncontribute code at all;\nAn interface, should have no single line of implementation, at least it is\ntrue in our course. (see default  method for exception - Optional\ncontent)\n\nCOMP2046 17 / 39Implementing Interface Implementing Interface"
+    },
+    {
+      "heading": "Classes can extend only one other class",
+      "content": "Classes can implement any number of interfaces\nClasses can extend a superclass and implement interfaces\nFor example, Vehicle could implement interfaces which categorize objects that\nare able to move, hold passengers, be driven, be repaired, etc.\nclass Vehicle implements  Movable, Drivable , Repairable  {\n}\nClasses implement an interface must implements all methods of an interface.\n\nCOMP2046 18 / 39Implementing Interface Implementing Interface\nWhat if two interfaces have the same method signature?\nNo problem! It refers to the same implementation!\ninterface  MusicallyPlayable  { void play(); }\ninterface  GamePlayable  { void play(); } \nclass MusicGame  implements  MusicallyPlayable , GamePlayable  {\n  void play() { System.out.println( \"Play a music game!\" );}\n}\n...\nMusicallyPlayable music = new MusicGame();"
+    },
+    {
+      "heading": "GamePlayable game = new MusicGame();",
+      "content": "music.play();\ngame.play();"
+    },
+    {
+      "heading": "Can I respond differently? No.",
+      "content": "COMP2046 19 / 39Paying the Bill Paying the Bill\npublic interface  Payable {\n  boolean pay(String payer, \n      String payee, int amount) ;\n}\nclass Bill {\n  String shop;\n  String customer;\n  int amount;\n  Bill(String shop, String customer, int amount) {\n    this.shop = shop;\n    this.customer = customer;\n    this.amount = amount;\n  }\n  void settle(Payable p)  {\n    System.out.println(shop + \":\" + customer + \":\" + amount);\n    if (p.pay(customer, shop, amount) == true) \n      System.out.println( \"The bill is settled!\" );\n    else\n      System.out.println( \"Not yet settled\" );\n  }\n}\n\nCOMP2046 20 / 39Paying the Bill Paying the Bill\npublic class Cash implements  Payable {\n  private int total;\n  public Cash(int total) {this.total = total;}\n  public boolean pay(String payer, String payee, int amount)  {\n    if (total > amount) {\n      total -= amount;\n      System.out.printf( \"%s gives %s $%d in cash.\\n\" , payer, payee, amount);\n      System.out.println( \"There are $\"  + total + \" left.\" );\n      return true;\n    }\n    return false;\n  }\n}\n\nCOMP2046 21 / 39Paying the Bill Paying the Bill\nBill bill = new Bill(\"Electricity\" , \"Kevin Wang\" , 100);"
+    },
+    {
+      "heading": "Cash wallet = new Cash(500);",
+      "content": "bill.settle(wallet);"
+    },
+    {
+      "heading": "Electricity:Kevin Wang:100",
+      "content": "Kevin Wang gives Electricity $100 in cash."
+    },
+    {
+      "heading": "A Bill  needs a Payable  to settle.",
+      "content": "Cash  is commonly use and deserves a dedicated class.\nBut some Payable  does not deserve a separate class.\n\nCOMP2046 22 / 39Anonymous class Anonymous class\nAn ad-hoc class that fits a niche situation.\nYou would probably not use this class anymore."
+    },
+    {
+      "heading": "Use an anonymous class to implement it.",
+      "content": "An anoymous class always implement an interface or extends an abstract\nclass. Syntax:"
+    },
+    {
+      "heading": "InterfaceX i = new InterfaceX() {",
+      "content": "@Override\n                  public void abstractMethod () {...}\n              };\nor"
+    },
+    {
+      "heading": "AbstractClassY a = new AbstractClassY() {",
+      "content": "@Override\n                  public void abstractMethod () {...}\n              };\n}\n\nCOMP2046 23 / 39Anonymous class Anonymous class\nBill bill = new Bill(\"Parking Ticket\" , \"Tattoo Man\" , 100);"
+    },
+    {
+      "heading": "Payable p = new Payable() {",
+      "content": "public boolean pay(String payer, String payee, int amount)  {\n                System.out.println( \"Don't bother me!\" );\n                if (amount < 30)\n                  return true;\n                return false;\n              }\n            };\nbill.settle(p);"
+    },
+    {
+      "heading": "Not yet settled",
+      "content": "COMP2046 24 / 39Anonymous class Anonymous class"
+    },
+    {
+      "heading": "Payable p = new Payable() {",
+      "content": "public boolean pay(String payer, String payee, int amount)  {\n                System.out.println( \"Don't bother me!\" );\n                if (amount < 30)\n                  return true;\n                return false;\n              }\n            };\nIn Java an anonymous class can be created inline."
+    },
+    {
+      "heading": "An anonymous class does not have a name.",
+      "content": "p is a Payable  object - constructed by new Payable();\nThe class definition of this object is after {}.\n\nCOMP2046 25 / 39Anonymous class Anonymous class"
+    },
+    {
+      "heading": "An anonymous class is handy",
+      "content": "It is usually used when the object is used only one-off.\nAnonymous class also allows you to capture local variable.\ndouble discount = 0.8;"
+    },
+    {
+      "heading": "Payable p = new Payable() {",
+      "content": "public boolean pay(String payer, String payee, int amount)  {\n                System.out.println( \"Amount after discount: \"  + amount * discount);\n                return true;\n              }\n            };\nbill.settle(p);\ndiscount  is used directly inside the anonymous class without parameter\npassing!\n\nCOMP2046 26 / 39A more realistic example A more realistic example\nJButton myButton = new JButton( \"Click me!\" );\nmyButton.addActionListener(\n  new ActionListener() {\n    public void actionPerformed (ActionEvent e)  {\n      System.out.println( \"The button is clicked\" );\n    }\n  }\n)"
+    },
+    {
+      "heading": "JButton is a Java GUI component.",
+      "content": "You register an ActionListener to the button. When there is any action done by\nthe user, it calls back the ActionListener.\nEach button has different behavior, the ActionListener is unlikely to be\nrepeated.\nWriting an anonymous class seems more economic.\n\nCOMP2046 27 / 39More on anonymous class More on anonymous class\nAnonymous class does not have a constructor\nAnonymous class does not have static non-final variable\nAnonymous class cannot be further inherited\nTherefore Anonymous class cannot be abstract\nFor more details, please read Oracle Java Tutorial.\n\nCOMP2046 28 / 39Lambda Expression Lambda Expression\nAnonymous class is saving the code length."
+    },
+    {
+      "heading": "Java says we can do better!",
+      "content": "Lambda expression can be used to create an anonymous class for an interface\nwith only one method.\nFor reducing the length of anonymous class, keeping the only necessary.\n\nCOMP2046 29 / 39Lambda Expression Lambda Expression"
+    },
+    {
+      "heading": "Payable p = new Payable() {",
+      "content": "public boolean pay(String payer, String payee, int amount)  {\n                System.out.println( \"Amount after discount: \"  + amount * discount);\n                return true;\n              }\n            };\nnew Payable()  - you are creating an Payable object, can be inferred from left\nhand side\npublic boolean pay  - there is only one method, of course you are coding for\nit\n\nCOMP2046 30 / 39Lambda Expression Lambda Expression\nPayable p = (String payer, String payee, int amount) -> {\n                System.out.println( \"Amount after discount: \"  + amount * discount);\n                return true;\n              };\nOr even shorter, omitting the type of the variables."
+    },
+    {
+      "heading": "Payable p = (payer, payee, amount) -> {",
+      "content": "System.out.println( \"Amount after discount: \"  + amount * discount);\n                return true;\n              };\n\nCOMP2046 31 / 39Lambda Expression Syntax Lambda Expression Syntax\nA lambda expression consists of the following:"
+    },
+    {
+      "heading": "1. A comma-separated list of formal parameters enclosed in parentheses.",
+      "content": "(String payer, String payee, int amount)\nYou can omit the data type of the parameters in a lambda expression.\nIn addition, you can omit the parentheses if there is only one parameter."
+    },
+    {
+      "heading": "3. A body, which consists of a single expression or a statement block.",
+      "content": "wallet > amount && !payee.equals( \"Gangster\" )\n//or\n{ \n  System.out.println( \"Amount after discount: \"  + amount * discount);\n  return true;\n}\n\nCOMP2046 32 / 39Lambda Expression Syntax Lambda Expression Syntax"
+    },
+    {
+      "heading": "A return statement is not an expression;",
+      "content": "In a lambda expression, you must enclose statements in braces ({}).\nHowever, you do not have to enclose a void  method invocation in braces. For\nexample, the following is a valid lambda expression:\nemail -> System.out.println(email)\nNote that a lambda expression looks a lot like a method declaration; you can\nconsider lambda expressions as anonymous methods—methods without a\nname\n\nCOMP2046 33 / 39Lambda Expression - Payable Lambda Expression - Payable\nBill bill = new Bill(\"ABC Telecomm\" , \"Kevin Wang\" , 100);\nbill.settle( (a, b, c) -> {\n  System.out.println(b + \" pays \"  + a + \" $\" + c + \" by QR code\" );\n  return true;\n});"
+    },
+    {
+      "heading": "Explanation",
+      "content": "(a, b, c)  - three parameters for the method pay  in the anonymous Payable\n-> - syntax for lambda\n{...}  - the block of statement executed in the method pay\nIn bill.settle()  it will invoke p.pay(customer, shop, amount) , the\nlambda written here decide what to do when this method is invoked.\n\nCOMP2046 34 / 39Example - Lab 8 Example - Lab 8\nWe rewrite the entire lab 8 using ArrayList.\nThe main problem is how to perform sorting\nList provides a method Sort, but you need to tell Sort how to do comparison!\nHow would the sorter know contact A should be placed in front of contact B\nvoid sort(Comparator<T> c)\ne.g.\ncontactlist.sort(contactListCompartorObject);"
+    },
+    {
+      "heading": "COMP2046 35 / 39Comparator Comparator",
+      "content": "Comparator requires classes to implement one abstract method in this\ninterface."
+    },
+    {
+      "heading": "You can write anonymous class",
+      "content": "Comparator<Contact> c = new Comparator<>() {\n                          int compare(Contact o1, Contact o2)  {\n                            return o1.getName().compareTo(o2.getName());\n                          }\n                      }\ncontactlist.sort(c);"
+    },
+    {
+      "heading": "Or you can write a lambda",
+      "content": "contactlist.sort( (o1, o2) -> o1.getName().compareTo(o2.getName()));\n(o1, o2)  - parameters for the method compare\nno need return because there is only one single expression\nno need {} because there is only one single expression"
+    },
+    {
+      "heading": "COMP2046 37 / 39Tips Tips",
+      "content": "The syntax is weird, the concepts is tricky"
+    },
+    {
+      "heading": "Suggest doing the following:",
+      "content": "Read carefully the examples that I have created for you, all of them\nTest the code on your own and try to rewrite them, even just type it again\nCreate some simple abstract class like Animal, interface like Eatable and see how\nthey should be put together\n\nCOMP2046 Dr. Kevin Wang 2023/2024End of All Examable End of All Examable"
+    },
+    {
+      "heading": "COMP2046 39 / 39Errata Errata",
+      "content": "Page 15, the words capability and responsibility are swapped."
+    }
+  ]
+}

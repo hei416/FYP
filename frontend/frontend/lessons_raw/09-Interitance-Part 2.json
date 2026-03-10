@@ -1,0 +1,194 @@
+{
+  "title": "09-Interitance-Part 2",
+  "intro": "Problem Solving Using Object Oriented Approach",
+  "sections": [
+    {
+      "heading": "Inheritance - Part 2",
+      "content": "This course is colocated with COMP2026 Problem Solving Using Object Oriented Programming"
+    },
+    {
+      "heading": "Access Modifiers",
+      "content": "Visibility of inherited methods (can widen, not narrowed)"
+    },
+    {
+      "heading": "Generic",
+      "content": "COMP2046 3 / 60Recall our animals... Recall our animals..."
+    },
+    {
+      "heading": "Cat d = new Animal(); // error!",
+      "content": "a.eat(); // ok\nb.eat(); // ok\nc.meow(); //ok\na.meow(); //compile error\nb.meow(); //!?\nb.meow()  is not allowed at compile time Java does not know if your b\nis really pointed to a Cat() , it knows b has the capacity as an Animal\nonly.\n\nCOMP2046 4 / 60Recall, overriding Recall, overriding\npublic class Animal {\n  public void eat() { \n    System.out.println( \"Eat like Animal\" );\n  }\n}public class Cat extends Animal {\n  public void eat() {  //override\n    System.out.println( \"Eat like Cat\" );\n  }\n  public void meow() {\n    System.out.println( \"Meow\");\n  }\n}"
+    },
+    {
+      "heading": "Eat like Cat;",
+      "content": "COMP2046 5 / 60More on Overriding More on Overriding"
+    },
+    {
+      "heading": "How b does eat()?",
+      "content": "b eat() like a Cat.\nMethod overriding happen in runtime. During runtime Java call the\nmethod can run the code pointed by that object.\n\nCOMP2046 6 / 60Is a Is a CatCat  really a  really a CatCat ??\nDue to inheritance, a super-class variable can be instantiated by the super-\nclass itself or its subclass."
+    },
+    {
+      "heading": "Cat aCat;",
+      "content": "if (ThreadLocalRandom.current().nextBoolean())\n  aCat = new Cat();\nelse\n  aCat = new Lion();\nHow do we know this is just a Cat or it is a Lion?\n\nCOMP2046 7 / 60The instanceof Operator The instanceof Operator\nJava provides the instanceof  operator, for example:\nif (aCat instanceof  Cat) { \n    System.out.println( \"Yes!  It is a Cat!\" ); \n} \nAll subclass object is an instance of the superclass\nA superclass object may not be an instance of the subclass\nNote: If the object is null, instanceof  will return false\n\nCOMP2046 8 / 60The instanceof Operator The instanceof Operator\nanAnimal instanceof Animal == true\nanAnimal instanceof Cat == false\naCat instanceof Animal == true\naCat instanceof Cat == true\naCat instanceof Lion == false\naDog instanceof Cat == false\n\nCOMP2046 9 / 60Access Modifiers Access Modifiers\nAccess Modifiers specify what classes “see” or “know about”\nwhich methods or instance variables of other classes can you access"
+    },
+    {
+      "heading": "AKA “visibility modifiers”",
+      "content": "Members of a class can be any one of the four levels of visibility:\nprivate – never\npublic – always\nprotected – yes for subclass & same package (not for others)\ndefault (package) – yes for same package (not for subclass or others)"
+    },
+    {
+      "heading": "COMP2046 10 / 60private private",
+      "content": "private classes: only inner class can be declared as private\nprivate methods:\ninvisible to all other classes\nnever inherited by subclasses\nnever used outside of the class, often called implementation or helper methods\nbecause they are written for convenience and code reuse\nprivate instance variables:\nsame visibility as private methods\ngenerally, should make all instance variables private\nprivate instance variables are pseudo-inherited – the subclass inherits them but\ncannot access them directly\nsubclass benefits by using superclass’s methods that do have access to all instance\nvariables declared at that level in the hierarchy\nsuperclass can provide getters and/or setters to give access to its private instance\nvariables"
+    },
+    {
+      "heading": "COMP2046 11 / 60protected protected",
+      "content": "protected classes: only inner classes can be declared protected\nprotected methods:\nare strictly visible to:\nall classes (including subclasses) in same package\nprotected instance variables:\nsame visibility as protected methods\nprotected instance variables are visible to:\nall classes (including subclasses) in the same package\navoid using protected instance variables, except when you want to give subclasses\ndirect access\nprotected members are inherited to subclasses.\nSubclass has its own copy of the protected methods/variables."
+    },
+    {
+      "heading": "COMP2046 12 / 60protected protected",
+      "content": "public class Base\n{\n  private int pri;\n  protected  int pro;\n  public int pub;  \n  protected  void display(){\n        System.out.println( \"in Base\" );\n  }\n}\npublic class Derived extends Base {\n  public void showMe(){\n    System.out.println(pub); //my pub ok\n    System.out.println(pro); //my pro ok\n    System.out.println(pri); //Error! does not inherit pri \n    display(); //my display, ok\n  }\n}"
+    },
+    {
+      "heading": "COMP2046 13 / 60protected protected",
+      "content": "public class Base\n{\n  private int pri;\n  protected  int pro;\n  public int pub;  \n  protected  void display(){\n        System.out.println( \"in Base\" );\n  }\n}\npublic class Derived extends Base {\n  public void showParent (Base b) {\n    System.out.println(b.pub); //Base's public ok\n    System.out.println(b.pro); //We are in the same package, it is ok.\n    System.out.println(b.pri); //Error! It is Base's private, not yours!\n    b.display(); //my display, ok\n  }\n}\n\nCOMP2046 14 / 60protected but different package protected but different package\npackage A\npublic class Base\n{\n  private int pri;\n  protected  int pro;\n  public int pub;  \n  protected  void display(){\n        System.out.println( \"in Base\" );\n  }\n}\npackage B\npublic class Derived extends A.Base {\n  public void showMe(){\n    System.out.println(pub); //my pub ok\n    System.out.println(pro); //my pro ok\n    System.out.println(pri); //Error! private is not accessible\n    display(); //my display, ok\n  }\n}\n\nCOMP2046 15 / 60protected but different package - Optional protected but different package - Optional\npackage A\npublic class Base\n{\n  private int pri;\n  protected  int pro;\n  public int pub;  \n  protected  void display(){\n        System.out.println( \"in Base\" );\n  }\n}\npackage B\npublic class Derived extends A.Base {\n  public void showParent (Base b) {\n    System.out.println(b.pub); //Base's public ok\n    System.out.println(b.pro); //Error! It is Base's protected. \n                               //Forbidden if not same package\n    System.out.println(b.pri); //Error! It is Base's private, not yours!\n    b.display(); //Error! It is Base's protected\n  }"
+    },
+    {
+      "heading": "COMP2046 16 / 60public public",
+      "content": "The public modifier means things are visible to all other classes\npublic classes:\nvisible to everybody\ngood for reusing existing code\npublic classes generally go in their own file and file must have the same name as the\nclass\ngenerally, make every class public\nexception is implementation or helper classes which you would never want other\npackages to know about and would never want to reuse – these are internal. We\nwill see some of this later.\npublic methods:\nvisible to everybody\ninherited by subclasses\nexception is implementation or helper methods which you are writing for\nconvenience and code reuse only within the class\n\nCOMP2046 17 / 60Access Controls and Modifiers Access Controls and Modifiers"
+    },
+    {
+      "heading": "The following table shows where",
+      "content": "the members (capabilities or\nproperties) of the Alpha class are\nvisible for each of the access\nmodifiers that can be applied to\nthem"
+    },
+    {
+      "heading": "Modifier AlphaBetaAlphaSub Gamma",
+      "content": "public\nprotected\nno modifier\nprivate\n\nCOMP2046 18 / 60Access Controls and Modifiers Access Controls and Modifiers\nIn general, the following table shows where the members (capabilities or\nproperties) of a class are visible for each of the access modifiers that can be\napplied to them\nModifier The Class ItselfIts PackageIts SubclassIts Superclass\npublic\nprotected\nno modifier\nprivate\n\nCOMP2046 19 / 60Visibility and Inheritance Visibility and Inheritance\nNote: Visibility of inherited methods can be widen, but not narrowed"
+    },
+    {
+      "heading": "2. A protected  method in the superclass, a subclass can only override it as",
+      "content": "public  or as protected , but cannot be overridden as private\n\nCOMP2046 20 / 60Packages in Java Packages in Java\nFrom the perspective of a class, ClassA , it divides classes in the whole\nexecution environment as four different groups:\nThe class itself (that is, members inside ClassA)"
+    },
+    {
+      "heading": "All the other classes",
+      "content": "COMP2046 21 / 60Packages in Java Packages in Java"
+    },
+    {
+      "heading": "A mechanism to group related Java classes",
+      "content": "When a Java project grows bigger, there could be many Java classes\nBy dividing classes into different packages, it makes it easier to locate classes\nthat you are looking for\nClasses that work closely with each other are usually grouped together\nWith such grouping, related classes can share data/methods easier\n\nCOMP2046 22 / 60Packages in Java Packages in Java"
+    },
+    {
+      "heading": "Packages in Java",
+      "content": "A Java package is like a directory in a file system\nIn fact, on the disk a package is a directory\nAll Java source and class files of classes belonging to the same package are\nlocated in the same directory\n\nCOMP2046 23 / 60Packages in Java Packages in Java"
+    },
+    {
+      "heading": "A package folder has to be created to",
+      "content": "contain all class files of the package"
+    },
+    {
+      "heading": "A package can be in hierarchical, i.e.,",
+      "content": "packageA  > subpackageX , in this case,\nyou need to create a subfolder\nsubpackageX  under packageA .\n\nCOMP2046 24 / 60Packages in Java Packages in Java\n//file: packageA/PackAClass1.java\npackage packageA;\nimport java.util.Scanner;\npublic class PackAClass1  {\n    public int pub = 0;\n    int def = 1;\n    protected  int pro = 2;\n    private int pri = 3;\n    ...\n}\nA source file must be started with the keyword package  which state the name\nof your package."
+    },
+    {
+      "heading": "Each source can only in a single package.",
+      "content": "COMP2046 25 / 60Packages in Java Packages in Java\n//file: Main.java (not under packageA folder!)\npublic class Main {\n  public static void main(String[] arg)  {\n    packageA.PackAClass1 myClass = new packageA.PackAClass1();\n  }\n}\nReferencing to a class that is not in your package deserve a full package name\nreference: packageName.className , for each time you refer it."
+    },
+    {
+      "heading": "COMP2046 26 / 60Import Import",
+      "content": "Alternatively, you can import the class in your source:\n//file: Main.java (not under packageA folder!)\nimport packageA.PackAClass1;\npublic class Main {\n  public static void main(String[] arg)  {\n    PackAClass1 myClass = new PackAClass1();\n  }\n}\nOh we finally explain what is import java.util.Scanner;"
+    },
+    {
+      "heading": "COMP2046 27 / 60Import Import",
+      "content": "If there are many classes you want to import under the same package, use *:\nimport packageA.*;\nBecause some classes under different package will share the same\nname, it is not a good habit to use *.\n\nCOMP2046 28 / 60import static (Optional) import static (Optional)\nimport static  allows us to import static method from some class, e.g. Math\n//without static import\ndouble d = Math.sqrt( 5) + Math.sin( 30);\nimport static java.lang.Math.sqrt;\nimport static java.lang.Math.sin;\ndouble d = sqrt( 5) + sin( 30);\nAgain you can use *. Again it is not a good habit.\nimport static java.lang.Math.*;"
+    },
+    {
+      "heading": "COMP2046 29 / 60Shadowing Shadowing",
+      "content": "public class A {\n  public int var = 5;\n}\npublic class B extends A {\n  public int var = 4; //same name as parent\n}\nThe variable var  created in B shadows its superclass's var .\nWarning! Knowing this behavior does not means you should ever use\nthis."
+    },
+    {
+      "heading": "COMP2046 30 / 60Shadowing Shadowing",
+      "content": "public class A {\n  public int var = 5;\n}\n...\npublic class B extends A {\n  public int var = 4; //same name as parent\n  void method() {\n    System.out.println( var + \" \" + super.var);\n  }\n} //print 4 5\nvar  by default refers to the field defined in subclass. It is a new variable."
+    },
+    {
+      "heading": "COMP2046 31 / 60Shadowing Shadowing",
+      "content": "public class A {\n  public int var = 5;\n  public int getVar() { return var; }\n}\n...\npublic class B extends A {\n  public int var = 4; //same name as parent\n  void method() {\n    System.out.println(getVar());\n  }\n} //print 5\nBecause getVar()  is a method of class A which knows A.var  only. Thus it\nprints 5."
+    },
+    {
+      "heading": "COMP2046 32 / 60Shadowing Shadowing",
+      "content": "public class A {\n  public int var = 5;\n  }\n...\npublic class B extends A {\n  private String var = \"abc\"; //different visibility and type!\n} \nShadowing allows different types of variable because it is a new variable.\nWhy shadowing a variable? Can't find a good reason.\n\nCOMP2046 33 / 60Shadowing Rules Shadowing Rules"
+    },
+    {
+      "heading": "Field of Parents (3)super.x",
+      "content": "If a variable name is defined in local variables or parameter. It shadows Field\nand superclasses' field with the same name.\nIf a variable name is defined in field (without the same local\nvariable/parameter), it shadows superclasses' field.\nTo explicitly reference to the objects field: this.x\nTo explicitly reference to the superclass's field: super.x\n\nCOMP2046 34 / 60Superclass's private variable Superclass's private variable\nclass A {\n   private int x;\n   protected  void getX() { return x;}\n}\nclass B extends A{\n   ...\n}"
+    },
+    {
+      "heading": "Can we write super.getX() in B?",
+      "content": "COMP2046 35 / 60Superclass's private variable Superclass's private variable\nThe private variable is also inherited from parent invisibly.\nThe variable x is also copied in the subclass's memory.\nBut you cannot access it. Not reading it, not writing it directly.\ngetX()  would still work because your superclass can see x. You are using\nsuperclass's getX()  to access x indirectly.\nThe x that the subclass is accessing indirectly, belongs to the subclass.\n\nCOMP2046 36 / 60Superclass's private variable Superclass's private variable\nclass Person {\n  private final String name;\n  Person(String name) { this.name = name;}\n  protected  String getName() {return name; }\n}\nclass Student extends Person {\n  public Student(String name)  {\n    super(name);   //you can't set name in this class \n  }\n  public void talk(Student student)  {\n    System.out.printf( \"Hi %s, my name is %s. \" ,\n      student.getName(), getName()); //can't access parents name directly\n  }\n}\nstudentA.talk(studentB);\n\nCOMP2046 37 / 60Superclass's private variable Superclass's private variable\nclass Person {\n  private final String name;\n  Person(String name) { this.name = name;}\n  protected  String getName() {return name; }\n}\nclass Professor  extends Person {\n  public Professor (String name)  {\n    super(name);   //you can't set name in this class \n  }\n  public String getName() {\n    return \"Dr. \" + super.getName(); //without super is a ill-recursion\n  }\n}\ngetName()  shadows superclass getName() .\nUse super.getName()  to access superclass's version! Will talk more details\n\nCOMP2046 Dr. Kevin Wang 2023/2024Array and ArrayList Array and ArrayList"
+    },
+    {
+      "heading": "COMP2046 39 / 60Review Array Review Array",
+      "content": "public class Container  {\n  private String[] list = new String[ 0];\n  private void resize(int s) {...}\n  public void add(String s)  {...}\n  public int search(String s)  {...}\n  public int size() {...}\n  public String get(int i) {...}\n  public void removeAt (int i) {...}\n  public void remove(String)  {...}\n  public void insertAt (String s, int i) {...}\n  public void add(String[] s)  {...} //add multiple at the same time\n  public void cloneAList (String[] s)  {...}\n} \nSome of the common method you may find with array"
+    },
+    {
+      "heading": "COMP2046 40 / 60Array add Array add",
+      "content": "public void add(String s)  {\n  if (list == null) {\n    list = new String[ 1]; //initialize\n    list[ 0] = s;\n    return;\n  }\n  String[] newList = new String[list.length + 1];\n  for (int i = 0; i < list.length; i++)\n    newList[i] = list[i];\n  newList[list.length] = s;\n  list = newList;\n}\n\nCOMP2046 41 / 60Array search & size & get Array search & size & get\npublic int search(String s)  {\n  for (int i = 0; i < list.length; i++)\n    if (list[i].equals(s))\n      return i;\n  return -1; //return -1 if not found\n}\npublic int size() {\n  return list.length;\n}\npublic String get(int i) {\n  if (i < 0  || i >= list.length) return null;\n  return list[i];\n}"
+    },
+    {
+      "heading": "COMP2046 42 / 60Array resize Array resize",
+      "content": "private void resize(int s) {\n  if (s == list.length) return;\n  if (s < 0)\n    s = 0;\n  String[] newList = new String[s];\n  for (int i = 0; i < Math.min(s, list.length); i++) {\n    newList[i] = list[i];\n  }\n  list = newList;\n}\npublic void removeAt (int index) {\n  if (index < 0 || index >= list.length)\n    return; //invalid index\n  for (int i = index; i < list.length - 1; i++)\n    list[i] = list[i + 1];\n  resize(list.length - 1);\n}\n\nCOMP2046 43 / 60Array add - with resize, remove Array add - with resize, remove\npublic void add(String s)  {\n  int size = list.length;\n  resize(size + 1);\n  list[size] = s;\n}\npublic void remove(String s)  {\n  int index = search(s);\n  removeAt(index); //do nothing if not found\n}\n\nCOMP2046 44 / 60Array insertAt and add list Array insertAt and add list\npublic void insertAt (String s, int pos) {\n  if (pos < 0 || pos > list.length) return;\n  resize(list.length + 1);\n  for (int i = list.length - 1; i > pos; i--)\n    list[i] = list[i - 1];\n  list[pos] = s;\n}\npublic void add(String[] s)  {\n  for (String i : s)\n    add(i);\n}\n\nCOMP2046 45 / 60Array cloneAList Array cloneAList\npublic void cloneAList (String[] a)  {\n    for (int i = 0; i < list.length; i++)\n      a[i] = list[i];\n} \n\nCOMP2046 46 / 60How can it help us? How can it help us?"
+    },
+    {
+      "heading": "Recall your lab8 Programming exercise...",
+      "content": "public class Contact {\n  Container list = new Container();\n  final String  name;\n  public Contact(String name)  { this.name = name; }\n  public Contact(String name, String phone)  {\n    this(name);\n    addPhoneNo(phone);\n  }\n  public void addPhoneNo (String phone)  { list.add(phone); } \n  public String[] getPhoneNos() { \n    String[] s = new String[list.size()]; \n    list.cloneAList(s); return s; \n  }\n  public void deletePhoneNo (String s)  { list.remove(s); }\n  public String toString () { \n    String output = name + \"\\n\";\n    for (int i = 0; i < list.size(); i++) \n      output += \"[\" + i + \"] \" + list.get(i) + \"\\n\";\n    return output;\n  }\n}\n\nCOMP2046 47 / 60Question about this class Question about this class\nQ1. Should I copy it to my assignment/lab/workplace?\nQ2. What if I want to have a list of Contact instead String (like PhoneBook) ? Do I\nneed to rewrite everything?\nNo need. Java has written similar thing for you, and yet more\npowerful!\nNo need. Java has written similar thing for you, and yet more powerful,\nmore generic!"
+    },
+    {
+      "heading": "A data structure provided by Java",
+      "content": "Manages objects/variables of the same type.\n\nCOMP2046 49 / 60Revising ArrayList Revising ArrayList\npublic class ArrayListEx1  { \n    public static void main(String [] args)  { \n       List<Person> aList = new ArrayList<>(); \n \n       System.out.println( \"-------------------\" ); \n       System.out.println( \"0: size: \"  + aList.size()); \n       aList.add( new Person( \"Anna\")); \n       aList.add( new Person( \"Beatrice\" )); \n       aList.add( new Person( \"Cathy\")); \n \n       System.out.println( \"-------------------\" ); \n       System.out.println( \"1: size: \"  + aList.size()); \n       System.out.println( \"   alist.get(0): \"  + aList.get( 0)); \n       System.out.println( \"   alist.get(1): \"  + aList.get( 1)); \n       System.out.println( \"   alist.get(2): \"  + aList.get( 2)); \n    } \n}"
+    },
+    {
+      "heading": "List<Person> aList = new ArrayList<>();",
+      "content": "It declares aList  as a type of List<Person> .\nIt is fulfilled with the subclass of List<Person>  - ArrayList<> .\nAfter this line, you should always treat aList  as a List<Person>  only, not an\nArrayList<>  because of the inheritance behavior!\nThe <> and <person>  will be explained very shortly. Don't worry.\n\nCOMP2046 51 / 60What can an ArrayList do? What can an ArrayList do?\nOr more relevant, what can a List<Person>  do? Because aList  is treated as a"
+    },
+    {
+      "heading": "Person get(int index)",
+      "content": "boolean contains(Person p)\nint indexOf(Person p)\nboolean isEmpty()\nint size()"
+    },
+    {
+      "heading": "Person[]toArray(Person[]",
+      "content": "array)Common Mutator (setter)"
+    },
+    {
+      "heading": "Return",
+      "content": "typeMethod\nboolean add(Person p)\nvoidadd(int index, Person\np)\nvoid clear()"
+    },
+    {
+      "heading": "Person remove(int index)",
+      "content": "boolean remove(Person p)\nvoid sort  with strange syntax\n\nCOMP2046 52 / 60With other type.. With other type..\nWhat if I want to create a list for String instead of Person?\nList<String> stringList = new ArrayList<>();\nThis <> symbol specify the type of content to be stored inside the List .\nThis is about called generic (or template in other languages)\nJust imagine what you need to change in the class Container  if you want to\nmake it works for other type, say Person?\n\nCOMP2046 53 / 60Go to the wrong path - changing Container Go to the wrong path - changing Container"
+    },
+    {
+      "heading": "Container for String",
+      "content": "public class Container  {\n  private void resize(int s) {...}\n  public void add(String s)  {...}\n  public int search(String s)  {...}\n  public int size() {...}\n  public String get(int i) {...}\n  public void removeAt (int i) {...}\n  public void remove(String)  {...}\n  public void insertAt (String s, int i) {...}\n  public void add(String[] s)  {...} \n  public void cloneAList (String[] s)  {...}\n} Container for Person\npublic class Container  {\n  private void resize(int s) {...}\n  public void add(Person s)  {...}\n  public int search(Person s)  {...}\n  public int size() {...}\n  public Person get(int i) {...}\n  public void removeAt (int i) {...}\n  public void remove(Person)  {...}\n  public void insertAt (Person s, int i) {...}\n  public void add(Person[] s)  {...} \n  public void cloneAList (Person[] s)  {...}\n}"
+    },
+    {
+      "heading": "Generic Version of Container",
+      "content": "public class Container <T> {\n  private void resize(int s) {...}\n  public void add(T s) {...}\n  public int search(T s) {...}\n  public int size() {...}\n  public T get(int i) {...}\n  public void removeAt (int i) {...}\n  public void remove(T) {...}\n  public void insertAt (T s, int i) {...}\n  public void add(T[] s) {...} \n  public void cloneAList (T[] s) {...}\n}"
+    },
+    {
+      "heading": "COMP2046 55 / 60Generic Generic",
+      "content": "public class Container <T> {\n   public void add(T[] s) {\n    for (T i : s)\n      add(i);\n  }\n  public void add(T s) {\n    int size = list.length;\n    resize(size + 1);\n    list[size] = s;\n  }\n  ...\n<T>  represent a generic type of class that make the program meaningful.\nfor (T i : s)  - imagine you substitute T by String  or Person !\n\nCOMP2046 56 / 60Generic - instantiate Generic - instantiate\nWhen you instantiate declare your object, you need to specify what T is.\nContainer<Person> personContainer = new Container<Person>(); \nContainer<String> stringContainer = new Container<String>();\nJava is smart enough to infer the type for you during initialization, i.e.\nContainer<Person> personContainer = new Container<>(); \nContainer<String> stringContainer = new Container<>();\n Omit T in the type is not allowed, however\nContainer<> personContainer = new Container<Person>(); //error \nContainer<> stringContainer = new Container<String>(); //error"
+    },
+    {
+      "heading": "COMP2046 57 / 60ListList",
+      "content": "Container example isn't not perfect as we are violate some Java rules in the\nimplementation - creating generic array."
+    },
+    {
+      "heading": "List<Person> aList = new ArrayList<>();",
+      "content": "COMP2046 58 / 60List on primitive type List on primitive type\nList only accept Class  as a type, not primitive type like int , double , float .\nWe use the corresponding Class when primitive data is needed\nList<int> intList  = new ArrayList<>(); //Error! Not allowed!\nList<Integer> intList = new ArrayList<>(); //OK\nSo then when playing with intList, you are expected to supply Integer  object\nand retrieve Integer  object.\n\nCOMP2046 59 / 60Auto boxing and unboxing Auto boxing and unboxing\nAuto Boxing and Unboxing will help you reduce the work\nList<Integer> intList = new ArrayList<>(); \nInteger iObj = new Integer( 5); //construct an object\nintList.add(iObj);\ncan be rewritten as\nList<Integer> intList = new ArrayList<>(); \nintList.add( 5); //auto convert for you"
+    },
+    {
+      "heading": "System.out.println(list.get( 0) * 10);",
+      "content": "COMP2046 60 / 60Auto boxing and unboxing Auto boxing and unboxing\nAutoboxing/unboxing: Automatic conversion between the primitive types and\ntheir corresponding object wrapper classes"
+    },
+    {
+      "heading": "Primitive TypesObject Wrapper Classes",
+      "content": "byte Byte\nshort Short\nint Integer\nlong Long\nfloat Float\ndouble Double\nchar Character\nboolean Boolean"
+    }
+  ]
+}

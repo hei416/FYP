@@ -3,13 +3,21 @@ name: Deploy Frontend to Azure App Service
 on:
   push:
     branches: [main]
-    paths:
-      - 'frontend/src/**'
-      - 'frontend/public/**'
-      - 'frontend/package.json'
-      - 'frontend/server.js'
-      - 'frontend/.env.production'
-      - '.github/workflows/frontend.yml'
+    paths-ignore:
+      - '*.db'
+      - '*.log'
+      - '.DS_Store'
+      - '__pycache__/**'
+      - '*.py'
+      - 'routers/**'
+      - 'services/**'
+      - 'core/**'
+      - 'vectorstore/**'
+      - 'lessons_raw/**'
+      - 'practical_tests/**'
+      - '.VSCodeCounter/**'
+      - 'README.md'
+      - '*.md'
   workflow_dispatch:
 
 jobs:
