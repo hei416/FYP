@@ -38,7 +38,13 @@ echo "[1/3] DB init skipped (lazy initialization)"
 echo "[2/3] Seed skipped (lazy initialization)"
 
 # Start the application — bind to port ASAP so Azure health check passes
-echo "[3/3] Starting gunicorn on port ${PORT:-8000}..."
+echo "[3/3] Testing app import before gunicorn..."
+timeout 30 python -c "from main import app; print('✓ App imported successfully')" || {
+  echo "❌ Failed to import app from main.py"
+  exit 1
+}
+
+echo "[4/4] Starting gunicorn on port ${PORT:-8000}..."
 exec python -m gunicorn main:app \
     --workers 1 \
     --worker-class uvicorn.workers.UvicornWorker \
