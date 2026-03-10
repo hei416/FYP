@@ -121,19 +121,24 @@ async def startup():
     print("="*70)
     
     # ============================================
-    # [0/3] Initialize Database Tables (skip if hangs)
+    # [0/3] Initialize Database Tables (skip if DATABASE_URL not set)
     # ============================================
-    print("\n[0/3] Initializing database tables...")
-    print("-"*70)
-    db_start = time.time()
-    try:
-        Base.metadata.create_all(bind=engine)
-        db_elapsed = time.time() - db_start
-        print(f"✅ Database tables ready ({db_elapsed:.2f}s)")
-    except Exception as e:
-        print(f"⚠️ Database init warning (continuing anyway): {e}")
-        import traceback
-        traceback.print_exc()
+    database_url = os.getenv("DATABASE_URL", "")
+    if database_url and "sqlite" not in database_url:
+        print("\n[0/3] Database tables: Using external DB (assuming pre-created)")
+        print("-"*70)
+    else:
+        print("\n[0/3] Initializing database tables...")
+        print("-"*70)
+        db_start = time.time()
+        try:
+            Base.metadata.create_all(bind=engine)
+            db_elapsed = time.time() - db_start
+            print(f"✅ Database tables ready ({db_elapsed:.2f}s)")
+        except Exception as e:
+            print(f"⚠️ Database init warning (continuing anyway): {e}")
+            import traceback
+            traceback.print_exc()
     
     # ============================================
     # [1/3] RAG System: Lazy loading enabled

@@ -95,13 +95,6 @@ def parse_document_metadata(content: str):
     return metadata, clean_content
 
 
-
-# In your backend document.py
-
-import re
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
 def extract_chapter_from_book(content: str, filename: str) -> str:
     """Extract specific chapter from Think Java book content"""
     
