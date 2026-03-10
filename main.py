@@ -13,8 +13,7 @@ import routers.rag as rag_router
 from database import engine, Base
 from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion, PracticalTestQuestion
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Note: Database tables will be created during startup, not at module import time
 
 
 
@@ -122,27 +121,38 @@ async def startup():
     print("="*70)
     
     # ============================================
-    # [1/2] RAG System: Lazy loading enabled
+    # [0/3] Initialize Database Tables
     # ============================================
-    print("\n[1/2] RAG System: Lazy loading enabled (loads on first /ragAI request)")
+    print("\n[0/3] Initializing database tables...")
+    print("-"*70)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables ready")
+    except Exception as e:
+        print(f"⚠️ Database init warning: {e}")
+    
+    # ============================================
+    # [1/3] RAG System: Lazy loading enabled
+    # ============================================
+    print("\n[1/3] RAG System: Lazy loading enabled (loads on first /ragAI request)")
     print("-"*70)
     print("⏸️  Skipping RAG init to speed up deployment")
     
     # ============================================
-    # [2/2] Load PDF chunks (if service exists)
+    # [2/3] Load PDF chunks (if service exists)
     # ============================================
     if HAS_PDF_SERVICE:
-        print("\n[2/2] PDF Chunks: Lazy loading enabled (will load on first use)")
+        print("\n[2/3] PDF Chunks: Lazy loading enabled (will load on first use)")
         print("-"*70)
         print("⏸️  Skipping PDF init to speed up deployment")
     else:
-        print("\n[2/2] PDF service not available")
+        print("\n[2/3] PDF service not available")
         PDF_CHUNKS = []
     
     # ============================================
     # Start Background Scheduler (Optional)
     # ============================================
-    print("\nStarting background scheduler...")
+    print("\n[3/3] Starting background scheduler...")
     try:
         scheduler = BackgroundScheduler()
         scheduler.add_job(refresh_knowledge_base, 'interval', hours=24)
