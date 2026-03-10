@@ -39,30 +39,40 @@ echo "DATABASE_URL: $DATABASE_URL"
 # Run DB migrations / create tables (idempotent)
 echo "[1/3] Initialising database..."
 python -c "
-from database import engine, Base
-from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion
-Base.metadata.create_all(bind=engine)
-print('  DB tables ready.')
-" || echo "WARNING: DB init failed, continuing..."
+import sys
+try:
+    from database import engine, Base
+    from db_models import User, UserProgress, QuizAttempt, TestAttempt, QuizQuestion
+    Base.metadata.create_all(bind=engine)
+    print('  DB tables ready.')
+except Exception as e:
+    print(f'  ERROR: DB init failed: {e}', file=sys.stderr)
+    sys.exit(1)
+" || { echo "ERROR: Database initialization failed!"; exit 1; }
 
 # Seed the test account if it does not exist
 echo "[2/3] Seeding test account (if missing)..."
 python -c "
+import sys
 import os
 os.environ.setdefault('DATABASE_URL', 'sqlite:////home/learning_platform.db')
-import bcrypt
-from database import SessionLocal
-from db_models import User
-db = SessionLocal()
-if not db.query(User).filter(User.email=='test@test.com').first():
-    pwd = bcrypt.hashpw('test1234'.encode(), bcrypt.gensalt()).decode()
-    db.add(User(email='test@test.com', password_hash=pwd, full_name='Test User'))
-    db.commit()
-    print('  Test account created.')
-else:
-    print('  Test account already exists.')
-db.close()
-" || echo "WARNING: Seed failed, continuing..."
+try:
+    import bcrypt
+    from database import SessionLocal
+    from db_models import User
+    db = SessionLocal()
+    if not db.query(User).filter(User.email=='test@test.com').first():
+        pwd = bcrypt.hashpw('test1234'.encode(), bcrypt.gensalt()).decode()
+        db.add(User(email='test@test.com', password_hash=pwd, full_name='Test User'))
+        db.commit()
+        print('  Test account created.')
+    else:
+        print('  Test account already exists.')
+    db.close()
+except Exception as e:
+    print(f'  ERROR: Seed failed: {e}', file=sys.stderr)
+    sys.exit(1)
+" || { echo "ERROR: Seed initialization failed!"; exit 1; }
 
 # Start the application
 echo "[3/3] Starting gunicorn on port ${PORT:-8000}..."
