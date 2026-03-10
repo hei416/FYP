@@ -9,97 +9,13 @@ import httpx
 import json
 import time
 import asyncio
-import hashlib
 import random
 from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel
+from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
 
 router = APIRouter()
-
-# Mapping from subtopic IDs to main topic names (MUST match TOPIC_GROUPS in Frontend)
-SUBTOPIC_TO_MAIN_TOPIC = {
-    # Bridging from Python
-    "python_syntax": "Bridging from Python",
-    "python_types": "Bridging from Python",
-    "python_compilation": "Bridging from Python",
-    "python_structure": "Bridging from Python",
-    # Problem Solving with Java
-    "ps_algorithm": "Problem Solving with Java",
-    "ps_pseudocode": "Problem Solving with Java",
-    "ps_debugging": "Problem Solving with Java",
-    "ps_optimization": "Problem Solving with Java",
-    # String
-    "string_basics": "String",
-    "string_methods": "String",
-    "string_builder": "String",
-    "string_pool": "String",
-    # Array
-    "array_basics": "Array",
-    "array_traversal": "Array",
-    "array_multidim": "Array",
-    "array_utilities": "Array",
-    # Methods
-    "method_declaration": "Methods",
-    "method_params": "Methods",
-    "method_overloading": "Methods",
-    "method_varargs": "Methods",
-    # Exception Handling & File IO
-    "exception_trycatch": "Exception Handling and File IO",
-    "exception_types": "Exception Handling and File IO",
-    "exception_custom": "Exception Handling and File IO",
-    "file_io": "Exception Handling and File IO",
-    # Class Basics
-    "class_declaration": "Class - constructor/attributes/methods",
-    "class_constructor": "Class - constructor/attributes/methods",
-    "class_attributes": "Class - constructor/attributes/methods",
-    "class_methods": "Class - constructor/attributes/methods",
-    "class_this": "Class - constructor/attributes/methods",
-    # Access Modifier/Static
-    "modifier_access": "Class - access modifier/static",
-    "modifier_static_var": "Class - access modifier/static",
-    "modifier_static_method": "Class - access modifier/static",
-    "modifier_static_block": "Class - access modifier/static",
-    "modifier_final": "Class - access modifier/static",
-    # Inheritance
-    "inherit_extends": "Inheritance",
-    "inherit_override": "Inheritance",
-    "inherit_super": "Inheritance",
-    "inherit_chain": "Inheritance",
-    "inherit_types": "Inheritance",
-    # Polymorphism
-    "poly_overload": "Polymorphism",
-    "poly_override": "Polymorphism",
-    "poly_dynamic": "Polymorphism",
-    "poly_casting": "Polymorphism",
-    # Interface & Lambda
-    "interface_basics": "Interface and Lambda expression",
-    "interface_implement": "Interface and Lambda expression",
-    "interface_default": "Interface and Lambda expression",
-    "interface_functional": "Interface and Lambda expression",
-    "lambda_syntax": "Interface and Lambda expression",
-    # Recursion & Revision
-    "recursion_basics": "Recursion and Revision",
-    "recursion_vs_iterative": "Recursion and Revision",
-    "recursion_patterns": "Recursion and Revision",
-    "revision_comprehensive": "Recursion and Revision",
-}
-
-def convert_topic_ids_to_main_topics(topic_identifiers: List[str]) -> List[str]:
-    """
-    Convert subtopic IDs to main topic names.
-    If input is already a main topic name, pass it through.
-    Returns unique main topic names.
-    """
-    main_topics = set()
-    for identifier in topic_identifiers:
-        if identifier in SUBTOPIC_TO_MAIN_TOPIC:
-            # It's a subtopic ID - convert to main topic
-            main_topics.add(SUBTOPIC_TO_MAIN_TOPIC[identifier])
-        else:
-            # Assume it's already a main topic name
-            main_topics.add(identifier)
-    return list(main_topics)
 
 # Global variables
 rag_chain = None
@@ -473,10 +389,6 @@ async def stream_more_questions(req: QuizGenerateRequest):
     )
 
 
-class QuizCountRequest(BaseModel):
-    topics: List[str]
-
-
 class TopicContentRequest(BaseModel):
     topic_id: str
     topic_name: str
@@ -606,14 +518,6 @@ async def batch_generate_topic_content(topics: List[TopicContentRequest]):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Batch generation error: {str(e)}")
-
-
-
-async def quiz_question_count(req: QuizCountRequest):
-    """Return how many questions are stored per topic."""
-    counts = count_questions_by_topic(req.topics)
-    total = sum(counts.values())
-    return {"counts_by_topic": counts, "total": total}
 
 
 # ==================== AI GENERATION HELPER ====================

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Azure App Service startup script for CodeTutor (FastAPI + React)
-# Log everything to /home/startup.log for diagnostics
+# CRITICAL: Azure kills the container if we don't bind to $PORT within ~230s
 exec > >(tee -a /home/startup.log) 2>&1
 
 echo "=========================================="
@@ -27,7 +27,6 @@ else
     echo "Python: $(which python) $(python --version)"
   else
     echo "ERROR: No virtualenv found! Packages may be missing."
-    # Try to use system python with site-packages
     export PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages:$PYTHONPATH"
   fi
 fi
@@ -36,9 +35,9 @@ fi
 export DATABASE_URL="${DATABASE_URL:-sqlite:////home/learning_platform.db}"
 echo "DATABASE_URL: $DATABASE_URL"
 
-# Run DB migrations / create tables (idempotent)
+# Run DB migrations / create tables (with 30s timeout to avoid hanging)
 echo "[1/3] Initialising database..."
-python -c "
+timeout 30 python -c "
 import sys
 try:
     from database import engine, Base
@@ -46,15 +45,13 @@ try:
     Base.metadata.create_all(bind=engine)
     print('  DB tables ready.')
 except Exception as e:
-    print(f'  ERROR: DB init failed: {e}', file=sys.stderr)
-    sys.exit(1)
-" || { echo "ERROR: Database initialization failed!"; exit 1; }
+    print(f'  WARNING: DB init failed: {e}', file=sys.stderr)
+" || echo "WARNING: DB init timed out or failed (continuing anyway)"
 
-# Seed the test account if it does not exist
+# Seed the test account (with 30s timeout)
 echo "[2/3] Seeding test account (if missing)..."
-python -c "
-import sys
-import os
+timeout 30 python -c "
+import sys, os
 os.environ.setdefault('DATABASE_URL', 'sqlite:////home/learning_platform.db')
 try:
     import bcrypt
@@ -70,16 +67,17 @@ try:
         print('  Test account already exists.')
     db.close()
 except Exception as e:
-    print(f'  ERROR: Seed failed: {e}', file=sys.stderr)
-    sys.exit(1)
-" || { echo "ERROR: Seed initialization failed!"; exit 1; }
+    print(f'  WARNING: Seed failed: {e}', file=sys.stderr)
+" || echo "WARNING: Seed timed out or failed (continuing anyway)"
 
-# Start the application
+# Start the application — bind to port ASAP so Azure health check passes
 echo "[3/3] Starting gunicorn on port ${PORT:-8000}..."
 exec gunicorn main:app \
     --workers 1 \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind "0.0.0.0:${PORT:-8000}" \
     --timeout 120 \
+    --graceful-timeout 30 \
     --access-logfile "-" \
-    --error-logfile "-"
+    --error-logfile "-" \
+    --log-level info

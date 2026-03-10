@@ -3,7 +3,6 @@ import json
 import re
 import time
 import random
-import asyncio
 import traceback
 import requests
 import httpx
@@ -11,51 +10,12 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func
 from core.config import BASE_PATH, PAIZA_API_KEY
 from database import SessionLocal
 from db_models import PracticalTestQuestion
+from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, to_main_topic, to_main_topics
 
 router = APIRouter()
-
-# ──────────────────────────────────────────────
-# Topic → main topic name mapping (same as rag.py)
-# ──────────────────────────────────────────────
-SUBTOPIC_TO_MAIN_TOPIC = {
-    "python_syntax": "Bridging from Python", "python_types": "Bridging from Python",
-    "python_compilation": "Bridging from Python", "python_structure": "Bridging from Python",
-    "ps_algorithm": "Problem Solving with Java", "ps_pseudocode": "Problem Solving with Java",
-    "ps_debugging": "Problem Solving with Java", "ps_optimization": "Problem Solving with Java",
-    "string_basics": "String", "string_methods": "String",
-    "string_builder": "String", "string_pool": "String",
-    "array_basics": "Array", "array_traversal": "Array",
-    "array_multidim": "Array", "array_utilities": "Array",
-    "method_declaration": "Methods", "method_params": "Methods",
-    "method_overloading": "Methods", "method_varargs": "Methods",
-    "exception_trycatch": "Exception Handling and File IO", "exception_types": "Exception Handling and File IO",
-    "exception_custom": "Exception Handling and File IO", "file_io": "Exception Handling and File IO",
-    "class_declaration": "Class - constructor/attributes/methods", "class_constructor": "Class - constructor/attributes/methods",
-    "class_attributes": "Class - constructor/attributes/methods", "class_methods": "Class - constructor/attributes/methods",
-    "class_this": "Class - constructor/attributes/methods",
-    "modifier_access": "Class - access modifier/static", "modifier_static_var": "Class - access modifier/static",
-    "modifier_static_method": "Class - access modifier/static", "modifier_static_block": "Class - access modifier/static",
-    "modifier_final": "Class - access modifier/static",
-    "inherit_extends": "Inheritance", "inherit_override": "Inheritance",
-    "inherit_super": "Inheritance", "inherit_chain": "Inheritance", "inherit_types": "Inheritance",
-    "poly_overload": "Polymorphism", "poly_override": "Polymorphism",
-    "poly_dynamic": "Polymorphism", "poly_casting": "Polymorphism",
-    "interface_basics": "Interface and Lambda expression", "interface_implement": "Interface and Lambda expression",
-    "interface_default": "Interface and Lambda expression", "interface_functional": "Interface and Lambda expression",
-    "lambda_syntax": "Interface and Lambda expression",
-    "recursion_basics": "Recursion and Revision", "recursion_vs_iterative": "Recursion and Revision",
-    "recursion_patterns": "Recursion and Revision", "revision_comprehensive": "Recursion and Revision",
-}
-
-def to_main_topic(topic_id: str) -> str:
-    return SUBTOPIC_TO_MAIN_TOPIC.get(topic_id, topic_id)
-
-def to_main_topics(topic_ids: List[str]) -> List[str]:
-    return list({to_main_topic(t) for t in topic_ids})
 
 # ──────────────────────────────────────────────
 # LLM helper (mirrors rag.py's call_llm_json)

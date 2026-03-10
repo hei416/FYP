@@ -41,4 +41,3 @@ CHUNK_OVERLAP = 150
 K_DOCUMENTS = 3          # Number of documents to retrieve
 FETCH_K = 15            # Candidate pool for MMR
 LAMBDA_MULT = 0.7       # MMR diversity (0.7 = 70% relevance, 30% diversity)
-}

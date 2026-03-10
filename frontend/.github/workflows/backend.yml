@@ -74,13 +74,11 @@ jobs:
             --resource-group codetutor-rg \
             --src-path deploy.zip \
             --type zip \
-            --async true
+            --timeout 600
 
-      # ── Wait for Oryx build + restart ────────────────────────────
-      - name: Wait and restart app
+      # ── Restart after deploy to pick up new startup.sh ───────────
+      - name: Restart app
         run: |
-          echo "Waiting 300s for Oryx pip install to complete..."
-          sleep 300
           az webapp restart \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg
