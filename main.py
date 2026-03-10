@@ -125,9 +125,11 @@ async def startup():
     # ============================================
     print("\n[0/3] Initializing database tables...")
     print("-"*70)
+    db_start = time.time()
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ Database tables ready")
+        db_elapsed = time.time() - db_start
+        print(f"✅ Database tables ready ({db_elapsed:.2f}s)")
     except Exception as e:
         print(f"⚠️ Database init warning: {e}")
     
@@ -285,18 +287,8 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Health check with system status"""
-    return {
-        "status": "healthy",
-        "rag_initialized": hasattr(rag_router, 'rag_chain') and rag_router.rag_chain is not None,
-        "pdf_chunks": len(PDF_CHUNKS) if PDF_CHUNKS else 0,
-        "model": "qwen3-max",
-        "performance": {
-            "nli_faithfulness": "97.62%",
-            "semantic_similarity": "80.78%",
-            "context_recall": "74.21%"
-        }
-    }
+    """Instant health check - used by Azure load balancer"""
+    return {"status": "ok"}
 
 
 @app.middleware("http")
