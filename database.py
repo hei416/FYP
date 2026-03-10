@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./learning_platform.db")
 
 # Lazy-load engine on first use to avoid connection timeouts at import time
 _engine = None
-_SessionLocal = None
+_session_local = None
 
 def get_engine():
     """Lazily create and return the database engine"""
@@ -25,38 +25,26 @@ def get_engine():
     return _engine
 
 def get_session_local():
-    """Lazily create and return the session factory"""
-    global _SessionLocal
-    if _SessionLocal is None:
-        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
-    return _SessionLocal
+    """Lazily create and return the session factory callable"""
+    global _session_local
+    if _session_local is None:
+        _session_local = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return _session_local
 
-# For backward compatibility, create properties that call the lazy loaders
-@property
-def engine():
-    return get_engine()
+# Proxy class for lazy SessionLocal access - maintains backward compatibility
+class LazySessionLocal:
+    """Callable proxy that returns a session on each call, lazily initializing the sessionmaker"""
+    def __call__(self):
+        return get_session_local()()
 
-@property  
-def SessionLocal():
-    return get_session_local()
-
-# Expose engine and SessionLocal as module attributes
-engine = None  # Will be set lazily
-
-def _lazy_engine():
-    global engine
-    if engine is None:
-        engine = get_engine()
-    return engine
-
-# Create a custom class to handle lazy loading
+# Proxy object for lazy engine access
 class LazyEngine:
     def __getattr__(self, name):
-        return getattr(_lazy_engine(), name)
+        return getattr(get_engine(), name)
 
+# Module-level exports for backward compatibility
 engine = LazyEngine()
-
-SessionLocal = get_session_local
+SessionLocal = LazySessionLocal()  # Callable that returns sessions
 
 # Base for models
 Base = declarative_base()

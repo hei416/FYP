@@ -7,7 +7,7 @@ import re
 from fastapi.responses import HTMLResponse
 import requests
 from bs4 import BeautifulSoup
-import trafilatura
+# DEFERRED: import trafilatura  # Import only when needed to avoid startup delay
 from urllib.parse import urljoin, urlparse
 
 router = APIRouter()
@@ -307,6 +307,9 @@ async def proxy_webpage(url: str):
     """Extract clean content and rewrite links to go through proxy"""
     
     try:
+        # Lazy import trafilatura only when needed
+        import trafilatura
+        
         # Fetch webpage
         response = requests.get(url, headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
