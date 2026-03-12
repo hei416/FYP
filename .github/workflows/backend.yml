@@ -24,13 +24,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Azure login via service principal ────────────────────────
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # ── Configure startup command (runs before Oryx build) ──────────
       - name: Set startup file
         run: |
           az webapp config set \
@@ -38,18 +36,23 @@ jobs:
             --resource-group codetutor-rg \
             --startup-file startup.sh
 
-      # ── Enable Oryx so Azure runs pip install on the server ───────
       - name: Enable Oryx build
         run: |
           az webapp config appsettings set \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true SCM_NO_BUILD_CACHE=true WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
+            --settings \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
+              ENABLE_ORYX_BUILD=true \
+              SCM_NO_BUILD_CACHE=true \
+              WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}"
 
-      # ── Package only source files (~10MB, no venv/node_modules) ──
       - name: Create deployment zip
         run: |
+          # Remove stale local packages before zipping — these conflict with Oryx's antenv
+          rm -rf .python_packages
+
           zip -r deploy.zip . \
             --exclude "*.db" \
             --exclude "*/__pycache__/*" \
@@ -66,14 +69,9 @@ jobs:
             --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      # ── Wait for management operations to complete (avoid SCM conflict) ──
       - name: Wait before deployment
         run: sleep 30
 
-      # ── Deploy via Azure CLI (async — upload zip; Oryx builds on server) ─
-      # continue-on-error: true because the CLI may still exit non-zero even
-      # when Azure actually succeeds (false-negative on slow cold starts).
-      # The real gate is the /health polling step below.
       - name: Deploy to Azure Web App
         continue-on-error: true
         run: |
@@ -85,10 +83,6 @@ jobs:
             --async true
           echo "Deployment zip uploaded — Oryx build running on Azure server."
 
-      # ── Wait for Oryx build (~130s) then poll /health ────────────
-      # DO NOT call "az webapp restart" here — the deployment already
-      # triggers a restart.  A second restart mid-build causes the worker
-      # process failure that was blocking the pipeline.
       - name: Wait for build then poll health
         run: |
           echo "Waiting 3 min for Oryx server-side build to complete..."

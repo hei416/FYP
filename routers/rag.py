@@ -14,6 +14,7 @@ from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
+from services.conversation_manager import ConversationManager
 
 router = APIRouter()
 
@@ -25,6 +26,8 @@ class ExplainRequest(BaseModel):
     user_input: str
     code_snippet: str = ""
     history: List[Dict[str, Any]] = []
+    user_id: Optional[int] = None  # For conversation tracking
+    conversation_id: Optional[str] = None  # For conversation tracking
 
 class DocumentRequest(BaseModel):
     source_file: str
@@ -762,6 +765,23 @@ async def rag_ai(req: ExplainRequest):
 
         print(f"[RAG] Processing: {query[:50]}...")
         start_time = datetime.now()
+        
+        # Initialize conversation manager if user_id provided
+        conversation_manager = None
+        if req.user_id:
+            conversation_manager = ConversationManager()
+            
+            # If no conversation_id, create one
+            if not req.conversation_id:
+                req.conversation_id = conversation_manager.create_conversation_id(req.user_id)
+                print(f"📌 Created new conversation: {req.conversation_id}")
+            
+            # Get conversation context for LLM
+            conv_context = conversation_manager.get_context_for_llm(req.user_id, req.conversation_id)
+            if conv_context:
+                query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
+                print(f"📚 Added {len(conv_context)} chars of conversation context")
+        
         final_answer = rag_chain.invoke(query)
         docs = retriever.invoke(query)
         pdf_matches = [
@@ -773,8 +793,27 @@ async def rag_ai(req: ExplainRequest):
             for doc in docs[:3]
         ]
         elapsed = (datetime.now() - start_time).total_seconds()
+        
+        # Save conversation turn if tracking is enabled
+        if conversation_manager and req.user_id and req.conversation_id:
+            try:
+                conversation_manager.save_turn(
+                    user_id=req.user_id,
+                    conversation_id=req.conversation_id,
+                    user_message=req.user_input,
+                    assistant_response=final_answer,
+                    context_type="explain",
+                    code_snippet=req.code_snippet if req.code_snippet else None,
+                    input_tokens=len(query.split()),
+                    output_tokens=len(final_answer.split()),
+                )
+                print(f"✅ Saved conversation turn for user {req.user_id}")
+            except Exception as e:
+                print(f"⚠️ Failed to save conversation: {e}")
+        
         return {
             "final_answer": final_answer,
+            "conversation_id": req.conversation_id,
             "debug_log": {
                 "query": query[:100],
                 "timestamp": datetime.now().isoformat(),
@@ -1145,3 +1184,155 @@ async def rag_health():
             "avg_response_time": "6.73s"
         }
     }
+
+
+# ==================== CONVERSATION HISTORY MANAGEMENT ====================
+
+class ConversationHistoryRequest(BaseModel):
+    user_id: int
+    conversation_id: str
+    limit: int = 20
+
+
+class ConversationStatsRequest(BaseModel):
+    user_id: int
+    conversation_id: Optional[str] = None
+
+
+class ClearConversationsRequest(BaseModel):
+    user_id: int
+    days: int = 30
+
+
+@router.post("/api/conversations/history")
+async def get_conversation_history(req: ConversationHistoryRequest):
+    """Retrieve full conversation history including summaries of old turns"""
+    try:
+        manager = ConversationManager()
+        history = manager.get_conversation_history(
+            user_id=req.user_id,
+            conversation_id=req.conversation_id,
+            limit=req.limit,
+        )
+        
+        return {
+            "conversation_id": req.conversation_id,
+            "turns": len([m for m in history if m["role"] != "system"]),
+            "summaries": len([m for m in history if m["role"] == "system"]),
+            "history": history,
+            "total_messages": len(history),
+        }
+    except Exception as e:
+        print(f"❌ Error retrieving history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve history: {str(e)}")
+
+
+@router.post("/api/conversations/stats")
+async def get_conversation_stats(req: ConversationStatsRequest):
+    """Get statistics about token usage and conversation metrics"""
+    try:
+        manager = ConversationManager()
+        stats = manager.get_conversation_stats(
+            user_id=req.user_id,
+            conversation_id=req.conversation_id,
+        )
+        
+        return {
+            "stats": stats,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+
+@router.post("/api/conversations/create")
+async def create_conversation(req: BaseModel):
+    """Create a new conversation session for a user"""
+    try:
+        class CreateConvRequest(BaseModel):
+            user_id: int
+        
+        req_data = await req.__root__
+        user_id = req_data.get("user_id")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        manager = ConversationManager()
+        conversation_id = manager.create_conversation_id(user_id)
+        
+        return {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "created_at": datetime.now().isoformat(),
+            "status": "ready",
+        }
+    except Exception as e:
+        print(f"❌ Error creating conversation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create conversation: {str(e)}")
+
+
+@router.post("/api/conversations/clear")
+async def clear_old_conversations(req: ClearConversationsRequest):
+    """Delete conversations older than specified number of days"""
+    try:
+        manager = ConversationManager()
+        deleted_turns = manager.clear_old_conversations(
+            user_id=req.user_id,
+            days=req.days,
+        )
+        
+        return {
+            "user_id": req.user_id,
+            "days_threshold": req.days,
+            "deleted_turns": deleted_turns,
+            "cleared_at": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        print(f"❌ Error clearing conversations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear conversations: {str(e)}")
+
+
+@router.get("/api/conversations/{user_id}/list")
+async def list_conversations(user_id: int):
+    """List all conversations for a user with their stats"""
+    try:
+        manager = ConversationManager()
+        db = SessionLocal()
+        
+        from db_models import ConversationHistory
+        
+        conversations = db.query(
+            ConversationHistory.conversation_id,
+            func.count(ConversationHistory.id).label("turns"),
+            func.max(ConversationHistory.created_at).label("last_updated"),
+            func.sum(
+                ConversationHistory.input_tokens + ConversationHistory.output_tokens
+            ).label("total_tokens"),
+        ).filter(
+            ConversationHistory.user_id == user_id
+        ).group_by(
+            ConversationHistory.conversation_id
+        ).order_by(
+            func.max(ConversationHistory.created_at).desc()
+        ).all()
+        
+        db.close()
+        
+        return {
+            "user_id": user_id,
+            "total_conversations": len(conversations),
+            "conversations": [
+                {
+                    "conversation_id": conv[0],
+                    "turns": conv[1],
+                    "last_updated": conv[2].isoformat() if conv[2] else None,
+                    "total_tokens": conv[3] or 0,
+                }
+                for conv in conversations
+            ],
+        }
+    except Exception as e:
+        print(f"❌ Error listing conversations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list conversations: {str(e)}")

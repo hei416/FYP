@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from core.config import BASE_PATH, PAIZA_API_KEY
+from core.config import PAIZA_API_KEY
 
 try:
     from database import SessionLocal
@@ -481,26 +481,6 @@ def _build_smart_run_app(base_methods: dict) -> str:
     return "\n".join(lines)
 
 
-@router.post("/evaluate")
-def evaluate(req: CodeRequest):
-    """Evaluate student code against a file-based question."""
-    qfile = os.path.join(BASE_PATH, req.question_id)
-    if not os.path.exists(qfile):
-        raise HTTPException(status_code=404, detail="Question not found.")
-    with open(qfile, "r", encoding="utf-8") as f:
-        question_data = json.load(f)
-
-    base_class_name = question_data["baseCode"]["class"]
-    user_code = req.code_files.get(base_class_name)
-    if not user_code:
-        raise HTTPException(status_code=400, detail="No code provided for base class.")
-
-    class_name, class_body = _extract_student_methods(user_code)
-    helper_classes = _extract_helper_classes(user_code)
-    run_app_method = _build_run_app_method(question_data["solution"]["methods"].get("runApp", []))
-    return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes)
-
-
 @router.post("/evaluate-ai")
 def evaluate_ai(req: AiCodeRequest):
     """Evaluate student code against an AI-generated question stored in DB."""
@@ -524,29 +504,6 @@ def evaluate_ai(req: AiCodeRequest):
 
 
 # ──────────────────────────────────────────────
-# Static file-based question endpoints (unchanged)
+# All questions are now AI-generated and stored in DB
+# Static file-based endpoints have been removed
 # ──────────────────────────────────────────────
-@router.get("/questions")
-def list_questions():
-    if not os.path.exists(BASE_PATH):
-        return []
-    return [f for f in os.listdir(BASE_PATH) if f.endswith(".json")]
-
-@router.get("/question/{question_id}")
-def get_question(question_id: str):
-    if ".." in question_id or "/" in question_id:
-        raise HTTPException(status_code=400, detail="Invalid question ID.")
-    file_path = os.path.join(BASE_PATH, question_id)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Question not found.")
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-@router.get("/questions/{set_id}")
-def list_questions_by_set(set_id: str):
-    if ".." in set_id or "/" in set_id:
-        raise HTTPException(status_code=400, detail="Invalid set ID.")
-    set_path = os.path.join("/Users/hei/IdeaProjects/fyp/practical_tests", set_id, "questions")
-    if not os.path.isdir(set_path):
-        return []
-    return [f for f in os.listdir(set_path) if f.endswith(".json")]
