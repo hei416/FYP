@@ -31,11 +31,12 @@ try:
     from routers import auth
     from routers import progress
     import routers.rag as rag_router
+    ROUTERS_IMPORTED = True
 except Exception as e:
     # If routers fail to import, log it but continue
     print(f"ERROR importing routers: {e}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
-    rag = None  # Set to None so we can check later
+    ROUTERS_IMPORTED = False
 
 # Lazy loading: RAG system loads on first request, not during startup
 RAG_INITIALIZED = False
@@ -130,8 +131,8 @@ async def startup():
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")
 
-# Include routers - simple, no error handling bloat
-if rag:
+# Include routers - always try to include them regardless of RAG import status
+if ROUTERS_IMPORTED:
     try:
         app.include_router(auth.router, tags=["Auth"])
         app.include_router(progress.router, tags=["Progress"])
@@ -143,6 +144,8 @@ if rag:
     except Exception as e:
         print(f"ERROR including routers: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+else:
+    print("⚠️ WARNING: Routers failed to import - API endpoints will not be available")
 
 @app.get("/", tags=["Health"])
 async def root():
