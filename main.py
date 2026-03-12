@@ -1,3 +1,7 @@
+@app.get("/test-alive", tags=["Debug"])
+async def test_alive():
+    """Simple endpoint to verify backend reachability."""
+    return {"status": "alive", "message": "Backend is reachable and custom endpoint is working."}
 import traceback
 import time
 import asyncio
@@ -13,6 +17,7 @@ from fastapi.responses import JSONResponse
 app = FastAPI(title="Java Learning Platform - NLI-Verified RAG")
 
 # Add CORS middleware immediately
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,6 +25,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# --- Test endpoint for diagnostics ---
+@app.get("/test-alive", tags=["Debug"])
+async def test_alive():
+    """Simple endpoint to verify backend reachability."""
+    return {"status": "alive", "message": "Backend is reachable and custom endpoint is working."}
 
 # Import routers AFTER app is created - wrap in try-catch
 print("\n🔧 IMPORTING ROUTERS...")
