@@ -18,9 +18,28 @@ from services.conversation_manager import ConversationManager
 
 router = APIRouter()
 
+
 # Global variables
 rag_chain = None
 retriever = None
+
+async def get_retriever():
+    """Single source of truth for retriever access across all endpoints."""
+    global retriever
+    from main import ensure_rag_initialized
+    await ensure_rag_initialized()
+    if retriever is None:
+        raise HTTPException(status_code=503, detail="RAG system unavailable")
+    return retriever
+
+async def get_rag_chain():
+    """Single source of truth for rag_chain access."""
+    global rag_chain
+    from main import ensure_rag_initialized
+    await ensure_rag_initialized()
+    if rag_chain is None:
+        raise HTTPException(status_code=503, detail="RAG chain unavailable")
+    return rag_chain
 
 class ExplainRequest(BaseModel):
     user_input: str
@@ -881,13 +900,10 @@ Keep feedback constructive and educational."""
 @router.post("/api/hints/generate")
 async def generate_progressive_hint(req: HintRequest):
     try:
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
-
+        ret = await get_retriever()
         print(f"[Hints] Generating {req.hint_level} hint...")
         start_time = datetime.now()
-        relevant_docs = retriever.invoke(f"Java {req.problem_description}")
+        relevant_docs = ret.invoke(f"Java {req.problem_description}")
         context_snippets = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:500]}"
             for i, doc in enumerate(relevant_docs[:2])
