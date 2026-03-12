@@ -37,8 +37,16 @@ echo "DATABASE_URL type: ${DATABASE_URL%%:*}"
 echo "[1/3] DB init skipped (lazy initialization)"
 echo "[2/3] Seed skipped (lazy initialization)"
 
+# Install Java (required for Java code execution)
+echo "[3/3] Installing Java..."
+apt-get update -qq && apt-get install -y -qq default-jdk > /dev/null 2>&1 || {
+  echo "⚠️  WARNING: Java installation failed - attempting alternative..."
+  apt-get install -y -qq openjdk-11-jdk > /dev/null 2>&1 || echo "⚠️  Java installation skipped"
+}
+javac -version 2>/dev/null && echo "✓ Java installed" || echo "⚠️  Java not available"
+
 # Start the application — bind to port ASAP so Azure health check passes
-echo "[3/3] Testing app import before gunicorn (non-fatal, 90s timeout)..."
+echo "[4/4] Testing app import before gunicorn (non-fatal, 90s timeout)..."
 timeout 90 python -c "from main import app; print('✓ App imported successfully')" || {
   echo "⚠️  WARNING: App import test timed out or failed - proceeding to gunicorn anyway"
   echo "   (This is normal on Azure cold start with heavy packages like langchain/faiss/scipy)"
