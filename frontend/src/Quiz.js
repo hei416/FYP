@@ -52,18 +52,6 @@ export default function Quiz() {
     const [lastTopics, setLastTopics] = useState([]);
 
     const tracker = useMemo(() => new ProgressTracker(), []);
-    const quizTrackedRef = useRef(false);
-
-    // Track quiz completion with score when quiz finishes
-    useEffect(() => {
-        if (completed && !quizTrackedRef.current && filteredQuestions.length > 0) {
-            quizTrackedRef.current = true;
-            const scorePercent = Math.round((score / filteredQuestions.length) * 100);
-            tracker.markQuizCompleted(`quiz_${Date.now()}`, scorePercent);
-            window.dispatchEvent(new Event('progress-updated'));
-        }
-        if (!completed) quizTrackedRef.current = false;
-    }, [completed]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const location = useLocation();
 
@@ -535,7 +523,7 @@ export default function Quiz() {
                                         style={{
                                             ...btn.warning,
                                             ...btn.small,
-                                            marginTop: 4,
+                                            marginTop: spacing.xs ?? 4,
                                         }}
                                     >
                                         {isExplainOpen ? "🙈 Hide Explanation" : "💡 Explain"}

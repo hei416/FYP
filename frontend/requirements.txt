@@ -34,7 +34,7 @@ langsmith==0.7.5
 marshmallow==3.26.2
 multidict==6.7.1
 mypy-extensions==1.1.0
-numpy==2.3.2
+numpy==1.26.4
 openai==2.21.0
 orjson==3.11.7
 ormsgpack==1.12.2
@@ -70,6 +70,7 @@ typing-inspection==0.4.1
 typing-inspect==0.9.0
 tzlocal==5.3.1
 urllib3==2.5.0
+beautifulsoup4==4.13.4
 gunicorn==23.0.0
 uvicorn==0.35.0
 httptools==0.6.4

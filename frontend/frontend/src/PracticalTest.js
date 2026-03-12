@@ -89,6 +89,20 @@ export default function PracticalTest() {
     const [testResults, setTestResults] = useState(null);
 
     const tracker = useRef(new ProgressTracker()).current;
+    const testTrackedRef = useRef(null);
+
+    // Track test score when grading results arrive (once per question+result pair)
+    useEffect(() => {
+        if (gradingResults?.total_score !== undefined) {
+            const key = `${questionDbId}_${gradingResults.total_score}`;
+            if (testTrackedRef.current !== key) {
+                testTrackedRef.current = key;
+                const testId = `test_${questionDbId || 'unknown'}_${Date.now()}`;
+                tracker.markTestPassed(testId, gradingResults.total_score);
+                window.dispatchEvent(new Event('progress-updated'));
+            }
+        }
+    }, [gradingResults]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // timer
     useEffect(() => {
@@ -216,6 +230,10 @@ export default function PracticalTest() {
             setTestResults(results);
             if (failed.length === 0) {
                 setResult(`✅ All tests passed! Your solution is correct.\n\nYour Output:\n${actualOutput}`);
+                // Immediately mark test as passed when all output matches (100% score)
+                const testId = `test_${questionDbId || 'unknown'}_${Date.now()}`;
+                tracker.markTestPassed(testId, 100);
+                window.dispatchEvent(new Event('progress-updated'));
             } else {
                 const lines = ["❌ Tests failed - Output does not match expected:\n"];
                 for (let i = 0; i < maxLines; i++) {

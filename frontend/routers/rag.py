@@ -9,106 +9,44 @@ import httpx
 import json
 import time
 import asyncio
-import hashlib
 import random
 from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel
+from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
+from services.conversation_manager import ConversationManager
 
 router = APIRouter()
 
-# Mapping from subtopic IDs to main topic names (MUST match TOPIC_GROUPS in Frontend)
-SUBTOPIC_TO_MAIN_TOPIC = {
-    # Bridging from Python
-    "python_syntax": "Bridging from Python",
-    "python_types": "Bridging from Python",
-    "python_compilation": "Bridging from Python",
-    "python_structure": "Bridging from Python",
-    # Problem Solving with Java
-    "ps_algorithm": "Problem Solving with Java",
-    "ps_pseudocode": "Problem Solving with Java",
-    "ps_debugging": "Problem Solving with Java",
-    "ps_optimization": "Problem Solving with Java",
-    # String
-    "string_basics": "String",
-    "string_methods": "String",
-    "string_builder": "String",
-    "string_pool": "String",
-    # Array
-    "array_basics": "Array",
-    "array_traversal": "Array",
-    "array_multidim": "Array",
-    "array_utilities": "Array",
-    # Methods
-    "method_declaration": "Methods",
-    "method_params": "Methods",
-    "method_overloading": "Methods",
-    "method_varargs": "Methods",
-    # Exception Handling & File IO
-    "exception_trycatch": "Exception Handling and File IO",
-    "exception_types": "Exception Handling and File IO",
-    "exception_custom": "Exception Handling and File IO",
-    "file_io": "Exception Handling and File IO",
-    # Class Basics
-    "class_declaration": "Class - constructor/attributes/methods",
-    "class_constructor": "Class - constructor/attributes/methods",
-    "class_attributes": "Class - constructor/attributes/methods",
-    "class_methods": "Class - constructor/attributes/methods",
-    "class_this": "Class - constructor/attributes/methods",
-    # Access Modifier/Static
-    "modifier_access": "Class - access modifier/static",
-    "modifier_static_var": "Class - access modifier/static",
-    "modifier_static_method": "Class - access modifier/static",
-    "modifier_static_block": "Class - access modifier/static",
-    "modifier_final": "Class - access modifier/static",
-    # Inheritance
-    "inherit_extends": "Inheritance",
-    "inherit_override": "Inheritance",
-    "inherit_super": "Inheritance",
-    "inherit_chain": "Inheritance",
-    "inherit_types": "Inheritance",
-    # Polymorphism
-    "poly_overload": "Polymorphism",
-    "poly_override": "Polymorphism",
-    "poly_dynamic": "Polymorphism",
-    "poly_casting": "Polymorphism",
-    # Interface & Lambda
-    "interface_basics": "Interface and Lambda expression",
-    "interface_implement": "Interface and Lambda expression",
-    "interface_default": "Interface and Lambda expression",
-    "interface_functional": "Interface and Lambda expression",
-    "lambda_syntax": "Interface and Lambda expression",
-    # Recursion & Revision
-    "recursion_basics": "Recursion and Revision",
-    "recursion_vs_iterative": "Recursion and Revision",
-    "recursion_patterns": "Recursion and Revision",
-    "revision_comprehensive": "Recursion and Revision",
-}
-
-def convert_topic_ids_to_main_topics(topic_identifiers: List[str]) -> List[str]:
-    """
-    Convert subtopic IDs to main topic names.
-    If input is already a main topic name, pass it through.
-    Returns unique main topic names.
-    """
-    main_topics = set()
-    for identifier in topic_identifiers:
-        if identifier in SUBTOPIC_TO_MAIN_TOPIC:
-            # It's a subtopic ID - convert to main topic
-            main_topics.add(SUBTOPIC_TO_MAIN_TOPIC[identifier])
-        else:
-            # Assume it's already a main topic name
-            main_topics.add(identifier)
-    return list(main_topics)
 
 # Global variables
 rag_chain = None
 retriever = None
 
+async def get_retriever():
+    """Single source of truth for retriever access across all endpoints."""
+    global retriever
+    from main import ensure_rag_initialized
+    await ensure_rag_initialized()
+    if retriever is None:
+        raise HTTPException(status_code=503, detail="RAG system unavailable")
+    return retriever
+
+async def get_rag_chain():
+    """Single source of truth for rag_chain access."""
+    global rag_chain
+    from main import ensure_rag_initialized
+    await ensure_rag_initialized()
+    if rag_chain is None:
+        raise HTTPException(status_code=503, detail="RAG chain unavailable")
+    return rag_chain
+
 class ExplainRequest(BaseModel):
     user_input: str
     code_snippet: str = ""
     history: List[Dict[str, Any]] = []
+    user_id: Optional[int] = None  # For conversation tracking
+    conversation_id: Optional[str] = None  # For conversation tracking
 
 class DocumentRequest(BaseModel):
     source_file: str
@@ -473,10 +411,6 @@ async def stream_more_questions(req: QuizGenerateRequest):
     )
 
 
-class QuizCountRequest(BaseModel):
-    topics: List[str]
-
-
 class TopicContentRequest(BaseModel):
     topic_id: str
     topic_name: str
@@ -606,14 +540,6 @@ async def batch_generate_topic_content(topics: List[TopicContentRequest]):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Batch generation error: {str(e)}")
-
-
-
-async def quiz_question_count(req: QuizCountRequest):
-    """Return how many questions are stored per topic."""
-    counts = count_questions_by_topic(req.topics)
-    total = sum(counts.values())
-    return {"counts_by_topic": counts, "total": total}
 
 
 # ==================== AI GENERATION HELPER ====================
@@ -842,8 +768,13 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 async def rag_ai(req: ExplainRequest):
     try:
         global rag_chain, retriever
+        
+        # Lazy load RAG system if not initialized
+        from main import ensure_rag_initialized
+        await ensure_rag_initialized()
+        
         if rag_chain is None or retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
+            raise HTTPException(status_code=500, detail="RAG system failed to initialize")
 
         query = req.user_input.strip()
         if req.code_snippet:
@@ -853,6 +784,23 @@ async def rag_ai(req: ExplainRequest):
 
         print(f"[RAG] Processing: {query[:50]}...")
         start_time = datetime.now()
+        
+        # Initialize conversation manager if user_id provided
+        conversation_manager = None
+        if req.user_id:
+            conversation_manager = ConversationManager()
+            
+            # If no conversation_id, create one
+            if not req.conversation_id:
+                req.conversation_id = conversation_manager.create_conversation_id(req.user_id)
+                print(f"📌 Created new conversation: {req.conversation_id}")
+            
+            # Get conversation context for LLM
+            conv_context = conversation_manager.get_context_for_llm(req.user_id, req.conversation_id)
+            if conv_context:
+                query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
+                print(f"📚 Added {len(conv_context)} chars of conversation context")
+        
         final_answer = rag_chain.invoke(query)
         docs = retriever.invoke(query)
         pdf_matches = [
@@ -864,8 +812,27 @@ async def rag_ai(req: ExplainRequest):
             for doc in docs[:3]
         ]
         elapsed = (datetime.now() - start_time).total_seconds()
+        
+        # Save conversation turn if tracking is enabled
+        if conversation_manager and req.user_id and req.conversation_id:
+            try:
+                conversation_manager.save_turn(
+                    user_id=req.user_id,
+                    conversation_id=req.conversation_id,
+                    user_message=req.user_input,
+                    assistant_response=final_answer,
+                    context_type="explain",
+                    code_snippet=req.code_snippet if req.code_snippet else None,
+                    input_tokens=len(query.split()),
+                    output_tokens=len(final_answer.split()),
+                )
+                print(f"✅ Saved conversation turn for user {req.user_id}")
+            except Exception as e:
+                print(f"⚠️ Failed to save conversation: {e}")
+        
         return {
             "final_answer": final_answer,
+            "conversation_id": req.conversation_id,
             "debug_log": {
                 "query": query[:100],
                 "timestamp": datetime.now().isoformat(),
@@ -933,13 +900,10 @@ Keep feedback constructive and educational."""
 @router.post("/api/hints/generate")
 async def generate_progressive_hint(req: HintRequest):
     try:
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
-
+        ret = await get_retriever()
         print(f"[Hints] Generating {req.hint_level} hint...")
         start_time = datetime.now()
-        relevant_docs = retriever.invoke(f"Java {req.problem_description}")
+        relevant_docs = ret.invoke(f"Java {req.problem_description}")
         context_snippets = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:500]}"
             for i, doc in enumerate(relevant_docs[:2])
@@ -1236,3 +1200,155 @@ async def rag_health():
             "avg_response_time": "6.73s"
         }
     }
+
+
+# ==================== CONVERSATION HISTORY MANAGEMENT ====================
+
+class ConversationHistoryRequest(BaseModel):
+    user_id: int
+    conversation_id: str
+    limit: int = 20
+
+
+class ConversationStatsRequest(BaseModel):
+    user_id: int
+    conversation_id: Optional[str] = None
+
+
+class ClearConversationsRequest(BaseModel):
+    user_id: int
+    days: int = 30
+
+
+@router.post("/api/conversations/history")
+async def get_conversation_history(req: ConversationHistoryRequest):
+    """Retrieve full conversation history including summaries of old turns"""
+    try:
+        manager = ConversationManager()
+        history = manager.get_conversation_history(
+            user_id=req.user_id,
+            conversation_id=req.conversation_id,
+            limit=req.limit,
+        )
+        
+        return {
+            "conversation_id": req.conversation_id,
+            "turns": len([m for m in history if m["role"] != "system"]),
+            "summaries": len([m for m in history if m["role"] == "system"]),
+            "history": history,
+            "total_messages": len(history),
+        }
+    except Exception as e:
+        print(f"❌ Error retrieving history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve history: {str(e)}")
+
+
+@router.post("/api/conversations/stats")
+async def get_conversation_stats(req: ConversationStatsRequest):
+    """Get statistics about token usage and conversation metrics"""
+    try:
+        manager = ConversationManager()
+        stats = manager.get_conversation_stats(
+            user_id=req.user_id,
+            conversation_id=req.conversation_id,
+        )
+        
+        return {
+            "stats": stats,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+
+@router.post("/api/conversations/create")
+async def create_conversation(req: BaseModel):
+    """Create a new conversation session for a user"""
+    try:
+        class CreateConvRequest(BaseModel):
+            user_id: int
+        
+        req_data = await req.__root__
+        user_id = req_data.get("user_id")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        manager = ConversationManager()
+        conversation_id = manager.create_conversation_id(user_id)
+        
+        return {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "created_at": datetime.now().isoformat(),
+            "status": "ready",
+        }
+    except Exception as e:
+        print(f"❌ Error creating conversation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create conversation: {str(e)}")
+
+
+@router.post("/api/conversations/clear")
+async def clear_old_conversations(req: ClearConversationsRequest):
+    """Delete conversations older than specified number of days"""
+    try:
+        manager = ConversationManager()
+        deleted_turns = manager.clear_old_conversations(
+            user_id=req.user_id,
+            days=req.days,
+        )
+        
+        return {
+            "user_id": req.user_id,
+            "days_threshold": req.days,
+            "deleted_turns": deleted_turns,
+            "cleared_at": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        print(f"❌ Error clearing conversations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear conversations: {str(e)}")
+
+
+@router.get("/api/conversations/{user_id}/list")
+async def list_conversations(user_id: int):
+    """List all conversations for a user with their stats"""
+    try:
+        manager = ConversationManager()
+        db = SessionLocal()
+        
+        from db_models import ConversationHistory
+        
+        conversations = db.query(
+            ConversationHistory.conversation_id,
+            func.count(ConversationHistory.id).label("turns"),
+            func.max(ConversationHistory.created_at).label("last_updated"),
+            func.sum(
+                ConversationHistory.input_tokens + ConversationHistory.output_tokens
+            ).label("total_tokens"),
+        ).filter(
+            ConversationHistory.user_id == user_id
+        ).group_by(
+            ConversationHistory.conversation_id
+        ).order_by(
+            func.max(ConversationHistory.created_at).desc()
+        ).all()
+        
+        db.close()
+        
+        return {
+            "user_id": user_id,
+            "total_conversations": len(conversations),
+            "conversations": [
+                {
+                    "conversation_id": conv[0],
+                    "turns": conv[1],
+                    "last_updated": conv[2].isoformat() if conv[2] else None,
+                    "total_tokens": conv[3] or 0,
+                }
+                for conv in conversations
+            ],
+        }
+    except Exception as e:
+        print(f"❌ Error listing conversations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list conversations: {str(e)}")

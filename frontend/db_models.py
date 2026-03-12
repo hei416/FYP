@@ -97,5 +97,65 @@ class PracticalTestQuestion(Base):
     expected_output = Column(JSON, nullable=False)       # list of strings
     base_class = Column(String(255), nullable=False)     # e.g. "Solution"
     base_methods = Column(JSON, nullable=False)          # {methodName: "signature {}"}
+    base_helper_classes = Column(Text, nullable=True)    # non-public helper class definitions for base
     solution_methods = Column(JSON, nullable=False)      # {methodName: [...lines]}
+    solution_helper_classes = Column(Text, nullable=True) # non-public helper class definitions for solution
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ConversationHistory(Base):
+    """Store user conversation history with turn-based organization and optional summarization"""
+    __tablename__ = "conversation_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    conversation_id = Column(String(255), index=True, nullable=False, unique=False)  # Groups related turns
+    
+    # Turn information
+    turn_number = Column(Integer, nullable=False)  # Sequential turn within conversation
+    is_summarized = Column(Boolean, default=False)  # True if this is a summarized turn
+    
+    # Message content
+    user_message = Column(Text, nullable=False)  # Original user input
+    assistant_response = Column(Text, nullable=False)  # LLM response
+    
+    # Context and metadata
+    context_type = Column(String(50), nullable=False)  # 'explain', 'hint', 'code_review', etc.
+    code_snippet = Column(Text, nullable=True)  # Optional code snippet from user
+    
+    # Token usage for cost tracking
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Optional summary (when multiple old turns are compressed into one)
+    summary_of_turns = Column(JSON, nullable=True)  # {"turn_range": [1, 5], "summary": "..."}
+
+
+class ConversationSummary(Base):
+    """Store summarized conversation segments to replace multiple old turns"""
+    __tablename__ = "conversation_summaries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    conversation_id = Column(String(255), index=True, nullable=False)
+    
+    # Summary metadata
+    turn_range_start = Column(Integer, nullable=False)  # First turn included
+    turn_range_end = Column(Integer, nullable=False)    # Last turn included
+    num_original_turns = Column(Integer, nullable=False)  # How many turns were condensed
+    
+    # Summary content
+    summary = Column(Text, nullable=False)  # Condensed summary of all turns
+    key_points = Column(JSON, nullable=True)  # List of important points [str]
+    
+    # Cost metrics
+    original_input_tokens = Column(Integer, default=0)
+    original_output_tokens = Column(Integer, default=0)
+    summary_input_tokens = Column(Integer, default=0)
+    summary_output_tokens = Column(Integer, default=0)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

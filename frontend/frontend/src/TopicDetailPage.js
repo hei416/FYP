@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import topicContent from './topicContent.json';
-import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './HomePage';
+import { TOPIC_GROUPS } from './HomePage';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';
 

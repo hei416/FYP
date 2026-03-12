@@ -1,0 +1,87 @@
+name: Deploy Backend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.py'
+      - 'requirements.txt'
+      - 'startup.sh'
+      - 'routers/**'
+      - 'services/**'
+      - 'core/**'
+      - 'vectorstore/**'
+      - 'lessons_raw/**'
+      - 'practical_tests/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Azure login via service principal ────────────────────────
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Configure startup command (runs before Oryx build) ──────────
+      - name: Set startup file
+        run: |
+          az webapp config set \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --startup-file startup.sh
+
+      # ── Enable Oryx so Azure runs pip install on the server ───────
+      - name: Enable Oryx build
+        run: |
+          az webapp config appsettings set \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true
+
+      # ── Package only source files (~10MB, no venv/node_modules) ──
+      - name: Create deployment zip
+        run: |
+          zip -r deploy.zip . \
+            --exclude "*.db" \
+            --exclude "*/__pycache__/*" \
+            --exclude "*.pyc" \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "frontend/*" \
+            --exclude "venv/*" \
+            --exclude ".venv/*" \
+            --exclude ".python_packages/*" \
+            --exclude ".idea/*" \
+            --exclude ".vscode/*" \
+            --exclude ".VSCodeCounter/*" \
+            --exclude "*.zip"
+          echo "Zip size: $(du -sh deploy.zip | cut -f1)"
+
+      # ── Deploy via Azure CLI ──────────────────────────────────────
+      # Oryx will run pip install -r requirements.txt on the server
+      - name: Deploy to Azure Web App
+        run: |
+          az webapp deploy \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg \
+            --src-path deploy.zip \
+            --type zip \
+            --async true
+
+      # ── Wait for Oryx build + restart ────────────────────────────
+      - name: Wait and restart app
+        run: |
+          echo "Waiting 300s for Oryx pip install to complete..."
+          sleep 300
+          az webapp restart \
+            --name codetutor-fyp-hei \
+            --resource-group codetutor-rg
+          echo "App restarted successfully"

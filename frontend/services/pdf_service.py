@@ -1,8 +1,8 @@
 import os
 import fitz  # PyMuPDF
-from typing import Dict, List, Any
+from typing import Dict, List
 from core.config import PDF_DIR
-from core.utils import compress_text
+
 
 def extract_pdf_chunks() -> Dict[str, List[str]]:
     pdf_chunks = {}
@@ -15,24 +15,3 @@ def extract_pdf_chunks() -> Dict[str, List[str]]:
             except Exception as e:
                 print(f"Failed to extract {filename}: {e}")
     return pdf_chunks
-
-def search_pdf_chunks(chunks: Dict[str, List[str]], query: str) -> (str, List[Dict[str, Any]]):
-    matches = []
-    context_snippets = []
-
-    for fname, pages in chunks.items():
-        for i, page in enumerate(pages):
-            if query.lower() in page.lower():
-                match = {
-                    "file": fname,
-                    "page": i + 1,
-                    "snippet": page[:500]
-                }
-                matches.append(match)
-                context_snippets.append(f"File: {fname}, Page {i+1}:{page[:500]}")
-            if len(matches) >= 5:
-                break
-
-    context_text = "\n\n".join(context_snippets) or "No relevant PDF content found."
-    context_text = compress_text(context_text, max_lines=30)
-    return context_text, matches

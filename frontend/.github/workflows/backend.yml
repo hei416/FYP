@@ -24,13 +24,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Azure login via service principal ────────────────────────
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # ── Configure startup command (runs before Oryx build) ──────────
       - name: Set startup file
         run: |
           az webapp config set \
@@ -38,17 +36,23 @@ jobs:
             --resource-group codetutor-rg \
             --startup-file startup.sh
 
-      # ── Enable Oryx so Azure runs pip install on the server ───────
       - name: Enable Oryx build
         run: |
           az webapp config appsettings set \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true SCM_NO_BUILD_CACHE=true WEBSITE_CONTAINER_START_TIME_LIMIT=1800
+            --settings \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
+              ENABLE_ORYX_BUILD=true \
+              SCM_NO_BUILD_CACHE=true \
+              WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
+            "DATABASE_URL=${{ secrets.DATABASE_URL }}"
 
-      # ── Package only source files (~10MB, no venv/node_modules) ──
       - name: Create deployment zip
         run: |
+          # Remove stale local packages before zipping — these conflict with Oryx's antenv
+          rm -rf .python_packages
+
           zip -r deploy.zip . \
             --exclude "*.db" \
             --exclude "*/__pycache__/*" \
@@ -65,8 +69,11 @@ jobs:
             --exclude "*.zip"
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      # ── Deploy via Azure CLI (async — don't poll; Azure may take >10min) ─
+      - name: Wait before deployment
+        run: sleep 30
+
       - name: Deploy to Azure Web App
+        continue-on-error: true
         run: |
           az webapp deploy \
             --name codetutor-fyp-hei \
@@ -74,25 +81,22 @@ jobs:
             --src-path deploy.zip \
             --type zip \
             --async true
-          echo "Deployment triggered (async)."
+          echo "Deployment zip uploaded — Oryx build running on Azure server."
 
-      # ── Restart and poll /health until the site responds ─────────────────
-      - name: Restart and wait for healthy response
+      - name: Wait for build then poll health
         run: |
-          echo "Restarting app..."
-          az webapp restart \
-            --name codetutor-fyp-hei \
-            --resource-group codetutor-rg
+          echo "Waiting 3 min for Oryx server-side build to complete..."
+          sleep 180
           echo "Polling https://codetutor-fyp-hei.azurewebsites.net/health ..."
-          for i in $(seq 1 40); do
+          for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               https://codetutor-fyp-hei.azurewebsites.net/health || echo "000")
-            echo "  Attempt $i — HTTP $STATUS"
+            echo "  Attempt $i/30 — HTTP $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "✅ Site is healthy!"
               exit 0
             fi
-            sleep 30
+            sleep 20
           done
-          echo "❌ Site did not respond within 20 minutes."
+          echo "❌ Site did not respond with 200 within ~13 minutes."
           exit 1

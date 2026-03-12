@@ -1,0 +1,93 @@
+Date : 2026-01-16 03:25:24
+Directory : /Users/hei/IdeaProjects/fyp
+Total : 48 files,  -19823 codes, 100 comments, 185 blanks, all -19538 lines
+
+Languages
++------------------+------------+------------+------------+------------+------------+
+| language         | files      | code       | comment    | blank      | total      |
++------------------+------------+------------+------------+------------+------------+
+| JavaScript       |         10 |      1,469 |         38 |        114 |      1,621 |
+| Python           |         21 |        465 |         62 |        136 |        663 |
+| pip requirements |          1 |         46 |          0 |          1 |         47 |
+| Markdown         |          2 |         25 |          0 |        -15 |         10 |
+| Java             |          2 |          0 |          0 |          0 |          0 |
+| CSS              |          1 |         -9 |          0 |         -1 |        -10 |
+| XML              |          3 |        -22 |          0 |          0 |        -22 |
+| HTML             |          1 |       -581 |          0 |        -48 |       -629 |
+| JSON             |          7 |    -21,216 |          0 |         -2 |    -21,218 |
++------------------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                 | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                    |         48 |    -19,823 |        100 |        185 |    -19,538 |
+| . (Files)                                                            |         13 |    -23,393 |          9 |          4 |    -23,380 |
+| .idea                                                                |          3 |        -22 |          0 |          0 |        -22 |
+| core                                                                 |          3 |         63 |         16 |         18 |         97 |
+| explain-frontend                                                     |         14 |      3,623 |         38 |         80 |      3,741 |
+| explain-frontend (Files)                                             |          5 |      2,178 |          1 |        -32 |      2,147 |
+| explain-frontend/src                                                 |          9 |      1,445 |         37 |        112 |      1,594 |
+| practical_tests                                                      |          7 |       -627 |          0 |        -50 |       -677 |
+| practical_tests/set1                                                 |          7 |       -627 |          0 |        -50 |       -677 |
+| practical_tests/set1 (Files)                                         |          1 |       -581 |          0 |        -48 |       -629 |
+| practical_tests/set1/base                                            |          2 |          0 |          0 |          0 |          0 |
+| practical_tests/set1/questions                                       |          4 |        -46 |          0 |         -2 |        -48 |
+| routers                                                              |          6 |        499 |         37 |        127 |        663 |
+| services                                                             |          2 |         34 |          0 |          6 |         40 |
++----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| filename                                                             | language         | code       | comment    | blank      | total      |
++----------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| /Users/hei/IdeaProjects/fyp/.idea/misc.xml                           | XML              |         -8 |          0 |          0 |         -8 |
+| /Users/hei/IdeaProjects/fyp/.idea/modules.xml                        | XML              |         -8 |          0 |          0 |         -8 |
+| /Users/hei/IdeaProjects/fyp/.idea/vcs.xml                            | XML              |         -6 |          0 |          0 |         -6 |
+| /Users/hei/IdeaProjects/fyp/GEMINI.md                                | Markdown         |         63 |          0 |         18 |         81 |
+| /Users/hei/IdeaProjects/fyp/asking_ai.py                             | Python           |       -433 |        -18 |        -84 |       -535 |
+| /Users/hei/IdeaProjects/fyp/cache_utils.py                           | Python           |        -32 |         -1 |         -4 |        -37 |
+| /Users/hei/IdeaProjects/fyp/core/__init__.py                         | Python           |          0 |          0 |          1 |          1 |
+| /Users/hei/IdeaProjects/fyp/core/config.py                           | Python           |         42 |         16 |         10 |         68 |
+| /Users/hei/IdeaProjects/fyp/core/utils.py                            | Python           |         21 |          0 |          7 |         28 |
+| /Users/hei/IdeaProjects/fyp/crud_rag.py                              | Python           |        -20 |         -1 |         -3 |        -24 |
+| /Users/hei/IdeaProjects/fyp/database.py                              | Python           |         -7 |         -1 |         -3 |        -11 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/README.md               | Markdown         |        -38 |          0 |        -33 |        -71 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/package-lock.json       | JSON             |      2,193 |          0 |          0 |      2,193 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/package.json            | JSON             |          8 |          0 |          0 |          8 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/postcss.config.js       | JavaScript       |          6 |          0 |          1 |          7 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/AI.js               | JavaScript       |        177 |          2 |         14 |        193 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/App.js              | JavaScript       |         -9 |          0 |          2 |         -7 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/Compiler.js         | JavaScript       |        199 |          3 |         26 |        228 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/HomePage.js         | JavaScript       |        664 |         15 |         26 |        705 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/Lessons.js          | JavaScript       |          3 |          0 |          0 |          3 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/Navbar.js           | JavaScript       |        222 |          0 |          6 |        228 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/Playground.js       | JavaScript       |         69 |          1 |          9 |         79 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/PracticalTest.js    | JavaScript       |        129 |         16 |         30 |        175 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/src/index.css           | CSS              |         -9 |          0 |         -1 |        -10 |
+| /Users/hei/IdeaProjects/fyp/explain-frontend/tailwind.config.js      | JavaScript       |          9 |          1 |          0 |         10 |
+| /Users/hei/IdeaProjects/fyp/main.py                                  | Python           |        125 |         18 |         17 |        160 |
+| /Users/hei/IdeaProjects/fyp/models.py                                | Python           |         97 |          0 |         20 |        117 |
+| /Users/hei/IdeaProjects/fyp/oracle_java_tutorials_clean.json         | JSON             |    -23,371 |          0 |          0 |    -23,371 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/base/Puzzle.java    | Java             |         31 |          4 |         19 |         54 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/base/Question1.java | Java             |        -31 |         -4 |        -19 |        -54 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/questions/Q1.json   | JSON             |        219 |          0 |          1 |        220 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/questions/q1.json   | JSON             |       -219 |          0 |         -1 |       -220 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/questions/q2.json   | JSON             |        -25 |          0 |         -1 |        -26 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/questions/q3.json   | JSON             |        -21 |          0 |         -1 |        -22 |
+| /Users/hei/IdeaProjects/fyp/practical_tests/set1/readme.html         | HTML             |       -581 |          0 |        -48 |       -629 |
+| /Users/hei/IdeaProjects/fyp/rag_backend.py                           | Python           |          0 |          0 |         -1 |         -1 |
+| /Users/hei/IdeaProjects/fyp/rag_system.py                            | Python           |        169 |         10 |         46 |        225 |
+| /Users/hei/IdeaProjects/fyp/requirements.txt                         | pip requirements |         46 |          0 |          1 |         47 |
+| /Users/hei/IdeaProjects/fyp/routers/__init__.py                      | Python           |          0 |          0 |          1 |          1 |
+| /Users/hei/IdeaProjects/fyp/routers/code_execution.py                | Python           |        104 |         10 |         23 |        137 |
+| /Users/hei/IdeaProjects/fyp/routers/lessons.py                       | Python           |         22 |          0 |          4 |         26 |
+| /Users/hei/IdeaProjects/fyp/routers/pdfs.py                          | Python           |         20 |          0 |          5 |         25 |
+| /Users/hei/IdeaProjects/fyp/routers/practical_tests.py               | Python           |        115 |         11 |         41 |        167 |
+| /Users/hei/IdeaProjects/fyp/routers/rag.py                           | Python           |        238 |         16 |         53 |        307 |
+| /Users/hei/IdeaProjects/fyp/services/__init__.py                     | Python           |          0 |          0 |          1 |          1 |
+| /Users/hei/IdeaProjects/fyp/services/pdf_service.py                  | Python           |         34 |          0 |          5 |         39 |
+| /Users/hei/IdeaProjects/fyp/test.py                                  | Python           |         -1 |          0 |          0 |         -1 |
+| /Users/hei/IdeaProjects/fyp/tutor.py                                 | Python           |        -29 |          2 |         -3 |        -30 |
+| Total                                                                |                  |    -19,823 |        100 |        185 |    -19,538 |
++----------------------------------------------------------------------+------------------+------------+------------+------------+------------+

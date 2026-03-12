@@ -277,39 +277,45 @@ export default function ProgressDisplay() {
                                 color="#6366F1"
                             />
 
-                            {/* Playground */}
+                            {/* Quizzes - always shown with fixed target */}
                             <ProgressItem
-                                icon="💻"
-                                title="Code Playground"
-                                completed={detailedProgress.playground.completed ? 1 : 0}
-                                total={1}
-                                subtitle={`${detailedProgress.playground.executions} code executions`}
-                                color="#4CAF50"
+                                icon="📝"
+                                title="Quizzes"
+                                completed={detailedProgress.quizzes.passed}
+                                total={detailedProgress.quizzes.target}
+                                subtitle={`${detailedProgress.quizzes.attempted} attempted · aim for ≥${detailedProgress.quizzes.passScore}% per quiz`}
+                                color="#FF9800"
                             />
 
-                            {/* Quizzes - only show if total > 0 */}
-                            {detailedProgress.quizzes.total > 0 && (
-                                <ProgressItem
-                                    icon="📝"
-                                    title="Quizzes"
-                                    completed={detailedProgress.quizzes.completed}
-                                    total={detailedProgress.quizzes.total}
-                                    subtitle={`${detailedProgress.quizzes.attempted} attempted`}
-                                    color="#FF9800"
-                                />
-                            )}
+                            {/* Practical Tests - always shown with fixed target */}
+                            <ProgressItem
+                                icon="🎯"
+                                title="Practical Tests"
+                                completed={detailedProgress.tests.passed}
+                                total={detailedProgress.tests.target}
+                                subtitle={`${detailedProgress.tests.attempted} attempted · aim for ≥${detailedProgress.tests.passScore}%`}
+                                color="#F44336"
+                            />
 
-                            {/* Tests - only show if total > 0 */}
-                            {detailedProgress.tests.total > 0 && (
-                                <ProgressItem
-                                    icon="🎯"
-                                    title="Practical Tests"
-                                    completed={detailedProgress.tests.passed}
-                                    total={detailedProgress.tests.total}
-                                    subtitle={`${detailedProgress.tests.attempted} attempted`}
-                                    color="#F44336"
-                                />
-                            )}
+                            {/* Playground */}
+                            <div style={{
+                                padding: spacing.lg,
+                                background: colors.bg,
+                                borderRadius: radii.sm,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: spacing.md
+                            }}>
+                                <span style={{ fontSize: '24px' }}>💻</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.text }}>
+                                        Code Playground
+                                    </div>
+                                    <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
+                                        {detailedProgress.playground.executions} code executions
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* AI Interactions */}
                             <div style={{
