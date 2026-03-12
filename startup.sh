@@ -48,13 +48,7 @@ echo "DATABASE_URL type: ${DATABASE_URL%%:*}"
 echo "[1/3] DB init skipped (lazy initialization)"
 echo "[2/3] Seed skipped (lazy initialization)"
 
-# Install Java (required for Java code execution)
-echo "[3/3] Installing Java..."
-apt-get update -qq && apt-get install -y -qq default-jdk > /dev/null 2>&1 || {
-    echo "⚠️ WARNING: Java installation failed — attempting alternative..."
-    apt-get install -y -qq openjdk-11-jdk > /dev/null 2>&1 || echo "⚠️ Java installation skipped"
-}
-javac -version 2>/dev/null && echo "✓ Java installed" || echo "⚠️ Java not available"
+echo "[3/3] Java install skipped (not required)"
 
 # Check if practical_tests imports cleanly before starting gunicorn
 echo "Checking practical_tests router..."
