@@ -127,18 +127,33 @@ def _row_to_dict(row) -> dict:
     }
 
 def _get_db_questions_for_topic(topic_id: str) -> List[dict]:
-    db = SessionLocal()
+    """Get cached questions for a topic from the database"""
+    if not SessionLocal or not PracticalTestQuestion:
+        print(f"⚠️ Database not available, skipping cache lookup")
+        return []
+    
     try:
-        rows = db.query(PracticalTestQuestion).filter(
-            PracticalTestQuestion.topic_id == topic_id
-        ).all()
-        return [_row_to_dict(r) for r in rows]
-    finally:
-        db.close()
+        db = SessionLocal()
+        try:
+            rows = db.query(PracticalTestQuestion).filter(
+                PracticalTestQuestion.topic_id == topic_id
+            ).all()
+            return [_row_to_dict(r) for r in rows]
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"⚠️ Error querying practical questions: {e}")
+        return []
 
 def _save_db_question(q: dict):
-    db = SessionLocal()
+    """Save a new question to the database"""
+    if not SessionLocal or not PracticalTestQuestion:
+        print(f"⚠️ Database not available, skipping save")
+        return
+    
+    db = None
     try:
+        db = SessionLocal()
         exists = db.query(PracticalTestQuestion).filter(PracticalTestQuestion.id == q["id"]).first()
         if not exists:
             db.add(PracticalTestQuestion(
@@ -158,11 +173,13 @@ def _save_db_question(q: dict):
             db.commit()
             print(f"✅ Saved practical test question {q['id']} to DB")
     except Exception as e:
-        db.rollback()
+        if db:
+            db.rollback()
         print(f"🔴 DB save error: {e}")
         traceback.print_exc()
     finally:
-        db.close()
+        if db:
+            db.close()
 
 # ──────────────────────────────────────────────
 # AI generation
