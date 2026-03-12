@@ -18,6 +18,46 @@ from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, to_main_topic, to_main_to
 router = APIRouter()
 
 # ──────────────────────────────────────────────
+# Topic-specific structural hints
+# ──────────────────────────────────────────────
+TOPIC_HINTS = {
+    "Polymorphism": (
+        "Define a non-public abstract class or interface, then 2-3 non-public subclasses that override a method. "
+        "The Solution class should use these classes in its methods. "
+        "Do NOT declare any class as public except Solution. "
+        "Do NOT use switch/if-else to simulate polymorphism."
+    ),
+    "Inheritance": (
+        "Define a non-public parent class and at least one non-public subclass that extends it. "
+        "The Solution class should use these in its methods. "
+        "Do NOT declare any class as public except Solution."
+    ),
+    "Interface & Lambda": (
+        "Define a non-public interface with one method. "
+        "Implement it using either a lambda expression or an anonymous class inside Solution. "
+        "Do NOT declare any class as public except Solution."
+    ),
+    "Class Basics": (
+        "Define a simple non-public class with private fields, a constructor, and public getter/setter methods. "
+        "Use this class inside Solution. "
+        "Do NOT declare any class as public except Solution."
+    ),
+    "Access Modifier/Static": (
+        "Demonstrate at least one static method or field, and at least one private field with a public getter method. "
+        "You may define a non-public helper class if needed. "
+        "Do NOT declare any class as public except Solution."
+    ),
+    "Recursion & Revision": (
+        "Solve the problem using a recursive method. Do NOT use loops (for, while). "
+        "Implement recursion directly in Solution methods or in a non-public helper class."
+    ),
+    "Exception Handling & File IO": (
+        "Use try-catch to handle at least one specific exception type (e.g., NumberFormatException, ArrayIndexOutOfBoundsException). "
+        "The Solution methods should demonstrate proper exception handling."
+    ),
+}
+
+# ──────────────────────────────────────────────
 # LLM helper (mirrors rag.py's call_llm_json)
 # ──────────────────────────────────────────────
 def _get_api_config():
@@ -56,10 +96,12 @@ def _row_to_dict(row: PracticalTestQuestion) -> dict:
         },
         "baseCode": {
             "class": row.base_class,
+            "helperClasses": row.base_helper_classes or "",
             "methods": row.base_methods,
         },
         "solution": {
             "class": row.base_class,
+            "helperClasses": row.solution_helper_classes or "",
             "methods": row.solution_methods,
         },
     }
@@ -89,7 +131,9 @@ def _save_db_question(q: dict):
                 expected_output=q["question"]["expectedOutput"],
                 base_class=q["baseCode"]["class"],
                 base_methods=q["baseCode"]["methods"],
+                base_helper_classes=q["baseCode"].get("helperClasses", ""),
                 solution_methods=q["solution"]["methods"],
+                solution_helper_classes=q["solution"].get("helperClasses", ""),
             ))
             db.commit()
             print(f"✅ Saved practical test question {q['id']} to DB")
@@ -111,11 +155,15 @@ async def _generate_practical_question(topic: str, existing_titles: List[str]) -
             f"- {t}" for t in existing_titles[-10:]
         )
 
+    # Conditionally inject topic-specific hint
+    topic_hint = TOPIC_HINTS.get(topic, "")
+    hint_block = f"\nTOPIC HINT: {topic_hint}" if topic_hint else ""
+
     id_val = f"pt_{int(time.time())}_{random.randint(1000, 9999)}"
     class_name = "Solution"
 
     prompt = f"""You are a Java instructor. Create a simple, beginner-friendly coding exercise for the topic: "{topic}".
-{exclusion}
+{exclusion}{hint_block}
 
 KEEP IT SIMPLE:
 - 1 to 2 methods only
@@ -134,30 +182,38 @@ Return a JSON object with this EXACT schema:
     "description": "One or two plain sentences describing the task.",
     "note": "",
     "methods": [
-      {{"name": "methodName", "description": "One sentence: what to implement."}}
+      {{"name": "actualMethodName", "description": "One sentence: what to implement."}}
     ],
     "expectedOutput": ["line1", "line2"]
   }},
   "baseCode": {{
     "class": "{class_name}",
+    "helperClasses": "",
     "methods": {{
-      "methodName": "public ReturnType methodName(ParamType param) {{}}"
+      "actualMethodName": "public ReturnType actualMethodName() {{}}"
     }}
   }},
   "solution": {{
     "class": "{class_name}",
+    "helperClasses": "",
     "methods": {{
-      "methodName": ["// implementation lines"],
-      "runApp": ["// calls each method and prints the expected output"]
+      "actualMethodName": ["// implementation lines that solve the problem"],
+      "runApp": ["actualMethodName();", "System.out.println(result);"]
     }}
   }}
 }}
 
-RULES:
-- Every method in "question.methods" must have a stub in "baseCode.methods" and full code in "solution.methods"
-- "solution.methods.runApp" must print EXACTLY the lines in "question.expectedOutput"
-- Do NOT include main() anywhere
-- Do NOT include "runApp" in "question.methods" or "baseCode.methods"
+CRITICAL RULES - READ CAREFULLY:
+- REPLACE "actualMethodName" with a REAL, DESCRIPTIVE METHOD NAME
+- Method signature: NO PARAMETERS. Example: public String getValue() not public String getValue(String param)
+- In runApp, call methods with NO ARGUMENTS: result = actualMethodName() not actualMethodName(param)
+- ONLY call methods that exist in baseCode.methods with the SAME signature
+- runApp must print EXACTLY the lines in expectedOutput
+- Do NOT include runApp in question.methods or baseCode.methods
+- For Polymorphism/Inheritance: place helper classes in baseCode.helperClasses and solution.helperClasses
+- helperClasses can be empty for simple questions
+- ALL method stubs in baseCode.methods MUST have proper return statements (return null, return 0, return false, etc)
+- Ensure ALL baseCode.methods stubs are syntactically correct Java code
 - Return ONLY valid JSON, no markdown"""
 
     result = await _call_llm_json(
@@ -169,9 +225,27 @@ RULES:
         max_tokens=2500,
         timeout=120,
     )
-    # Basic validation
-    assert "question" in result and "baseCode" in result and "solution" in result, \
-        "Missing required keys in LLM response"
+    # Validate response has all required keys
+    if not all(k in result for k in ("question", "baseCode", "solution")):
+        raise ValueError("Missing required keys in LLM response")
+    
+    # Validate that methods called in runApp exist in baseCode.methods
+    defined_methods = set(result.get("baseCode", {}).get("methods", {}).keys())
+    defined_methods.discard("runApp")  # runApp is not a student-implemented method
+    
+    run_app_code = "\n".join(result.get("solution", {}).get("methods", {}).get("runApp", []))
+    # Extract method calls (simple pattern: word followed by parentheses)
+    called_methods = set(re.findall(r'(\w+)\s*\(', run_app_code))
+    
+    # Filter out Java/system keywords and methods
+    keywords_to_discard = {"System", "for", "new", "this", "if", "while", "switch", "catch", 
+                           "println", "out", "return", "parseInt", "toString", "length"}
+    called_methods = called_methods - keywords_to_discard
+    
+    undefined_methods = called_methods - defined_methods
+    if undefined_methods:
+        raise ValueError(f"runApp calls undefined methods: {undefined_methods}. Defined methods: {defined_methods}")
+    
     return result
 
 # ──────────────────────────────────────────────
@@ -229,11 +303,17 @@ async def generate_practical_test(req: PracticalGenerateRequest):
 # ──────────────────────────────────────────────
 # EVALUATE  (file-based questions – unchanged)
 # ──────────────────────────────────────────────
-def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str) -> dict:
-    full_class = f"""class {class_name} {{
+def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, helper_classes: str = "") -> dict:
+    # Prepend helper classes (abstract classes, interfaces, etc.)
+    helper_block = f"{helper_classes}\n\n" if helper_classes.strip() else ""
+    
+    # Indent run_app_method to place it inside the class body
+    indented_run_app = "\n".join("    " + line if line.strip() else line for line in run_app_method.split("\n"))
+    
+    full_class = f"""{helper_block}class {class_name} {{
     {class_body}
 
-{run_app_method}
+{indented_run_app}
 }}
 
 public class Main {{
@@ -277,22 +357,52 @@ public class Main {{
         return {"success": False, "output": "", "error": f"Evaluation error: {str(e)}"}
 
 
+def _extract_helper_classes(user_code: str) -> str:
+    """Extract all non-public top-level class definitions (everything before public class Solution)."""
+    match = re.search(r'public\s+class\s+Solution\s*\{', user_code)
+    if not match:
+        return ""
+    # Everything before 'public class Solution' is helper classes
+    return user_code[:match.start()].strip()
+
+
 def _extract_student_methods(user_code: str):
-    """Extract student-implemented methods, skipping main/runApp."""
+    """Extract student code, handling nested classes (for Polymorphism/Inheritance)."""
+    # Find the public class declaration
     class_match = re.search(r'public\s+class\s+(\w+)', user_code)
     if not class_match:
         raise HTTPException(status_code=400, detail="No valid class declaration found.")
     class_name = class_match.group(1)
 
-    method_pattern = r'(public|private|protected)?\s+(static\s+)?([\w<>\[\]]+)\s+(\w+)\s*\([^)]*\)\s*\{(?:[^{}]|\{[^{}]*\})*\}'
-    valid_methods = []
-    for m in re.finditer(method_pattern, user_code, re.DOTALL):
-        code = m.group(0)
-        if 'void main' in code or 'void runApp' in code:
-            continue
-        valid_methods.append(code)
+    # Find the opening brace of the public class (NOT the first { in the file)
+    start_idx = user_code.find('{', class_match.end())
+    if start_idx == -1:
+        raise HTTPException(status_code=400, detail="No class body found.")
+    
+    # Count braces to find the matching closing brace
+    brace_count = 0
+    end_idx = start_idx
+    for i in range(start_idx, len(user_code)):
+        if user_code[i] == '{':
+            brace_count += 1
+        elif user_code[i] == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                end_idx = i
+                break
+    
+    class_body = user_code[start_idx + 1:end_idx].strip()
 
-    return class_name, "\n\n    ".join(valid_methods)
+    # Remove main() method if present
+    class_body = re.sub(r'public\s+static\s+void\s+main\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}', '', class_body)
+    
+    # Remove runApp() method if present
+    class_body = re.sub(r'public\s+void\s+runApp\s*\(\s*\)\s*\{[\s\S]*?\n\s*\}', '', class_body)
+    
+    # Clean up any extra blank lines
+    class_body = re.sub(r'\n\s*\n\s*\n+', '\n\n', class_body).strip()
+
+    return class_name, class_body
 
 
 def _build_run_app_method(run_app_lines) -> str:
@@ -303,6 +413,33 @@ def _build_run_app_method(run_app_lines) -> str:
         clean = line.strip()
         if clean:
             lines.append(f"        {clean}")
+    lines.append("    }")
+    return "\n".join(lines)
+
+
+def _build_smart_run_app(base_methods: dict) -> str:
+    """Generate a runApp() that directly calls each known method and prints results."""
+    lines = ["    public void runApp() {"]
+    for method_name, signature in base_methods.items():
+        if method_name == "runApp":
+            continue
+        # Parse return type from signature: e.g. "public String[] getAnimalSound() {}"
+        m = re.search(r'public\s+(\S+)\s+\w+\s*\(', signature)
+        if not m:
+            continue
+        return_type = m.group(1)
+
+        if return_type == "void":
+            lines.append(f"        {method_name}();")
+        elif return_type.endswith("[]"):
+            elem = return_type[:-2]  # strip []
+            lines.append(f"        {return_type} _r_{method_name} = {method_name}();")
+            lines.append(f"        for ({elem} _item : _r_{method_name}) {{")
+            lines.append(f"            System.out.println(_item);")
+            lines.append(f"        }}")
+        else:
+            lines.append(f"        System.out.println({method_name}());")
+
     lines.append("    }")
     return "\n".join(lines)
 
@@ -322,8 +459,9 @@ def evaluate(req: CodeRequest):
         raise HTTPException(status_code=400, detail="No code provided for base class.")
 
     class_name, class_body = _extract_student_methods(user_code)
+    helper_classes = _extract_helper_classes(user_code)
     run_app_method = _build_run_app_method(question_data["solution"]["methods"].get("runApp", []))
-    return _run_java_via_paiza(class_name, class_body, run_app_method)
+    return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes)
 
 
 @router.post("/api/practical-tests/evaluate-ai")
@@ -343,8 +481,9 @@ def evaluate_ai(req: AiCodeRequest):
         raise HTTPException(status_code=400, detail=f"No code provided for class '{row.base_class}'.")
 
     class_name, class_body = _extract_student_methods(user_code)
-    run_app_method = _build_run_app_method(row.solution_methods.get("runApp", []))
-    return _run_java_via_paiza(class_name, class_body, run_app_method)
+    helper_classes = _extract_helper_classes(user_code)
+    run_app_method = _build_smart_run_app(row.base_methods)
+    return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes)
 
 
 # ──────────────────────────────────────────────

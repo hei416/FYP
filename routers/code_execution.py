@@ -12,6 +12,56 @@ def extract_class_name(code: str) -> str:
     match = re.search(r'public\s+class\s+([a-zA-Z0-9_]+)', code)
     return match.group(1) if match else 'Main'
 
+def _ensure_main_method(files: List[Dict], main_class: str) -> List[Dict]:
+    """Ensure the main class has runApp + main. If not, auto-generate from declared public no-arg methods."""
+    updated_files = []
+    for file in files:
+        content = file.get("content", "")
+        filename = file.get("filename", "")
+
+        class_name_in_file = extract_class_name(content)
+
+        if class_name_in_file == main_class:
+            if "public static void main" not in content:
+                last_brace_idx = content.rfind('}')
+                if last_brace_idx != -1:
+                    # Find all public no-arg methods declared in this class
+                    method_sigs = re.findall(
+                        r'public\s+(\S+)\s+(\w+)\s*\(\s*\)\s*\{',
+                        content
+                    )
+                    call_lines = []
+                    for ret_type, mname in method_sigs:
+                        if mname in ("main", "runApp"):
+                            continue
+                        if ret_type == "void":
+                            call_lines.append(f"        {mname}();")
+                        elif ret_type.endswith("[]"):
+                            elem = ret_type[:-2]
+                            call_lines.append(f"        {ret_type} _r_{mname} = {mname}();")
+                            call_lines.append(f"        for ({elem} _item : _r_{mname}) {{ System.out.println(_item); }}")
+                        else:
+                            call_lines.append(f"        System.out.println({mname}());")
+
+                    if not call_lines:
+                        call_lines.append('        System.out.println("[Code compiled successfully]");')
+
+                    body = "\n".join(call_lines)
+                    injection = f'''
+    public void runApp() {{
+{body}
+    }}
+
+    public static void main(String[] args) {{
+        new {main_class}().runApp();
+    }}'''
+                    content = content[:last_brace_idx] + injection + '\n' + content[last_brace_idx:]
+
+        updated_files.append({"filename": filename, "content": content})
+
+    return updated_files
+
+
 @router.post("/api/run-code")
 async def run_code(request: Request):
     data = await request.json()
@@ -28,6 +78,9 @@ async def run_code(request: Request):
             "content": code
         }]
         main_class = extract_class_name(code)
+    
+    # Ensure main class has a main method
+    files = _ensure_main_method(files, main_class)
     
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:

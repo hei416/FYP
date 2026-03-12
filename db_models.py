@@ -97,5 +97,7 @@ class PracticalTestQuestion(Base):
     expected_output = Column(JSON, nullable=False)       # list of strings
     base_class = Column(String(255), nullable=False)     # e.g. "Solution"
     base_methods = Column(JSON, nullable=False)          # {methodName: "signature {}"}
+    base_helper_classes = Column(Text, nullable=True)    # non-public helper class definitions for base
     solution_methods = Column(JSON, nullable=False)      # {methodName: [...lines]}
+    solution_helper_classes = Column(Text, nullable=True) # non-public helper class definitions for solution
     created_at = Column(DateTime, default=datetime.utcnow)

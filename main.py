@@ -110,8 +110,25 @@ async def ensure_pdf_chunks_loaded():
 
 @app.on_event("startup")
 async def startup():
-    """Minimal startup — just bind to port ASAP"""
-    pass  # Do nothing - all initialization is lazy
+    """Minimal startup — just bind to port ASAP. Run lightweight schema migrations."""
+    try:
+        from database import get_engine
+        from sqlalchemy import text
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Add helperClasses columns to practical_test_questions if they don't exist yet
+            for col, col_type in [
+                ("base_helper_classes", "TEXT"),
+                ("solution_helper_classes", "TEXT"),
+            ]:
+                try:
+                    conn.execute(text(f"ALTER TABLE practical_test_questions ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                    print(f"✅ Migration: added column '{col}' to practical_test_questions")
+                except Exception:
+                    pass  # Column already exists — safe to ignore
+    except Exception as e:
+        print(f"⚠️ Startup migration warning: {e}")
 
 # Include routers - simple, no error handling bloat
 if rag:
