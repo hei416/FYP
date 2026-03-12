@@ -44,7 +44,8 @@ jobs:
           az webapp config appsettings set \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true SCM_NO_BUILD_CACHE=true WEBSITE_CONTAINER_START_TIME_LIMIT=1800
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true SCM_NO_BUILD_CACHE=true WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
+            "DATABASE_URL=${{ secrets.DATABASE_URL }}"
 
       # ── Package only source files (~10MB, no venv/node_modules) ──
       - name: Create deployment zip
