@@ -22,19 +22,45 @@ app.add_middleware(
 )
 
 # Import routers AFTER app is created - wrap in try-catch
+print("\n🔧 IMPORTING ROUTERS...")
 try:
+    print("  Importing code_execution...")
     from routers import code_execution
+    print("  ✓ code_execution")
+    
+    print("  Importing lessons...")
     from routers import lessons
+    print("  ✓ lessons")
+    
+    print("  Importing pdfs...")
     from routers import pdfs
+    print("  ✓ pdfs")
+    
+    print("  Importing practical_tests...")
     from routers import practical_tests
+    print("  ✓ practical_tests")
+    
+    print("  Importing rag...")
     from routers import rag
+    print("  ✓ rag")
+    
+    print("  Importing auth...")
     from routers import auth
+    print("  ✓ auth")
+    
+    print("  Importing progress...")
     from routers import progress
+    print("  ✓ progress")
+    
+    print("  Importing rag_router...")
     import routers.rag as rag_router
+    print("  ✓ rag_router\n")
+    
     ROUTERS_IMPORTED = True
+    print("✅ ALL ROUTERS IMPORTED SUCCESSFULLY\n")
 except Exception as e:
     # If routers fail to import, log it but continue
-    print(f"ERROR importing routers: {e}", file=sys.stderr)
+    print(f"\n❌ ERROR importing routers: {e}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
     ROUTERS_IMPORTED = False
 
@@ -147,43 +173,36 @@ async def startup():
 # Include routers - always try to include them regardless of RAG import status
 if ROUTERS_IMPORTED:
     try:
-        print("✓ Router imports successful - including routers...")
-        app.include_router(auth.router, tags=["Auth"])
-        print("✓ Auth router included")
-        app.include_router(progress.router, tags=["Progress"])
-        print("✓ Progress router included")
-        app.include_router(rag.router, tags=["AI Tutor"])
-        print("✓ RAG router included")
-        app.include_router(code_execution.router, tags=["Code Execution"])
-        print("✓ Code execution router included")
-        app.include_router(lessons.router, tags=["Lessons"])
-        print("✓ Lessons router included")
-        app.include_router(pdfs.router, tags=["PDFs"])
-        print("✓ PDFs router included")
-        app.include_router(practical_tests.router, tags=["Tests"])
-        print("✓ Practical tests router included")
-        print("\n✅ All routers registered successfully!")
-        print(f"   Total routes: {len([r for r in app.routes if hasattr(r, 'path')])}")
+        print("✓ Router imports successful - including routers...\n")
+        
+        routers_to_include = [
+            (auth.router, "Auth", None),
+            (progress.router, "Progress", None),
+            (rag.router, "AI Tutor", None),
+            (code_execution.router, "Code Execution", None),
+            (lessons.router, "Lessons", None),
+            (pdfs.router, "PDFs", None),
+            (practical_tests.router, "Tests", "/api/practical-tests"),
+        ]
+        
+        for router_obj, router_name, prefix in routers_to_include:
+            try:
+                if prefix:
+                    app.include_router(router_obj, prefix=prefix, tags=[router_name])
+                else:
+                    app.include_router(router_obj, tags=[router_name])
+                print(f"  ✓ {router_name} router included")
+            except Exception as e:
+                print(f"  ❌ {router_name} router FAILED: {e}", file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
+        
+        print(f"\n✅ Router inclusion complete!")
+        print(f"   Total routes: {len([r for r in app.routes if hasattr(r, 'path')])}\n")
     except Exception as e:
         print(f"ERROR including routers: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
 else:
     print("⚠️ WARNING: Routers failed to import - API endpoints will not be available")
-
-@app.on_event("startup")
-async def log_routes():
-    """Log all registered routes for debugging"""
-    routes = []
-    for route in app.routes:
-        if hasattr(route, "path") and hasattr(route, "methods"):
-            routes.append(f"{', '.join(route.methods)} {route.path}")
-    
-    print("\n" + "="*60)
-    print("📋 REGISTERED API ROUTES:")
-    print("="*60)
-    for route in sorted(routes):
-        print(f"  {route}")
-    print("="*60 + "\n")
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -212,6 +231,14 @@ async def health_check():
     """Instant health check - used by Azure load balancer"""
     return {"status": "ok"}
 
+@app.get("/debug/routes", tags=["Debug"])
+async def debug_routes():
+    """List all registered routes for debugging"""
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            routes.append({"path": route.path, "methods": list(route.methods)})
+    return {"total_routes": len(routes), "routes": sorted(routes, key=lambda r: r["path"])}
 
 @app.middleware("http")
 async def catch_all_exceptions(request: Request, call_next):

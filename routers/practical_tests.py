@@ -305,7 +305,7 @@ class PracticalGenerateRequest(BaseModel):
 # ──────────────────────────────────────────────
 # AI GENERATE endpoint
 # ──────────────────────────────────────────────
-@router.post("/api/practical-tests/generate")
+@router.post("/generate")
 async def generate_practical_test(req: PracticalGenerateRequest):
     """
     Generate (or serve from DB) a coding exercise for the given topic.
@@ -501,7 +501,7 @@ def evaluate(req: CodeRequest):
     return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes)
 
 
-@router.post("/api/practical-tests/evaluate-ai")
+@router.post("/evaluate-ai")
 def evaluate_ai(req: AiCodeRequest):
     """Evaluate student code against an AI-generated question stored in DB."""
     db = SessionLocal()
