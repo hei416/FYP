@@ -12,9 +12,11 @@ cd /home/site/wwwroot
 echo "CWD: $(pwd)"
 echo "FILES: $(ls -1 | head -20)"
 
-# CRITICAL: Unset Azure's auto-injected PYTHONPATH IMMEDIATELY
-# It points to .python_packages which may contain stale pydantic v1
-unset PYTHONPATH
+# CRITICAL: Set PYTHONPATH to Oryx's package location
+# Oryx builds packages into .python_packages/lib/site-packages
+# We need this path to access installed packages including practical_tests dependencies
+export PYTHONPATH=/home/site/wwwroot/.python_packages/lib/site-packages:$PYTHONPATH
+echo "PYTHONPATH: $PYTHONPATH"
 
 # Oryx builds in /tmp and doesn't preserve antenv after deployment
 # Instead, rely on Oryx's pre-built Python being in PATH
@@ -26,6 +28,13 @@ python -c "from fastapi import FastAPI; from sqlalchemy import create_engine; pr
   echo "ERROR: Core imports failed - checking pip freeze"
   python -m pip freeze | grep -E "fastapi|pydantic|sqlalchemy" || echo "Missing critical packages"
   exit 1
+}
+
+# Verify practical_tests dependencies are available
+echo "Checking practical_tests dependencies..."
+python -c "import httpx; import requests; print('✓ practical_tests deps OK')" || {
+  echo "⚠️  WARNING: practical_tests dependencies not found"
+  python -m pip list | grep -E "httpx|requests"
 }
 
 # Azure persistent storage for SQLite
@@ -50,6 +59,13 @@ echo "[4/4] Testing app import before gunicorn (non-fatal, 90s timeout)..."
 timeout 90 python -c "from main import app; print('✓ App imported successfully')" || {
   echo "⚠️  WARNING: App import test timed out or failed - proceeding to gunicorn anyway"
   echo "   (This is normal on Azure cold start with heavy packages like langchain/faiss/scipy)"
+}
+
+# Check if practical_tests imports cleanly
+echo "Checking practical_tests router..."
+python -c "from routers import practical_tests; print('✓ practical_tests router OK')" || {
+  echo "❌ practical_tests import FAILED — router will not be available"
+  python -c "from routers import practical_tests" 2>&1  # print full traceback
 }
 
 echo "[4/4] Starting gunicorn on port ${PORT:-8000}..."
