@@ -130,22 +130,60 @@ async def startup():
                     pass  # Column already exists — safe to ignore
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")
+    
+    # Log all registered routes for debugging
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            routes.append(f"{', '.join(route.methods)} {route.path}")
+    
+    print("\n" + "="*60)
+    print("📋 REGISTERED API ROUTES:")
+    print("="*60)
+    for route in sorted(routes):
+        print(f"  {route}")
+    print("="*60 + "\n")
 
 # Include routers - always try to include them regardless of RAG import status
 if ROUTERS_IMPORTED:
     try:
+        print("✓ Router imports successful - including routers...")
         app.include_router(auth.router, tags=["Auth"])
+        print("✓ Auth router included")
         app.include_router(progress.router, tags=["Progress"])
+        print("✓ Progress router included")
         app.include_router(rag.router, tags=["AI Tutor"])
+        print("✓ RAG router included")
         app.include_router(code_execution.router, tags=["Code Execution"])
+        print("✓ Code execution router included")
         app.include_router(lessons.router, tags=["Lessons"])
+        print("✓ Lessons router included")
         app.include_router(pdfs.router, tags=["PDFs"])
+        print("✓ PDFs router included")
         app.include_router(practical_tests.router, tags=["Tests"])
+        print("✓ Practical tests router included")
+        print("\n✅ All routers registered successfully!")
+        print(f"   Total routes: {len([r for r in app.routes if hasattr(r, 'path')])}")
     except Exception as e:
         print(f"ERROR including routers: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
 else:
     print("⚠️ WARNING: Routers failed to import - API endpoints will not be available")
+
+@app.on_event("startup")
+async def log_routes():
+    """Log all registered routes for debugging"""
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            routes.append(f"{', '.join(route.methods)} {route.path}")
+    
+    print("\n" + "="*60)
+    print("📋 REGISTERED API ROUTES:")
+    print("="*60)
+    for route in sorted(routes):
+        print(f"  {route}")
+    print("="*60 + "\n")
 
 @app.get("/", tags=["Health"])
 async def root():
