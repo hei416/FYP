@@ -101,7 +101,8 @@ async def run_code(request: Request):
                 capture_output=True,
                 text=True,
                 timeout=10,
-                cwd=tmp_dir
+                cwd=tmp_dir,
+                env=os.environ.copy()
             )
             
             if compile_result.returncode != 0:
@@ -115,7 +116,8 @@ async def run_code(request: Request):
                 ["java", "-cp", tmp_dir, main_class],
                 capture_output=True,
                 text=True,
-                timeout=15
+                timeout=15,
+                env=os.environ.copy()
             )
             
             return {
@@ -166,7 +168,8 @@ async def check_syntax(request: Request):
                 capture_output=True,
                 text=True,
                 timeout=10,
-                cwd=tmp_dir
+                cwd=tmp_dir,
+                env=os.environ.copy()
             )
             
             errors = []
