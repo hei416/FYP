@@ -69,8 +69,12 @@ jobs:
       - name: Wait before deployment
         run: sleep 30
 
-      # ── Deploy via Azure CLI (async — don't poll; Azure may take >10min) ─
+      # ── Deploy via Azure CLI (async — upload zip; Oryx builds on server) ─
+      # continue-on-error: true because the CLI may still exit non-zero even
+      # when Azure actually succeeds (false-negative on slow cold starts).
+      # The real gate is the /health polling step below.
       - name: Deploy to Azure Web App
+        continue-on-error: true
         run: |
           az webapp deploy \
             --name codetutor-fyp-hei \
@@ -78,25 +82,26 @@ jobs:
             --src-path deploy.zip \
             --type zip \
             --async true
-          echo "Deployment triggered (async)."
+          echo "Deployment zip uploaded — Oryx build running on Azure server."
 
-      # ── Restart and poll /health until the site responds ─────────
-      - name: Restart and wait for healthy response
+      # ── Wait for Oryx build (~130s) then poll /health ────────────
+      # DO NOT call "az webapp restart" here — the deployment already
+      # triggers a restart.  A second restart mid-build causes the worker
+      # process failure that was blocking the pipeline.
+      - name: Wait for build then poll health
         run: |
-          echo "Restarting app..."
-          az webapp restart \
-            --name codetutor-fyp-hei \
-            --resource-group codetutor-rg
+          echo "Waiting 3 min for Oryx server-side build to complete..."
+          sleep 180
           echo "Polling https://codetutor-fyp-hei.azurewebsites.net/health ..."
-          for i in $(seq 1 40); do
+          for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               https://codetutor-fyp-hei.azurewebsites.net/health || echo "000")
-            echo "  Attempt $i — HTTP $STATUS"
+            echo "  Attempt $i/30 — HTTP $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "✅ Site is healthy!"
               exit 0
             fi
-            sleep 30
+            sleep 20
           done
-          echo "❌ Site did not respond within 20 minutes."
+          echo "❌ Site did not respond with 200 within ~13 minutes."
           exit 1
