@@ -11,9 +11,28 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from core.config import BASE_PATH, PAIZA_API_KEY
-from database import SessionLocal
-from db_models import PracticalTestQuestion
-from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, to_main_topic, to_main_topics
+
+try:
+    from database import SessionLocal
+except Exception as e:
+    print(f"⚠️ Warning: database import failed: {e}")
+    SessionLocal = None
+
+# Lazy import for db_models - may not be available at startup in some environments
+PracticalTestQuestion = None
+try:
+    from db_models import PracticalTestQuestion
+except Exception as e:
+    print(f"⚠️ Warning: PracticalTestQuestion import failed: {e}")
+
+try:
+    from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, to_main_topic, to_main_topics
+except Exception as e:
+    print(f"⚠️ Warning: topic_mapping import failed: {e}")
+    # Provide minimal fallbacks
+    SUBTOPIC_TO_MAIN_TOPIC = {}
+    def to_main_topic(x): return x
+    def to_main_topics(x): return [x]
 
 router = APIRouter()
 
@@ -83,7 +102,8 @@ async def _call_llm_json(messages, temperature=0.5, max_tokens=2500, timeout=120
 # ──────────────────────────────────────────────
 # DB helpers for PracticalTestQuestion
 # ──────────────────────────────────────────────
-def _row_to_dict(row: PracticalTestQuestion) -> dict:
+def _row_to_dict(row) -> dict:
+    """Convert database row to dictionary"""
     return {
         "id": row.id,
         "topic_id": row.topic_id,
