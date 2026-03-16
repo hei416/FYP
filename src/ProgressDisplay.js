@@ -293,7 +293,9 @@ export default function ProgressDisplay() {
                                 title="Quizzes"
                                 completed={detailedProgress.quizzes.passed}
                                 total={detailedProgress.quizzes.target}
-                                subtitle={`${detailedProgress.quizzes.attempted} attempted · aim for ≥${detailedProgress.quizzes.passScore}% per quiz`}
+                                subtitle={`${detailedProgress.quizzes.attempted} attempted`}
+                                passCriteria={`Pass score: ≥${detailedProgress.quizzes.passScore}% per quiz`}
+                                passColor="#FF9800"
                                 color="#FF9800"
                             />
 
@@ -303,7 +305,9 @@ export default function ProgressDisplay() {
                                 title="Practical Tests"
                                 completed={detailedProgress.tests.passed}
                                 total={detailedProgress.tests.target}
-                                subtitle={`${detailedProgress.tests.attempted} attempted · aim for ≥${detailedProgress.tests.passScore}%`}
+                                subtitle={`${detailedProgress.tests.attempted} attempted`}
+                                passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per test`}
+                                passColor="#F44336"
                                 color="#F44336"
                             />
 
@@ -358,7 +362,7 @@ export default function ProgressDisplay() {
 }
 
 // Helper Component for Progress Items
-function ProgressItem({ icon, title, completed, total, subtitle, color }) {
+function ProgressItem({ icon, title, completed, total, subtitle, passCriteria, passColor, color }) {
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return (
@@ -387,6 +391,26 @@ function ProgressItem({ icon, title, completed, total, subtitle, color }) {
                     <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
                         {subtitle}
                     </div>
+                    {/* Passing criteria badge — only rendered when prop is provided */}
+                    {passCriteria && (
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            marginTop: '5px',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: `${passColor}18`,
+                            border: `1px solid ${passColor}55`,
+                            fontSize: '10px',
+                            fontWeight: font.weightSemibold,
+                            color: passColor,
+                            letterSpacing: '0.01em'
+                        }}>
+                            <span style={{ fontSize: '9px' }}>✓</span>
+                            {passCriteria}
+                        </div>
+                    )}
                 </div>
                 <div style={{ 
                     fontSize: font.sizeMd, 
