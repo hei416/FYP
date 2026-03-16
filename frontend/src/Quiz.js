@@ -295,6 +295,16 @@ export default function Quiz() {
         }
     };
 
+    useEffect(() => {
+        if (completed && filteredQuestions.length > 0) {
+            const scorePercent = Math.round((score / filteredQuestions.length) * 100);
+            const quizId = `quiz_${Date.now()}`;
+            tracker.markQuizCompleted(quizId, scorePercent);
+            window.dispatchEvent(new Event('progress-updated'));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [completed]);
+
     // Topic Selection Screen
     if (showTopicSelect) {
         const completedTopics = tracker.getCompletedTopics();
@@ -490,16 +500,6 @@ export default function Quiz() {
             </div>
         );
     }
-
-    useEffect(() => {
-        if (completed && filteredQuestions.length > 0) {
-            const scorePercent = Math.round((score / filteredQuestions.length) * 100);
-            const quizId = `quiz_${Date.now()}`;
-            tracker.markQuizCompleted(quizId, scorePercent);
-            window.dispatchEvent(new Event('progress-updated'));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [completed]);
 
     if (completed) {
         return (

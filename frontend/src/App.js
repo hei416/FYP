@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
@@ -15,6 +16,15 @@ import { colors, radii, font, spacing, btn, shadows, navbar, transition } from '
 import { useAuth } from './AuthContext';
 import Auth from './Auth';
 import { loadProgressFromBackend, mergeProgressWithLocal, syncProgressToBackend } from './progressService';
+
+// Suppress ResizeObserver loop warning (caused by Monaco Editor)
+const resizeObserverErrHandler = (e) => {
+    if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
+        const resizeObserverErr = document.getElementById('webpack-dev-server-client-overlay');
+        if (resizeObserverErr) resizeObserverErr.style.display = 'none';
+    }
+};
+window.addEventListener('error', resizeObserverErrHandler);
 
 // Create a wrapper component that has access to useNavigate
 function AppContent() {
