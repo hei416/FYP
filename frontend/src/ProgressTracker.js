@@ -9,6 +9,12 @@ import {
     markTopicCompleteOnBackend
 } from './progressService';
 
+// Exported constants for quiz/test targets and pass scores
+export const QUIZ_TARGET = 6;
+export const TEST_TARGET = 6;
+export const QUIZ_PASS_SCORE = 70;
+export const TEST_PASS_SCORE = 60;
+
 // Progress Tracker that perfectly syncs with HomePage
 export class ProgressTracker {
     constructor() {
@@ -45,12 +51,14 @@ export class ProgressTracker {
                 quizzes: {
                     attempted: 0,
                     completed: [],
-                    totalQuizzes: 0
+                    passed: [], // quizzes passed with score >= QUIZ_PASS_SCORE
+                    totalQuizzes: QUIZ_TARGET
                 },
                 tests: {
                     attempted: 0,
-                    passed: [],
-                    totalTests: 0
+                    completed: [],
+                    passed: [], // tests passed with score >= TEST_PASS_SCORE
+                    totalTests: TEST_TARGET
                 },
                 roadmapTopics: {
                     total: this.totalTopics,
@@ -86,20 +94,13 @@ export class ProgressTracker {
     getTotalCompletion() {
         // Always sync first
         const progress = this.syncWithRoadmap();
-        
-        // Use EXACT same calculation as HomePage
+        // Use fixed targets
         const roadmapCompleted = progress.roadmapTopics.completed.length;
-        const quizzesCompleted = progress.quizzes.completed.length;
-        const testsCompleted = progress.tests.passed.length;
+        const quizzesPassed = progress.quizzes.passed.length;
+        const testsPassed = progress.tests.passed.length;
         const playgroundCompleted = progress.playground.completed ? 1 : 0;
-        
-        const completed = roadmapCompleted + quizzesCompleted + testsCompleted + playgroundCompleted;
-        const total = 
-            this.totalTopics + // Same as HomePage's totalTopics
-            progress.quizzes.totalQuizzes +
-            progress.tests.totalTests +
-            1; // playground
-        
+        const completed = roadmapCompleted + quizzesPassed + testsPassed + playgroundCompleted;
+        const total = this.totalTopics + QUIZ_TARGET + TEST_TARGET + 1;
         return { completed, total };
     }
 
@@ -151,6 +152,10 @@ export class ProgressTracker {
             progress.quizzes.completed.push(quizId);
         }
         progress.quizzes.attempted++;
+        // Only add to passed if score >= QUIZ_PASS_SCORE
+        if (score >= QUIZ_PASS_SCORE && !progress.quizzes.passed.includes(quizId)) {
+            progress.quizzes.passed.push(quizId);
+        }
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
         // Sync to backend (non-blocking)
         recordQuizAttempt(quizId, score).catch(() => {});
@@ -159,10 +164,14 @@ export class ProgressTracker {
     // Mark test as passed
     markTestPassed(testId, score = 0) {
         const progress = this.getProgress();
-        if (!progress.tests.passed.includes(testId)) {
-            progress.tests.passed.push(testId);
+        if (!progress.tests.completed.includes(testId)) {
+            progress.tests.completed.push(testId);
         }
         progress.tests.attempted++;
+        // Only add to passed if score >= TEST_PASS_SCORE
+        if (score >= TEST_PASS_SCORE && !progress.tests.passed.includes(testId)) {
+            progress.tests.passed.push(testId);
+        }
         localStorage.setItem(this.storageKey, JSON.stringify(progress));
         // Sync to backend (non-blocking)
         recordTestAttempt(testId, score, true).catch(() => {});
@@ -190,7 +199,6 @@ export class ProgressTracker {
 
     getDetailedProgress() {
         const progress = this.syncWithRoadmap();
-        
         return {
             roadmap: {
                 completed: progress.roadmapTopics.completed.length,
@@ -202,14 +210,16 @@ export class ProgressTracker {
                 executions: progress.playground.codeExecutions
             },
             quizzes: {
-                completed: progress.quizzes.completed.length,
-                total: progress.quizzes.totalQuizzes,
-                attempted: progress.quizzes.attempted
+                passed: progress.quizzes.passed.length,
+                target: QUIZ_TARGET,
+                attempted: progress.quizzes.attempted,
+                passScore: QUIZ_PASS_SCORE
             },
             tests: {
                 passed: progress.tests.passed.length,
-                total: progress.tests.totalTests,
-                attempted: progress.tests.attempted
+                target: TEST_TARGET,
+                attempted: progress.tests.attempted,
+                passScore: TEST_PASS_SCORE
             },
             aiInteractions: progress.aiInteractions
         };

@@ -1,7 +1,34 @@
+
+# ...existing code...
+
+import traceback
+import time
+import asyncio
+import os
+import sys
+
+# Ultra-simple startup - minimize any blocking code
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+# Initialize FastAPI app FIRST before any other imports
+app = FastAPI(title="Java Learning Platform - NLI-Verified RAG")
+
+# Add CORS middleware immediately
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# --- Test endpoint for diagnostics ---
 @app.get("/test-alive", tags=["Debug"])
 async def test_alive():
     """Simple endpoint to verify backend reachability."""
-    return {"status": "alive", "message": "Backend is reachable and custom endpoint is working."}
 import traceback
 import time
 import asyncio

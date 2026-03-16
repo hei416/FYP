@@ -1,209 +1,189 @@
-import subprocess
-import tempfile
 import os
 import re
+import httpx
+import asyncio
 from fastapi import APIRouter, Request
 from typing import List, Dict
 
 router = APIRouter()
 
+PAIZA_CREATE  = "https://api.paiza.io/runners/create"
+PAIZA_DETAILS = "https://api.paiza.io/runners/get_details"
+PAIZA_STATUS  = "https://api.paiza.io/runners/get_status"
+MAX_SOURCE_BYTES = 50_000
+
+
+async def _wait_for_completion(client: httpx.AsyncClient, session_id: str, api_key: str, max_retries: int = 10) -> bool:
+    for _ in range(max_retries):
+        r = await client.get(PAIZA_STATUS, params={"id": session_id, "api_key": api_key}, timeout=10)
+        r.raise_for_status()
+        if r.json().get("status") == "completed":
+            return True
+        await asyncio.sleep(1)
+    return False
+
+
 def extract_class_name(code: str) -> str:
-    """Extract public class name from Java code"""
     match = re.search(r'public\s+class\s+([a-zA-Z0-9_]+)', code)
     return match.group(1) if match else 'Main'
 
-def _ensure_main_method(files: List[Dict], main_class: str) -> List[Dict]:
-    """Ensure the main class has runApp + main. If not, auto-generate from declared public no-arg methods."""
-    updated_files = []
-    for file in files:
-        content = file.get("content", "")
-        filename = file.get("filename", "")
 
-        class_name_in_file = extract_class_name(content)
+def _build_source_from_files(files: List[Dict]) -> str:
+    if len(files) == 1:
+        return files[0].get("content", "")
+    parts = []
+    for f in files:
+        parts.append(f"// ---- {f.get('filename', 'Unknown')} ----\n")
+        parts.append(f.get("content", ""))
+        parts.append("\n")
+    return "".join(parts)
 
-        if class_name_in_file == main_class:
-            if "public static void main" not in content:
-                last_brace_idx = content.rfind('}')
-                if last_brace_idx != -1:
-                    # Find all public no-arg methods declared in this class
-                    method_sigs = re.findall(
-                        r'public\s+(\S+)\s+(\w+)\s*\(\s*\)\s*\{',
-                        content
-                    )
-                    call_lines = []
-                    for ret_type, mname in method_sigs:
-                        if mname in ("main", "runApp"):
-                            continue
-                        if ret_type == "void":
-                            call_lines.append(f"        {mname}();")
-                        elif ret_type.endswith("[]"):
-                            elem = ret_type[:-2]
-                            call_lines.append(f"        {ret_type} _r_{mname} = {mname}();")
-                            call_lines.append(f"        for ({elem} _item : _r_{mname}) {{ System.out.println(_item); }}")
-                        else:
-                            call_lines.append(f"        System.out.println({mname}());")
 
-                    if not call_lines:
-                        call_lines.append('        System.out.println("[Code compiled successfully]");')
-
-                    body = "\n".join(call_lines)
-                    injection = f'''
-    public void runApp() {{
-{body}
-    }}
-
-    public static void main(String[] args) {{
-        new {main_class}().runApp();
-    }}'''
-                    content = content[:last_brace_idx] + injection + '\n' + content[last_brace_idx:]
-
-        updated_files.append({"filename": filename, "content": content})
-
-    return updated_files
+def parse_javac_errors(build_stderr: str, filename: str) -> list[dict]:
+    errors = []
+    for line in build_stderr.splitlines():
+        m = re.match(r'([^:]+\.java):(\d+):\s*(error|warning):\s*(.+)', line)
+        if m:
+            errors.append({
+                "file": filename,
+                "line": int(m.group(2)),
+                "column": 0,
+                "severity": m.group(3),
+                "message": m.group(4).strip(),
+            })
+    return errors
 
 
 @router.post("/api/run-code")
 async def run_code(request: Request):
     data = await request.json()
-    
-    # Handle multiple files from frontend
     files = data.get("files", [])
-    main_class = data.get("main_class", "Main")
-    
-    # If no files array, handle single file (backward compatibility)
+
     if not files and "code" in data:
         code = data["code"]
-        files = [{
-            "filename": f"{extract_class_name(code)}.java",
-            "content": code
-        }]
-        main_class = extract_class_name(code)
-    
-    # Ensure main class has a main method
-    files = _ensure_main_method(files, main_class)
-    
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        try:
-            # Write all Java files
-            java_files = []
-            for file in files:
-                filename = file.get("filename", "Main.java")
-                content = file.get("content", "")
-                
-                file_path = os.path.join(tmp_dir, filename)
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                java_files.append(file_path)
-            
-            # Compile all files
-            compile_result = subprocess.run(
-                ["javac"] + java_files,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                cwd=tmp_dir,
-                env=os.environ.copy()
+        files = [{"filename": f"{extract_class_name(code)}.java", "content": code}]
+
+    if not files:
+        return {"output": "", "error": "No code provided"}
+
+    paiza_key = os.environ.get("PAIZA_API_KEY") or "guest"
+    source = _build_source_from_files(files)
+
+    if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
+        return {"output": "", "error": "Source code too large to execute"}
+
+    payload = {
+        "source_code": source,
+        "language": "java",
+        "input": data.get("input", ""),
+        "api_key": paiza_key,
+        "longpoll": "true",
+        "longpoll_timeout": "20",
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(PAIZA_CREATE, data=payload, timeout=60)
+            resp.raise_for_status()
+            session = resp.json()
+
+            session_id = session.get("id")
+            if not session_id:
+                return {"output": "", "error": "No session ID returned from executor"}
+
+            if session.get("status") != "completed":
+                completed = await _wait_for_completion(client, session_id, paiza_key)
+                if not completed:
+                    return {"output": "", "error": "Execution timed out"}
+
+            detail_resp = await client.get(
+                PAIZA_DETAILS,
+                params={"id": session_id, "api_key": paiza_key},
+                timeout=30,
             )
-            
-            if compile_result.returncode != 0:
-                return {
-                    "output": "",
-                    "error": compile_result.stderr.strip()
-                }
-            
-            # Run the main class
-            run_result = subprocess.run(
-                ["java", "-cp", tmp_dir, main_class],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                env=os.environ.copy()
-            )
-            
-            return {
-                "output": run_result.stdout.strip() or "No output",
-                "error": run_result.stderr.strip()
-            }
-            
-        except subprocess.TimeoutExpired:
-            return {"output": "", "error": "Execution timed out (15s limit)"}
-        except FileNotFoundError:
-            return {"output": "", "error": "Java compiler not found. Please install JDK."}
-        except Exception as e:
-            return {"output": "", "error": f"Unexpected error: {str(e)}"}
+            detail_resp.raise_for_status()
+            result = detail_resp.json()
+
+    except httpx.RequestError as e:
+        return {"output": "", "error": f"Execution service unreachable: {str(e)}"}
+    except httpx.HTTPStatusError as e:
+        detail = ""
+        try: detail = e.response.json().get("error", "")
+        except Exception: pass
+        return {"output": "", "error": f"Execution service error {e.response.status_code}: {detail or str(e)}"}
+
+    build_stderr = result.get("build_stderr") or ""
+    stderr       = result.get("stderr") or ""
+    stdout       = result.get("stdout") or ""
+    return {"output": stdout, "error": build_stderr or stderr}
 
 
 @router.post("/api/check-syntax")
 async def check_syntax(request: Request):
     data = await request.json()
-    
-    # Handle multiple files
     files = data.get("files", [])
-    
-    # Backward compatibility for single file
+
     if not files and "code" in data:
         code = data["code"]
-        class_name = extract_class_name(code)
-        files = [{
-            "filename": f"{class_name}.java",
-            "content": code
-        }]
-    
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        try:
-            # Write all files
-            java_files = []
-            for file in files:
-                filename = file.get("filename", "Main.java")
-                content = file.get("content", "")
-                
-                file_path = os.path.join(tmp_dir, filename)
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                java_files.append((file_path, filename))
-            
-            # Compile all files
-            compile_result = subprocess.run(
-                ["javac"] + [fp for fp, _ in java_files],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                cwd=tmp_dir,
-                env=os.environ.copy()
-            )
-            
-            errors = []
-            if compile_result.stderr:
-                stderr_lines = compile_result.stderr.splitlines()
-                i = 0
-                while i < len(stderr_lines):
-                    line = stderr_lines[i]
-                    # Match full-path or relative: /tmp/.../Main.java:3: error: msg
-                    match = re.match(r'(.+\.java):(\d+):\s+(error|warning):\s+(.*)', line)
-                    if match:
-                        filepath = match.group(1)
-                        filename = os.path.basename(filepath)
-                        error_line = int(match.group(2))
-                        severity = match.group(3)
-                        message = match.group(4).strip()
+        files = [{"filename": f"{extract_class_name(code)}.java", "content": code}]
 
-                        # Try to find column from the caret (^) line
-                        column = None
-                        if i + 2 < len(stderr_lines) and '^' in stderr_lines[i + 2]:
-                            column = stderr_lines[i + 2].index('^') + 1
+    if not files:
+        return {"errors": [], "partial": False}
 
-                        errors.append({
-                            "file": filename,
-                            "line": error_line,
-                            "column": column,
-                            "severity": severity,
-                            "message": message
-                        })
-                    i += 1
+    paiza_key = os.environ.get("PAIZA_API_KEY") or "guest"
+    all_errors = []
 
-            return {"errors": errors}
-            
-        except subprocess.TimeoutExpired:
-            return {"errors": [{"file": "general", "line": 1, "message": "Compilation timed out"}]}
-        except Exception as e:
-            return {"errors": [{"file": "general", "line": 1, "message": str(e)}]}
+    try:
+        async with httpx.AsyncClient() as client:
+            for f in files:
+                source   = f.get("content", "")
+                filename = f.get("filename", "Main.java")
+                if not source.strip():
+                    continue
+                try:
+                    resp = await client.post(PAIZA_CREATE, data={
+                        "source_code": source,
+                        "language": "java",
+                        "input": "",
+                        "api_key": paiza_key,
+                        "longpoll": "true",
+                        "longpoll_timeout": "10",
+                    }, timeout=30)
+                    resp.raise_for_status()
+                    session    = resp.json()
+                    session_id = session.get("id")
+                    if not session_id:
+                        continue
+
+                    if session.get("status") != "completed":
+                        await _wait_for_completion(client, session_id, paiza_key, max_retries=6)
+
+                    detail = await client.get(
+                        PAIZA_DETAILS,
+                        params={"id": session_id, "api_key": paiza_key},
+                        timeout=15,
+                    )
+                    detail.raise_for_status()
+                    result = detail.json()
+
+                    build_stderr = result.get("build_stderr") or ""
+                    if build_stderr.strip():
+                        errors = parse_javac_errors(build_stderr, filename)
+                        if not errors:
+                            errors = [{
+                                "file": filename, "line": 1, "column": 0,
+                                "severity": "error", "message": build_stderr.strip()
+                            }]
+                        all_errors.extend(errors)
+
+                except Exception as e:
+                    import traceback
+                    print(f"[check-syntax] paiza error for {filename}:", e)
+                    traceback.print_exc()
+
+    except Exception as e:
+        import traceback
+        print("[check-syntax] outer error:")
+        traceback.print_exc()
+
+    return {"errors": all_errors, "partial": False}

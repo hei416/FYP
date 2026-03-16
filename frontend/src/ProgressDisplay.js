@@ -287,25 +287,25 @@ export default function ProgressDisplay() {
                                 color="#4CAF50"
                             />
 
-                            {/* Quizzes - only show if total > 0 */}
-                            {detailedProgress.quizzes.total > 0 && (
+                            {/* Quizzes - only show if target > 0 */}
+                            {detailedProgress.quizzes.target > 0 && (
                                 <ProgressItem
                                     icon="📝"
                                     title="Quizzes"
-                                    completed={detailedProgress.quizzes.completed}
-                                    total={detailedProgress.quizzes.total}
+                                    completed={detailedProgress.quizzes.passed}
+                                    total={detailedProgress.quizzes.target}
                                     subtitle={`${detailedProgress.quizzes.attempted} attempted`}
                                     color="#FF9800"
                                 />
                             )}
 
-                            {/* Tests - only show if total > 0 */}
-                            {detailedProgress.tests.total > 0 && (
+                            {/* Tests - only show if target > 0 */}
+                            {detailedProgress.tests.target > 0 && (
                                 <ProgressItem
                                     icon="🎯"
                                     title="Practical Tests"
                                     completed={detailedProgress.tests.passed}
-                                    total={detailedProgress.tests.total}
+                                    total={detailedProgress.tests.target}
                                     subtitle={`${detailedProgress.tests.attempted} attempted`}
                                     color="#F44336"
                                 />

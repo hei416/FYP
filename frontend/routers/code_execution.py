@@ -1,9 +1,10 @@
-import subprocess
 import tempfile
 import os
 import re
+import requests
 from fastapi import APIRouter, Request
 from typing import List, Dict
+from core.config import PAIZA_API_KEY
 
 router = APIRouter()
 
@@ -62,6 +63,45 @@ def _ensure_main_method(files: List[Dict], main_class: str) -> List[Dict]:
     return updated_files
 
 
+def _fallback_check_java(files: List[Dict]) -> List[Dict]:
+    errors = []
+    for file in files:
+        filename = file.get("filename", "Main.java")
+        if not filename.lower().endswith('.java'):
+            continue
+        content = file.get("content", "")
+        lines = content.splitlines()
+
+        brace_stack = 0
+        for i, line in enumerate(lines, start=1):
+            s = line.strip()
+            if not s or s.startswith('//') or s.startswith('/*') or s.startswith('*'):
+                continue
+            brace_stack += line.count('{')
+            brace_stack -= line.count('}')
+            if brace_stack < 0:
+                errors.append({"file": filename, "line": i, "column": None, "severity": "error", "message": "Unmatched closing brace '}'"})
+                brace_stack = 0
+            if s.endswith('{') or s.endswith('}'):
+                continue
+            if s.startswith('package ') or s.startswith('import ') or s.startswith('@'):
+                continue
+            if re.match(r'(public|private|protected)\s+(class|interface|enum)\b', s):
+                continue
+            if re.match(r'(if|for|while|switch|else|try|catch|finally)\b', s):
+                continue
+            if s.endswith(';'):
+                continue
+            if '=' in s or s.startswith('return ') or 'System.out' in s:
+                if not s.endswith(';'):
+                    errors.append({"file": filename, "line": i, "column": None, "severity": "warning", "message": "Possible missing semicolon"})
+            if s.count('"') % 2 == 1:
+                errors.append({"file": filename, "line": i, "column": None, "severity": "error", "message": "Unclosed string literal"})
+        if brace_stack > 0:
+            errors.append({"file": filename, "line": len(lines) or 1, "column": None, "severity": "error", "message": "Unmatched opening brace '{'"})
+    return errors
+
+
 @router.post("/api/run-code")
 async def run_code(request: Request):
     data = await request.json()
@@ -81,56 +121,39 @@ async def run_code(request: Request):
     
     # Ensure main class has a main method
     files = _ensure_main_method(files, main_class)
-    
-    with tempfile.TemporaryDirectory() as tmp_dir:
+
+    # If any Java file present, use Paiza online runner (no local javac/java dependency)
+    if any((file.get("filename", "").lower().endswith('.java')) for file in files):
+        full_source = "\n".join(f.get("content", "") for f in files)
         try:
-            # Write all Java files
-            java_files = []
-            for file in files:
-                filename = file.get("filename", "Main.java")
-                content = file.get("content", "")
-                
-                file_path = os.path.join(tmp_dir, filename)
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                java_files.append(file_path)
-            
-            # Compile all files
-            compile_result = subprocess.run(
-                ["javac"] + java_files,
-                capture_output=True,
-                text=True,
+            resp = requests.post(
+                "https://api.paiza.io/runners/create",
+                data={"source_code": full_source, "language": "java", "api_key": PAIZA_API_KEY},
                 timeout=10,
-                cwd=tmp_dir,
-                env=os.environ.copy()
             )
-            
-            if compile_result.returncode != 0:
-                return {
-                    "output": "",
-                    "error": compile_result.stderr.strip()
-                }
-            
-            # Run the main class
-            run_result = subprocess.run(
-                ["java", "-cp", tmp_dir, main_class],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                env=os.environ.copy()
-            )
-            
-            return {
-                "output": run_result.stdout.strip() or "No output",
-                "error": run_result.stderr.strip()
-            }
-            
-        except subprocess.TimeoutExpired:
-            return {"output": "", "error": "Execution timed out (15s limit)"}
-        except FileNotFoundError:
-            return {"output": "", "error": "Java compiler not found. Please install JDK."}
+            run_id = resp.json().get("id")
+            if not run_id:
+                return {"output": "", "error": "Failed to start remote runner."}
+
+            start = __import__("datetime").datetime.now()
+            while (__import__("datetime").datetime.now() - start).seconds < 30:
+                result = requests.get(
+                    "https://api.paiza.io/runners/get_details",
+                    params={"id": run_id, "api_key": PAIZA_API_KEY},
+                ).json()
+                if result.get("status") == "completed":
+                    stdout = (result.get("stdout") or "").strip()
+                    stderr = (result.get("stderr") or "").strip()
+                    build_stderr = (result.get("build_stderr") or "").strip()
+                    if build_stderr or stderr:
+                        return {"output": "", "error": build_stderr or stderr}
+                    return {"output": stdout or "No output", "error": ""}
+
+            return {"output": "", "error": "Execution timed out"}
         except Exception as e:
-            return {"output": "", "error": f"Unexpected error: {str(e)}"}
+            return {"output": "", "error": f"Remote execution error: {str(e)}"}
+
+    return {"output": "", "error": "No Java files provided."}
 
 
 @router.post("/api/check-syntax")
@@ -148,62 +171,9 @@ async def check_syntax(request: Request):
             "filename": f"{class_name}.java",
             "content": code
         }]
-    
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        try:
-            # Write all files
-            java_files = []
-            for file in files:
-                filename = file.get("filename", "Main.java")
-                content = file.get("content", "")
-                
-                file_path = os.path.join(tmp_dir, filename)
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                java_files.append((file_path, filename))
-            
-            # Compile all files
-            compile_result = subprocess.run(
-                ["javac"] + [fp for fp, _ in java_files],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                cwd=tmp_dir,
-                env=os.environ.copy()
-            )
-            
-            errors = []
-            if compile_result.stderr:
-                stderr_lines = compile_result.stderr.splitlines()
-                i = 0
-                while i < len(stderr_lines):
-                    line = stderr_lines[i]
-                    # Match full-path or relative: /tmp/.../Main.java:3: error: msg
-                    match = re.match(r'(.+\.java):(\d+):\s+(error|warning):\s+(.*)', line)
-                    if match:
-                        filepath = match.group(1)
-                        filename = os.path.basename(filepath)
-                        error_line = int(match.group(2))
-                        severity = match.group(3)
-                        message = match.group(4).strip()
+    # Use fallback checker to avoid requiring a local JDK
+    if any((file.get("filename", "").lower().endswith('.java')) for file in files):
+        errors = _fallback_check_java(files)
+        return {"errors": errors}
 
-                        # Try to find column from the caret (^) line
-                        column = None
-                        if i + 2 < len(stderr_lines) and '^' in stderr_lines[i + 2]:
-                            column = stderr_lines[i + 2].index('^') + 1
-
-                        errors.append({
-                            "file": filename,
-                            "line": error_line,
-                            "column": column,
-                            "severity": severity,
-                            "message": message
-                        })
-                    i += 1
-
-            return {"errors": errors}
-            
-        except subprocess.TimeoutExpired:
-            return {"errors": [{"file": "general", "line": 1, "message": "Compilation timed out"}]}
-        except Exception as e:
-            return {"errors": [{"file": "general", "line": 1, "message": str(e)}]}
+    return {"errors": []}

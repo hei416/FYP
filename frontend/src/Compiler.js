@@ -10,11 +10,19 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     const [localOutput, setLocalOutput] = useState("");
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
+    const debounceRef = useRef(null);
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-    // Initialize files from parent's code prop
+    // ── Stale closure fix: mirror files and activeFileId into refs ──
+    const filesRef = useRef(files);
+    useEffect(() => { filesRef.current = files; }, [files]);
+
+    const activeFileIdRef = useRef(activeFileId);
+    useEffect(() => { activeFileIdRef.current = activeFileId; }, [activeFileId]);
+
+    // ── Initialize files from parent's code prop ──
     useEffect(() => {
         if (code && files.length === 0) {
             const extractedClassName = extractClassName(code);
@@ -28,7 +36,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     }, [code]);
 
-    // Sync active file content back to parent
+    // ── Sync active file content back to parent ──
     useEffect(() => {
         const activeFile = files.find(f => f.id === activeFileId);
         if (activeFile && setCode) {
@@ -36,7 +44,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     }, [files, activeFileId, setCode]);
 
-    // Listen for demo tour code fill — replace files directly (bypasses files.length guard)
+    // ── Listen for demo tour code fill ──
     useEffect(() => {
         const handleDemoFill = (event) => {
             if (event.detail && event.detail.code) {
@@ -55,6 +63,11 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         return () => window.removeEventListener('demo-fill-code', handleDemoFill);
     }, []);
 
+    // ── Cleanup debounce only on unmount ──
+    useEffect(() => {
+        return () => clearTimeout(debounceRef.current);
+    }, []);
+
     const extractClassName = (code) => {
         const match = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
         return match ? match[1] : 'Main';
@@ -62,9 +75,18 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
 
     const activeFile = files.find((file) => file.id === activeFileId);
 
+    const DEBOUNCE_MS = 1000;
     const handleEditorDidMount = (editor, monaco) => {
         editorRef.current = editor;
         monacoRef.current = monaco;
+
+        editor.onDidChangeModelContent(() => {
+            clearTimeout(debounceRef.current);
+            debounceRef.current = setTimeout(() => checkSyntax(), DEBOUNCE_MS);
+        });
+
+        // Delay initial check to allow files state to populate
+        setTimeout(() => checkSyntax(), 300);
     };
 
     const addFile = () => {
@@ -98,24 +120,14 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     };
 
     const updateFileName = (fileId, newName) => {
-        setFiles(files.map(file => 
+        setFiles(files.map(file =>
             file.id === fileId ? { ...file, filename: newName } : file
         ));
     };
 
-    const handleFileNameChange = (e, fileId) => {
-        updateFileName(fileId, e.target.value);
-    };
-
-    const handleFileNameBlur = () => {
-        setEditingFileId(null);
-    };
-
-    const handleFileNameKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            setEditingFileId(null);
-        }
-    };
+    const handleFileNameChange = (e, fileId) => updateFileName(fileId, e.target.value);
+    const handleFileNameBlur = () => setEditingFileId(null);
+    const handleFileNameKeyDown = (e) => { if (e.key === 'Enter') setEditingFileId(null); };
 
     const updateFileContent = (fileId, newContent) => {
         setFiles(files.map(file =>
@@ -123,21 +135,28 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         ));
     };
 
+    // ── Syntax check (uses refs to avoid stale closures) ──
     const checkSyntax = async () => {
-        if (!editorRef.current || !monacoRef.current || files.length === 0) return;
+        if (!editorRef.current || !monacoRef.current || filesRef.current.length === 0) return;
 
-        const filesToSend = files.map(file => ({
+        const filesToSend = filesRef.current.map(file => ({
             filename: file.filename,
             content: file.content,
         }));
 
         try {
+
             const res = await fetch(`${API_BASE}/api/check-syntax`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ files: filesToSend }),
             });
-            const data = await res.json();
+            // Debug lines for response
+            console.log('[syntax] status:', res.status);
+            console.log('[syntax] content-type:', res.headers.get('content-type'));
+            const text = await res.text();
+            console.log('[syntax] raw body:', text);
+            const data = text ? JSON.parse(text) : { errors: [] }; // safe parse
 
             // Clear all existing markers
             monacoRef.current.editor.getModels().forEach(model => {
@@ -146,64 +165,45 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
 
             if (data.errors && data.errors.length > 0) {
                 setSyntaxErrors(data.errors);
-                const errorsByFile = {};
 
+                const errorsByFile = {};
                 data.errors.forEach(err => {
                     const filename = err.file || 'general';
-                    if (!errorsByFile[filename]) {
-                        errorsByFile[filename] = [];
-                    }
+                    if (!errorsByFile[filename]) errorsByFile[filename] = [];
                     errorsByFile[filename].push(err);
                 });
 
-                for (const filename in errorsByFile) {
-                    const fileErrors = errorsByFile[filename];
-                    const model = monacoRef.current.editor.getModels().find(
-                        m => m.uri.path === filename || m.uri.path.endsWith('/' + filename)
-                    );
+                // Note: Monaco only holds a model for the active file.
+                // Squiggles apply to active file only; tab badges cover all files.
+                const activeFilename = filesRef.current.find(
+                    f => f.id === activeFileIdRef.current
+                )?.filename ?? null;
 
-                    if (model) {
-                        const markers = fileErrors.map(err => {
-                            const lineContent = model.getLineContent(err.line) || '';
-                            // Use column info for precise highlighting
-                            const startCol = err.column || 1;
-                            // Find the end of the token at the error position
-                            let endCol;
-                            if (err.column) {
-                                // Highlight from error column to next whitespace/symbol or end of line
-                                const rest = lineContent.substring(err.column - 1);
-                                const tokenMatch = rest.match(/^\S+/);
-                                endCol = err.column + (tokenMatch ? tokenMatch[0].length : 1);
-                            } else {
-                                // No column info — highlight the first non-whitespace content on the line
-                                const trimStart = lineContent.search(/\S/);
-                                endCol = model.getLineMaxColumn(err.line);
-                                if (trimStart >= 0) {
-                                    return {
-                                        startLineNumber: err.line,
-                                        startColumn: trimStart + 1,
-                                        endLineNumber: err.line,
-                                        endColumn: endCol,
-                                        message: err.message,
-                                        severity: err.severity === 'warning'
-                                            ? monacoRef.current.MarkerSeverity.Warning
-                                            : monacoRef.current.MarkerSeverity.Error,
-                                    };
-                                }
-                            }
-                            return {
-                                startLineNumber: err.line,
-                                startColumn: startCol,
-                                endLineNumber: err.line,
-                                endColumn: endCol,
-                                message: err.message,
-                                severity: err.severity === 'warning'
-                                    ? monacoRef.current.MarkerSeverity.Warning
-                                    : monacoRef.current.MarkerSeverity.Error,
-                            };
-                        });
-                        monacoRef.current.editor.setModelMarkers(model, 'java-syntax', markers);
-                    }
+                const model = editorRef.current.getModel();
+                if (model && activeFilename && errorsByFile[activeFilename]) {
+                    const markers = errorsByFile[activeFilename].map(err => {
+                        const lineContent = model.getLineContent(err.line) || '';
+                        const startCol = err.column || (lineContent.search(/\S/) + 1) || 1;
+                        let endCol;
+                        if (err.column) {
+                            const rest = lineContent.substring(err.column - 1);
+                            const tokenMatch = rest.match(/^\S+/);
+                            endCol = err.column + (tokenMatch ? tokenMatch[0].length : 1);
+                        } else {
+                            endCol = model.getLineMaxColumn(err.line);
+                        }
+                        return {
+                            startLineNumber: err.line,
+                            startColumn: startCol,
+                            endLineNumber: err.line,
+                            endColumn: endCol,
+                            message: err.message,
+                            severity: err.severity === 'warning'
+                                ? monacoRef.current.MarkerSeverity.Warning
+                                : monacoRef.current.MarkerSeverity.Error,
+                        };
+                    });
+                    monacoRef.current.editor.setModelMarkers(model, 'java-syntax', markers);
                 }
             } else {
                 setSyntaxErrors([]);
@@ -213,14 +213,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     };
 
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            checkSyntax();
-        }, 1000);
-        return () => clearTimeout(timeout);
-    }, [files, activeFileId]);
-
-    // Built-in Run Code function (for pages without external buttons)
+    // ── Built-in Run Code ──
     const handleInternalRun = async () => {
         setLoading(true);
         setLocalOutput("Running code...");
@@ -229,8 +222,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             filename: file.filename,
             content: file.content,
         }));
-
-        // Determine the main class from the active file
         const mainClass = activeFile ? extractClassName(activeFile.content) : 'Main';
 
         try {
@@ -256,12 +247,15 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     };
 
-    // Use parent's onRun if provided, otherwise use internal handler
     const handleRun = onRun || handleInternalRun;
 
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.text, margin: `0 0 ${spacing.sm}px 0` }}>Java Editor</h3>
+            <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.text, margin: `0 0 ${spacing.sm}px 0` }}>
+                Java Editor
+            </h3>
+
+            {/* ── Tab bar ── */}
             <div style={{ display: 'flex', marginBottom: spacing.sm, borderBottom: `1px solid ${colors.border}` }}>
                 {files.map((file) => (
                     <div
@@ -280,7 +274,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                             fontSize: font.sizeSm,
                         }}
                     >
-                        <button 
+                        <button
                             onClick={() => handleDownload(file.content, file.filename)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '5px' }}
                             title="Download File"
@@ -298,7 +292,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                                 style={{ border: '1px solid blue', padding: '2px', width: '100px' }}
                             />
                         ) : (
-                            <span 
+                            <span
                                 onDoubleClick={() => setEditingFileId(file.id)}
                                 onClick={() => setActiveFileId(file.id)}
                                 style={{ marginRight: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -323,7 +317,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                                 )}
                             </span>
                         )}
-                        <button 
+                        <button
                             onClick={() => removeFile(file.id)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.danger, fontSize: font.sizeSm }}
                             title="Close Tab"
@@ -346,6 +340,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 </button>
             </div>
 
+            {/* ── Monaco Editor ── */}
             {activeFile && (
                 <Editor
                     height="300px"
@@ -359,7 +354,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 />
             )}
 
-            {/* Syntax errors panel (Problems panel like VS Code) */}
+            {/* ── Problems panel ── */}
             {syntaxErrors.length > 0 && (
                 <div style={{
                     marginTop: spacing.sm,
@@ -386,7 +381,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                         <div
                             key={idx}
                             onClick={() => {
-                                // Navigate to the error line
                                 const targetFile = files.find(f => f.filename === err.file);
                                 if (targetFile) setActiveFileId(targetFile.id);
                                 if (editorRef.current) {
@@ -419,10 +413,10 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 </div>
             )}
 
-            {/* Show Run button ONLY if hideRunButton is false */}
+            {/* ── Run button ── */}
             {!hideRunButton && (
                 <div style={{ marginTop: spacing.sm }}>
-                    <button 
+                    <button
                         data-tour="run-button"
                         onClick={handleRun}
                         disabled={loading}
@@ -433,7 +427,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 </div>
             )}
 
-            {/* Show output - use parent's output if provided, otherwise use local */}
+            {/* ── Output panel ── */}
             {(output || localOutput) && !hideRunButton && (
                 <pre style={{ ...codeOutput, marginTop: spacing.lg }}>
                     {output || localOutput}

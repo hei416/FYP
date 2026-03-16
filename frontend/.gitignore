@@ -18,6 +18,7 @@ dist/
 
 # IDE
 .vscode/
+*.log
 .idea/
 *.swp
 *.swo
