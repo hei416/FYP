@@ -203,9 +203,11 @@ export default function ProgressDisplay() {
                                     </div>
                                     <div style={{
                                         fontSize: font.sizeSm, fontWeight: font.weightBold,
-                                        color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
-                                    }}>
-                                        {detailedProgress.playground.completed ? '✓ Completed' : 'In Progress'}
+                                            color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
+                                        }}>
+                                            {detailedProgress.playground.completed
+                                                ? '✓ Completed'
+                                                : `${detailedProgress.playground.executions} / 3`}
                                     </div>
                                 </div>
                             </div>

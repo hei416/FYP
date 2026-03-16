@@ -85,7 +85,7 @@ export default function Playground() {
                     code={code} 
                     setCode={setCode}
                     hideRunButton={false}
-                    onCodeRun={handleCodeRun}  // Pass this callback
+                    onRun={handleCodeRun}  // Pass this callback
                 />
             </div>
 

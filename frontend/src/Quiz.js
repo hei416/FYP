@@ -491,6 +491,16 @@ export default function Quiz() {
         );
     }
 
+    useEffect(() => {
+        if (completed && filteredQuestions.length > 0) {
+            const scorePercent = Math.round((score / filteredQuestions.length) * 100);
+            const quizId = `quiz_${Date.now()}`;
+            tracker.markQuizCompleted(quizId, scorePercent);
+            window.dispatchEvent(new Event('progress-updated'));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [completed]);
+
     if (completed) {
         return (
             <div style={pageContainer(800)}>

@@ -868,11 +868,38 @@ export default function JavaRoadmap() {
     if (!selectedNode) return;
     const nodeId = selectedNode.id;
     setCompletedTopics((prev) => {
-      if (prev.includes(nodeId)) {
-        return prev.filter((id) => id !== nodeId);
-      } else {
-        return [...prev, nodeId];
-      }
+        const isNowCompleted = !prev.includes(nodeId);
+        const next = isNowCompleted
+            ? [...prev, nodeId]
+            : prev.filter((id) => id !== nodeId);
+
+        // Milestone popup: check if a full group is just completed
+        if (isNowCompleted) {
+            const group = TOPIC_GROUPS.find(g => g.subtopics.includes(nodeId));
+            if (group) {
+                const groupDone = group.subtopics.every(id => next.includes(id));
+                if (groupDone) {
+                    // Check quiz/test attempts from tracker
+                    const stored = localStorage.getItem('codetutor_learning_progress');
+                    const progress = stored ? JSON.parse(stored) : null;
+                    const quizAttempted = progress?.quizzes?.attempted ?? 0;
+                    const testAttempted = progress?.tests?.attempted ?? 0;
+                    if (quizAttempted === 0 || testAttempted === 0) {
+                        setTimeout(() => {
+                            const go = window.confirm(
+                                `🎉 You completed "${group.label}"!\n\n` +
+                                (quizAttempted === 0 ? `💡 You haven't attempted any quizzes yet — try one to test your knowledge!\n` : '') +
+                                (testAttempted === 0 ? `💡 You haven't attempted any practical tests yet — give one a go!\n` : '') +
+                                `\nGo to Quizzes now?`
+                            );
+                            if (go) window.location.href = '/quiz';
+                        }, 300);
+                    }
+                }
+            }
+        }
+
+        return next;
     });
   };
 
@@ -994,26 +1021,7 @@ export default function JavaRoadmap() {
             <div className="p-5 space-y-5">
             {content ? (
                 <>
-                {/* Completion Badge */}
-                {isCompleted && !isSkippedComplete && (
-                    <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded-r flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-base font-semibold text-green-800">Completed! 🎉</span>
-                    </div>
-                )}
-                {isSkippedComplete && (
-                    <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r">
-                    <div className="flex items-center mb-1">
-                        <svg className="w-5 h-5 text-amber-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-base font-semibold text-amber-800">Completed (prerequisites skipped)</span>
-                    </div>
-                    <p className="text-sm text-amber-700 ml-7">Some earlier topics haven't been completed yet. Consider reviewing them to fill any gaps.</p>
-                    </div>
-                )}
+                {/* Removed duplicate completion badge blocks here */}
 
                 {/* Completion Badge */}
                 {isCompleted && !isSkippedComplete && (
