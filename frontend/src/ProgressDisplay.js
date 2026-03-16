@@ -185,13 +185,30 @@ export default function ProgressDisplay() {
                                 passColor="#F44336"
                                 color="#F44336"
                             />
-                            <ProgressItem
-                                icon="💻" title="Code Playground"
-                                completed={detailedProgress.playground.completed ? 1 : 0}
-                                total={1}
-                                subtitle={`${detailedProgress.playground.executions} code executions`}
-                                color="#4CAF50"
-                            />
+
+                            {/* Code Playground — show execution count, not 0/1 */}
+                            <div style={{
+                                padding: spacing.lg, background: colors.bg,
+                                borderRadius: radii.sm, border: `1px solid ${colors.divider}`
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '24px' }}>💻</span>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.text, marginBottom: '2px' }}>
+                                            Code Playground
+                                        </div>
+                                        <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
+                                            {detailedProgress.playground.executions} code execution{detailedProgress.playground.executions !== 1 ? 's' : ''} completed
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        fontSize: font.sizeSm, fontWeight: font.weightBold,
+                                        color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
+                                    }}>
+                                        {detailedProgress.playground.completed ? '✓ Completed' : 'In Progress'}
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* AI Interactions */}
                             <div style={{
