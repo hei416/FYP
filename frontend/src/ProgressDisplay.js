@@ -158,7 +158,7 @@ export default function ProgressDisplay() {
                             </div>
                         </div>
 
-                        {/* Detailed Breakdown */}
+                        {/* Detailed Breakdown — order: Roadmap → Quizzes → Practical Tests → Playground → AI */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <ProgressItem
                                 icon="🗺️" title="Learning Roadmap"
@@ -166,13 +166,6 @@ export default function ProgressDisplay() {
                                 total={detailedProgress.roadmap.total}
                                 subtitle={`${detailedProgress.roadmap.percentage}% complete`}
                                 color="#6366F1"
-                            />
-                            <ProgressItem
-                                icon="💻" title="Code Playground"
-                                completed={detailedProgress.playground.completed ? 1 : 0}
-                                total={1}
-                                subtitle={`${detailedProgress.playground.executions} code executions`}
-                                color="#4CAF50"
                             />
                             <ProgressItem
                                 icon="📝" title="Quizzes"
@@ -191,6 +184,13 @@ export default function ProgressDisplay() {
                                 passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per test`}
                                 passColor="#F44336"
                                 color="#F44336"
+                            />
+                            <ProgressItem
+                                icon="💻" title="Code Playground"
+                                completed={detailedProgress.playground.completed ? 1 : 0}
+                                total={1}
+                                subtitle={`${detailedProgress.playground.executions} code executions`}
+                                color="#4CAF50"
                             />
 
                             {/* AI Interactions */}
@@ -248,7 +248,6 @@ function ProgressItem({ icon, title, completed, total, subtitle, passCriteria, p
                     <div style={{ fontSize: font.sizeXs, color: colors.textSecondary }}>
                         {subtitle}
                     </div>
-                    {/* Passing criteria badge */}
                     {passCriteria && (
                         <div style={{
                             display: 'inline-flex', alignItems: 'center', gap: '4px',

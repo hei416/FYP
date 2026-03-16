@@ -9,8 +9,8 @@ import {
     markTopicCompleteOnBackend
 } from './progressService';
 
-export const QUIZ_TARGET = 3;
-export const TEST_TARGET = 1;
+export const QUIZ_TARGET = 6;
+export const TEST_TARGET = 6;
 export const QUIZ_PASS_SCORE = 70;
 export const TEST_PASS_SCORE = 60;
 
@@ -58,24 +58,13 @@ export class ProgressTracker {
             };
             localStorage.setItem(this.storageKey, JSON.stringify(defaultProgress));
         } else {
-            // Migration guard: ensure passed arrays exist
+            // Migration guard: ensure passed/completed arrays exist
             const progress = this.getProgress();
             let dirty = false;
-            if (!Array.isArray(progress.quizzes.passed)) {
-                progress.quizzes.passed = [];
-                dirty = true;
-            }
-            if (!Array.isArray(progress.tests.passed)) {
-                progress.tests.passed = [];
-                dirty = true;
-            }
-            if (!Array.isArray(progress.tests.completed)) {
-                progress.tests.completed = [];
-                dirty = true;
-            }
-            if (dirty) {
-                localStorage.setItem(this.storageKey, JSON.stringify(progress));
-            }
+            if (!Array.isArray(progress.quizzes.passed)) { progress.quizzes.passed = []; dirty = true; }
+            if (!Array.isArray(progress.tests.passed)) { progress.tests.passed = []; dirty = true; }
+            if (!Array.isArray(progress.tests.completed)) { progress.tests.completed = []; dirty = true; }
+            if (dirty) localStorage.setItem(this.storageKey, JSON.stringify(progress));
         }
     }
 
