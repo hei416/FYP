@@ -35,5 +35,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Python virtual environments
+.venv/
+venv/
+
 # Deployment zip
 deploy.zip
