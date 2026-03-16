@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import TextareaAutosize from "react-textarea-autosize";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
+import { ProgressTracker } from './ProgressTracker';
+
+const progressTracker = new ProgressTracker();
 
 export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPage }) {
     // Removed: const [showChat, setShowChat] = useState(false);
@@ -78,6 +81,9 @@ export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPag
             };
             
             setHistory((prev) => [...prev, aiMessage]);
+
+            // Track AI tutor interaction in progress
+            progressTracker.trackAIInteraction();
         } catch (e) {
             setHistory((prev) => [
                 ...prev,
