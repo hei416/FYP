@@ -50,6 +50,8 @@ export default function Quiz() {
     const [moreProgress, setMoreProgress] = useState({ received: 0, total: 5 });
     const [poolSize, setPoolSize] = useState(0);
     const [lastTopics, setLastTopics] = useState([]);
+    // Store the quiz id for progress tracking
+    const quizSessionIdRef = useRef(null);
 
     const tracker = useMemo(() => new ProgressTracker(), []);
 
@@ -63,9 +65,24 @@ export default function Quiz() {
         }
     }, [location.state]);
 
+    // Fire once when completed becomes true — calculate score and call markQuizCompleted
+    useEffect(() => {
+        if (!completed) return;
+        const totalQs = filteredQuestions.length;
+        if (totalQs === 0) return;
+        const scorePercent = Math.round((score / totalQs) * 100);
+        const quizId = quizSessionIdRef.current || `quiz_${Date.now()}`;
+        tracker.markQuizCompleted(quizId, scorePercent);
+        window.dispatchEvent(new Event('progress-updated'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [completed]);
+
    const generateAIQuiz = useCallback(async (topicsOverride = null) => {
         if (isFetchingRef.current) return; // ← block duplicate calls
         isFetchingRef.current = true;
+
+        // Generate a session id for this quiz run
+        quizSessionIdRef.current = `quiz_${Date.now()}`;
 
         setLoadingQuiz(true);
         setQuizData([]);
@@ -146,6 +163,9 @@ export default function Quiz() {
         setAllUserAnswers({});
         setQuizSource(`✨ Generating new questions for: ${lastTopics.slice(0, 3).join(", ")}${lastTopics.length > 3 ? "..." : ""}`);
         setShowTopicSelect(false);
+
+        // new session id for this run
+        quizSessionIdRef.current = `quiz_${Date.now()}`;
 
         try {
             const res = await fetch(`${API_BASE}/api/quizzes/more`, {

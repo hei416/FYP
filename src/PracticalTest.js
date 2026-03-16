@@ -88,6 +88,9 @@ export default function PracticalTest() {
     const [hintLoading, setHintLoading] = useState(false);
     const [testResults, setTestResults] = useState(null);
 
+    // dedup tracking: last recorded "questionId+score" pair
+    const lastRecordedRef = useRef(null);
+
     const tracker = useRef(new ProgressTracker()).current;
 
     // timer
@@ -96,6 +99,18 @@ export default function PracticalTest() {
         const interval = setInterval(() => setElapsedTime(t => t + 1), 1000);
         return () => clearInterval(interval);
     }, [started]);
+
+    // Fire when gradingResults arrives — call markTestPassed + dispatch event (deduped)
+    useEffect(() => {
+        if (!gradingResults) return;
+        const score = gradingResults.total_score ?? 0;
+        const testId = `test_${questionDbId || 'unknown'}`;
+        const dedupKey = `${testId}__${score}`;
+        if (lastRecordedRef.current === dedupKey) return;
+        lastRecordedRef.current = dedupKey;
+        tracker.markTestPassed(testId, score);
+        window.dispatchEvent(new Event('progress-updated'));
+    }, [gradingResults, questionDbId, tracker]);
 
     // ── topic toggle ──────────────────────────────────────────────────────────
     const toggleTopic = (label) => {
@@ -131,6 +146,8 @@ export default function PracticalTest() {
         setHintLevel('gentle');
         setTestResults(null);
         setResult('');
+        // reset dedup when a new question loads
+        lastRecordedRef.current = null;
     };
 
     // ── generate AI question ──────────────────────────────────────────────────
@@ -216,10 +233,6 @@ export default function PracticalTest() {
             setTestResults(results);
             if (failed.length === 0) {
                 setResult(`✅ All tests passed! Your solution is correct.\n\nYour Output:\n${actualOutput}`);
-                // Immediately mark test as passed when all output matches (100% score)
-                const testId = `test_${questionDbId || 'unknown'}_${Date.now()}`;
-                tracker.markTestPassed(testId, 100);
-                window.dispatchEvent(new Event('progress-updated'));
             } else {
                 const lines = ["❌ Tests failed - Output does not match expected:\n"];
                 for (let i = 0; i < maxLines; i++) {
