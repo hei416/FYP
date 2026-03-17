@@ -15,14 +15,12 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-    // ── Stale closure fix: mirror files and activeFileId into refs ──
     const filesRef = useRef(files);
     useEffect(() => { filesRef.current = files; }, [files]);
 
     const activeFileIdRef = useRef(activeFileId);
     useEffect(() => { activeFileIdRef.current = activeFileId; }, [activeFileId]);
 
-    // ── Initialize files from parent's code prop ──
     useEffect(() => {
         if (code && files.length === 0) {
             const extractedClassName = extractClassName(code);
@@ -36,7 +34,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     }, [code]);
 
-    // ── Sync active file content back to parent ──
     useEffect(() => {
         const activeFile = files.find(f => f.id === activeFileId);
         if (activeFile && setCode) {
@@ -44,7 +41,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     }, [files, activeFileId, setCode]);
 
-    // ── Listen for demo tour code fill ──
     useEffect(() => {
         const handleDemoFill = (event) => {
             if (event.detail && event.detail.code) {
@@ -63,7 +59,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         return () => window.removeEventListener('demo-fill-code', handleDemoFill);
     }, []);
 
-    // ── Cleanup debounce only on unmount ──
     useEffect(() => {
         return () => clearTimeout(debounceRef.current);
     }, []);
@@ -85,7 +80,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             debounceRef.current = setTimeout(() => checkSyntax(), DEBOUNCE_MS);
         });
 
-        // Delay initial check to allow files state to populate
         setTimeout(() => checkSyntax(), 300);
     };
 
@@ -135,7 +129,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         ));
     };
 
-    // ── Syntax check (uses refs to avoid stale closures) ──
     const checkSyntax = async () => {
         if (!editorRef.current || !monacoRef.current || filesRef.current.length === 0) return;
 
@@ -145,20 +138,17 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }));
 
         try {
-
             const res = await fetch(`${API_BASE}/api/check-syntax`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ files: filesToSend }),
             });
-            // Debug lines for response
             console.log('[syntax] status:', res.status);
             console.log('[syntax] content-type:', res.headers.get('content-type'));
             const text = await res.text();
             console.log('[syntax] raw body:', text);
-            const data = text ? JSON.parse(text) : { errors: [] }; // safe parse
+            const data = text ? JSON.parse(text) : { errors: [] };
 
-            // Clear all existing markers
             monacoRef.current.editor.getModels().forEach(model => {
                 monacoRef.current.editor.setModelMarkers(model, 'java-syntax', []);
             });
@@ -173,8 +163,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                     errorsByFile[filename].push(err);
                 });
 
-                // Note: Monaco only holds a model for the active file.
-                // Squiggles apply to active file only; tab badges cover all files.
                 const activeFilename = filesRef.current.find(
                     f => f.id === activeFileIdRef.current
                 )?.filename ?? null;
@@ -213,7 +201,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     };
 
-    // ── Built-in Run Code ──
     const handleInternalRun = async () => {
         setLoading(true);
         setLocalOutput("Running code...");
@@ -251,19 +238,20 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
 
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.text, margin: `0 0 ${spacing.sm}px 0` }}>
+            {/* ── Header ── */}
+            <h3 style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.text, margin: `${spacing.sm}px 0 ${spacing.xs}px 0` }}>
                 Java Editor
             </h3>
 
             {/* ── Tab bar ── */}
-            <div style={{ display: 'flex', marginBottom: spacing.sm, borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ display: 'flex', marginBottom: spacing.xs, borderBottom: `1px solid ${colors.border}` }}>
                 {files.map((file) => (
                     <div
                         key={file.id}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            padding: '8px 12px',
+                            padding: '5px 10px',
                             cursor: 'pointer',
                             border: 'none',
                             borderBottom: file.id === activeFileId ? `2px solid ${colors.primary}` : 'none',
@@ -276,7 +264,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                     >
                         <button
                             onClick={() => handleDownload(file.content, file.filename)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '5px' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '4px', fontSize: '12px' }}
                             title="Download File"
                         >
                             ⬇️
@@ -295,7 +283,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                             <span
                                 onDoubleClick={() => setEditingFileId(file.id)}
                                 onClick={() => setActiveFileId(file.id)}
-                                style={{ marginRight: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                             >
                                 {file.filename}
                                 {syntaxErrors.filter(e => e.file === file.filename).length > 0 && (
@@ -303,12 +291,12 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                                         backgroundColor: colors.danger,
                                         color: '#fff',
                                         borderRadius: '50%',
-                                        width: '18px',
-                                        height: '18px',
+                                        width: '16px',
+                                        height: '16px',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        fontSize: '11px',
+                                        fontSize: '10px',
                                         fontWeight: 600,
                                         lineHeight: 1,
                                     }}>
@@ -327,7 +315,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                     </div>
                 ))}
                 <button onClick={addFile} style={{
-                    padding: '8px 15px',
+                    padding: '5px 12px',
                     cursor: 'pointer',
                     border: 'none',
                     backgroundColor: colors.divider,
@@ -343,13 +331,13 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             {/* ── Monaco Editor ── */}
             {activeFile && (
                 <Editor
-                    height="300px"
+                    height="220px"
                     language="java"
                     theme="vs-light"
                     value={activeFile.content}
                     onMount={handleEditorDidMount}
                     onChange={(value) => updateFileContent(activeFile.id, value || '')}
-                    options={{ fontSize: 14, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true }}
+                    options={{ fontSize: 13, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true, scrollBeyondLastLine: false }}
                     path={activeFile.filename}
                 />
             )}
@@ -357,11 +345,11 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             {/* ── Problems panel ── */}
             {syntaxErrors.length > 0 && (
                 <div style={{
-                    marginTop: spacing.sm,
+                    marginTop: spacing.xs,
                     border: `1px solid ${colors.dangerBorder}`,
                     borderRadius: radii.sm,
                     backgroundColor: colors.dangerLight,
-                    maxHeight: '140px',
+                    maxHeight: '100px',
                     overflowY: 'auto',
                     fontSize: font.sizeSm,
                 }}>
@@ -369,7 +357,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                         display: 'flex',
                         alignItems: 'center',
                         gap: spacing.xs,
-                        padding: `${spacing.xs}px ${spacing.sm}px`,
+                        padding: `4px ${spacing.sm}px`,
                         borderBottom: `1px solid ${colors.dangerBorder}`,
                         fontWeight: font.weightSemibold,
                         color: colors.danger,
@@ -393,7 +381,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: spacing.sm,
-                                padding: `${spacing.xs}px ${spacing.sm}px`,
+                                padding: `4px ${spacing.sm}px`,
                                 cursor: 'pointer',
                                 borderBottom: idx < syntaxErrors.length - 1 ? `1px solid ${colors.dangerBorder}` : 'none',
                                 transition,
@@ -429,7 +417,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
 
             {/* ── Output panel ── */}
             {(output || localOutput) && !hideRunButton && (
-                <pre style={{ ...codeOutput, marginTop: spacing.lg }}>
+                <pre style={{ ...codeOutput, marginTop: spacing.sm }}>
                     {output || localOutput}
                 </pre>
             )}
