@@ -7,31 +7,18 @@ import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, co
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function buildInstructionHtml(q) {
     const lines = [];
-
-    // Title
     if (q.title) lines.push(`<h3 style="margin:0 0 8px 0">${q.title}</h3>`);
-
-    // Description
     if (q.description) lines.push(`<p style="margin:0 0 10px 0">${q.description}</p>`);
-
-    // Optional note
     if (q.note) lines.push(`<p style="margin:0 0 10px 0;color:#6b7280"><em>${q.note}</em></p>`);
-
-    // Methods to implement
     if (Array.isArray(q.methods) && q.methods.length > 0) {
         lines.push(`<p style="margin:0 0 4px 0"><strong>Implement:</strong></p><ul style="margin:0 0 10px 0;padding-left:20px">`);
-        q.methods.forEach(m => {
-            lines.push(`<li><code>${m.name}</code> — ${m.description}</li>`);
-        });
+        q.methods.forEach(m => lines.push(`<li><code>${m.name}</code> — ${m.description}</li>`));
         lines.push(`</ul>`);
     }
-
-    // Expected output
     if (Array.isArray(q.expectedOutput) && q.expectedOutput.length > 0) {
         lines.push(`<p style="margin:0 0 4px 0"><strong>Expected output:</strong></p>`);
         lines.push(`<pre style="background:#f3f4f6;padding:8px 12px;border-radius:6px;margin:0;font-size:13px">${q.expectedOutput.join("\n")}</pre>`);
     }
-
     return lines.join("");
 }
 
@@ -53,11 +40,9 @@ function buildStarterCode(baseCode) {
     return code;
 }
 
-// Build a rich expected_approach string from question data for the AI grader
 function buildExpectedApproach(questionData) {
     const q = questionData?.question;
     if (!q) return "Implement the solution correctly following Java best practices";
-
     const parts = [];
     if (q.title) parts.push(`Task: ${q.title}.`);
     if (q.description) parts.push(q.description);
@@ -80,45 +65,31 @@ const ALL_TOPICS = TOPIC_GROUPS.map(g => g.label);
 export default function PracticalTest() {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-    // screen: 'select' | 'active'
     const [screen, setScreen] = useState('select');
-
-    // topic selection
     const [selectedTopics, setSelectedTopics] = useState([]);
-
-    // generation
     const [generating, setGenerating] = useState(false);
     const [genError, setGenError] = useState('');
-
-    // current question
     const [currentQuestionData, setCurrentQuestionData] = useState(null);
     const [questionDbId, setQuestionDbId] = useState(null);
     const [isAiQuestion, setIsAiQuestion] = useState(false);
-
-    // test state
     const [instruction, setInstruction] = useState('');
     const [studentCode, setStudentCode] = useState('');
     const [result, setResult] = useState('');
     const [elapsedTime, setElapsedTime] = useState(0);
     const [started, setStarted] = useState(false);
-
-    // grading / hints
     const [gradingResults, setGradingResults] = useState(null);
     const [hints, setHints] = useState([]);
     const [hintLevel, setHintLevel] = useState('gentle');
     const [hintLoading, setHintLoading] = useState(false);
     const [testResults, setTestResults] = useState(null);
-
-    // loading states for Run and Submit buttons
     const [runLoading, setRunLoading] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
 
-    // track whether last submission had all output lines passing
+    // Incremented each time a new question loads — tells Compiler to fully reset
+    const [compilerResetKey, setCompilerResetKey] = useState(0);
+
     const outputPassedRef = useRef(false);
-
-    // dedup tracking: last recorded "questionId+score" pair
     const lastRecordedRef = useRef(null);
-
     const tracker = useRef(new ProgressTracker()).current;
 
     // timer
@@ -128,14 +99,11 @@ export default function PracticalTest() {
         return () => clearInterval(interval);
     }, [started]);
 
-    // Once gradingResults arrive, update result message based on approach score
-    // and decide whether to truly mark as passed
+    // Gate pass verdict on AI approach score
     useEffect(() => {
         if (!gradingResults) return;
-
         const approachScore = gradingResults.breakdown?.approach ?? 0;
-        const APPROACH_PASS_THRESHOLD = 15; // out of 30
-
+        const APPROACH_PASS_THRESHOLD = 15;
         if (outputPassedRef.current) {
             if (approachScore >= APPROACH_PASS_THRESHOLD) {
                 setResult(prev =>
@@ -152,9 +120,7 @@ export default function PracticalTest() {
                 );
             }
         }
-
         const score = gradingResults.total_score ?? 0;
-        // Only record progress if both output AND approach pass
         if (outputPassedRef.current && approachScore >= APPROACH_PASS_THRESHOLD) {
             const testId = `test_${questionDbId || 'unknown'}`;
             const dedupKey = `${testId}__${score}`;
@@ -165,7 +131,7 @@ export default function PracticalTest() {
         }
     }, [gradingResults, questionDbId, tracker]);
 
-    // ── topic toggle ──────────────────────────────────────────────────────────
+    // ── topic toggle
     const toggleTopic = (label) => {
         setSelectedTopics(prev =>
             prev.includes(label) ? prev.filter(t => t !== label) : [...prev, label]
@@ -185,7 +151,7 @@ export default function PracticalTest() {
         setSelectedTopics(completedLabels);
     };
 
-    // ── load question data into component state ───────────────────────────────
+    // ── load question data
     const applyQuestionData = (data, aiId) => {
         setCurrentQuestionData(data);
         setIsAiQuestion(!!aiId);
@@ -200,11 +166,13 @@ export default function PracticalTest() {
         setTestResults(null);
         setResult('');
         outputPassedRef.current = false;
-        // reset dedup when a new question loads
         lastRecordedRef.current = null;
+        // Always bump resetKey so Compiler fully reinitialises its file list
+        // regardless of whether the class name or code string changed.
+        setCompilerResetKey(k => k + 1);
     };
 
-    // ── generate AI question ──────────────────────────────────────────────────
+    // ── generate AI question
     const generateAiQuestion = async (forceNew = false) => {
         if (selectedTopics.length === 0) { alert("Please select at least one topic first."); return; }
         setGenerating(true);
@@ -229,7 +197,7 @@ export default function PracticalTest() {
         }
     };
 
-    // ── evaluate helpers ──────────────────────────────────────────────────────
+    // ── evaluate helpers
     const buildEvalPayload = () => {
         const baseClass = localStorage.getItem("baseClass");
         const cleanCode = studentCode
@@ -291,7 +259,6 @@ export default function PracticalTest() {
             const results = { passed, failed, expected_outputs: expectedOutputs, actual_outputs: actualOutputs };
             setTestResults(results);
             if (failed.length === 0) {
-                // Output matches — but hold the ✅ until AI grader confirms approach
                 outputPassedRef.current = true;
                 setResult(`⏳ Output matches! Verifying your solution approach...\n\nYour Output:\n${actualOutput}`);
             } else {
@@ -355,31 +322,23 @@ export default function PracticalTest() {
         finally { setHintLoading(false); }
     };
 
-    const formatTime = secs => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "00")}`;
+    const formatTime = secs => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     const handleBackToSelect = () => { setScreen('select'); setStarted(false); setElapsedTime(0); };
 
-    // ════════════════════════════════════════════════════════════════════════
-    // RENDER
-    // ════════════════════════════════════════════════════════════════════════
     return (
         <div style={pageContainer(1100)}>
             <h2 style={pageHeading}>🎯 Code Exercise</h2>
 
-            {/* ── SCREEN 1: topic selection ────────────────────────────────── */}
             {screen === 'select' && (
                 <>
                     <p style={{ color: colors.textSecondary, fontSize: font.sizeMd, marginBottom: spacing.lg }}>
                         Select one or more topics, then generate an AI coding exercise tailored to those concepts.
                     </p>
-
-                    {/* quick-select row */}
                     <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.lg }}>
                         <button onClick={selectCompleted} style={{ ...btn.primary, fontSize: font.sizeSm }}>✅ My Completed Topics</button>
                         <button onClick={selectAll}       style={{ ...btn.secondary, fontSize: font.sizeSm }}>Select All</button>
                         <button onClick={clearAll}        style={{ ...btn.ghost, fontSize: font.sizeSm }}>Clear</button>
                     </div>
-
-                    {/* topic grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
                         {ALL_TOPICS.map(label => {
                             const selected = selectedTopics.includes(label);
@@ -401,13 +360,11 @@ export default function PracticalTest() {
                             );
                         })}
                     </div>
-
                     {genError && (
                         <div style={{ ...card.base, borderLeft: `4px solid ${colors.error}`, marginBottom: spacing.lg, color: colors.error, padding: spacing.md }}>
                             {genError}
                         </div>
                     )}
-
                     <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', alignItems: 'center' }}>
                         <button
                             onClick={() => generateAiQuestion(false)}
@@ -424,7 +381,6 @@ export default function PracticalTest() {
                             🔄 Generate New Question
                         </button>
                     </div>
-
                     {selectedTopics.length > 0 && (
                         <p style={{ marginTop: spacing.md, fontSize: font.sizeSm, color: colors.textSecondary }}>
                             Selected: {selectedTopics.join(' · ')}
@@ -433,10 +389,8 @@ export default function PracticalTest() {
                 </>
             )}
 
-            {/* ── SCREEN 2: active test ────────────────────────────────────── */}
             {screen === 'active' && currentQuestionData && (
                 <>
-                    {/* header row */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                             {!started ? (
@@ -462,14 +416,19 @@ export default function PracticalTest() {
                         </div>
                     </div>
 
-                    {/* question card */}
                     <div style={{ ...card.base, marginTop: spacing.lg, maxHeight: 320, overflowY: 'auto' }}
                         dangerouslySetInnerHTML={{ __html: instruction }} />
 
-                    {/* code editor */}
-                    <Compiler code={studentCode} setCode={setStudentCode} onRun={handleRun} output={result} hideRunButton={true} />
+                    {/* resetKey forces Compiler to fully reinitialise on every new question */}
+                    <Compiler
+                        key={compilerResetKey}
+                        code={studentCode}
+                        setCode={setStudentCode}
+                        onRun={handleRun}
+                        output={result}
+                        hideRunButton={true}
+                    />
 
-                    {/* action buttons */}
                     <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
                         <button
                             onClick={handleRun}
@@ -487,7 +446,6 @@ export default function PracticalTest() {
                         </button>
                     </div>
 
-                    {/* hints */}
                     <div style={{ ...card.warning, padding: spacing.xl, margin: `${spacing.xl}px 0` }}>
                         <h3 style={{ marginTop: 0, color: colors.text, fontSize: font.sizeLg }}>💡 Need Help?</h3>
                         {testResults ? (
@@ -524,7 +482,6 @@ export default function PracticalTest() {
                         ))}
                     </div>
 
-                    {/* grading */}
                     {gradingResults && (
                         <div style={{ ...card.info, padding: spacing.xl, margin: `${spacing.xl}px 0` }}>
                             <h3 style={{ color: colors.primary, marginBottom: spacing.lg, fontSize: font.sizeLg }}>
@@ -532,8 +489,8 @@ export default function PracticalTest() {
                             </h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: spacing.lg, marginBottom: spacing.xl }}>
                                 {[
-                                    { label: 'Test Cases', val: gradingResults.breakdown.test_cases, max: 50 },
-                                    { label: 'Approach',   val: gradingResults.breakdown.approach,    max: 30 },
+                                    { label: 'Test Cases',   val: gradingResults.breakdown.test_cases,   max: 50 },
+                                    { label: 'Approach',     val: gradingResults.breakdown.approach,     max: 30 },
                                     { label: 'Code Quality', val: gradingResults.breakdown.code_quality, max: 20 },
                                 ].map((item, i) => (
                                     <div key={i} style={{ ...card.base, textAlign: 'center' }}>
