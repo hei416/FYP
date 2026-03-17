@@ -14,19 +14,51 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-    // Initialize files from parent's code prop
+    const extractClassName = (src) => {
+        const match = src && src.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
+        return match ? match[1] : 'Main';
+    };
+
+    // Re-initialise the primary file whenever the parent pushes a brand-new
+    // starter code (i.e. a new question loaded). We detect "new question" by
+    // comparing the extracted class name of the incoming code against the
+    // current primary file's class name. If they differ — or there are no
+    // files yet — reset to a single file with the correct name.
     useEffect(() => {
-        if (code && files.length === 0) {
-            const extractedClassName = extractClassName(code);
-            const initialFile = {
+        if (!code) return;
+        const newClassName = extractClassName(code);
+        const primaryFile = files[0];
+        const currentClassName = primaryFile ? extractClassName(primaryFile.content) : null;
+
+        if (!primaryFile || currentClassName !== newClassName) {
+            const freshFile = {
                 id: uuidv4(),
-                filename: `${extractedClassName}.java`,
+                filename: `${newClassName}.java`,
                 content: code,
             };
-            setFiles([initialFile]);
-            setActiveFileId(initialFile.id);
+            setFiles([freshFile]);
+            setActiveFileId(freshFile.id);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [code]);
+
+    // Also keep the active tab filename in sync if the student renames their
+    // public class inside the editor (live rename as they type).
+    useEffect(() => {
+        if (!activeFileId) return;
+        setFiles(prev => prev.map(f => {
+            if (f.id !== activeFileId) return f;
+            const detectedName = extractClassName(f.content);
+            const expectedFilename = `${detectedName}.java`;
+            // Only update if the filename has drifted from the class name
+            // AND the user is not currently editing the tab label.
+            if (f.filename !== expectedFilename && editingFileId !== f.id) {
+                return { ...f, filename: expectedFilename };
+            }
+            return f;
+        }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [files.map(f => f.content).join('|'), activeFileId]);
 
     // Sync active file content back to parent
     useEffect(() => {
@@ -36,7 +68,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     }, [files, activeFileId, setCode]);
 
-    // Listen for demo tour code fill — replace files directly (bypasses files.length guard)
+    // Listen for demo tour code fill — replace files directly
     useEffect(() => {
         const handleDemoFill = (event) => {
             if (event.detail && event.detail.code) {
@@ -54,11 +86,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         window.addEventListener('demo-fill-code', handleDemoFill);
         return () => window.removeEventListener('demo-fill-code', handleDemoFill);
     }, []);
-
-    const extractClassName = (code) => {
-        const match = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
-        return match ? match[1] : 'Main';
-    };
 
     const activeFile = files.find((file) => file.id === activeFileId);
 
@@ -98,7 +125,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     };
 
     const updateFileName = (fileId, newName) => {
-        setFiles(files.map(file => 
+        setFiles(files.map(file =>
             file.id === fileId ? { ...file, filename: newName } : file
         ));
     };
@@ -139,7 +166,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             });
             const data = await res.json();
 
-            // Clear all existing markers
             monacoRef.current.editor.getModels().forEach(model => {
                 monacoRef.current.editor.setModelMarkers(model, 'java-syntax', []);
             });
@@ -147,12 +173,9 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             if (data.errors && data.errors.length > 0) {
                 setSyntaxErrors(data.errors);
                 const errorsByFile = {};
-
                 data.errors.forEach(err => {
                     const filename = err.file || 'general';
-                    if (!errorsByFile[filename]) {
-                        errorsByFile[filename] = [];
-                    }
+                    if (!errorsByFile[filename]) errorsByFile[filename] = [];
                     errorsByFile[filename].push(err);
                 });
 
@@ -161,21 +184,16 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                     const model = monacoRef.current.editor.getModels().find(
                         m => m.uri.path === filename || m.uri.path.endsWith('/' + filename)
                     );
-
                     if (model) {
                         const markers = fileErrors.map(err => {
                             const lineContent = model.getLineContent(err.line) || '';
-                            // Use column info for precise highlighting
                             const startCol = err.column || 1;
-                            // Find the end of the token at the error position
                             let endCol;
                             if (err.column) {
-                                // Highlight from error column to next whitespace/symbol or end of line
                                 const rest = lineContent.substring(err.column - 1);
                                 const tokenMatch = rest.match(/^\S+/);
                                 endCol = err.column + (tokenMatch ? tokenMatch[0].length : 1);
                             } else {
-                                // No column info — highlight the first non-whitespace content on the line
                                 const trimStart = lineContent.search(/\S/);
                                 endCol = model.getLineMaxColumn(err.line);
                                 if (trimStart >= 0) {
@@ -214,13 +232,10 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     };
 
     useEffect(() => {
-        const timeout = setTimeout(() => {
-            checkSyntax();
-        }, 1000);
+        const timeout = setTimeout(() => { checkSyntax(); }, 1000);
         return () => clearTimeout(timeout);
     }, [files, activeFileId]);
 
-    // Built-in Run Code function (for pages without external buttons)
     const handleInternalRun = async () => {
         setLoading(true);
         setLocalOutput("Running code...");
@@ -230,7 +245,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
             content: file.content,
         }));
 
-        // Determine the main class from the active file
         const mainClass = activeFile ? extractClassName(activeFile.content) : 'Main';
 
         try {
@@ -256,7 +270,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
         }
     };
 
-    // Use parent's onRun if provided, otherwise use internal handler
     const handleRun = onRun || handleInternalRun;
 
     return (
@@ -280,7 +293,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                             fontSize: font.sizeSm,
                         }}
                     >
-                        <button 
+                        <button
                             onClick={() => handleDownload(file.content, file.filename)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '5px' }}
                             title="Download File"
@@ -298,7 +311,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                                 style={{ border: '1px solid blue', padding: '2px', width: '100px' }}
                             />
                         ) : (
-                            <span 
+                            <span
                                 onDoubleClick={() => setEditingFileId(file.id)}
                                 onClick={() => setActiveFileId(file.id)}
                                 style={{ marginRight: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -323,7 +336,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                                 )}
                             </span>
                         )}
-                        <button 
+                        <button
                             onClick={() => removeFile(file.id)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.danger, fontSize: font.sizeSm }}
                             title="Close Tab"
@@ -359,7 +372,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 />
             )}
 
-            {/* Syntax errors panel (Problems panel like VS Code) */}
             {syntaxErrors.length > 0 && (
                 <div style={{
                     marginTop: spacing.sm,
@@ -386,7 +398,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                         <div
                             key={idx}
                             onClick={() => {
-                                // Navigate to the error line
                                 const targetFile = files.find(f => f.filename === err.file);
                                 if (targetFile) setActiveFileId(targetFile.id);
                                 if (editorRef.current) {
@@ -419,10 +430,9 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 </div>
             )}
 
-            {/* Show Run button ONLY if hideRunButton is false */}
             {!hideRunButton && (
                 <div style={{ marginTop: spacing.sm }}>
-                    <button 
+                    <button
                         data-tour="run-button"
                         onClick={handleRun}
                         disabled={loading}
@@ -433,7 +443,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 </div>
             )}
 
-            {/* Show output - use parent's output if provided, otherwise use local */}
             {(output || localOutput) && !hideRunButton && (
                 <pre style={{ ...codeOutput, marginTop: spacing.lg }}>
                     {output || localOutput}
