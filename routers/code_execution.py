@@ -71,6 +71,18 @@ async def run_code(request: Request):
     paiza_key = os.environ.get("PAIZA_API_KEY") or "guest"
     source = _build_source_from_files(files)
 
+    # If there's no explicit main entrypoint but the user provided a runApp() method
+    # inject a small non-public Runner class with a main() that calls runApp().
+    # This avoids adding another public class and keeps the filename requirements.
+    if "public static void main" not in source and ("runApp(" in source or "public void runApp" in source):
+        try:
+            cls = extract_class_name(source)
+        except Exception:
+            cls = "Main"
+
+        runner = f"\n\nclass Runner {{\n    public static void main(String[] args) {{\n        new {cls}().runApp();\n    }}\n}}\n"
+        source = source.rstrip() + "\n\n" + runner
+
     if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
         return {"output": "", "error": "Source code too large to execute"}
 
