@@ -20,17 +20,28 @@ function formatDate(ts) {
     return d.toLocaleDateString('en-HK', { month: 'short', day: 'numeric' });
 }
 
+// Expand icon (two outward arrows)
+const ExpandIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="5 3 3 3 3 5" />
+        <polyline points="11 3 13 3 13 5" />
+        <polyline points="5 13 3 13 3 11" />
+        <polyline points="11 13 13 13 13 11" />
+        <line x1="3" y1="3" x2="6" y2="6" />
+        <line x1="13" y1="3" x2="10" y2="6" />
+        <line x1="3" y1="13" x2="6" y2="10" />
+        <line x1="13" y1="13" x2="10" y2="10" />
+    </svg>
+);
+
 export default function AI({ showChat, setShowChat }) {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const navigate = useNavigate();
 
-    // All saved sessions
     const [sessions, setSessions] = useState(() => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
     });
-    // Active session id (null = new unsaved chat)
     const [activeId, setActiveId] = useState(null);
-
     const [history, setHistory] = useState([]);
     const [userInput, setUserInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -40,23 +51,14 @@ export default function AI({ showChat, setShowChat }) {
     const [showHistoryPanel, setShowHistoryPanel] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Persist sessions
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }, [sessions]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
 
     const toggleChat = () => setShowChat(v => !v);
 
-    const startNewChat = () => {
-        setActiveId(null);
-        setHistory([]);
-        setShowHistoryPanel(false);
-    };
+    const startNewChat = () => { setActiveId(null); setHistory([]); setShowHistoryPanel(false); };
 
-    const loadSession = (session) => {
-        setActiveId(session.id);
-        setHistory(session.messages);
-        setShowHistoryPanel(false);
-    };
+    const loadSession = (session) => { setActiveId(session.id); setHistory(session.messages); setShowHistoryPanel(false); };
 
     const deleteSession = (id, e) => {
         e.stopPropagation();
@@ -64,7 +66,7 @@ export default function AI({ showChat, setShowChat }) {
         if (activeId === id) { setActiveId(null); setHistory([]); }
     };
 
-    const saveCurrentSession = (msgs, inputText) => {
+    const saveCurrentSession = (msgs) => {
         if (msgs.length === 0) return null;
         if (activeId) {
             setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: msgs } : s));
@@ -80,7 +82,7 @@ export default function AI({ showChat, setShowChat }) {
     };
 
     const handleEnlarge = () => {
-        const savedId = saveCurrentSession(history, userInput);
+        const savedId = saveCurrentSession(history);
         if (savedId) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: savedId }));
         setShowChat(false);
         navigate('/history');
@@ -102,31 +104,23 @@ export default function AI({ showChat, setShowChat }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!userInput.trim()) return;
-
         const userMessage = { role: 'user', content: userInput };
         const newHistory = [...history, userMessage];
         setHistory(newHistory);
         setUserInput('');
         setLoading(true);
-
         try {
             const res = await fetch(`${API_BASE}/ragAI`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_input: userInput, history: newHistory }),
             });
             const data = await res.json();
-            const aiMsg = {
-                role: 'assistant',
-                content: data.final_answer || 'No response.',
-                pdf_matches: data.debug_log?.pdf_matches || [],
-                debug_log: data.debug_log,
-            };
+            const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
             const finalHistory = [...newHistory, aiMsg];
             setHistory(finalHistory);
-            saveCurrentSession(finalHistory, '');
+            saveCurrentSession(finalHistory);
         } catch (err) {
-            const errHistory = [...newHistory, { role: 'assistant', content: 'Error: ' + err.message }];
-            setHistory(errHistory);
+            setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
         }
         setLoading(false);
     };
@@ -148,8 +142,7 @@ export default function AI({ showChat, setShowChat }) {
                         const hasContext = chunkContext && expandedChunk === chunkKey;
                         return (
                             <div key={i} style={{ marginBottom: 10 }}>
-                                <button
-                                    style={{ backgroundColor: isExpanded ? colors.success : colors.primary, color: colors.surface, padding: '12px 16px', borderRadius: radii.md, border: 'none', cursor: 'pointer', fontSize: font.sizeMd, fontWeight: font.weightSemibold, width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition }}
+                                <button style={{ backgroundColor: isExpanded ? colors.success : colors.primary, color: colors.surface, padding: '12px 16px', borderRadius: radii.md, border: 'none', cursor: 'pointer', fontSize: font.sizeMd, fontWeight: font.weightSemibold, width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition }}
                                     onClick={() => { if (isExpanded) { setExpandedChunk(null); setChunkContext(null); } else { setExpandedChunk(chunkKey); } }}
                                 >
                                     <span>{isExpanded ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()}</span>
@@ -190,76 +183,111 @@ export default function AI({ showChat, setShowChat }) {
         </div>
     );
 
+    /* ── header icon button helper ── */
+    const headerIconBtn = (onClick, title, children, extraStyle = {}) => (
+        <button
+            onClick={onClick}
+            title={title}
+            style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '5px 11px',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: radii.sm,
+                color: colors.surface,
+                fontSize: font.sizeSm,
+                fontWeight: font.weightSemibold,
+                cursor: 'pointer',
+                transition,
+                ...extraStyle
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.28)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+        >
+            {children}
+        </button>
+    );
+
     return (
         <>
             {showChat && (
                 <div style={{ position: 'fixed', top: 64, right: 20, width: 800, height: '75vh', backgroundColor: colors.surface, boxShadow: shadows.lg, borderRadius: radii.lg, zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
 
                     {/* Header */}
-                    <div style={{ padding: spacing.lg, borderBottom: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.accent, borderRadius: `${radii.lg}px ${radii.lg}px 0 0`, color: colors.surface }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <button
-                                onClick={() => setShowHistoryPanel(v => !v)}
-                                title={showHistoryPanel ? 'Hide history' : 'Show history'}
-                                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: colors.surface, borderRadius: radii.sm, padding: '5px 10px', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}
-                            >
-                                🕘
-                            </button>
-                            <h3 style={{ margin: 0, fontSize: font.sizeLg, fontWeight: font.weightSemibold }}>
+                    <div style={{ padding: `${spacing.md}px ${spacing.lg}px`, borderBottom: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.accent, borderRadius: `${radii.lg}px ${radii.lg}px 0 0`, color: colors.surface }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {/* History toggle */}
+                            {headerIconBtn(
+                                () => setShowHistoryPanel(v => !v),
+                                showHistoryPanel ? 'Hide history' : 'Show history',
+                                <>
+                                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                        <circle cx="8" cy="8" r="6" />
+                                        <polyline points="8 5 8 8 10.5 10" />
+                                    </svg>
+                                    <span>History</span>
+                                </>,
+                                showHistoryPanel ? { background: 'rgba(255,255,255,0.3)' } : {}
+                            )}
+                            <h3 style={{ margin: 0, fontSize: font.sizeMd, fontWeight: font.weightSemibold }}>
                                 ☕ {activeId ? (sessions.find(s => s.id === activeId)?.title || 'AI Java Tutor') : 'AI Java Tutor'}
                             </h3>
                         </div>
-                        <div style={{ display: 'flex', gap: spacing.sm }}>
-                            <button onClick={handleEnlarge} style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: radii.sm, border: 'none', backgroundColor: colors.surface, color: colors.accent, fontWeight: font.weightSemibold }} title="Open full history page">
-                                ⬆ Enlarge
-                            </button>
-                            <button onClick={toggleChat} style={{ padding: '6px 12px', cursor: 'pointer', borderRadius: radii.sm, border: 'none', backgroundColor: colors.danger, color: colors.surface, fontWeight: font.weightSemibold }}>
-                                ✕ Close
-                            </button>
+
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            {/* Enlarge */}
+                            {headerIconBtn(
+                                handleEnlarge,
+                                'Open full history page',
+                                <>
+                                    <ExpandIcon />
+                                    <span>Expand</span>
+                                </>
+                            )}
+                            {/* Close */}
+                            {headerIconBtn(
+                                toggleChat,
+                                'Close chat',
+                                <>
+                                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                                        <line x1="1" y1="1" x2="11" y2="11" />
+                                        <line x1="11" y1="1" x2="1" y2="11" />
+                                    </svg>
+                                    <span>Close</span>
+                                </>,
+                                { background: 'rgba(220,38,38,0.55)', border: '1px solid rgba(220,38,38,0.7)' }
+                            )}
                         </div>
                     </div>
 
-                    {/* Body: history panel + messages side by side */}
+                    {/* Body */}
                     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-                        {/* History sidebar panel */}
+                        {/* History sidebar */}
                         {showHistoryPanel && (
                             <div style={{ width: 220, borderRight: `1px solid ${colors.divider}`, background: colors.bg, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                                 <div style={{ padding: '10px 10px 6px', borderBottom: `1px solid ${colors.divider}` }}>
-                                    <button
-                                        onClick={startNewChat}
-                                        style={{ width: '100%', padding: '7px 10px', background: colors.primary, color: colors.surface, border: 'none', borderRadius: radii.md, cursor: 'pointer', fontSize: font.sizeXs, fontWeight: font.weightSemibold }}
+                                    <button onClick={startNewChat}
+                                        style={{ width: '100%', padding: '7px 10px', background: colors.primary, color: colors.surface, border: 'none', borderRadius: radii.md, cursor: 'pointer', fontSize: font.sizeXs, fontWeight: font.weightSemibold, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
                                     >
-                                        ✏️ New Chat
+                                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+                                        New Chat
                                     </button>
                                 </div>
-                                <div style={{ flex: 1, overflowY: 'auto', padding: '6px 6px' }}>
+                                <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
                                     {sessions.length === 0 && (
                                         <div style={{ padding: 12, color: colors.textMuted, fontSize: '11px', textAlign: 'center' }}>No history yet</div>
                                     )}
                                     {sessions.map(s => (
-                                        <div
-                                            key={s.id}
-                                            onClick={() => loadSession(s)}
-                                            style={{
-                                                padding: '8px 10px', borderRadius: radii.sm, cursor: 'pointer', marginBottom: 2,
-                                                background: activeId === s.id ? colors.primaryLight : 'transparent',
-                                                border: activeId === s.id ? `1px solid ${colors.primaryBorder}` : '1px solid transparent',
-                                                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, transition
-                                            }}
+                                        <div key={s.id} onClick={() => loadSession(s)}
+                                            style={{ padding: '8px 10px', borderRadius: radii.sm, cursor: 'pointer', marginBottom: 2, background: activeId === s.id ? colors.primaryLight : 'transparent', border: activeId === s.id ? `1px solid ${colors.primaryBorder}` : '1px solid transparent', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, transition }}
                                         >
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: '11px', fontWeight: font.weightSemibold, color: activeId === s.id ? colors.primary : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {s.title || 'Untitled'}
-                                                </div>
-                                                <div style={{ fontSize: '10px', color: colors.textMuted, marginTop: 1 }}>
-                                                    {formatDate(s.createdAt)} · {s.messages.length} msgs
-                                                </div>
+                                                <div style={{ fontSize: '11px', fontWeight: font.weightSemibold, color: activeId === s.id ? colors.primary : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title || 'Untitled'}</div>
+                                                <div style={{ fontSize: '10px', color: colors.textMuted, marginTop: 1 }}>{formatDate(s.createdAt)} · {s.messages.length} msgs</div>
                                             </div>
                                             <button onClick={(e) => deleteSession(s.id, e)}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: '12px', padding: '0 2px', opacity: 0.6, flexShrink: 0 }}
-                                                title="Delete"
-                                            >🗑</button>
+                                            >✕</button>
                                         </div>
                                     ))}
                                 </div>
@@ -272,7 +300,7 @@ export default function AI({ showChat, setShowChat }) {
                                 <div style={{ textAlign: 'center', marginTop: '25%', color: colors.textMuted }}>
                                     <div style={{ fontSize: 32, marginBottom: 8 }}>☕</div>
                                     <div style={{ fontSize: font.sizeMd, color: colors.textSecondary }}>Ask me anything about Java!</div>
-                                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginTop: 4 }}>🕘 Press the clock icon to browse history</div>
+                                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginTop: 4 }}>Click History to browse past conversations</div>
                                 </div>
                             )}
                             {history.map((msg, idx) => (
@@ -298,7 +326,6 @@ export default function AI({ showChat, setShowChat }) {
                 </div>
             )}
 
-            {/* Floating button */}
             <button data-tour="ai-button"
                 style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, backgroundColor: colors.accent, color: colors.surface, borderRadius: radii.full, width: 72, height: 72, border: 'none', cursor: 'pointer', fontWeight: font.weightBold, fontSize: font.sizeMd, boxShadow: shadows.lg, transition }}
                 onClick={toggleChat}
