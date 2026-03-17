@@ -343,17 +343,19 @@ async def generate_practical_test(req: PracticalGenerateRequest):
 def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, helper_classes: str = "") -> dict:
     # Prepend helper classes (abstract classes, interfaces, etc.)
     helper_block = f"{helper_classes}\n\n" if helper_classes.strip() else ""
-    
+
     # Indent run_app_method to place it inside the class body
     indented_run_app = "\n".join("    " + line if line.strip() else line for line in run_app_method.split("\n"))
-    
-    full_class = f"""{helper_block}class {class_name} {{
+
+    # FIX: Use a single public class with main() merged in.
+    # Previously this produced two top-level classes (class Solution + public class Main)
+    # which caused Paiza to name the file Main.java, triggering:
+    # "class Solution is public, should be declared in a file named Solution.java"
+    full_class = f"""{helper_block}public class {class_name} {{
     {class_body}
 
 {indented_run_app}
-}}
 
-public class Main {{
     public static void main(String[] args) {{
         new {class_name}().runApp();
     }}
