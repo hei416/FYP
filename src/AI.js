@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect, useContext } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import TextareaAutosize from "react-textarea-autosize";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { ProgressTracker } from './ProgressTracker';
-import { AuthContext } from './AuthContext';
+import { useAuth } from './AuthContext';
 
 const progressTracker = new ProgressTracker();
 
@@ -19,7 +19,7 @@ function getOrCreateConversationId() {
 
 export default function AI({ showChat, setShowChat, setSelectedPdf, setTargetPage }) {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-    const { token } = useContext(AuthContext);
+    const { token } = useAuth();
 
     const [splitView, setSplitView] = useState(false);
     const [history, setHistory] = useState([]);
