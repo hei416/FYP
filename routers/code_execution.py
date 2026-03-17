@@ -28,13 +28,14 @@ def extract_class_name(code: str) -> str:
     return match.group(1) if match else 'Main'
 
 
+def normalize_public_class(source: str) -> str:
+    """Rename any public class to Main so Paiza compiles it as Main.java."""
+    return re.sub(r'public\s+class\s+\w+', 'public class Main', source, count=1)
+
+
 def _build_source_from_files(files: List[Dict]) -> str:
     if len(files) == 1:
         return files[0].get("content", "")
-    # For multiple files, find the one containing the public class and use it as
-    # the primary source. Paiza only supports a single file, so we pick the file
-    # that declares a public class to avoid the
-    # "class X is public, should be declared in a file named X.java" error.
     for f in files:
         if re.search(r'public\s+class\s+', f.get("content", "")):
             return f.get("content", "")
@@ -71,16 +72,12 @@ async def run_code(request: Request):
     paiza_key = os.environ.get("PAIZA_API_KEY") or "guest"
     source = _build_source_from_files(files)
 
-    # If there's no explicit main entrypoint but the user provided a runApp() method
-    # inject a small non-public Runner class with a main() that calls runApp().
-    # This avoids adding another public class and keeps the filename requirements.
-    if "public static void main" not in source and ("runApp(" in source or "public void runApp" in source):
-        try:
-            cls = extract_class_name(source)
-        except Exception:
-            cls = "Main"
+    # Normalize public class name to Main so Paiza compiles it as Main.java
+    source = normalize_public_class(source)
 
-        runner = f"\n\nclass Runner {{\n    public static void main(String[] args) {{\n        new {cls}().runApp();\n    }}\n}}\n"
+    # Inject runner if no main() but runApp() exists
+    if "public static void main" not in source and ("runApp(" in source or "public void runApp" in source):
+        runner = f"\n\nclass Runner {{\n    public static void main(String[] args) {{\n        new Main().runApp();\n    }}\n}}\n"
         source = source.rstrip() + "\n\n" + runner
 
     if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
@@ -154,6 +151,10 @@ async def check_syntax(request: Request):
                 filename = f.get("filename", "Main.java")
                 if not source.strip():
                     continue
+
+                # Normalize public class name to Main so Paiza compiles as Main.java
+                source = normalize_public_class(source)
+
                 try:
                     resp = await client.post(PAIZA_CREATE, data={
                         "source_code": source,
