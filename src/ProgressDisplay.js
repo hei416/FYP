@@ -188,7 +188,7 @@ export default function ProgressDisplay() {
                                 color="#F44336"
                             />
 
-                            {/* Code Playground — show execution count, not 0/1 */}
+                            {/* Code Playground — always show execution count */}
                             <div style={{
                                 padding: spacing.lg, background: colors.bg,
                                 borderRadius: radii.sm, border: `1px solid ${colors.divider}`
@@ -207,9 +207,7 @@ export default function ProgressDisplay() {
                                         fontSize: font.sizeSm, fontWeight: font.weightBold,
                                         color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
                                     }}>
-                                        {detailedProgress.playground.completed
-                                            ? '✓ Completed'
-                                            : `${detailedProgress.playground.executions} / 3`}
+                                        {`${detailedProgress.playground.executions} execution${detailedProgress.playground.executions !== 1 ? 's' : ''}`}
                                     </div>
                                 </div>
                                 <div style={{
