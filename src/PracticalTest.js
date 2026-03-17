@@ -53,6 +53,27 @@ function buildStarterCode(baseCode) {
     return code;
 }
 
+// Build a rich expected_approach string from question data for the AI grader
+function buildExpectedApproach(questionData) {
+    const q = questionData?.question;
+    if (!q) return "Implement the solution correctly following Java best practices";
+
+    const parts = [];
+    if (q.title) parts.push(`Task: ${q.title}.`);
+    if (q.description) parts.push(q.description);
+    if (Array.isArray(q.methods) && q.methods.length > 0) {
+        const methodDescs = q.methods.map(m => `${m.name} (${m.description})`).join(', ');
+        parts.push(`Required methods: ${methodDescs}.`);
+    }
+    parts.push(
+        "The student must implement the actual logic — not hardcode output or bypass the required structure.",
+        "Check that the code uses the correct Java constructs (e.g. classes, inheritance, interfaces, loops, etc.) " +
+        "as implied by the problem. Penalise heavily if the student just prints hardcoded strings instead of " +
+        "implementing the required methods or logic."
+    );
+    return parts.join(' ');
+}
+
 const ALL_TOPICS = TOPIC_GROUPS.map(g => g.label);
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -92,6 +113,9 @@ export default function PracticalTest() {
     const [runLoading, setRunLoading] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
 
+    // track whether last submission had all output lines passing
+    const outputPassedRef = useRef(false);
+
     // dedup tracking: last recorded "questionId+score" pair
     const lastRecordedRef = useRef(null);
 
@@ -104,16 +128,41 @@ export default function PracticalTest() {
         return () => clearInterval(interval);
     }, [started]);
 
-    // Fire when gradingResults arrives — call markTestPassed + dispatch event (deduped)
+    // Once gradingResults arrive, update result message based on approach score
+    // and decide whether to truly mark as passed
     useEffect(() => {
         if (!gradingResults) return;
+
+        const approachScore = gradingResults.breakdown?.approach ?? 0;
+        const APPROACH_PASS_THRESHOLD = 15; // out of 30
+
+        if (outputPassedRef.current) {
+            if (approachScore >= APPROACH_PASS_THRESHOLD) {
+                setResult(prev =>
+                    prev.startsWith('⏳')
+                        ? `✅ All tests passed! Your solution is correct.\n\n${gradingResults.feedback || ''}`
+                        : prev
+                );
+            } else {
+                setResult(
+                    `⚠️ Output matched but your approach needs work.\n\n` +
+                    `The AI grader flagged that your solution may be hardcoding output or not using ` +
+                    `the required code structure (approach score: ${approachScore}/30).\n\n` +
+                    `Feedback: ${gradingResults.feedback || ''}`
+                );
+            }
+        }
+
         const score = gradingResults.total_score ?? 0;
-        const testId = `test_${questionDbId || 'unknown'}`;
-        const dedupKey = `${testId}__${score}`;
-        if (lastRecordedRef.current === dedupKey) return;
-        lastRecordedRef.current = dedupKey;
-        tracker.markTestPassed(testId, score);
-        window.dispatchEvent(new Event('progress-updated'));
+        // Only record progress if both output AND approach pass
+        if (outputPassedRef.current && approachScore >= APPROACH_PASS_THRESHOLD) {
+            const testId = `test_${questionDbId || 'unknown'}`;
+            const dedupKey = `${testId}__${score}`;
+            if (lastRecordedRef.current === dedupKey) return;
+            lastRecordedRef.current = dedupKey;
+            tracker.markTestPassed(testId, score);
+            window.dispatchEvent(new Event('progress-updated'));
+        }
     }, [gradingResults, questionDbId, tracker]);
 
     // ── topic toggle ──────────────────────────────────────────────────────────
@@ -150,6 +199,7 @@ export default function PracticalTest() {
         setHintLevel('gentle');
         setTestResults(null);
         setResult('');
+        outputPassedRef.current = false;
         // reset dedup when a new question loads
         lastRecordedRef.current = null;
     };
@@ -214,6 +264,7 @@ export default function PracticalTest() {
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         setSubmitLoading(true);
+        outputPassedRef.current = false;
         const { url, body } = buildEvalPayload();
         try {
             const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -240,7 +291,9 @@ export default function PracticalTest() {
             const results = { passed, failed, expected_outputs: expectedOutputs, actual_outputs: actualOutputs };
             setTestResults(results);
             if (failed.length === 0) {
-                setResult(`✅ All tests passed! Your solution is correct.\n\nYour Output:\n${actualOutput}`);
+                // Output matches — but hold the ✅ until AI grader confirms approach
+                outputPassedRef.current = true;
+                setResult(`⏳ Output matches! Verifying your solution approach...\n\nYour Output:\n${actualOutput}`);
             } else {
                 const lines = ["❌ Tests failed - Output does not match expected:\n"];
                 for (let i = 0; i < maxLines; i++) {
@@ -263,11 +316,12 @@ export default function PracticalTest() {
         try {
             const questionDesc = currentQuestionData?.question?.description || "Complete the coding task";
             const questionTitle = currentQuestionData?.question?.title || "Coding Challenge";
+            const expectedApproach = buildExpectedApproach(currentQuestionData);
             const res = await fetch(`${API_BASE}/api/grading/evaluate`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     problem_description: `${questionTitle}: ${questionDesc}`,
-                    expected_approach: "Implement the solution correctly following Java best practices",
+                    expected_approach: expectedApproach,
                     student_code: studentCode,
                     test_results: { passed: results.passed || [], failed: results.failed || [] },
                     expected_outputs: results.expected_outputs || [],
@@ -301,7 +355,7 @@ export default function PracticalTest() {
         finally { setHintLoading(false); }
     };
 
-    const formatTime = secs => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    const formatTime = secs => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "00")}`;
     const handleBackToSelect = () => { setScreen('select'); setStarted(false); setElapsedTime(0); };
 
     // ════════════════════════════════════════════════════════════════════════
