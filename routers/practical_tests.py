@@ -356,6 +356,7 @@ def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, h
             data={"source_code": full_class, "language": "java", "api_key": PAIZA_API_KEY},
             timeout=10,
         )
+        print("PAIZA RESPONSE:", response.status_code, response.text)  # ← add this
         run_id = response.json().get("id")
         if not run_id:
             return {"success": False, "output": "", "error": "Failed to start runner."}

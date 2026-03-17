@@ -2,7 +2,7 @@ import os
 # API Configuration
 # ============================================
 API_KEY = "f55f10bc-9d4f-4751-b7d7-ac519834c8e8"
-PAIZA_API_KEY = "0748f539-82f0-4dc0-b443-56e4d2e0162b"
+PAIZA_API_KEY = os.environ.get("PAIZA_API_KEY", "guest")
 BASE_URL = "https://genai.hkbu.edu.hk/api/v0/rest"
 
 # ============================================
