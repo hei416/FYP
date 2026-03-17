@@ -45,8 +45,8 @@ class ExplainRequest(BaseModel):
     user_input: str
     code_snippet: str = ""
     history: List[Dict[str, Any]] = []
-    user_id: Optional[int] = None  # For conversation tracking
-    conversation_id: Optional[str] = None  # For conversation tracking
+    user_id: Optional[int] = None
+    conversation_id: Optional[str] = None
 
 class DocumentRequest(BaseModel):
     source_file: str
@@ -114,8 +114,7 @@ def get_questions_from_db(topic_ids: List[str]) -> List[dict]:
         if not topic_ids:
             print(f"⚠️ No topics provided to get_questions_from_db")
             return []
-        
-        # Convert subtopic IDs to main topic names for database lookup
+
         main_topics = convert_topic_ids_to_main_topics(topic_ids)
         print(f"📍 Converting topic IDs: {topic_ids} → {main_topics}")
 
@@ -185,7 +184,6 @@ def count_questions_by_topic(topic_ids: List[str]) -> Dict[str, int]:
         if not topic_ids:
             return {}
 
-        # Convert subtopic IDs to main topic names for database lookup
         main_topics = convert_topic_ids_to_main_topics(topic_ids)
 
         db = SessionLocal()
@@ -210,36 +208,28 @@ def sample_questions_with_topic_coverage(
     num_questions: int,
     main_topics: List[str]
 ) -> List[dict]:
-    """
-    Sample questions ensuring each topic is represented at least once.
-    If we have more topics than questions requested, increase num_questions to match.
-    """
-    # Ensure at least one question per topic
     num_topics = len(main_topics)
     actual_num = max(num_questions, num_topics)
-    
+
     if actual_num > num_questions:
         print(f"📈 Adjusting num_questions from {num_questions} to {actual_num} (one per topic)")
-    
-    # Group questions by topic
+
     questions_by_topic = {}
     for q in questions:
         topic = q["topic_id"]
         if topic not in questions_by_topic:
             questions_by_topic[topic] = []
         questions_by_topic[topic].append(q)
-    
-    # Select one question from each topic (guaranteed coverage)
+
     selected = []
-    selected_ids = set()  # Track selected question IDs
-    
+    selected_ids = set()
+
     for topic in main_topics:
         if topic in questions_by_topic and questions_by_topic[topic]:
             q = random.choice(questions_by_topic[topic])
             selected.append(q)
             selected_ids.add(q["id"])
-    
-    # If we need more questions, fill remaining slots from the pool
+
     remaining_needed = actual_num - len(selected)
     if remaining_needed > 0:
         available_pool = [q for q in questions if q["id"] not in selected_ids]
@@ -249,10 +239,8 @@ def sample_questions_with_topic_coverage(
                 min(remaining_needed, len(available_pool))
             )
             selected.extend(additional)
-    
-    # Shuffle the final selection
+
     random.shuffle(selected)
-    
     return selected[:actual_num]
 
 
@@ -264,26 +252,18 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
     print(f"📥 Quiz request: {req.completed_topics}, num={req.num_questions}")
 
     try:
-        # Convert topic IDs to main topic names
         main_topics = convert_topic_ids_to_main_topics(req.completed_topics)
         print(f"📍 Main topics: {main_topics}")
-        
-        # Adjust num_questions if needed (ensure at least one per topic)
+
         adjusted_num = max(req.num_questions, len(main_topics))
         if adjusted_num > req.num_questions:
             print(f"📈 Adjusted num_questions: {req.num_questions} → {adjusted_num} (one per topic)")
-        
-        # 1) Check DB for existing questions
+
         db_questions = get_questions_from_db(req.completed_topics)
         print(f"💾 DB has {len(db_questions)} questions for these topics")
 
-        # 2) If we have enough, ensure topic coverage and sample
         if len(db_questions) >= adjusted_num:
-            sampled = sample_questions_with_topic_coverage(
-                db_questions,
-                adjusted_num,
-                main_topics
-            )
+            sampled = sample_questions_with_topic_coverage(db_questions, adjusted_num, main_topics)
             mcq_list = [MCQ(**q) for q in sampled]
             print(f"✅ Served {len(mcq_list)} from DB (pool: {len(db_questions)})")
             return QuizGenerateResponse(
@@ -296,7 +276,6 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
                 }
             )
 
-        # 3) Not enough — generate via AI and store
         print(f"🤖 Need more questions. DB has {len(db_questions)}, need {adjusted_num}. Generating...")
         new_questions = await _generate_new_questions(
             topics=req.completed_topics,
@@ -304,16 +283,10 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
             existing_questions=db_questions,
         )
 
-        # Save newly generated questions to DB
         save_questions_to_db(new_questions)
 
-        # Combine existing + new and ensure topic coverage
         all_questions = db_questions + new_questions
-        sampled = sample_questions_with_topic_coverage(
-            all_questions,
-            adjusted_num,
-            main_topics
-        )
+        sampled = sample_questions_with_topic_coverage(all_questions, adjusted_num, main_topics)
         mcq_list = [MCQ(**q) for q in sampled]
 
         return QuizGenerateResponse(
@@ -340,15 +313,12 @@ async def stream_more_questions(req: QuizGenerateRequest):
     """Stream NEW questions via SSE, one at a time as they are generated."""
     print(f"📥 'More Questions' SSE request: {req.completed_topics}, num={req.num_questions}")
 
-    # Pre-fetch everything we need before entering the generator
-    global retriever
-    if retriever is None:
-        raise HTTPException(status_code=500, detail="RAG not initialized")
+    # ✅ lazy-init RAG before entering the streaming generator
+    ret = await get_retriever()
 
     existing = get_questions_from_db(req.completed_topics)
     print(f"💾 DB has {len(existing)} existing questions to avoid")
 
-    # Pre-fetch RAG context once (shared across all single-question calls)
     topics = req.completed_topics
     num_topics = len(topics)
     if num_topics <= 3:
@@ -360,7 +330,7 @@ async def stream_more_questions(req: QuizGenerateRequest):
 
     async def retrieve_topic(topic_id: str):
         try:
-            docs = await asyncio.to_thread(retriever.invoke, topic_id)
+            docs = await asyncio.to_thread(ret.invoke, topic_id)
             combined = "\n\n".join([d.page_content[:max_chars] for d in docs[:max_docs]])
             if combined:
                 return f"Topic ID: {topic_id}\n{combined}"
@@ -377,7 +347,7 @@ async def stream_more_questions(req: QuizGenerateRequest):
     context_text = "\n\n---\n\n".join(topic_contexts)
 
     async def event_generator():
-        all_existing = list(existing)  # copy to accumulate
+        all_existing = list(existing)
         num_to_generate = req.num_questions
 
         for i in range(num_to_generate):
@@ -396,7 +366,6 @@ async def stream_more_questions(req: QuizGenerateRequest):
                 print(f"  ❌ Failed to generate question {i+1}: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-        # Send done signal with pool size
         total_pool = len(get_questions_from_db(req.completed_topics))
         yield f"data: {json.dumps({'done': True, 'total_pool': total_pool})}\n\n"
 
@@ -422,18 +391,14 @@ class TopicContentRequest(BaseModel):
 async def generate_topic_content(req: TopicContentRequest):
     """Generate learning material for a topic using RAG + LLM."""
     try:
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
+        # ✅ lazy-init
+        ret = await get_retriever()
 
         print(f"📚 Generating content for topic: {req.topic_name}")
         start_time = datetime.now()
 
-        # Retrieve relevant Java content for this topic
-        docs = await asyncio.to_thread(retriever.invoke, req.topic_name)
-        context_snippets = "\n\n".join([
-            d.page_content[:600] for d in docs[:3]
-        ])
+        docs = await asyncio.to_thread(ret.invoke, req.topic_name)
+        context_snippets = "\n\n".join([d.page_content[:600] for d in docs[:3]])
 
         if not context_snippets:
             raise HTTPException(status_code=400, detail=f"No content found for topic: {req.topic_name}")
@@ -457,7 +422,7 @@ Generate a JSON object with this exact structure:
       "java": "// Complete Java code example\\nint x = 10;"
     }},
     {{
-      "title": "Example 2 Title", 
+      "title": "Example 2 Title",
       "java": "// Another Java example\\nString name = \\"Alice\\";"
     }},
     {{
@@ -494,7 +459,7 @@ IMPORTANT:
         )
 
         elapsed = (datetime.now() - start_time).total_seconds()
-        
+
         return {
             "topic_id": req.topic_id,
             "content": content_result,
@@ -522,14 +487,10 @@ async def batch_generate_topic_content(topics: List[TopicContentRequest]):
     """Generate learning material for multiple topics in parallel."""
     try:
         print(f"📚 Batch generating content for {len(topics)} topics")
-        
-        # Generate all topics in parallel
         tasks = [generate_topic_content(topic) for topic in topics]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
         successful = [r for r in results if isinstance(r, dict) and "content" in r]
         failed = [str(r) for r in results if isinstance(r, Exception)]
-        
         return {
             "total_requested": len(topics),
             "successful": len(successful),
@@ -550,15 +511,12 @@ async def _generate_new_questions(
     existing_questions: List[dict],
 ) -> List[dict]:
     """Call AI to generate new unique questions, avoiding duplicates."""
-    global retriever
-    if retriever is None:
-        raise HTTPException(status_code=500, detail="RAG not initialized")
+    # ✅ lazy-init
+    ret = await get_retriever()
 
-    # Convert subtopic IDs to main topic names for RAG retrieval
     main_topics = convert_topic_ids_to_main_topics(topics)
     print(f"📍 Converting topics for generation: {topics} → {main_topics}")
 
-    # RAG context retrieval (parallel)
     retrieval_start = time.time()
     num_topics = len(main_topics)
 
@@ -571,7 +529,7 @@ async def _generate_new_questions(
 
     async def retrieve_topic(topic_id: str):
         try:
-            docs = await asyncio.to_thread(retriever.invoke, topic_id)
+            docs = await asyncio.to_thread(ret.invoke, topic_id)
             combined = "\n\n".join([d.page_content[:max_chars] for d in docs[:max_docs]])
             if combined:
                 return f"Topic ID: {topic_id}\n{combined}"
@@ -588,15 +546,13 @@ async def _generate_new_questions(
 
     context_text = "\n\n---\n\n".join(topic_contexts)
 
-    # Build exclusion list so AI doesn't repeat existing questions
     exclusion_block = ""
     if existing_questions:
-        existing_texts = [q["question"] for q in existing_questions[-20:]]  # last 20 to keep prompt short
+        existing_texts = [q["question"] for q in existing_questions[-20:]]
         exclusion_block = "\n\nDo NOT repeat any of these existing questions:\n" + "\n".join(
             f"- {q}" for q in existing_texts
         )
 
-    # Unique IDs: use a timestamp prefix to avoid collisions
     id_prefix = f"q{int(time.time())}_"
 
     prompt = f"""You are a Java tutor generating multiple-choice questions.
@@ -649,7 +605,6 @@ Respond as a JSON object with this schema:
     if not raw_questions:
         raise HTTPException(status_code=500, detail="LLM returned no questions")
 
-    # Validate
     try:
         [MCQ(**q) for q in raw_questions]
     except Exception as e:
@@ -665,7 +620,6 @@ async def _generate_single_question(
     question_index: int,
 ) -> Optional[dict]:
     """Generate exactly ONE new question via a fast LLM call."""
-    # Build exclusion list
     exclusion_block = ""
     if existing_questions:
         existing_texts = [q["question"] for q in existing_questions[-15:]]
@@ -708,16 +662,13 @@ Respond as a JSON object:
         timeout=30
     )
 
-    # The LLM might return {"questions": [...]} or a direct question object
     if "questions" in result and isinstance(result["questions"], list):
         q = result["questions"][0]
     else:
         q = result
 
-    # Validate
     MCQ(**q)
     return q
-
 
 
 # ==================== LLM HELPERS ====================
@@ -768,11 +719,10 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 async def rag_ai(req: ExplainRequest):
     try:
         global rag_chain, retriever
-        
-        # Lazy load RAG system if not initialized
+
         from main import ensure_rag_initialized
         await ensure_rag_initialized()
-        
+
         if rag_chain is None or retriever is None:
             raise HTTPException(status_code=500, detail="RAG system failed to initialize")
 
@@ -784,23 +734,18 @@ async def rag_ai(req: ExplainRequest):
 
         print(f"[RAG] Processing: {query[:50]}...")
         start_time = datetime.now()
-        
-        # Initialize conversation manager if user_id provided
+
         conversation_manager = None
         if req.user_id:
             conversation_manager = ConversationManager()
-            
-            # If no conversation_id, create one
             if not req.conversation_id:
                 req.conversation_id = conversation_manager.create_conversation_id(req.user_id)
                 print(f"📌 Created new conversation: {req.conversation_id}")
-            
-            # Get conversation context for LLM
             conv_context = conversation_manager.get_context_for_llm(req.user_id, req.conversation_id)
             if conv_context:
                 query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
-        
+
         final_answer = rag_chain.invoke(query)
         docs = retriever.invoke(query)
         pdf_matches = [
@@ -812,8 +757,7 @@ async def rag_ai(req: ExplainRequest):
             for doc in docs[:3]
         ]
         elapsed = (datetime.now() - start_time).total_seconds()
-        
-        # Save conversation turn if tracking is enabled
+
         if conversation_manager and req.user_id and req.conversation_id:
             try:
                 conversation_manager.save_turn(
@@ -829,7 +773,7 @@ async def rag_ai(req: ExplainRequest):
                 print(f"✅ Saved conversation turn for user {req.user_id}")
             except Exception as e:
                 print(f"⚠️ Failed to save conversation: {e}")
-        
+
         return {
             "final_answer": final_answer,
             "conversation_id": req.conversation_id,
@@ -1014,9 +958,8 @@ Generate a detailed hint now:"""
 @router.post("/api/grading/evaluate", response_model=GradingResponse)
 async def ai_partial_grading(req: GradingRequest):
     try:
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
+        # ✅ lazy-init instead of raw global check
+        ret = await get_retriever()
 
         print(f"[Grading] Evaluating student code...")
         start_time = datetime.now()
@@ -1025,7 +968,7 @@ async def ai_partial_grading(req: GradingRequest):
             raise HTTPException(status_code=400, detail="No test results provided")
 
         test_case_score = (len(req.test_results['passed']) / total_tests) * 50
-        relevant_docs = retriever.invoke(f"Java {req.problem_description} best practices")
+        relevant_docs = ret.invoke(f"Java {req.problem_description} best practices")
         best_practices = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:400]}"
             for i, doc in enumerate(relevant_docs[:2])
@@ -1118,11 +1061,10 @@ Respond in JSON:
 @router.post("/api/get-full-document")
 async def get_full_document(req: DocumentRequest):
     try:
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
+        # ✅ lazy-init
+        ret = await get_retriever()
 
-        vectorstore = retriever.vectorstore
+        vectorstore = ret.vectorstore
         matching_docs = []
         for doc_id in vectorstore.index_to_docstore_id.values():
             doc = vectorstore.docstore.search(doc_id)
@@ -1154,11 +1096,10 @@ async def get_chunk_context(request: Request):
         if not source_file or not chunk_content:
             raise HTTPException(status_code=400, detail="Missing required fields")
 
-        global retriever
-        if retriever is None:
-            raise HTTPException(status_code=500, detail="RAG system not initialized")
+        # ✅ lazy-init
+        ret = await get_retriever()
 
-        vectorstore = retriever.vectorstore
+        vectorstore = ret.vectorstore
         all_chunks = []
         for doc_id in vectorstore.index_to_docstore_id.values():
             doc = vectorstore.docstore.search(doc_id)
@@ -1222,7 +1163,6 @@ class ClearConversationsRequest(BaseModel):
 
 @router.post("/api/conversations/history")
 async def get_conversation_history(req: ConversationHistoryRequest):
-    """Retrieve full conversation history including summaries of old turns"""
     try:
         manager = ConversationManager()
         history = manager.get_conversation_history(
@@ -1230,7 +1170,6 @@ async def get_conversation_history(req: ConversationHistoryRequest):
             conversation_id=req.conversation_id,
             limit=req.limit,
         )
-        
         return {
             "conversation_id": req.conversation_id,
             "turns": len([m for m in history if m["role"] != "system"]),
@@ -1245,14 +1184,12 @@ async def get_conversation_history(req: ConversationHistoryRequest):
 
 @router.post("/api/conversations/stats")
 async def get_conversation_stats(req: ConversationStatsRequest):
-    """Get statistics about token usage and conversation metrics"""
     try:
         manager = ConversationManager()
         stats = manager.get_conversation_stats(
             user_id=req.user_id,
             conversation_id=req.conversation_id,
         )
-        
         return {
             "stats": stats,
             "timestamp": datetime.now().isoformat(),
@@ -1264,20 +1201,19 @@ async def get_conversation_stats(req: ConversationStatsRequest):
 
 @router.post("/api/conversations/create")
 async def create_conversation(req: BaseModel):
-    """Create a new conversation session for a user"""
     try:
         class CreateConvRequest(BaseModel):
             user_id: int
-        
+
         req_data = await req.__root__
         user_id = req_data.get("user_id")
-        
+
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
-        
+
         manager = ConversationManager()
         conversation_id = manager.create_conversation_id(user_id)
-        
+
         return {
             "conversation_id": conversation_id,
             "user_id": user_id,
@@ -1291,14 +1227,12 @@ async def create_conversation(req: BaseModel):
 
 @router.post("/api/conversations/clear")
 async def clear_old_conversations(req: ClearConversationsRequest):
-    """Delete conversations older than specified number of days"""
     try:
         manager = ConversationManager()
         deleted_turns = manager.clear_old_conversations(
             user_id=req.user_id,
             days=req.days,
         )
-        
         return {
             "user_id": req.user_id,
             "days_threshold": req.days,
@@ -1312,13 +1246,12 @@ async def clear_old_conversations(req: ClearConversationsRequest):
 
 @router.get("/api/conversations/{user_id}/list")
 async def list_conversations(user_id: int):
-    """List all conversations for a user with their stats"""
     try:
         manager = ConversationManager()
         db = SessionLocal()
-        
+
         from db_models import ConversationHistory
-        
+
         conversations = db.query(
             ConversationHistory.conversation_id,
             func.count(ConversationHistory.id).label("turns"),
@@ -1333,9 +1266,9 @@ async def list_conversations(user_id: int):
         ).order_by(
             func.max(ConversationHistory.created_at).desc()
         ).all()
-        
+
         db.close()
-        
+
         return {
             "user_id": user_id,
             "total_conversations": len(conversations),
