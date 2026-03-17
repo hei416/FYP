@@ -88,6 +88,10 @@ export default function PracticalTest() {
     const [hintLoading, setHintLoading] = useState(false);
     const [testResults, setTestResults] = useState(null);
 
+    // loading states for Run and Submit buttons
+    const [runLoading, setRunLoading] = useState(false);
+    const [submitLoading, setSubmitLoading] = useState(false);
+
     // dedup tracking: last recorded "questionId+score" pair
     const lastRecordedRef = useRef(null);
 
@@ -194,6 +198,7 @@ export default function PracticalTest() {
     };
 
     const handleRun = async () => {
+        setRunLoading(true);
         const { url, body } = buildEvalPayload();
         try {
             const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -201,11 +206,14 @@ export default function PracticalTest() {
             setResult(data.success ? `Output:\n\n${data.output}` : `❌ Compilation/Runtime Error:\n${data.error}`);
         } catch (e) {
             setResult(`Failed to run code: ${e.message}`);
+        } finally {
+            setRunLoading(false);
         }
     };
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
+        setSubmitLoading(true);
         const { url, body } = buildEvalPayload();
         try {
             const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -246,6 +254,8 @@ export default function PracticalTest() {
             await gradeSubmission(results);
         } catch (e) {
             setResult(`❌ Failed to evaluate code: ${e.message}`);
+        } finally {
+            setSubmitLoading(false);
         }
     };
 
@@ -407,8 +417,20 @@ export default function PracticalTest() {
 
                     {/* action buttons */}
                     <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                        <button onClick={handleRun} style={btn.primary}>▶ Run Code</button>
-                        <button onClick={handleSubmit} style={btn.success}>📤 Submit Code</button>
+                        <button
+                            onClick={handleRun}
+                            disabled={runLoading || submitLoading}
+                            style={runLoading || submitLoading ? btn.disabled : btn.primary}
+                        >
+                            {runLoading ? '⏳ Running...' : '▶ Run Code'}
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitLoading || runLoading}
+                            style={submitLoading || runLoading ? btn.disabled : btn.success}
+                        >
+                            {submitLoading ? '⏳ Submitting...' : '📤 Submit Code'}
+                        </button>
                     </div>
 
                     {/* hints */}
