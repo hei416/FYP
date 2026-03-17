@@ -76,6 +76,11 @@ TOPIC_HINTS = {
 }
 
 
+def _get_paiza_key() -> str:
+    """Always read PAIZA_API_KEY fresh from env so .env changes take effect."""
+    return os.environ.get("PAIZA_API_KEY") or PAIZA_API_KEY or "guest"
+
+
 def _get_api_config():
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
     return {
@@ -350,22 +355,24 @@ def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, h
     print(full_class)
     print("=" * 80)
 
+    api_key = _get_paiza_key()
     try:
         response = requests.post(
             "https://api.paiza.io/runners/create",
-            data={"source_code": full_class, "language": "java", "api_key": PAIZA_API_KEY},
-            timeout=10,
+            data={"source_code": full_class, "language": "java", "api_key": api_key},
+            timeout=30,
         )
-        print("PAIZA RESPONSE:", response.status_code, response.text)  # ← add this
         run_id = response.json().get("id")
         if not run_id:
-            return {"success": False, "output": "", "error": "Failed to start runner."}
+            err = response.json().get("error", "Failed to start runner.")
+            print(f"🔴 Paiza create failed: {response.status_code} {response.text}")
+            return {"success": False, "output": "", "error": err}
 
         start_time = datetime.now()
         while (datetime.now() - start_time).seconds < 30:
             result = requests.get(
                 "https://api.paiza.io/runners/get_details",
-                params={"id": run_id, "api_key": PAIZA_API_KEY},
+                params={"id": run_id, "api_key": api_key},
             ).json()
             if result.get("status") == "completed":
                 stdout = (result.get("stdout") or "").strip()
@@ -454,8 +461,10 @@ def _build_smart_run_app(base_methods: dict) -> str:
         elif return_type.endswith("[]"):
             elem = return_type[:-2]
             lines.append(f"        {return_type} _r_{method_name} = {method_name}();")
-            lines.append(f"        for ({elem} _item : _r_{method_name}) {{")
-            lines.append("            System.out.println(_item);")
+            lines.append(f"        if (_r_{method_name} != null) {{")
+            lines.append(f"            for ({elem} _item : _r_{method_name}) {{")
+            lines.append("                System.out.println(_item);")
+            lines.append("            }")
             lines.append("        }")
         else:
             lines.append(f"        System.out.println({method_name}());")
