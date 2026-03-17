@@ -31,12 +31,14 @@ def extract_class_name(code: str) -> str:
 def _build_source_from_files(files: List[Dict]) -> str:
     if len(files) == 1:
         return files[0].get("content", "")
-    parts = []
+    # For multiple files, find the one containing the public class and use it as
+    # the primary source. Paiza only supports a single file, so we pick the file
+    # that declares a public class to avoid the
+    # "class X is public, should be declared in a file named X.java" error.
     for f in files:
-        parts.append(f"// ---- {f.get('filename', 'Unknown')} ----\n")
-        parts.append(f.get("content", ""))
-        parts.append("\n")
-    return "".join(parts)
+        if re.search(r'public\s+class\s+', f.get("content", "")):
+            return f.get("content", "")
+    return files[0].get("content", "")
 
 
 def parse_javac_errors(build_stderr: str, filename: str) -> list[dict]:
