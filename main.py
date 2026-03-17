@@ -4,15 +4,12 @@ import asyncio
 import os
 import sys
 
-# Ultra-simple startup - minimize any blocking code
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# Initialize FastAPI app FIRST before any other imports
 app = FastAPI(title="Java Learning Platform - NLI-Verified RAG")
 
-# Add CORS middleware immediately
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,51 +18,31 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# --- Test endpoint for diagnostics ---
 @app.get("/test-alive", tags=["Debug"])
 async def test_alive():
     """Simple endpoint to verify backend reachability."""
     return {"status": "alive", "message": "Backend is reachable and custom endpoint is working."}
 
-# Import routers AFTER app is created - wrap in try-catch
 print("\n🔧 IMPORTING ROUTERS...")
 try:
-    print("  Importing code_execution...")
     from routers import code_execution
     print("  ✓ code_execution")
-
-    print("  Importing lessons...")
     from routers import lessons
     print("  ✓ lessons")
-
-    print("  Importing pdfs...")
     from routers import pdfs
     print("  ✓ pdfs")
-
-    print("  Importing practical_tests...")
     from routers import practical_tests
     print("  ✓ practical_tests")
-
-    print("  Importing rag...")
     from routers import rag
     print("  ✓ rag")
-
-    print("  Importing auth...")
     from routers import auth
     print("  ✓ auth")
-
-    print("  Importing progress...")
     from routers import progress
     print("  ✓ progress")
-
-    print("  Importing conversation...")
     from routers import conversation
     print("  ✓ conversation")
-
-    print("  Importing rag_router...")
     import routers.rag as rag_router
     print("  ✓ rag_router\n")
-
     ROUTERS_IMPORTED = True
     print("✅ ALL ROUTERS IMPORTED SUCCESSFULLY\n")
 except Exception as e:
@@ -73,58 +50,40 @@ except Exception as e:
     traceback.print_exc(file=sys.stderr)
     ROUTERS_IMPORTED = False
 
-# Lazy loading: RAG system loads on first request, not during startup
 RAG_INITIALIZED = False
 RAG_INIT_LOCK = asyncio.Lock()
-
-# Lazy loading: PDF chunks load on first request, not during startup
 PDF_INITIALIZED = False
 PDF_INIT_LOCK = asyncio.Lock()
 PDF_CHUNKS = None
 
 async def ensure_rag_initialized():
-    """Lazy load RAG system on first use (imports heavy libs here)"""
     global RAG_INITIALIZED
-
     if RAG_INITIALIZED:
         return
-
     async with RAG_INIT_LOCK:
         if RAG_INITIALIZED:
             return
-
         print("\n🔄 Loading FAISS RAG System (lazy init on first request)...")
         try:
             rag_start = time.time()
             from rag_system import setup_rag_system
             rag_chain, retriever = setup_rag_system(rebuild_vectorstore=False)
-
             rag_router.rag_chain = rag_chain
             rag_router.retriever = retriever
-
             rag_elapsed = time.time() - rag_start
             print(f"✅ FAISS RAG system loaded! ({rag_elapsed:.2f}s)")
-            print(f"   • Model: qwen3-max")
-            print(f"   • NLI Faithfulness: 97.62% (46/47 claims)")
-            print(f"   • Semantic Similarity: 80.78%")
-            print(f"   • Context Recall: 74.21%")
-            print(f"   • Avg Response Time: 6.73s")
             RAG_INITIALIZED = True
         except Exception as e:
             print(f"❌ FAISS RAG initialization failed: {e}")
             traceback.print_exc()
 
 async def ensure_pdf_chunks_loaded():
-    """Lazy load PDF chunks on first use (imports PyMuPDF here)"""
     global PDF_CHUNKS, PDF_INITIALIZED, HAS_PDF_SERVICE
-
     if PDF_INITIALIZED:
         return
-
     async with PDF_INIT_LOCK:
         if PDF_INITIALIZED:
             return
-
         print("\n🔄 Loading PDF chunks (lazy init on first request)...")
         try:
             from services.pdf_service import extract_pdf_chunks
@@ -141,7 +100,7 @@ async def ensure_pdf_chunks_loaded():
 
 @app.on_event("startup")
 async def startup():
-    """Minimal startup — just bind to port ASAP. Run lightweight schema migrations."""
+    """Minimal startup — run lightweight schema migrations."""
     try:
         from database import get_engine
         from sqlalchemy import text
@@ -157,25 +116,25 @@ async def startup():
                     conn.commit()
                     print(f"✅ Migration: added column '{col}' to practical_test_questions")
                 except Exception:
-                    pass  # Column already exists — safe to ignore
+                    pass  # Column already exists
 
-            # conversation_history and conversation_summaries tables
+            # conversation_history table (PostgreSQL-compatible)
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS conversation_history (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES users(id),
                         conversation_id VARCHAR(255) NOT NULL,
                         turn_number INTEGER NOT NULL,
-                        is_summarized BOOLEAN DEFAULT 0,
+                        is_summarized BOOLEAN DEFAULT FALSE,
                         user_message TEXT NOT NULL,
                         assistant_response TEXT NOT NULL,
                         context_type VARCHAR(50) NOT NULL DEFAULT 'general',
                         code_snippet TEXT,
                         input_tokens INTEGER DEFAULT 0,
                         output_tokens INTEGER DEFAULT 0,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        summary_of_turns JSON
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        summary_of_turns JSONB
                     )
                 """))
                 conn.commit()
@@ -183,23 +142,24 @@ async def startup():
             except Exception as e:
                 print(f"⚠️ conversation_history migration: {e}")
 
+            # conversation_summaries table (PostgreSQL-compatible)
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS conversation_summaries (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES users(id),
                         conversation_id VARCHAR(255) NOT NULL,
                         turn_range_start INTEGER NOT NULL,
                         turn_range_end INTEGER NOT NULL,
                         num_original_turns INTEGER NOT NULL,
                         summary TEXT NOT NULL,
-                        key_points JSON,
+                        key_points JSONB,
                         original_input_tokens INTEGER DEFAULT 0,
                         original_output_tokens INTEGER DEFAULT 0,
                         summary_input_tokens INTEGER DEFAULT 0,
                         summary_output_tokens INTEGER DEFAULT 0,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """))
                 conn.commit()
@@ -210,12 +170,10 @@ async def startup():
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")
 
-    # Log all registered routes for debugging
     routes = []
     for route in app.routes:
         if hasattr(route, "path") and hasattr(route, "methods"):
             routes.append(f"{', '.join(route.methods)} {route.path}")
-
     print("\n" + "="*60)
     print("📋 REGISTERED API ROUTES:")
     print("="*60)
@@ -223,11 +181,8 @@ async def startup():
         print(f"  {route}")
     print("="*60 + "\n")
 
-# Include routers
 if ROUTERS_IMPORTED:
     try:
-        print("✓ Router imports successful - including routers...\n")
-
         routers_to_include = [
             (auth.router, "Auth", None),
             (progress.router, "Progress", None),
@@ -238,7 +193,6 @@ if ROUTERS_IMPORTED:
             (practical_tests.router, "Tests", "/api/practical-tests"),
             (conversation.router, "Conversation", None),
         ]
-
         for router_obj, router_name, prefix in routers_to_include:
             try:
                 if prefix:
@@ -249,9 +203,7 @@ if ROUTERS_IMPORTED:
             except Exception as e:
                 print(f"  ❌ {router_name} router FAILED: {e}", file=sys.stderr)
                 traceback.print_exc(file=sys.stderr)
-
-        print(f"\n✅ Router inclusion complete!")
-        print(f"   Total routes: {len([r for r in app.routes if hasattr(r, 'path')])}\n")
+        print(f"\n✅ Router inclusion complete! Total routes: {len([r for r in app.routes if hasattr(r, 'path')])}\n")
     except Exception as e:
         print(f"ERROR including routers: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
@@ -260,7 +212,6 @@ else:
 
 @app.get("/", tags=["Health"])
 async def root():
-    """Root endpoint with system info"""
     return {
         "status": "online",
         "system": "Java Learning Platform",
@@ -282,12 +233,10 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Instant health check - used by Azure load balancer"""
     return {"status": "ok"}
 
 @app.get("/debug/routes", tags=["Debug"])
 async def debug_routes():
-    """List all registered routes for debugging"""
     routes = []
     for route in app.routes:
         if hasattr(route, "path") and hasattr(route, "methods"):
