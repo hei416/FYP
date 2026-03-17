@@ -167,6 +167,7 @@ export default function ProgressDisplay() {
                                 subtitle={`${detailedProgress.roadmap.percentage}% complete`}
                                 color="#6366F1"
                             />
+
                             <ProgressItem
                                 icon="📝" title="Quizzes"
                                 completed={detailedProgress.quizzes.passed}
@@ -176,6 +177,7 @@ export default function ProgressDisplay() {
                                 passColor="#FF9800"
                                 color="#FF9800"
                             />
+
                             <ProgressItem
                                 icon="🎯" title="Practical Tests"
                                 completed={detailedProgress.tests.passed}
@@ -203,12 +205,23 @@ export default function ProgressDisplay() {
                                     </div>
                                     <div style={{
                                         fontSize: font.sizeSm, fontWeight: font.weightBold,
-                                            color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
-                                        }}>
-                                            {detailedProgress.playground.completed
-                                                ? '✓ Completed'
-                                                : `${detailedProgress.playground.executions} / 3`}
+                                        color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
+                                    }}>
+                                        {detailedProgress.playground.completed
+                                            ? '✓ Completed'
+                                            : `${detailedProgress.playground.executions} / 3`}
                                     </div>
+                                </div>
+                                <div style={{
+                                    marginTop: '10px',
+                                    width: '100%', height: '8px',
+                                    background: colors.divider, borderRadius: radii.sm, overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        width: `${Math.min(100, Math.round((detailedProgress.playground.executions / 3) * 100))}%`,
+                                        height: '100%', background: '#4CAF50',
+                                        transition: 'width 0.5s ease', borderRadius: radii.sm
+                                    }} />
                                 </div>
                             </div>
 
