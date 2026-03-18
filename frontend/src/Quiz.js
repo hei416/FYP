@@ -303,7 +303,7 @@ export default function Quiz() {
             window.dispatchEvent(new Event('progress-updated'));
 
             // Auto-save to My Work if logged in
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('authToken');
             if (token) {
                 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
                 const reviewData = filteredQuestions.map((q, idx) => ({

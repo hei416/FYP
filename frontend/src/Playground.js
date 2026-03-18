@@ -30,7 +30,7 @@ export default function Playground() {
     const [saved, setSaved] = useState(false);
 
     const handleSave = async () => {
-        if (!localStorage.getItem('token')) {
+        if (!localStorage.getItem('authToken')) {
             alert('Please log in to save your work.');
             return;
         }

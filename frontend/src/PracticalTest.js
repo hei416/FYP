@@ -250,7 +250,7 @@ export default function PracticalTest() {
                 setGradingResults(grading);
 
                 // Auto-save to My Work if logged in
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('authToken');
                 if (token) {
                     const passed = results.failed?.length === 0;
                     fetch(`${API_BASE}/my-work/save`, {

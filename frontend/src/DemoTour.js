@@ -80,7 +80,7 @@ export class DemoTour {
                         Just sit back and watch, or click through at your own pace!
                     </p>
                     <p style="margin: 15px 0 0 0; font-size: 14px; color: #9ca3af;">
-                        <strong>Duration:</strong> ~3 minutes | <strong>Steps:</strong> 13
+                        <strong>Duration:</strong> ~3 minutes | <strong>Steps:</strong> 15
                     </p>
                 </div>
             `,
@@ -192,18 +192,19 @@ export class DemoTour {
         this.tour.addStep({
             id: 'playground-tips',
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">💡 Playground Overview</h3>
-                <p style="margin: 0 0 10px 0; line-height: 1.6;">
-                    The Playground is a full <strong>in-browser Java IDE</strong>. Here's what you get:
-                </p>
-                <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
-                    <li>📁 <strong>Multi-file tabs</strong> — create and switch between multiple <code>.java</code> files</li>
-                    <li>🎨 <strong>Monaco Editor</strong> — the same engine powering VS Code, with syntax highlighting</li>
-                    <li>⚡ <strong>Real-time error squiggles</strong> — catch typos before you even run</li>
-                    <li>▶️ <strong>One-click execution</strong> — compiles and runs on the server instantly</li>
-                    <li>📤 <strong>Output panel</strong> — see <code>stdout</code>, <code>stderr</code>, and compiler errors side by side</li>
-                </ul>
-            `,
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">💡 Playground Overview</h3>
+    <p style="margin: 0 0 10px 0; line-height: 1.6;">
+        The Playground is a full <strong>in-browser Java IDE</strong>. Here's what you get:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>📁 <strong>Multi-file tabs</strong> — create and switch between multiple <code>.java</code> files</li>
+        <li>🎨 <strong>Monaco Editor</strong> — the same engine powering VS Code, with syntax highlighting</li>
+        <li>⚡ <strong>Real-time error squiggles</strong> — catch typos before you even run</li>
+        <li>▶️ <strong>One-click execution</strong> — compiles and runs on the server instantly</li>
+        <li>📤 <strong>Output panel</strong> — see <code>stdout</code>, <code>stderr</code>, and compiler errors side by side</li>
+        <li>💾 <strong>Save to My Work</strong> — click the Save button to store any snippet to your personal workspace</li>
+    </ul>
+`,
             buttons: [
                 { text: 'Back', action: () => this.tour.back(), secondary: true },
                 { text: 'Next: Code Editor →', action: () => this.tour.next() }
@@ -387,7 +388,16 @@ public class Demo {
     </ul>
 `,
             beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); await this.closeSidebar(); },
-            buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Try AI Chat', action: () => { const aiButton = document.querySelector('[data-tour="ai-button"]'); if (aiButton) aiButton.click(); setTimeout(() => this.tour.next(), 500); } } ]
+            buttons: [
+                { text: 'Back', action: () => this.tour.back(), secondary: true },
+                {
+                    text: 'Next: Progress →',
+                    action: async () => {
+                        await this.closeAI();
+                        this.tour.next();
+                    }
+                }
+            ]
         });
 
         // NEW Step 12: Progress Tracker
@@ -411,23 +421,55 @@ public class Demo {
             buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Next: Complete →', action: () => this.tour.next() } ]
         });
 
-        // Step 13: My Work
+        // Step 15: Chat History
+        this.tour.addStep({
+            id: 'chat-history',
+            attachTo: { element: '[data-tour="history-link"]', on: 'right' },
+            text: `
+                <h3 style="margin: 0 0 10px 0; color: #128C7E;">🕘 Chat History</h3>
+                <p style="margin: 0 0 8px 0; line-height: 1.6;">
+                    Every conversation you have with the <strong>AI Tutor</strong> is automatically saved here:
+                </p>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+                    <li>📋 <strong>All past chats</strong> — browse every question you've asked the AI</li>
+                    <li>🔍 <strong>Review explanations</strong> — revisit answers and code examples at any time</li>
+                    <li>📅 <strong>Timestamped</strong> — see exactly when each conversation happened</li>
+                    <li>🗑️ <strong>Delete</strong> — remove any chat you no longer need</li>
+                </ul>
+            `,
+            beforeShowPromise: async () => {
+                await this.closeAI();
+                await this.navigateTo('/home');
+                await this.openSidebar();
+            },
+            buttons: [
+                { text: 'Back', action: () => this.tour.back(), secondary: true },
+                {
+                    text: 'Next: Complete →',
+                    action: async () => {
+                        await this.closeSidebar();
+                        this.tour.next();
+                    }
+                }
+            ]
+        });
+
+        // Step 13: My Work sidebar link
         this.tour.addStep({
             id: 'my-work',
             attachTo: { element: '[data-tour="my-work-link"]', on: 'right' },
             text: `
-<h3 style="margin: 0 0 10px 0; color: #128C7E;">📁 My Work Space</h3>
-<p style="margin: 0 0 8px 0; line-height: 1.6;">
-    All your learning activity is <strong>automatically saved</strong> to your personal workspace:
-</p>
-<ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
-    <li>📝 <strong>Quiz results</strong> — every quiz you complete is saved with your full Q&amp;A review</li>
-    <li>🧪 <strong>Test submissions</strong> — your code, score, grade and AI feedback are all stored</li>
-    <li>💻 <strong>Playground snippets</strong> — save any code you write with one click</li>
-    <li>🔍 <strong>Review anytime</strong> — expand any saved item to revisit questions and your answers</li>
-    <li>🗑️ <strong>Delete</strong> — clean up old work you no longer need</li>
-</ul>
-`,
+        <h3 style="margin: 0 0 10px 0; color: #128C7E;">📁 My Work Space</h3>
+        <p style="margin: 0 0 8px 0; line-height: 1.6;">
+            All your learning activity is <strong>automatically saved</strong> to your personal workspace.
+            Let me take you there to see it in action!
+        </p>
+        <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+            <li>📝 <strong>Quiz results</strong> — saved with full Q&amp;A review</li>
+            <li>🧪 <strong>Test submissions</strong> — code, score, grade and AI feedback</li>
+            <li>💻 <strong>Playground snippets</strong> — save any code with one click</li>
+        </ul>
+    `,
             beforeShowPromise: async () => {
                 await this.closeAI();
                 await this.navigateTo('/home');
@@ -443,6 +485,31 @@ public class Demo {
                         this.tour.next();
                     }
                 }
+            ]
+        });
+
+        // Step 14: My Work page detail
+        this.tour.addStep({
+            id: 'my-work-page',
+            text: `
+        <h3 style="margin: 0 0 10px 0; color: #128C7E;">📁 My Work — Page Overview</h3>
+        <p style="margin: 0 0 8px 0; line-height: 1.6;">
+            This is your <strong>personal learning history</strong>. Everything you complete is stored here automatically:
+        </p>
+        <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+            <li>🔽 <strong>Filter by type</strong> — switch between All, Quiz, Test, and Playground tabs</li>
+            <li>▼ <strong>View Details</strong> — expand any card to see the full Q&amp;A review or your submitted code</li>
+            <li>📊 <strong>Score &amp; Grade</strong> — see your result and AI letter grade at a glance</li>
+            <li>💬 <strong>AI Feedback</strong> — test submissions include suggestions on how to improve</li>
+            <li>🗑️ <strong>Delete</strong> — remove any entry you no longer need</li>
+        </ul>
+    `,
+            beforeShowPromise: async () => {
+                await new Promise(resolve => setTimeout(resolve, 400));
+            },
+            buttons: [
+                { text: 'Back', action: () => this.tour.back(), secondary: true },
+                { text: 'Next: Complete →', action: () => this.tour.next() }
             ]
         });
 

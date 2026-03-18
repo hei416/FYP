@@ -115,7 +115,7 @@ export default function Navbar({ toggleChat }) {
                         { to: '/quiz', icon: '📝', label: 'Quiz', 'data-tour': 'quiz-link' },
                         { to: '/practical-test', icon: '🎯', label: 'Tests', 'data-tour': 'test-link' },
                         { to: '/my-work', icon: '📁', label: 'My Work', 'data-tour': 'my-work-link' },
-                        { to: '/history', icon: '🕘', label: 'Chat History' },
+                        { to: '/history', icon: '🕘', label: 'Chat History', 'data-tour': 'history-link' },
                     ].map(({ to, icon, label, ...rest }) => (
                         <Link
                             key={to}
