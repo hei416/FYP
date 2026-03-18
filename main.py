@@ -39,6 +39,8 @@ try:
     print("  ✓ auth")
     from routers import progress
     print("  ✓ progress")
+    from routers import my_work
+    print("  ✓ my_work")
     from routers import conversation
     print("  ✓ conversation")
     import routers.rag as rag_router
@@ -214,6 +216,7 @@ if ROUTERS_IMPORTED:
             (lessons.router, "Lessons", None),
             (pdfs.router, "PDFs", None),
             (practical_tests.router, "Tests", "/api/practical-tests"),
+            (my_work.router, "My Work", None),
             (conversation.router, "Conversation", None),
         ]
         for router_obj, router_name, prefix in routers_to_include:
