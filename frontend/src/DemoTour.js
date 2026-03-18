@@ -43,6 +43,13 @@ export class DemoTour {
         });
     }
 
+    closeAI() {
+        return new Promise((resolve) => {
+            window.dispatchEvent(new CustomEvent('close-ai-chat'));
+            setTimeout(resolve, 300);
+        });
+    }
+
     _hideTourUI() {
         if (!this._hideStyle) {
             this._hideStyle = document.createElement('style');
@@ -83,48 +90,70 @@ export class DemoTour {
             ]
         });
 
-        // NEW Step: Lessons / Topics
+        // STEP 2: Navigate to Roadmap (correct route: /home)
         this.tour.addStep({
-            id: 'lessons-navigate',
-            attachTo: { element: '[data-tour="lessons-link"]', on: 'right' },
+            id: 'roadmap-navigate',
+            attachTo: { element: '[data-tour="home-link"]', on: 'right' },
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">📚 Java Lessons</h3>
+                <h3 style="margin: 0 0 10px 0; color: #128C7E;">🗺️ Java Learning Roadmap</h3>
                 <p style="margin: 0; line-height: 1.6;">
-                    Start your learning journey with structured Java lessons!
+                    Your structured learning path with <strong>12 topics</strong> and 
+                    <strong>48 subtopics</strong>! Each node you click opens its learning content.
                 </p>
             `,
-            beforeShowPromise: async () => { await this.openSidebar(); },
+            beforeShowPromise: async () => {
+                await this.closeAI();
+                await this.navigateTo('/home');
+                await this.openSidebar();
+            },
             buttons: [
                 {
-                    text: 'Go to Lessons →',
-                    action: async () => { await this.closeSidebar(); await this.navigateTo('/lessons'); this.tour.next(); }
+                    text: 'Next →',
+                    action: async () => { await this.closeSidebar(); this.tour.next(); }
                 }
             ]
         });
 
-        // NEW Step: Topic Detail
+        // STEP 3: Highlight the roadmap itself (no navigation needed, already at /home)
         this.tour.addStep({
-            id: 'topic-detail',
-            attachTo: { element: '[data-tour="topic-content"]', on: 'bottom' },
+            id: 'roadmap-overview',
+            attachTo: { element: '[data-tour="roadmap-flow"]', on: 'bottom' },
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">📖 Topic Learning</h3>
-                <p style="margin: 0; line-height: 1.6;">
-                    Read structured lessons with explanations, examples, and RAG-powered content!
-                </p>
-            `,
-            buttons: [ { text: 'Next: Playground →', action: () => this.tour.next() } ]
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">📚 Topics & Subtopics</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        The roadmap is your <strong>visual learning curriculum</strong> — every topic you need to master Java, laid out as a flow diagram:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>🗂️ <strong>12 Topic Groups</strong> — from Java Syntax basics all the way to Recursion and OOP</li>
+        <li>🔗 <strong>48 Subtopics</strong> — each is a focused lesson with its own content page</li>
+        <li>👆 <strong>Click any node</strong> to open that subtopic's full learning page instantly</li>
+        <li>✅ <strong>Green nodes</strong> = completed | 🟡 <strong>Amber nodes</strong> = prerequisites not yet done</li>
+        <li>📊 <strong>Progress bar</strong> at top tracks your overall % completion across all 65 subtopics</li>
+    </ul>
+`,
+            buttons: [ { text: 'Next: Topic Detail →', action: () => this.tour.next() } ]
         });
 
-        // NEW Step: Document Viewer (RAG)
+        // STEP 4: Navigate to a specific topic (correct route: /topic/:id)
         this.tour.addStep({
-            id: 'document-viewer',
-            attachTo: { element: '[data-tour="document-viewer"]', on: 'right' },
+            id: 'topic-detail',
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">📄 Source Documents</h3>
-                <p style="margin: 0; line-height: 1.6;">
-                    See the actual Java docs and sources used to generate lesson content (RAG system)!
-                </p>
-            `,
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">📖 Topic Detail Page</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        Each subtopic opens a <strong>dedicated learning page</strong> generated specifically for you:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>🤖 <strong>AI-generated explanations</strong> — clear, beginner-friendly prose written by GPT</li>
+        <li>💻 <strong>Inline code examples</strong> — syntax-highlighted Java snippets you can study directly</li>
+        <li>📄 <strong>RAG-sourced documents</strong> — real reference material retrieved from a knowledge base</li>
+        <li>✅ <strong>Mark as Complete</strong> button — records your progress and unlocks dependent topics</li>
+        <li>🔁 <strong>Regenerate</strong> — not happy with the explanation? Get a fresh one instantly</li>
+    </ul>
+`,
+            beforeShowPromise: async () => {
+                await this.closeAI();
+                await this.navigateTo('/topic/python_syntax');
+            },
             buttons: [ { text: 'Next: Playground →', action: () => this.tour.next() } ]
         });
 
@@ -144,6 +173,7 @@ export class DemoTour {
                 </p>
             `,
             beforeShowPromise: async () => {
+                await this.closeAI();
                 await this.openSidebar();
             },
             buttons: [
@@ -158,15 +188,21 @@ export class DemoTour {
             ]
         });
 
-        // Step 4: Show Playground Overview (floating — no fixed element)
+        // playground-tips: Overview with layout breakdown
         this.tour.addStep({
             id: 'playground-tips',
             text: `
                 <h3 style="margin: 0 0 10px 0; color: #128C7E;">💡 Playground Overview</h3>
-                <p style="margin: 0; line-height: 1.6;">
-                    The playground supports <strong>multiple Java files</strong> side by side.
-                    The Monaco editor provides syntax highlighting and real-time error detection!
+                <p style="margin: 0 0 10px 0; line-height: 1.6;">
+                    The Playground is a full <strong>in-browser Java IDE</strong>. Here's what you get:
                 </p>
+                <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+                    <li>📁 <strong>Multi-file tabs</strong> — create and switch between multiple <code>.java</code> files</li>
+                    <li>🎨 <strong>Monaco Editor</strong> — the same engine powering VS Code, with syntax highlighting</li>
+                    <li>⚡ <strong>Real-time error squiggles</strong> — catch typos before you even run</li>
+                    <li>▶️ <strong>One-click execution</strong> — compiles and runs on the server instantly</li>
+                    <li>📤 <strong>Output panel</strong> — see <code>stdout</code>, <code>stderr</code>, and compiler errors side by side</li>
+                </ul>
             `,
             buttons: [
                 { text: 'Back', action: () => this.tour.back(), secondary: true },
@@ -174,32 +210,36 @@ export class DemoTour {
             ]
         });
 
-        // Step 5: Show Code Editor & Auto-fill
+        // code-editor: Editor features + auto-fill demo
         this.tour.addStep({
             id: 'code-editor',
-            attachTo: {
-                element: '[data-tour="code-editor"]',
-                on: 'right'
-            },
+            attachTo: { element: '[data-tour="code-editor"]', on: 'right' },
             text: `
                 <h3 style="margin: 0 0 10px 0; color: #128C7E;">✨ Code Editor</h3>
-                <p style="margin: 0 0 10px 0; line-height: 1.6;">
-                    Watch as I automatically fill in some demo Java code for you...
+                <p style="margin: 0 0 8px 0; line-height: 1.6;">
+                    I've auto-filled a demo Java class so you can see the editor in action:
                 </p>
-                <div style="background: #f0fdf4; padding: 10px; border-radius: 6px; margin-top: 10px;">
-                    <code style="font-size: 12px; color: #128C7E;">
-                        System.out.println("Hello from CodeTutor!");
+                <div style="background: #f0fdf4; padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #128C7E;">
+                    <code style="font-size: 12px; color: #065f46; white-space: pre-line;">
+public class Demo {
+  public static void main(String[] args) {
+    System.out.println("Hello from CodeTutor!");
+    int number = 67;
+    System.out.println("Answer: " + number);
+  }
+}
                     </code>
                 </div>
-                <p style="margin: 10px 0 0 0; font-size: 13px; color: #6b7280;">
-                    ⌨️ Code auto-filled!
-                </p>
+                <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #374151;">
+                    <li>✏️ You can <strong>edit freely</strong> — try changing the message or the number</li>
+                    <li>💾 Files <strong>auto-save</strong> in your session — no data lost on navigation</li>
+                    <li>🔁 <strong>Reset</strong> button restores the original template anytime</li>
+                </ul>
             `,
             beforeShowPromise: async () => {
                 await new Promise(resolve => setTimeout(resolve, 500));
-                const demoCode = `public class Demo {\n    public static void main(String[] args) {\n        // Welcome to CodeTutor!\n        System.out.println("Hello from CodeTutor!");\n        System.out.println("Learning Java is fun and easy!");\n        \n        // Try modifying this code\n        int number = 67;\n        System.out.println("The answer is: " + number);\n    }\n}`;
-                const event = new CustomEvent('demo-fill-code', { detail: { code: demoCode } });
-                window.dispatchEvent(event);
+                const demoCode = `public class Demo {\n    public static void main(String[] args) {\n        // Welcome to CodeTutor!\n        System.out.println("Hello from CodeTutor!");\n        System.out.println("Learning Java is fun and easy!");\n\n        // Try modifying this code\n        int number = 67;\n        System.out.println("The answer is: " + number);\n    }\n}`;
+                window.dispatchEvent(new CustomEvent('demo-fill-code', { detail: { code: demoCode } }));
                 await new Promise(resolve => setTimeout(resolve, 800));
             },
             buttons: [
@@ -208,47 +248,61 @@ export class DemoTour {
             ]
         });
 
-        // Step 6: Show Run Button — user must click Run, Next appears after output
+        // Step 6: Show Run Button — reset every show
         this.tour.addStep({
             id: 'run-button',
             attachTo: { element: '[data-tour="run-button"]', on: 'top' },
-            text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">▶️ Run Your Code</h3>
-                <p style="margin: 0; line-height: 1.6;" id="run-step-desc">
-                    Click the <strong>Run Code</strong> button below to compile and execute the demo code.
-                </p>
-                <p style="margin: 10px 0 0 0; font-size: 13px; color: #f59e0b; font-weight: 600;" id="run-step-hint">
-                    ⚠️ You must click <strong>Run Code</strong> to proceed.
-                </p>
-            `,
+            text: this._runStepText(false),
             when: {
                 show: () => {
-                    if (this._runPollTimer) return;
-                    this._runPollTimer = setInterval(() => {
-                        const outputEl = document.querySelector('[data-tour="code-editor"] pre');
-                        if (outputEl && outputEl.textContent && !outputEl.textContent.includes('Running code...')) {
-                            clearInterval(this._runPollTimer);
-                            this._runPollTimer = null;
-                            setTimeout(() => {
-                                const desc = document.getElementById('run-step-desc');
-                                const hint = document.getElementById('run-step-hint');
-                                if (desc) desc.innerHTML = '✅ Output received! Click <strong>Next</strong> to continue.';
-                                if (hint) hint.style.display = 'none';
-                                const footer = document.querySelector('.shepherd-footer');
-                                if (footer && !footer.querySelector('.demo-next-btn')) {
-                                    const nextBtn = document.createElement('button');
-                                    nextBtn.textContent = 'Next: Quiz →';
-                                    nextBtn.className = 'shepherd-button demo-next-btn';
-                                    nextBtn.addEventListener('click', () => this.tour.next());
-                                    footer.appendChild(nextBtn);
-                                }
-                            }, 500);
+                    // Clean up stale listener
+                    if (this._demoOutputHandler) {
+                        window.removeEventListener('demo-code-output', this._demoOutputHandler);
+                        this._demoOutputHandler = null;
+                    }
+
+                    // Defer DOM reset until Shepherd has rendered the step element
+                    setTimeout(() => {
+                        const step = this.tour.getById('run-button');
+                        if (!step?.el) return;
+                        const textEl = step.el.querySelector('.shepherd-text');
+                        if (textEl) textEl.innerHTML = this._runStepText(false);
+                        // Remove any leftover Next button from previous run
+                        step.el.querySelector('.tour-next-btn')?.remove();
+                    }, 0);
+
+                    this._demoOutputHandler = () => {
+                        const step = this.tour.getById('run-button');
+                        if (!step?.el) return;
+
+                        // Update text directly in the DOM
+                        const textEl = step.el.querySelector('.shepherd-text');
+                        if (textEl) textEl.innerHTML = this._runStepText(true);
+
+                        // Add Next button directly to footer
+                        const footer = step.el.querySelector('.shepherd-footer');
+                        if (footer && !footer.querySelector('.tour-next-btn')) {
+                            const btn = document.createElement('button');
+                            btn.className = 'shepherd-button shepherd-button-primary tour-next-btn';
+                            btn.textContent = 'Next: Quiz →';
+                            btn.onclick = () => this.tour.next();
+                            footer.appendChild(btn);
                         }
-                    }, 500);
+
+                        window.removeEventListener('demo-code-output', this._demoOutputHandler);
+                        this._demoOutputHandler = null;
+                    };
+
+                    window.addEventListener('demo-code-output', this._demoOutputHandler);
                 },
-                hide: () => { if (this._runPollTimer) { clearInterval(this._runPollTimer); this._runPollTimer = null; } }
+                hide: () => {
+                    if (this._demoOutputHandler) {
+                        window.removeEventListener('demo-code-output', this._demoOutputHandler);
+                        this._demoOutputHandler = null;
+                    }
+                }
             },
-            buttons: [ { text: '← Back', action: () => this.tour.back(), secondary: true } ]
+            buttons: [{ text: '← Back', action: () => this.tour.back(), secondary: true }]
         });
 
         // Step 7: Navigate to Quiz
@@ -267,14 +321,19 @@ export class DemoTour {
         this.tour.addStep({
             id: 'quiz-features',
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">✨ Quiz Features</h3>
-                <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
-                    <li><strong>Multiple Choice:</strong> Select the correct answer</li>
-                    <li><strong>Instant Feedback:</strong> Know immediately if you're right</li>
-                    <li><strong>Explanations:</strong> Learn from every question</li>
-                    <li><strong>Progress Tracking:</strong> See your score in real-time</li>
-                </ul>
-            `,
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">✨ Quiz Features</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        Quizzes are <strong>AI-generated</strong> based on the topics you've studied. Here's how they work:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>☑️ <strong>Select topics</strong> — choose which completed topics to be quizzed on</li>
+        <li>🔢 <strong>Multiple Choice</strong> — 4 options per question, one correct answer</li>
+        <li>⚡ <strong>Instant Feedback</strong> — correct/wrong shown immediately after each answer</li>
+        <li>📝 <strong>Explanations</strong> — every question explains <em>why</em> the answer is right</li>
+        <li>📊 <strong>Live Score</strong> — your score updates in real-time as you progress</li>
+        <li>🔁 <strong>Retake anytime</strong> — questions are regenerated each time for fresh practice</li>
+    </ul>
+`,
             buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Next: Tests →', action: () => this.tour.next() } ]
         });
 
@@ -286,7 +345,7 @@ export class DemoTour {
                 <h3 style="margin: 0 0 10px 0; color: #128C7E;">🎯 Practical Tests</h3>
                 <p style="margin: 0; line-height: 1.6;">Ready for a real challenge? Practical tests require you to write complete Java programs to solve specific problems.</p>
             `,
-            beforeShowPromise: async () => { await this.navigateTo('/home'); await this.openSidebar(); },
+            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); await this.openSidebar(); },
             buttons: [ { text: 'Go to Tests →', action: async () => { await this.closeSidebar(); await this.navigateTo('/practical-test'); this.tour.next(); } } ]
         });
 
@@ -294,14 +353,19 @@ export class DemoTour {
         this.tour.addStep({
             id: 'test-features',
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">✨ Testing System</h3>
-                <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
-                    <li><strong>Real Problems:</strong> Solve actual coding challenges</li>
-                    <li><strong>Auto-Grading:</strong> Instant validation of your solution</li>
-                    <li><strong>Test Cases:</strong> Pass multiple test scenarios</li>
-                    <li><strong>Hints Available:</strong> Get help when you're stuck</li>
-                </ul>
-            `,
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">✨ Practical Testing System</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        Practical tests go beyond multiple choice — you <strong>write real Java code</strong> to solve problems:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>📋 <strong>Problem Statement</strong> — a clear description of what your program must do</li>
+        <li>✏️ <strong>In-browser editor</strong> — write your solution in the Monaco editor, same as the Playground</li>
+        <li>🧪 <strong>Hidden Test Cases</strong> — your code is run against multiple inputs to verify correctness</li>
+        <li>⚙️ <strong>Auto-Grading</strong> — instant pass/fail for each test case with output comparison</li>
+        <li>💡 <strong>Hints system</strong> — stuck? Request a hint without revealing the full answer</li>
+        <li>🏆 <strong>Completion recorded</strong> — passing marks the subtopic as done on your roadmap</li>
+    </ul>
+`,
             buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Next: AI Tutor →', action: () => this.tour.next() } ]
         });
 
@@ -310,10 +374,19 @@ export class DemoTour {
             id: 'ai-tutor',
             attachTo: { element: '[data-tour="ai-button"]', on: 'left' },
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">🤖 AI Tutor Assistant</h3>
-                <p style="margin: 0 0 10px 0; line-height: 1.6;">Your 24/7 personal Java tutor powered by AI! Click here anytime to ask questions, debug, and get hints.</p>
-            `,
-            beforeShowPromise: async () => { await this.navigateTo('/home'); await this.closeSidebar(); },
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">🤖 AI Tutor Assistant</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        Your <strong>personal Java tutor</strong>, available 24/7 on every page of the app:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>💬 <strong>Ask anything</strong> — "What is polymorphism?", "Why does this code not compile?", etc.</li>
+        <li>🐛 <strong>Debug help</strong> — paste your broken code and get a step-by-step diagnosis</li>
+        <li>💡 <strong>Concept hints</strong> — get nudged in the right direction without spoiling the answer</li>
+        <li>📚 <strong>RAG-powered</strong> — answers are grounded in real Java documentation, not just guesses</li>
+        <li>🕘 <strong>Chat history</strong> — all your conversations are saved so you can review them later</li>
+    </ul>
+`,
+            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); await this.closeSidebar(); },
             buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Try AI Chat', action: () => { const aiButton = document.querySelector('[data-tour="ai-button"]'); if (aiButton) aiButton.click(); setTimeout(() => this.tour.next(), 500); } } ]
         });
 
@@ -322,11 +395,20 @@ export class DemoTour {
             id: 'progress-tracker',
             attachTo: { element: '[data-tour="progress-display"]', on: 'bottom' },
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">📊 Progress Tracking</h3>
-                <p style="margin: 0; line-height: 1.6;">Track your learning progress across quizzes, tests, and lessons!</p>
-            `,
-            beforeShowPromise: async () => { await this.navigateTo('/home'); },
-            buttons: [ { text: 'Next: Complete →', action: () => this.tour.next() } ]
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">📊 Progress Tracking</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        This widget in the top bar gives you a <strong>live overview</strong> of your learning journey:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>🔢 <strong>X / 65</strong> — number of subtopics you've marked as complete out of 65 total</li>
+        <li>🔵 <strong>Ring chart</strong> — visual percentage fill so you can see progress at a glance</li>
+        <li>⚡ <strong>Updates instantly</strong> — completing a quiz, test, or lesson updates the count live</li>
+        <li>🗺️ <strong>Linked to Roadmap</strong> — each completed item turns green on the flow diagram</li>
+        <li>🎯 <strong>Goal: 100%</strong> — complete all 65 subtopics to fully master the Java curriculum</li>
+    </ul>
+`,
+            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); },
+            buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Next: Complete →', action: () => this.tour.next() } ]
         });
 
         // Updated Completion step
@@ -334,10 +416,10 @@ export class DemoTour {
             id: 'complete',
             text: `
                 <div style="text-align: center;">
-                    <h2 style="margin: 0 0 15px 0; color: #128C7E; font-size: 24px;">🎉 All Features Demoed!</h2>
-                    <p style="margin: 0 0 15px 0; line-height: 1.6;">You've seen <strong>every</strong> CodeTutor feature!</p>
-                    <div style="background: #f0fdf4; border-left: 4px solid #128C7E; padding: 15px; margin: 15px 0; border-radius: 6px;">
-                        <strong>🚀 Complete Flow:</strong> Lessons → Playground → Quiz → Tests → AI Tutor → Progress
+                    <h2 style="margin: 0 0 15px 0; color: #128C7E; font-size: 24px;">🎉 Demo Complete!</h2>
+                    <p style="margin: 0 0 15px 0; line-height: 1.6;">You've seen all major CodeTutor features!</p>
+                    <div style="background: #f0fdf4; border-left: 4px solid #128C7E; padding: 15px; margin: 15px 0; border-radius: 6px; text-align: left;">
+                        Hope you all the best on your Java learning journey. Remember, the key to mastery is consistent practice and curiosity. Dive in, explore the content, ask the AI tutor questions, and most importantly — have fun coding! 🚀
                     </div>
                 </div>
             `,
@@ -348,11 +430,45 @@ export class DemoTour {
         });
     }
 
-    start() {
+    async start() {
+        // Rebuild tour each time to reset all mutated step state
+        // Close AI chat panel if open before starting tour
+        await this.closeAI();
+        this.tour = new Shepherd.Tour({
+            useModalOverlay: true,
+            defaultStepOptions: {
+                classes: 'shepherd-theme-custom',
+                scrollTo: { behavior: 'smooth', block: 'center' },
+                cancelIcon: { enabled: true },
+                modalOverlayOpeningPadding: 8,
+                modalOverlayOpeningRadius: 8
+            }
+        });
+        this.setupSteps();
         this.tour.start();
     }
 
     cancel() {
         this.tour.cancel();
+    }
+
+    _runStepText(done) {
+        if (done) {
+            return `
+                <h3 style="margin: 0 0 10px 0; color: #128C7E;">▶️ Run Your Code</h3>
+                <p style="margin: 0; line-height: 1.6;">
+                    ✅ Output received! Click <strong>Next</strong> to continue.
+                </p>
+            `;
+        }
+        return `
+            <h3 style="margin: 0 0 10px 0; color: #128C7E;">▶️ Run Your Code</h3>
+            <p style="margin: 0; line-height: 1.6;">
+                Click the <strong>Run Code</strong> button to compile and execute the demo code.
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 13px; color: #f59e0b; font-weight: 600;">
+                ⚠️ You must click <strong>Run Code</strong> to proceed.
+            </p>
+        `;
     }
 }

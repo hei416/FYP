@@ -969,7 +969,7 @@ export default function JavaRoadmap() {
         </div>
       </div>
 
-      <div style={{ marginTop: '120px', height: 'calc(100vh - 120px)' }}>
+      <div data-tour="roadmap-flow" style={{ marginTop: '120px', height: 'calc(100vh - 120px)' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}

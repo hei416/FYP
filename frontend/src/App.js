@@ -8,8 +8,6 @@ import HomePage from "./HomePage";
 import TopicDetailPage from "./TopicDetailPage";
 import Quiz from "./Quiz";
 import PracticalTest from "./PracticalTest";
-import Lessons from "./Lessons";
-import LessonLayout from "./LessonLayout";
 import Playground from "./Playground"; 
 import ConversationHistoryPage from "./ConversationHistoryPage";
 import { DemoTour } from "./DemoTour";
@@ -114,8 +112,6 @@ function AppContent() {
                     <Route path="/home" element={<HomePage />} />
                     <Route path="/topic/:topicId" element={<TopicDetailPage />} />
                     <Route path="/playground" element={<Playground />} />
-                    <Route path="/lessons" element={<Lessons />} />
-                    <Route path="/lessons/:id" element={<Lessons />} />
                     <Route path="/quiz" element={<Quiz />} />
                     <Route path="/practical-test" element={<PracticalTest />} />
                     <Route path="/history" element={<ConversationHistoryPage />} />

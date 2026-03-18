@@ -45,7 +45,7 @@ export default function Navbar({ toggleChat }) {
                         <div style={{ width: '24px', height: '3px', background: colors.primary, borderRadius: '2px', transition, opacity: isSidebarOpen ? 0 : 1 }} />
                         <div style={{ width: '24px', height: '3px', background: colors.primary, borderRadius: '2px', transition, transform: isSidebarOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' }} />
                     </button>
-                    <h1 style={{ margin: 0, fontSize: font.sizeXxl, color: colors.primary, fontWeight: font.weightBold }}>
+                    <h1 data-tour="brand" style={{ margin: 0, fontSize: font.sizeXxl, color: colors.primary, fontWeight: font.weightBold }}>
                         ☕ CodeTutor
                     </h1>
                 </div>
@@ -110,8 +110,7 @@ export default function Navbar({ toggleChat }) {
                 {/* Nav Links */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
                     {[
-                        { to: '/home', icon: '🏠', label: 'Home' },
-                        { to: '/lessons', icon: '📚', label: 'Lessons', 'data-tour': 'lessons-link' },
+                        { to: '/home', icon: '🗺️', label: 'Roadmap', 'data-tour': 'home-link' },
                         { to: '/playground', icon: '💻', label: 'Playground', 'data-tour': 'playground-link' },
                         { to: '/quiz', icon: '📝', label: 'Quiz', 'data-tour': 'quiz-link' },
                         { to: '/practical-test', icon: '🎯', label: 'Tests', 'data-tour': 'test-link' },

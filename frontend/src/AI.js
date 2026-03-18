@@ -54,6 +54,13 @@ export default function AI({ showChat, setShowChat }) {
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }, [sessions]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
 
+    // Listen for global tour requests to close the AI chat
+    useEffect(() => {
+        const handleCloseTour = () => setShowChat(false);
+        window.addEventListener('close-ai-chat', handleCloseTour);
+        return () => window.removeEventListener('close-ai-chat', handleCloseTour);
+    }, []);
+
     const toggleChat = () => setShowChat(v => !v);
 
     const startNewChat = () => { setActiveId(null); setHistory([]); setShowHistoryPanel(false); };

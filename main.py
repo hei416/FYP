@@ -98,6 +98,24 @@ async def ensure_pdf_chunks_loaded():
             PDF_CHUNKS = []
             PDF_INITIALIZED = True
 
+
+    def run_migrations(db_engine):
+        """Quick manual migrations helper — run once at startup."""
+        try:
+            from sqlalchemy import text
+            with db_engine.connect() as conn:
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE user_progress
+                        ADD COLUMN IF NOT EXISTS dismissed_milestones TEXT[] DEFAULT '{}'
+                    """))
+                    conn.commit()
+                    print("✅ Migration: dismissed_milestones column ensured on user_progress")
+                except Exception as e:
+                    print(f"⚠️ dismissed_milestones migration: {e}")
+        except Exception as e:
+            print(f"⚠️ run_migrations error: {e}")
+
 @app.on_event("startup")
 async def startup():
     """Minimal startup — run lightweight schema migrations."""
@@ -105,6 +123,11 @@ async def startup():
         from database import get_engine
         from sqlalchemy import text
         engine = get_engine()
+        # Ensure ad-hoc migrations are applied (safe, idempotent)
+        try:
+            run_migrations(engine)
+        except Exception:
+            pass
         with engine.connect() as conn:
             # practical_test_questions helper columns
             for col, col_type in [
