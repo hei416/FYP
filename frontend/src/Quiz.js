@@ -36,6 +36,7 @@ export default function Quiz() {
     const [allUserAnswers, setAllUserAnswers] = useState({});
     const [showExplanation, setShowExplanation] = useState(false);
     const [openExplanations, setOpenExplanations] = useState({});
+    const [debugLog, setDebugLog] = useState(null);
 
     // Topic selection state
     const [showTopicSelect, setShowTopicSelect] = useState(true);
@@ -269,6 +270,7 @@ export default function Quiz() {
         console.log("❌ Unknown question format");
     }
 
+    setDebugLog({ index: currentIndex, userAnswer: userAnswers.answer, correctAnswer, isCorrect });
     const feedbackMsg = isCorrect ? "✅ Correct!" : `❌ Incorrect. Correct: "${correctAnswer}"`;
     setFeedback(feedbackMsg);
     setHasAnswered(true);
@@ -535,62 +537,114 @@ export default function Quiz() {
     }
 
     if (completed) {
+        const scorePercent = Math.round((score / filteredQuestions.length) * 100);
+        const passed = scorePercent >= 60;
+
         return (
             <div style={pageContainer(800)}>
+                {/* Score header */}
                 <h2 style={pageHeading}>Quiz Completed! 🎉</h2>
-                <p style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.accent }}>
-                    Score: {score} / {filteredQuestions.length} ({Math.round((score / filteredQuestions.length) * 100)}%)
-                </p>
-                <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, marginBottom: spacing.lg }}>Review Answers:</h3>
+                <div style={{
+                    padding: '20px 24px', borderRadius: 12, marginBottom: 28,
+                    background: passed ? '#f0fdf4' : '#fef2f2',
+                    border: `2px solid ${passed ? '#10b981' : '#ef4444'}`,
+                    display: 'flex', alignItems: 'center', gap: 20
+                }}>
+                    <div>
+                        <div style={{ fontSize: 32, fontWeight: 700, color: passed ? '#10b981' : '#ef4444' }}>
+                            {scorePercent}%
+                        </div>
+                        <div style={{ fontSize: 14, color: '#6b7280' }}>
+                            {score} / {filteredQuestions.length} correct
+                        </div>
+                    </div>
+                    <div style={{ fontSize: 28 }}>{passed ? '✅ Passed' : '❌ Failed'}</div>
+                </div>
+
+                {/* Answer Log */}
+                <h3 style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, marginBottom: 16 }}>
+                    📋 Answer Log
+                </h3>
                 {filteredQuestions.map((q, idx) => {
-                    const userAns = allUserAnswers[idx];
+                    const userAns = allUserAnswers[idx]?.answer || '(no answer)';
                     const correctAns = q.options ? q.options[q.correct_index] : q.answer;
-                    const isCorrect = userAns?.answer === correctAns;
+                    const isCorrect = userAns === correctAns;
                     const isExplainOpen = !!openExplanations[idx];
+
                     return (
-                        <div
-                            key={idx}
-                            style={{
-                                marginBottom: spacing.xl,
-                                padding: spacing.lg,
-                                ...(isCorrect ? card.success : card.danger),
-                            }}
-                        >
-                            <p><strong>Q{idx + 1}:</strong> {q.question}</p>
-                            <p><strong>You:</strong> {userAns?.answer || "(no answer)"}</p>
-                            <p style={{ marginBottom: q.explanation ? spacing.sm : 0 }}><strong>Correct:</strong> {correctAns}</p>
-                            {q.explanation && (
-                                <>
-                                    <button
-                                        onClick={() => setOpenExplanations(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                        style={{
-                                            ...btn.warning,
-                                            ...btn.small,
-                                            marginTop: spacing.xs ?? 4,
-                                        }}
-                                    >
-                                        {isExplainOpen ? "🙈 Hide Explanation" : "💡 Explain"}
-                                    </button>
-                                    {isExplainOpen && (
+                        <div key={idx} style={{
+                            marginBottom: 12, padding: '14px 18px', borderRadius: 10,
+                            background: isCorrect ? '#f0fdf4' : '#fef2f2',
+                            border: `1px solid ${isCorrect ? '#bbf7d0' : '#fecaca'}`,
+                        }}>
+                            {/* Question row */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                <span style={{
+                                    minWidth: 28, height: 28, borderRadius: '50%',
+                                    background: isCorrect ? '#10b981' : '#ef4444',
+                                    color: '#fff', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0
+                                }}>
+                                    {idx + 1}
+                                </span>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#1f2937' }}>
+                                        {q.question}
+                                    </p>
+
+                                    {/* Answer comparison row */}
+                                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
                                         <div style={{
-                                            marginTop: spacing.sm,
-                                            padding: '10px 14px',
-                                            backgroundColor: 'rgba(251,191,36,0.12)',
-                                            borderLeft: '3px solid #F59E0B',
-                                            borderRadius: radii.sm,
-                                            fontSize: font.sizeSm,
-                                            lineHeight: 1.6,
-                                            color: colors.text,
+                                            padding: '4px 12px', borderRadius: 20,
+                                            background: isCorrect ? '#dcfce7' : '#fee2e2',
+                                            color: isCorrect ? '#16a34a' : '#dc2626',
+                                            fontWeight: 600
                                         }}>
-                                            <strong>💡 Explanation:</strong> {q.explanation}
+                                            Your answer: {userAns}
                                         </div>
+                                        {!isCorrect && (
+                                            <div style={{
+                                                padding: '4px 12px', borderRadius: 20,
+                                                background: '#dcfce7', color: '#16a34a', fontWeight: 600
+                                            }}>
+                                                ✓ Correct: {correctAns}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Explain toggle */}
+                                    {q.explanation && (
+                                        <>
+                                            <button
+                                                onClick={() => setOpenExplanations(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                                style={{
+                                                    marginTop: 8, background: 'none',
+                                                    border: '1px solid #fbbf24', borderRadius: 6,
+                                                    padding: '3px 10px', cursor: 'pointer',
+                                                    fontSize: 12, color: '#92400e'
+                                                }}
+                                            >
+                                                {isExplainOpen ? '🙈 Hide' : '💡 Explanation'}
+                                            </button>
+                                            {isExplainOpen && (
+                                                <div style={{
+                                                    marginTop: 8, padding: '8px 12px',
+                                                    background: 'rgba(251,191,36,0.12)',
+                                                    borderLeft: '3px solid #F59E0B',
+                                                    borderRadius: 6, fontSize: 13, lineHeight: 1.6, color: '#374151'
+                                                }}>
+                                                    {q.explanation}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
-                                </>
-                            )}
+                                </div>
+                            </div>
                         </div>
                     );
                 })}
 
+                {/* Action buttons — keep your existing ones unchanged */}
                 <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', marginTop: spacing.lg }}>
                     <button
                         onClick={() => {
@@ -748,6 +802,27 @@ export default function Quiz() {
             <p style={{ marginTop: spacing.xxl, fontWeight: font.weightBold, fontSize: font.sizeLg, color: colors.text }}>
                 Score: {score} / {filteredQuestions.length}
             </p>
+            {debugLog && (
+                <div style={{
+                    position: 'fixed',
+                    right: 12,
+                    bottom: 12,
+                    zIndex: 9999,
+                    background: 'rgba(0,0,0,0.8)',
+                    color: '#fff',
+                    padding: 10,
+                    borderRadius: 6,
+                    fontSize: 12,
+                    maxWidth: 320,
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.2)'
+                }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>DEBUG</div>
+                    <div>Q#: {debugLog.index + 1}</div>
+                    <div>Your: {debugLog.userAnswer ?? '(no answer)'}</div>
+                    <div>Correct: {debugLog.correctAnswer ?? '(n/a)'}</div>
+                    <div>Correct? {debugLog.isCorrect ? 'YES' : 'NO'}</div>
+                </div>
+            )}
         </div>
     );
 }

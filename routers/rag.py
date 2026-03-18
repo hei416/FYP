@@ -555,34 +555,40 @@ async def _generate_new_questions(
 
     id_prefix = f"q{int(time.time())}_"
 
-    prompt = f"""You are a Java tutor generating multiple-choice questions.
+    prompt = f"""You are a Java tutor generating multiple-choice questions to test Java programming knowledge.
 
-Only use the following study material to create questions:
+The following study material covers these Java topics. Use it ONLY to understand what concepts to test — do NOT ask questions about the material itself:
 
 {context_text}
 
 Generate exactly {num_questions} NEW and UNIQUE multiple-choice questions.
-Mix questions across the different topic IDs above.
+Distribute questions EVENLY across these topic IDs: {main_topics}
+
 Each question MUST:
-- Be directly answerable from the material
-- Target understanding, not trivial memorization
-- Have 4 options, with EXACTLY one correct answer
+- Test Java programming knowledge and skills directly (syntax, output, logic, best practices)
+- Be answerable by anyone who knows Java — NOT by someone who read a specific document
+- Have 4 options with EXACTLY one correct answer
 - Use IDs starting with "{id_prefix}" (e.g. "{id_prefix}1", "{id_prefix}2", ...)
+- Cover a DIFFERENT concept or aspect — no two questions should test the same thing
+
+FORBIDDEN:
+- Do NOT use phrases like "According to the material", "As stated in", "Based on the reading"
+- Do NOT ask about W3Schools, tutorials, or any learning resource
+- Do NOT generate multiple questions about the same concept (e.g. no 3 questions all about import syntax)
 {exclusion_block}
 
 Respond as a JSON object with this schema:
-
 {{
-  "questions": [
-    {{
-      "id": "{id_prefix}1",
-      "topic_id": "topic id from above",
-      "question": "Question text...",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct_index": 1,
-      "explanation": "Why this option is correct"
-    }}
-  ]
+    "questions": [
+        {{
+            "id": "{id_prefix}1",
+            "topic_id": "topic id from above",
+            "question": "Question text...",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correct_index": 1,
+            "explanation": "Why this option is correct"
+        }}
+    ]
 }}"""
 
     print("🤖 Calling LLM...")
@@ -629,27 +635,28 @@ async def _generate_single_question(
 
     id_prefix = f"q{int(time.time())}_{question_index}"
 
-    prompt = f"""You are a Java tutor. Generate exactly 1 multiple-choice question.
+    prompt = f"""You are a Java tutor. Generate exactly 1 multiple-choice question to test Java programming knowledge.
 
-Only use the following study material:
+Use this study material ONLY to understand what concept to test — do NOT reference it in the question:
 
 {context_text}
 
 The question MUST:
-- Be directly answerable from the material
-- Target understanding, not trivial memorization
-- Have 4 options, with EXACTLY one correct answer
+- Test Java syntax, behaviour, output prediction, or best practices
+- Be answerable from Java knowledge alone — not from reading any specific document
+- Have 4 options with EXACTLY one correct answer
+- NOT use phrases like "According to the material" or "As mentioned in"
+- Test a DIFFERENT concept from these already-asked questions:
 {exclusion_block}
 
 Respond as a JSON object:
-
 {{
-  "id": "{id_prefix}",
-  "topic_id": "the topic id from the material above",
-  "question": "Question text",
-  "options": ["A", "B", "C", "D"],
-  "correct_index": 0,
-  "explanation": "Why correct"
+    "id": "{id_prefix}",
+    "topic_id": "the topic id from the material above",
+    "question": "Question text",
+    "options": ["A", "B", "C", "D"],
+    "correct_index": 0,
+    "explanation": "Why correct"
 }}"""
 
     result = await call_llm_json(
