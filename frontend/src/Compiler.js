@@ -13,6 +13,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     const debounceRef = useRef(null);
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
+    const [errorExplanations, setErrorExplanations] = useState({}); // { idx: "explanation text" }
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
     const filesRef = useRef(files);
@@ -69,6 +70,38 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     };
 
     const activeFile = files.find((file) => file.id === activeFileId);
+
+    const getLineContext = (line, content, radius = 3) => {
+        const lines = content.split('\n');
+        const start = Math.max(0, line - 1 - radius);
+        const end = Math.min(lines.length, line - 1 + radius + 1);
+        return lines.slice(start, end).join('\n');
+    };
+
+    const fetchErrorExplanations = async (errors) => {
+        const code = filesRef.current.find(f => f.id === activeFileIdRef.current)?.content || '';
+        const results = {};
+        await Promise.all(
+            errors.map(async (err, idx) => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/explain-error`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            error_message: err.message,
+                            code_snippet: getLineContext(err.line, code),
+                            line_number: err.line,
+                        }),
+                    });
+                    const data = await res.json();
+                    results[idx] = data.explanation;
+                } catch {
+                    results[idx] = null;
+                }
+            })
+        );
+        setErrorExplanations(results);
+    };
 
     const DEBOUNCE_MS = 1000;
     const handleEditorDidMount = (editor, monaco) => {
@@ -155,6 +188,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
 
             if (data.errors && data.errors.length > 0) {
                 setSyntaxErrors(data.errors);
+                fetchErrorExplanations(data.errors); // fetch explanations for each error
 
                 const errorsByFile = {};
                 data.errors.forEach(err => {
@@ -195,6 +229,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                 }
             } else {
                 setSyntaxErrors([]);
+                setErrorExplanations({}); // clear explanations when no errors
             }
         } catch (e) {
             console.error('Syntax check error:', e);
@@ -392,7 +427,14 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                             <span style={{ color: err.severity === 'warning' ? colors.warning : colors.danger, flexShrink: 0 }}>
                                 {err.severity === 'warning' ? '⚠' : '✕'}
                             </span>
-                            <span style={{ color: colors.text, flex: 1 }}>{err.message}</span>
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ color: colors.text }}>{err.message}</span>
+                                {errorExplanations[idx] && (
+                                    <span style={{ color: colors.textSecondary, fontSize: '11px', fontStyle: 'italic' }}>
+                                        💡 {errorExplanations[idx]}
+                                    </span>
+                                )}
+                            </div>
                             <span style={{ color: colors.textMuted, flexShrink: 0, fontFamily: font.mono, fontSize: '12px' }}>
                                 {err.file}:{err.line}{err.column ? `:${err.column}` : ''}
                             </span>

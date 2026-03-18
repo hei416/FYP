@@ -96,6 +96,10 @@ def _fallback_check_java(files: List[Dict]) -> List[Dict]:
             brace_stack -= line.count('}')
             if brace_stack < 0:
                 errors.append({"file": filename, "line": i, "column": None, "severity": "error", "message": "Unmatched closing brace '}'"})
+                try:
+                    print(f"DEBUG: {filename} line {i}: unmatched closing brace")
+                except Exception:
+                    pass
                 brace_stack = 0
             if s.endswith('{') or s.endswith('}'):
                 continue
@@ -110,10 +114,22 @@ def _fallback_check_java(files: List[Dict]) -> List[Dict]:
             if '=' in s or s.startswith('return ') or 'System.out' in s:
                 if not s.endswith(';'):
                     errors.append({"file": filename, "line": i, "column": None, "severity": "warning", "message": "Possible missing semicolon"})
+                    try:
+                        print(f"DEBUG: {filename} line {i}: possible missing semicolon -> '{s}'")
+                    except Exception:
+                        pass
             if s.count('"') % 2 == 1:
                 errors.append({"file": filename, "line": i, "column": None, "severity": "error", "message": "Unclosed string literal"})
+                try:
+                    print(f"DEBUG: {filename} line {i}: unclosed string literal -> '{s}'")
+                except Exception:
+                    pass
         if brace_stack > 0:
             errors.append({"file": filename, "line": len(lines) or 1, "column": None, "severity": "error", "message": "Unmatched opening brace '{'"})
+            try:
+                print(f"DEBUG: {filename}: unmatched opening brace, stack={brace_stack}")
+            except Exception:
+                pass
     return errors
 
 
@@ -189,6 +205,11 @@ async def check_syntax(request: Request):
     # Use fallback checker to avoid requiring a local JDK
     if any((file.get("filename", "").lower().endswith('.java')) for file in files):
         errors = _fallback_check_java(files)
+        # DEBUG: log errors to server console to help diagnose missing warnings
+        try:
+            print("DEBUG errors:", errors)
+        except Exception:
+            pass
         return {"errors": errors}
 
     return {"errors": []}

@@ -169,13 +169,15 @@ async def check_syntax(request: Request):
                     continue
 
                 # Enforce: filename must match public class name
+                # For syntax checking we want to report the mismatch but still
+                # run the compiler to collect other errors (e.g. missing semicolons).
                 mismatch_error = validate_filename_class(filename, source)
                 if mismatch_error:
                     all_errors.append({
                         "file": filename, "line": 1, "column": 0,
                         "severity": "error", "message": mismatch_error
                     })
-                    continue
+                    # do NOT `continue` here — keep collecting other errors below
 
                 try:
                     resp = await client.post(PAIZA_CREATE, data={
