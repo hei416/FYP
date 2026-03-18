@@ -2,7 +2,11 @@ import os
 import re
 import httpx
 import asyncio
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from database import get_db
+from sqlalchemy.orm import Session
+from services.error_explainer import get_cached_explanation, store_explanation, build_explain_prompt
+from routers.rag import call_llm
 from typing import List, Dict
 
 router = APIRouter()
@@ -220,3 +224,34 @@ async def check_syntax(request: Request):
         traceback.print_exc()
 
     return {"errors": all_errors, "partial": False}
+
+
+@router.post("/api/explain-error")
+async def explain_error(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    error_message = data.get("error_message", "").strip()
+    code_snippet  = data.get("code_snippet", "")
+    line_number   = data.get("line_number", 0)
+
+    if not error_message:
+        return {"explanation": "No error message provided."}
+
+    # 1. Check cache first
+    cached = get_cached_explanation(db, error_message)
+    if cached:
+        return {"explanation": cached, "cached": True}
+
+    # 2. Call AI
+    prompt = build_explain_prompt(error_message, code_snippet, line_number)
+    try:
+        explanation = await call_llm([{"role": "user", "content": prompt}], temperature=0.2, max_tokens=200)
+    except Exception as e:
+        return {"explanation": f"Could not generate explanation: {str(e)}"}
+
+    # 3. Store in cache
+    try:
+        store_explanation(db, error_message, explanation)
+    except Exception:
+        pass
+
+    return {"explanation": explanation, "cached": False}

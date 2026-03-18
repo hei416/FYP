@@ -159,3 +159,19 @@ class ConversationSummary(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ErrorExplanationCache(Base):
+    """Cache AI-generated friendly explanations for Java compiler errors.
+    Keyed by a normalized error pattern so identical errors reuse the same explanation."""
+    __tablename__ = "error_explanation_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # Normalized key: e.g. "';' expected" (the raw javac message, lowercased, stripped)
+    error_key = Column(String(500), unique=True, index=True, nullable=False)
+    # The friendly AI explanation
+    friendly_explanation = Column(Text, nullable=False)
+    # How many times this cache entry was reused (for analytics)
+    hit_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
