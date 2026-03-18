@@ -9,6 +9,7 @@ import TopicDetailPage from "./TopicDetailPage";
 import Quiz from "./Quiz";
 import PracticalTest from "./PracticalTest";
 import Playground from "./Playground"; 
+import MyWorkPage from './MyWorkPage';
 import ConversationHistoryPage from "./ConversationHistoryPage";
 import { DemoTour } from "./DemoTour";
 import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
@@ -114,6 +115,7 @@ function AppContent() {
                     <Route path="/playground" element={<Playground />} />
                     <Route path="/quiz" element={<Quiz />} />
                     <Route path="/practical-test" element={<PracticalTest />} />
+                    <Route path="/my-work" element={<MyWorkPage />} />
                     <Route path="/history" element={<ConversationHistoryPage />} />
                     <Route path="/compiler" element={<Navigate to="/playground" replace />} />
                     <Route path="/" element={<Navigate to="/home" replace />} />
