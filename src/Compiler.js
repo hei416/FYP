@@ -14,13 +14,10 @@ function makeFileFromCode(code) {
 }
 
 function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
-    // Initialise directly from code prop — no useEffect race on mount
-    const [files, setFiles] = useState(() =>
-        code ? [makeFileFromCode(code)] : []
-    );
-    const [activeFileId, setActiveFileId] = useState(() =>
-        code ? files[0]?.id ?? null : null
-    );
+    const initialFile = code ? makeFileFromCode(code) : null;
+
+    const [files, setFiles] = useState(() => initialFile ? [initialFile] : []);
+    const [activeFileId, setActiveFileId] = useState(() => initialFile ? initialFile.id : null);
     const [loading, setLoading] = useState(false);
     const [localOutput, setLocalOutput] = useState('');
     const editorRef = useRef(null);
@@ -28,30 +25,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-
-    // activeFileId initialiser above runs before files state is ready when
-    // using two separate useState calls, so sync it once on first render.
-    useEffect(() => {
-        if (!activeFileId && files.length > 0) {
-            setActiveFileId(files[0].id);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Live-rename: keep tab filename in sync with class name as student types
-    useEffect(() => {
-        if (!activeFileId) return;
-        setFiles(prev => prev.map(f => {
-            if (f.id !== activeFileId) return f;
-            const detectedName = extractClassName(f.content);
-            const expectedFilename = `${detectedName}.java`;
-            if (f.filename !== expectedFilename && editingFileId !== f.id) {
-                return { ...f, filename: expectedFilename };
-            }
-            return f;
-        }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [files.map(f => f.content).join('|'), activeFileId]);
 
     // Sync active file content back to parent
     useEffect(() => {
@@ -109,14 +82,22 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
     };
 
     const updateFileName = (fileId, newName) =>
-        setFiles(files.map(f => f.id === fileId ? { ...f, filename: newName } : f));
+        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, filename: newName } : f));
 
     const handleFileNameChange = (e, fileId) => updateFileName(fileId, e.target.value);
     const handleFileNameBlur = () => setEditingFileId(null);
     const handleFileNameKeyDown = (e) => { if (e.key === 'Enter') setEditingFileId(null); };
 
-    const updateFileContent = (fileId, newContent) =>
-        setFiles(files.map(f => f.id === fileId ? { ...f, content: newContent || '' } : f));
+    // Update content AND auto-rename the tab to match public class name
+    const updateFileContent = (fileId, newContent) => {
+        setFiles(prev => prev.map(f => {
+            if (f.id !== fileId) return f;
+            const newFilename = editingFileId === fileId
+                ? f.filename  // user is manually renaming the tab — don't override
+                : `${extractClassName(newContent)}.java`;
+            return { ...f, content: newContent || '', filename: newFilename };
+        }));
+    };
 
     const checkSyntax = async () => {
         if (!editorRef.current || !monacoRef.current || files.length === 0) return;
