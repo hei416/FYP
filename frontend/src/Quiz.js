@@ -301,6 +301,39 @@ export default function Quiz() {
             const quizId = `quiz_${Date.now()}`;
             tracker.markQuizCompleted(quizId, scorePercent);
             window.dispatchEvent(new Event('progress-updated'));
+
+            // Auto-save to My Work if logged in
+            const token = localStorage.getItem('token');
+            if (token) {
+                const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                const reviewData = filteredQuestions.map((q, idx) => ({
+                    question: q.question,
+                    your_answer: allUserAnswers[idx]?.answer || '(no answer)',
+                    correct_answer: q.options ? q.options[q.correct_index] : q.answer,
+                    is_correct: (allUserAnswers[idx]?.answer) === (q.options ? q.options[q.correct_index] : q.answer),
+                    explanation: q.explanation || '',
+                }));
+                fetch(`${API_BASE}/my-work/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        work_type: 'quiz',
+                        title: `Quiz — ${lastTopics.slice(0, 2).join(', ')}${lastTopics.length > 2 ? '...' : ''}`,
+                        topic_id: lastTopics[0] || null,
+                        content: null,
+                        result_data: {
+                            score: scorePercent,
+                            total_questions: filteredQuestions.length,
+                            correct: score,
+                            topics: lastTopics,
+                            review: reviewData,
+                        },
+                    }),
+                }).catch(err => console.warn('saveWork failed:', err));
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [completed]);

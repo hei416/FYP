@@ -245,7 +245,46 @@ export default function PracticalTest() {
                     actual_outputs: results.actual_outputs || [],
                 }),
             });
-            if (res.ok) setGradingResults(await res.json());
+            if (res.ok) {
+                const grading = await res.json();
+                setGradingResults(grading);
+
+                // Auto-save to My Work if logged in
+                const token = localStorage.getItem('token');
+                if (token) {
+                    const passed = results.failed?.length === 0;
+                    fetch(`${API_BASE}/my-work/save`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            work_type: 'test',
+                            title: `${questionTitle}`,
+                            topic_id: selectedTopics[0] || null,
+                            content: studentCode,
+                            result_data: {
+                                score: grading.total_score,
+                                grade: grading.grade_letter,
+                                passed: passed,
+                                feedback: grading.feedback,
+                                suggestions: grading.suggestions || [],
+                                question: {
+                                    title: questionTitle,
+                                    description: questionDesc,
+                                    methods: currentQuestionData?.question?.methods || [],
+                                    expected_output: currentQuestionData?.question?.expectedOutput || [],
+                                },
+                                test_cases: {
+                                    passed: results.passed,
+                                    failed: results.failed,
+                                },
+                            },
+                        }),
+                    }).catch(err => console.warn('saveWork failed:', err));
+                }
+            }
         } catch {}
     };
 

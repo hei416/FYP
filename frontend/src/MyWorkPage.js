@@ -75,6 +75,28 @@ export default function MyWorkPage() {
                   )}
                 </div>
               )}
+              {/* Show question details for test type */}
+              {item.work_type === 'test' && item.result_data?.question && (
+                  <div style={{ marginTop: 8, fontSize: 13, color: '#374151' }}>
+                      <strong>Question:</strong> {item.result_data.question.description}
+                      {item.result_data.question.expected_output?.length > 0 && (
+                          <pre style={{
+                              marginTop: 6, background: '#f3f4f6', borderRadius: 6,
+                              padding: '6px 10px', fontSize: 11, maxHeight: 80, overflowY: 'auto'
+                          }}>
+                              Expected: {item.result_data.question.expected_output.join('\n')}
+                          </pre>
+                      )}
+                  </div>
+              )}
+
+              {/* Show quiz review summary */}
+              {item.work_type === 'quiz' && item.result_data?.review && (
+                  <div style={{ marginTop: 8, fontSize: 13, color: '#6b7280' }}>
+                      {item.result_data.correct}/{item.result_data.total_questions} correct
+                      · Topics: {item.result_data.topics?.slice(0, 2).join(', ')}
+                  </div>
+              )}
               {item.content && (
                 <pre style={{
                   marginTop: 10, background: '#f3f4f6', borderRadius: 8,
