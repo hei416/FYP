@@ -72,6 +72,21 @@ def _fallback_check_java(files: List[Dict]) -> List[Dict]:
         content = file.get("content", "")
         lines = content.splitlines()
 
+        # --- Class name vs filename check ---
+        # Extract first public class name, if any
+        m = re.search(r'public\s+class\s+([A-Za-z0-9_]+)', content)
+        if m:
+            class_name = m.group(1)
+            base_filename = os.path.splitext(os.path.basename(filename))[0]
+            if class_name != base_filename:
+                errors.append({
+                    "file": filename,
+                    "line": 1,
+                    "column": 1,
+                    "severity": "error",
+                    "message": f"Class name mismatch: class '{class_name}' must be in a file named '{class_name}.java', but the file is named '{filename}'."
+                })
+
         brace_stack = 0
         for i, line in enumerate(lines, start=1):
             s = line.strip()
