@@ -28,9 +28,16 @@ def extract_class_name(code: str) -> str:
     return match.group(1) if match else 'Main'
 
 
-def normalize_public_class(source: str) -> str:
-    """Rename any public class to Main so Paiza compiles it as Main.java."""
-    return re.sub(r'public\s+class\s+\w+', 'public class Main', source, count=1)
+def validate_filename_class(filename: str, source: str):
+    """Returns an error string if filename doesn't match public class name, else None."""
+    class_name = extract_class_name(source)
+    expected_filename = f"{class_name}.java"
+    if filename != expected_filename:
+        return (
+            f"Class name mismatch: class '{class_name}' must be in a file named "
+            f"'{expected_filename}', but the file is named '{filename}'."
+        )
+    return None
 
 
 def _build_source_from_files(files: List[Dict]) -> str:
@@ -71,13 +78,18 @@ async def run_code(request: Request):
 
     paiza_key = os.environ.get("PAIZA_API_KEY") or "guest"
     source = _build_source_from_files(files)
+    filename = files[0].get("filename", "Main.java")
 
-    # Normalize public class name to Main so Paiza compiles it as Main.java
-    source = normalize_public_class(source)
+    # Enforce: filename must match public class name
+    mismatch_error = validate_filename_class(filename, source)
+    if mismatch_error:
+        return {"output": "", "error": mismatch_error}
+
+    class_name = extract_class_name(source)
 
     # Inject runner if no main() but runApp() exists
     if "public static void main" not in source and ("runApp(" in source or "public void runApp" in source):
-        runner = f"\n\nclass Runner {{\n    public static void main(String[] args) {{\n        new Main().runApp();\n    }}\n}}\n"
+        runner = f"\n\nclass Runner {{\n    public static void main(String[] args) {{\n        new {class_name}().runApp();\n    }}\n}}\n"
         source = source.rstrip() + "\n\n" + runner
 
     if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
@@ -152,8 +164,14 @@ async def check_syntax(request: Request):
                 if not source.strip():
                     continue
 
-                # Normalize public class name to Main so Paiza compiles as Main.java
-                source = normalize_public_class(source)
+                # Enforce: filename must match public class name
+                mismatch_error = validate_filename_class(filename, source)
+                if mismatch_error:
+                    all_errors.append({
+                        "file": filename, "line": 1, "column": 0,
+                        "severity": "error", "message": mismatch_error
+                    })
+                    continue
 
                 try:
                     resp = await client.post(PAIZA_CREATE, data={
