@@ -12,7 +12,7 @@ import asyncio
 import random
 from sqlalchemy import func
 from database import SessionLocal
-from db_models import QuizQuestion as QuizQuestionModel
+from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
 from services.conversation_manager import ConversationManager
 
@@ -847,6 +847,44 @@ async def generate_progressive_hint(req: HintRequest):
         ret = await get_retriever()
         print(f"[Hints] Generating {req.hint_level} hint...")
         start_time = datetime.now()
+
+        # Normalize problem description to a lightweight cache key
+        question_key = (req.problem_description or "").strip().lower()[:900]
+
+        # Check DB cache first
+        try:
+            db = SessionLocal()
+            cached = db.query(PracticalTestHintModel).filter(
+                PracticalTestHintModel.question_key == question_key,
+                PracticalTestHintModel.hint_level == req.hint_level.value,
+            ).first()
+            if cached:
+                elapsed = (datetime.now() - start_time).total_seconds()
+                print(f"💾 Served cached hint (level={req.hint_level.value}) for key[{question_key[:80]}]")
+                return {
+                    "hint": cached.content,
+                    "hint_level": req.hint_level.value,
+                    "can_request_more": req.hint_level != HintLevel.DETAILED,
+                    "next_level": (
+                        HintLevel.SPECIFIC.value if req.hint_level == HintLevel.GENTLE
+                        else HintLevel.DETAILED.value if req.hint_level == HintLevel.SPECIFIC
+                        else None
+                    ),
+                    "sources": [],
+                    "metadata": {
+                        "response_time_sec": round(elapsed, 2),
+                        "timestamp": datetime.now().isoformat(),
+                        "model": "cache",
+                        "retrieval_docs": 0,
+                        "cached": True,
+                    },
+                }
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
+
         relevant_docs = ret.invoke(f"Java {req.problem_description}")
         context_snippets = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:500]}"
@@ -931,6 +969,29 @@ Generate a detailed hint now:"""
             }
             for doc in relevant_docs[:2]
         ]
+        # Save hint to DB cache for future requests
+        try:
+            db = SessionLocal()
+            try:
+                new_hint = PracticalTestHintModel(
+                    question_key=question_key,
+                    hint_level=req.hint_level.value,
+                    content=hint_text,
+                )
+                db.add(new_hint)
+                db.commit()
+                print(f"💾 Saved hint (level={req.hint_level.value}) to DB for key[{question_key[:80]}]")
+            except Exception as e:
+                db.rollback()
+                print(f"⚠️ Failed to save hint cache: {e}")
+        except Exception as e:
+            print(f"⚠️ DB connection error when saving hint: {e}")
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
+
         return {
             "hint": hint_text,
             "hint_level": req.hint_level.value,
@@ -945,7 +1006,8 @@ Generate a detailed hint now:"""
                 "response_time_sec": round(elapsed, 2),
                 "timestamp": datetime.now().isoformat(),
                 "model": "qwen3-max",
-                "retrieval_docs": len(relevant_docs)
+                "retrieval_docs": len(relevant_docs),
+                "cached": False,
             }
         }
     except Exception as e:

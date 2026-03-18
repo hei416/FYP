@@ -103,6 +103,20 @@ class PracticalTestQuestion(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PracticalTestHint(Base):
+    """Cache for AI-generated progressive hints for practical questions."""
+    __tablename__ = "practical_test_hints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # A normalized key derived from the question/problem description (lowercased, stripped)
+    question_key = Column(String(1000), nullable=False, index=True)
+    # hint level: 'gentle', 'specific', 'detailed'
+    hint_level = Column(String(50), nullable=False, index=True)
+    # The generated hint text
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ConversationHistory(Base):
     """Store user conversation history with turn-based organization and optional summarization"""
     __tablename__ = "conversation_history"
