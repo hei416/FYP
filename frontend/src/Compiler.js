@@ -384,9 +384,10 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                     border: `1px solid ${colors.dangerBorder}`,
                     borderRadius: radii.sm,
                     backgroundColor: colors.dangerLight,
-                    maxHeight: '100px',
+                    maxHeight: '240px',
                     overflowY: 'auto',
                     fontSize: font.sizeSm,
+                    paddingBottom: spacing.sm,
                 }}>
                     <div style={{
                         display: 'flex',
@@ -430,9 +431,9 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 <span style={{ color: colors.text }}>{err.message}</span>
                                 {errorExplanations[idx] && (
-                                    <span style={{ color: colors.textSecondary, fontSize: '11px', fontStyle: 'italic' }}>
+                                    <div style={{ color: colors.textSecondary, fontSize: '12px', marginTop: '6px', whiteSpace: 'pre-wrap', lineHeight: 1.25 }}>
                                         💡 {errorExplanations[idx]}
-                                    </span>
+                                    </div>
                                 )}
                             </div>
                             <span style={{ color: colors.textMuted, flexShrink: 0, fontFamily: font.mono, fontSize: '12px' }}>

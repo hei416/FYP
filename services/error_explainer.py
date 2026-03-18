@@ -4,16 +4,36 @@ from db_models import ErrorExplanationCache
 from datetime import datetime
 
 
-def _normalize_error_key(error_message: str) -> str:
-    """Strip file/line prefix so 'Main.java:3: error: ';' expected'
-    and 'Main.java:17: error: ';' expected' share the same cache key."""
+# Errors whose explanation is always generic and safe to cache
+_CACHEABLE_PATTERNS = [
+    r"';'\s*expected",
+    r"reached end of file",
+    r"illegal start of expression",
+    r"not a statement",
+    r"unclosed string literal",
+    r"class, interface, or enum expected",
+    r"missing return statement",
+    r"possible loss of precision",
+    r"variable .+ might not have been initialized",
+]
+
+
+def _is_cacheable(error_message: str) -> bool:
+    """Only cache errors whose explanation is truly generic across all occurrences."""
     msg = error_message.strip().lower()
-    # Remove "Filename.java:3: error: " prefix
+    return any(re.search(p, msg) for p in _CACHEABLE_PATTERNS)
+
+
+def _normalize_error_key(error_message: str) -> str:
+    """Strip file/line prefix for cache key."""
+    msg = error_message.strip().lower()
     msg = re.sub(r'^[^:]+\.java:\d+:\s*(error|warning):\s*', '', msg)
     return msg.strip()
 
 
 def get_cached_explanation(db: Session, error_message: str) -> str | None:
+    if not _is_cacheable(error_message):
+        return None  # dynamic error — always call AI fresh
     key = _normalize_error_key(error_message)
     entry = db.query(ErrorExplanationCache).filter_by(error_key=key).first()
     if entry:
@@ -25,6 +45,8 @@ def get_cached_explanation(db: Session, error_message: str) -> str | None:
 
 
 def store_explanation(db: Session, error_message: str, explanation: str):
+    if not _is_cacheable(error_message):
+        return  # don't persist dynamic errors
     key = _normalize_error_key(error_message)
     if not db.query(ErrorExplanationCache).filter_by(error_key=key).first():
         db.add(ErrorExplanationCache(error_key=key, friendly_explanation=explanation))
