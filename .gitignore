@@ -41,3 +41,11 @@ venv/
 
 # Deployment zip
 deploy.zip
+.DS_Store
+__pycache__/
+*.log
+.venv/
+.idea/
+.VSCodeCounter/
+*.iml
+
