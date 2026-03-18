@@ -44,6 +44,31 @@ export async function loadProgressFromBackend() {
   }
 }
 
+// Pull progress from backend into localStorage (merge, never downgrade)
+export const pullProgressFromBackend = async () => {
+  if (!isAuthenticated()) return;
+  try {
+    const backend = await loadProgressFromBackend();
+    if (!backend) return;
+
+    // Merge roadmap completed topics into localStorage (union)
+    const localRoadmap = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
+    const merged = Array.from(new Set([...(localRoadmap || []), ...(backend.completed_topics || [])]));
+    localStorage.setItem('java-roadmap-completed', JSON.stringify(merged));
+
+    // Restore dismissed milestones if present
+    if (backend.get('dismissed_milestones') || backend.dismissed_milestones) {
+      const dismissed = backend.dismissed_milestones || backend.get('dismissed_milestones');
+      localStorage.setItem('dismissed_milestones', JSON.stringify(dismissed));
+    }
+
+    // Use existing merge util to merge richer progress object
+    mergeProgressWithLocal(backend, 'codetutor_learning_progress', 'java-roadmap-completed');
+  } catch (e) {
+    console.warn('[ProgressService] pullProgressFromBackend failed', e);
+  }
+};
+
 /**
  * Sync all local progress to backend
  */
@@ -71,6 +96,37 @@ export async function syncProgressToBackend(localProgress, roadmapCompleted) {
     console.warn('[ProgressService] Failed to sync progress:', err);
   }
 }
+
+// Push localStorage progress up to backend
+export const pushProgressToBackend = async () => {
+  if (!isAuthenticated()) return;
+
+  try {
+    const completed = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
+    const dismissed = JSON.parse(localStorage.getItem('dismissed_milestones') || '[]');
+    const local = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
+
+    const payload = {
+      completed_topics: completed,
+      dismissed_milestones: dismissed,
+      quizzes_attempted: local?.quizzes?.attempted || 0,
+      quizzes_completed: local?.quizzes?.completed || [],
+      tests_attempted: local?.tests?.attempted || 0,
+      tests_passed: local?.tests?.passed || [],
+      playground_executions: local?.playground?.codeExecutions || 0,
+      playground_completed: local?.playground?.completed || false,
+      ai_interactions: local?.aiInteractions || 0
+    };
+
+    await fetch(`${API_BASE}/progress/sync`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    console.warn('[ProgressService] pushProgressToBackend failed', e);
+  }
+};
 
 /**
  * Mark a topic as completed on the backend

@@ -11,6 +11,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import DocumentViewer from './DocumentViewer';
+import QuizReminderModal from './QuizReminderModal';
 
 // ----------------- Content Database with Subtopics -----------------
 
@@ -782,6 +783,9 @@ export default function JavaRoadmap() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [viewingDocument, setViewingDocument] = useState(null);
 
+  const [showQuizReminder, setShowQuizReminder] = useState(false);
+  const [reminderChapterCount, setReminderChapterCount] = useState(0);
+
   const handleViewDocument = useCallback((file, source) => {
     setViewingDocument({ file, source });
   }, []);
@@ -792,6 +796,20 @@ export default function JavaRoadmap() {
 
   useEffect(() => {
     localStorage.setItem('java-roadmap-completed', JSON.stringify(completedTopics));
+  }, [completedTopics]);
+
+
+  useEffect(() => {
+    const count = completedTopics.filter(id => subtopicContent[id]).length;
+    // Trigger every multiple of 2 chapters (2,4,6...)
+    if (count > 0 && count % 2 === 0) {
+      const dismissedKey = `quiz_reminder_dismissed_at_${count}`;
+      const alreadyDismissed = localStorage.getItem(dismissedKey);
+      if (!alreadyDismissed) {
+        setReminderChapterCount(count);
+        setShowQuizReminder(true);
+      }
+    }
   }, [completedTopics]);
 
   useEffect(() => {
@@ -1198,6 +1216,16 @@ export default function JavaRoadmap() {
         </div>
       </div>
     </div>
+
+      <QuizReminderModal
+        show={showQuizReminder}
+        chapterCount={reminderChapterCount}
+        onClose={() => setShowQuizReminder(false)}
+        onDismiss={() => {
+          localStorage.setItem(`quiz_reminder_dismissed_at_${reminderChapterCount}`, 'true');
+          setShowQuizReminder(false);
+        }}
+      />
 
       <DocumentViewer
         isOpen={viewingDocument !== null}

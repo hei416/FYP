@@ -13,6 +13,7 @@ router = APIRouter(prefix="/progress", tags=["progress"])
 # Pydantic models
 class ProgressUpdate(BaseModel):
     completed_topics: List[str] = None
+    dismissed_milestones: List[str] = None
     quizzes_attempted: int = None
     quizzes_completed: List[str] = None
     tests_attempted: int = None
@@ -39,6 +40,7 @@ class ProgressResponse(BaseModel):
     id: int
     user_id: int
     completed_topics: List[str]
+    dismissed_milestones: Optional[List[str]] = None
     quizzes_attempted: int
     quizzes_completed: List[str]
     tests_attempted: int
@@ -93,6 +95,11 @@ async def sync_progress(
         existing = set(progress.completed_topics or [])
         progress.completed_topics = list(existing | set(update.completed_topics))
 
+    # Merge dismissed milestones (union)
+    if getattr(update, 'dismissed_milestones', None) is not None:
+        existing_dm = set(progress.dismissed_milestones or [])
+        progress.dismissed_milestones = list(existing_dm | set(update.dismissed_milestones))
+
     if update.quizzes_completed is not None:
         existing = set(progress.quizzes_completed or [])
         progress.quizzes_completed = list(existing | set(update.quizzes_completed))
@@ -127,6 +134,7 @@ async def sync_progress(
         "message": "Progress merged successfully",
         "progress": {
             "completed_topics": progress.completed_topics,
+            "dismissed_milestones": progress.dismissed_milestones,
             "quizzes_attempted": progress.quizzes_attempted,
             "quizzes_completed": progress.quizzes_completed,
             "tests_passed": progress.tests_passed,

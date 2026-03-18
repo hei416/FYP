@@ -39,6 +39,8 @@ class UserProgress(Base):
     
     # AI interactions
     ai_interactions = Column(Integer, default=0)
+    # Dismissed milestone reminders stored as a list of milestone ids/counts
+    dismissed_milestones = Column(JSON, default=list)
     
     # Overall progress
     completion_percentage = Column(Float, default=0.0)
