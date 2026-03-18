@@ -53,6 +53,25 @@ def _build_source_from_files(files: List[Dict]) -> str:
     return files[0].get("content", "")
 
 
+def normalize_public_class(source: str, target_name: str = "Main") -> str:
+    """Return a version of `source` where the public class declaration and
+    identifier occurrences are renamed to `target_name` so that compilers
+    that expect the file to be named Main.java (e.g. Paiza) can compile it.
+    This is a best-effort textual transformation using word boundaries.
+    """
+    class_name = extract_class_name(source)
+    if not class_name or class_name == target_name:
+        return source
+
+    # Replace the public class declaration (only the first occurrence)
+    source = re.sub(r"\bpublic\s+class\s+" + re.escape(class_name),
+                    f"public class {target_name}", source, count=1)
+
+    # Replace other identifier occurrences using word boundaries
+    source = re.sub(r"\b" + re.escape(class_name) + r"\b", target_name, source)
+    return source
+
+
 def parse_javac_errors(build_stderr: str, filename: str) -> list[dict]:
     errors = []
     for line in build_stderr.splitlines():
@@ -99,8 +118,11 @@ async def run_code(request: Request):
     if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
         return {"output": "", "error": "Source code too large to execute"}
 
+    # Normalize public class to `Main` for the external executor (Paiza)
+    paiza_source = normalize_public_class(source, "Main")
+
     payload = {
-        "source_code": source,
+        "source_code": paiza_source,
         "language": "java",
         "input": data.get("input", ""),
         "api_key": paiza_key,
@@ -180,8 +202,10 @@ async def check_syntax(request: Request):
                     # do NOT `continue` here — keep collecting other errors below
 
                 try:
+                    # Normalize public class to `Main` for the external executor
+                    source_for_paiza = normalize_public_class(source, "Main")
                     resp = await client.post(PAIZA_CREATE, data={
-                        "source_code": source,
+                        "source_code": source_for_paiza,
                         "language": "java",
                         "input": "",
                         "api_key": paiza_key,
