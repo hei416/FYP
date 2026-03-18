@@ -64,6 +64,7 @@ export default function ProgressDisplay() {
         <>
             {/* Progress Display Button */}
             <button
+                data-tour="progress-display"
                 onClick={handleClick}
                 style={{
                     display: 'flex',

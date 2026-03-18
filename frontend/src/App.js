@@ -114,6 +114,8 @@ function AppContent() {
                     <Route path="/home" element={<HomePage />} />
                     <Route path="/topic/:topicId" element={<TopicDetailPage />} />
                     <Route path="/playground" element={<Playground />} />
+                    <Route path="/lessons" element={<Lessons />} />
+                    <Route path="/lessons/:id" element={<Lessons />} />
                     <Route path="/quiz" element={<Quiz />} />
                     <Route path="/practical-test" element={<PracticalTest />} />
                     <Route path="/history" element={<ConversationHistoryPage />} />
