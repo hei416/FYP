@@ -746,7 +746,7 @@ async def rag_ai(req: ExplainRequest):
                 query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
 
-        final_answer = rag_chain.invoke(query)
+        final_answer = rag_chain(query)
         docs = retriever.invoke(query)
         pdf_matches = [
             {

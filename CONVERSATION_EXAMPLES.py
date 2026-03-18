@@ -197,7 +197,7 @@ async def rag_ai(req: ExplainRequest):
             query = f"Previous context:\\n{conv_context}\\n\\n---\\n\\nNew question:\\n{query}"
     
     # Process query with LLM
-    final_answer = rag_chain.invoke(query)
+    final_answer = rag_chain(query)
     
     # Save turn to history
     if conversation_manager and req.user_id:

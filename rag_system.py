@@ -96,8 +96,8 @@ def load_or_create_vectorstore(chunks, embeddings, vectorstore_path=VECTORSTORE_
 
 
 def build_rag_chain(vectorstore, llm, k=K_DOCUMENTS):
-    """Build RAG chain with MMR retrieval"""
-    
+    """Build RAG chain with MMR retrieval + LLM fallback"""
+
     retriever = vectorstore.as_retriever(
         search_type="mmr",
         search_kwargs={
@@ -106,12 +106,13 @@ def build_rag_chain(vectorstore, llm, k=K_DOCUMENTS):
             "lambda_mult": LAMBDA_MULT
         }
     )
-    
-    template = """You are a Java programming tutor. Answer ONLY using the context below.
+
+    # RAG prompt — context-grounded
+    rag_template = """You are a Java programming tutor. Answer ONLY using the context below.
 
 STRICT RULES:
 1. Every sentence MUST come from the context
-2. If context lacks info, say: "My knowledge base doesn't fully cover this topic"
+2. If context lacks info, say EXACTLY: "My knowledge base doesn't fully cover this topic"
 3. NEVER use external knowledge
 4. Copy code examples EXACTLY from context
 5. Keep answers under 200 words
@@ -123,20 +124,48 @@ Context:
 Question: {question}
 
 Answer (context-only, max 200 words):"""
-    
-    prompt = PromptTemplate.from_template(template)
-    
+
+    # Fallback prompt — uses LLM's own knowledge
+    fallback_template = """You are a Java programming tutor with broad knowledge of Java and programming languages.
+The knowledge base did not have sufficient information to answer this question.
+Answer using your own knowledge. Be accurate, concise, and educational.
+Keep answers under 200 words.
+
+Question: {question}
+
+Answer:"""
+
+    rag_prompt = PromptTemplate.from_template(rag_template)
+    fallback_prompt = PromptTemplate.from_template(fallback_template)
+
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
-    
+
     rag_chain = (
         {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        | prompt
+        | rag_prompt
         | llm
         | StrOutputParser()
     )
-    
-    return rag_chain, retriever
+
+    fallback_chain = (
+        fallback_prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    def chain_with_fallback(question: str) -> str:
+        rag_response = rag_chain.invoke(question)
+
+        if "My knowledge base doesn't fully cover" in rag_response:
+            print("⚠️ RAG insufficient — falling back to LLM knowledge...")
+            fallback_response = fallback_chain.invoke({"question": question})
+            # Optional: tag the source
+            return fallback_response + "\n\n*(Answered using general knowledge — not from the knowledge base)*"
+
+        return rag_response
+
+    return chain_with_fallback, retriever
 
 
 def setup_rag_system(rebuild_vectorstore=False, force_delete=False):
