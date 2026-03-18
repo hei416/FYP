@@ -8,6 +8,7 @@ export default function MyWorkPage() {
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState({});
 
   useEffect(() => {
     listWork().then(data => {
@@ -20,6 +21,8 @@ export default function MyWorkPage() {
     await deleteWork(id);
     setItems(items.filter(i => i.id !== id));
   };
+
+  const toggleExpand = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   const filtered = filter === 'all' ? items : items.filter(i => i.work_type === filter);
 
@@ -65,45 +68,118 @@ export default function MyWorkPage() {
               {item.topic_id && (
                 <span style={{ fontSize: 12, color: '#6b7280' }}>Topic: {item.topic_id}</span>
               )}
+
+              {/* Score row */}
               {item.result_data?.score !== undefined && (
                 <div style={{ marginTop: 6, fontSize: 14 }}>
-                  Score: <strong>{item.result_data.score}%</strong>
+                  Score: <strong>{item.result_data.score}{item.work_type === 'quiz' ? '%' : '/100'}</strong>
+                  {item.result_data.grade && (
+                    <span style={{ marginLeft: 8, fontWeight: 700, color: '#1d4ed8' }}>({item.result_data.grade})</span>
+                  )}
                   {item.result_data.passed !== undefined && (
                     <span style={{ marginLeft: 10, color: item.result_data.passed ? '#10b981' : '#ef4444' }}>
                       {item.result_data.passed ? '✅ Passed' : '❌ Failed'}
                     </span>
                   )}
+                  {item.work_type === 'quiz' && item.result_data.correct !== undefined && (
+                    <span style={{ marginLeft: 8, color: '#6b7280', fontSize: 12 }}>
+                      ({item.result_data.correct}/{item.result_data.total_questions} correct)
+                    </span>
+                  )}
                 </div>
               )}
-              {/* Show question details for test type */}
-              {item.work_type === 'test' && item.result_data?.question && (
-                  <div style={{ marginTop: 8, fontSize: 13, color: '#374151' }}>
-                      <strong>Question:</strong> {item.result_data.question.description}
-                      {item.result_data.question.expected_output?.length > 0 && (
-                          <pre style={{
-                              marginTop: 6, background: '#f3f4f6', borderRadius: 6,
-                              padding: '6px 10px', fontSize: 11, maxHeight: 80, overflowY: 'auto'
-                          }}>
-                              Expected: {item.result_data.question.expected_output.join('\n')}
-                          </pre>
-                      )}
-                  </div>
+
+              {/* Quiz topics summary */}
+              {item.work_type === 'quiz' && item.result_data?.topics && (
+                <div style={{ marginTop: 4, fontSize: 12, color: '#6b7280' }}>
+                  Topics: {item.result_data.topics.join(', ')}
+                </div>
               )}
 
-              {/* Show quiz review summary */}
-              {item.work_type === 'quiz' && item.result_data?.review && (
-                  <div style={{ marginTop: 8, fontSize: 13, color: '#6b7280' }}>
-                      {item.result_data.correct}/{item.result_data.total_questions} correct
-                      · Topics: {item.result_data.topics?.slice(0, 2).join(', ')}
-                  </div>
+              {/* Test feedback preview */}
+              {item.work_type === 'test' && item.result_data?.feedback && (
+                <div style={{ marginTop: 6, fontSize: 13, color: '#374151', fontStyle: 'italic' }}>
+                  "{item.result_data.feedback.slice(0, 100)}{item.result_data.feedback.length > 100 ? '...' : ''}"
+                </div>
               )}
-              {item.content && (
+
+              {/* Playground code preview */}
+              {item.work_type === 'playground' && item.content && (
                 <pre style={{
                   marginTop: 10, background: '#f3f4f6', borderRadius: 8,
-                  padding: '10px 14px', fontSize: 12, overflowX: 'auto', maxHeight: 120
+                  padding: '10px 14px', fontSize: 12, overflowX: 'auto', maxHeight: 100
                 }}>{item.content}</pre>
               )}
+
+              {/* View Details toggle */}
+              {(item.result_data?.review || item.result_data?.question || (item.work_type === 'test' && item.content)) && (
+                <button onClick={() => toggleExpand(item.id)} style={{
+                  marginTop: 10, background: 'none', border: '1px solid #d1d5db',
+                  borderRadius: 6, padding: '4px 12px', cursor: 'pointer',
+                  fontSize: 12, color: '#374151'
+                }}>
+                  {expanded[item.id] ? '▲ Hide Details' : '▼ View Details'}
+                </button>
+              )}
+
+              {/* Expanded: Quiz Q&A review */}
+              {expanded[item.id] && item.work_type === 'quiz' && item.result_data?.review && (
+                <div style={{ marginTop: 12 }}>
+                  {item.result_data.review.map((r, idx) => (
+                    <div key={idx} style={{
+                      marginBottom: 10, padding: '10px 14px', borderRadius: 8,
+                      background: r.is_correct ? '#f0fdf4' : '#fef2f2',
+                      border: `1px solid ${r.is_correct ? '#bbf7d0' : '#fecaca'}`,
+                      fontSize: 13
+                    }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Q{idx + 1}: {r.question}</div>
+                      <div>Your answer: <span style={{ color: r.is_correct ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{r.your_answer}</span></div>
+                      {!r.is_correct && <div style={{ color: '#16a34a' }}>Correct: {r.correct_answer}</div>}
+                      {r.explanation && <div style={{ marginTop: 4, color: '#6b7280', fontStyle: 'italic' }}>💡 {r.explanation}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Expanded: Test question + code */}
+              {expanded[item.id] && item.work_type === 'test' && (
+                <div style={{ marginTop: 12 }}>
+                  {item.result_data?.question && (
+                    <div style={{ marginBottom: 10, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, fontSize: 13, border: '1px solid #e2e8f0' }}>
+                      <strong>📋 Question:</strong> {item.result_data.question.description}
+                      {item.result_data.question.expected_output?.length > 0 && (
+                        <pre style={{ marginTop: 6, background: '#f3f4f6', borderRadius: 6, padding: '6px 10px', fontSize: 11 }}>
+                          Expected output:{'\n'}{item.result_data.question.expected_output.join('\n')}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                  {item.result_data?.test_cases && (
+                    <div style={{ fontSize: 13, marginBottom: 10 }}>
+                      ✅ {item.result_data.test_cases.passed?.length || 0} passed &nbsp;
+                      ❌ {item.result_data.test_cases.failed?.length || 0} failed
+                    </div>
+                  )}
+                  {item.result_data?.suggestions?.length > 0 && (
+                    <div style={{ padding: '10px 14px', background: '#fffbeb', borderRadius: 8, fontSize: 13, border: '1px solid #fde68a' }}>
+                      <strong>🔧 Suggestions:</strong>
+                      <ul style={{ margin: '6px 0 0 0', paddingLeft: 18 }}>
+                        {item.result_data.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {item.content && (
+                    <>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 10, marginBottom: 4 }}>Your submitted code:</div>
+                      <pre style={{ background: '#1e1e1e', color: '#d4d4d4', borderRadius: 8, padding: '12px 14px', fontSize: 12, overflowX: 'auto', maxHeight: 200 }}>
+                        {item.content}
+                      </pre>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
+
             <div style={{ textAlign: 'right', minWidth: 90, marginLeft: 16 }}>
               <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>
                 {new Date(item.created_at).toLocaleDateString()}

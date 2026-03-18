@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Compiler from "./Compiler";
 import { ProgressTracker } from "./ProgressTracker";
+import { saveWork } from './myWorkService';
 import { colors, radii, font, spacing, card, pageContainer } from './theme';
 
 export default function Playground() {
@@ -25,6 +26,30 @@ export default function Playground() {
     const fromTopic = location.state?.fromTopic;
 
     const tracker = useRef(new ProgressTracker()).current;
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSave = async () => {
+        if (!localStorage.getItem('token')) {
+            alert('Please log in to save your work.');
+            return;
+        }
+        setSaving(true);
+        try {
+            await saveWork({
+                work_type: 'playground',
+                title: `Playground — ${new Date().toLocaleString()}`,
+                topic_id: fromTopic || null,
+                content: code,
+                result_data: null,
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (e) {
+            console.error('saveWork failed:', e);
+        }
+        setSaving(false);
+    };
 
 
     // Listen for code run completions (Compiler fires 'demo-code-output' after every run)
@@ -92,6 +117,13 @@ export default function Playground() {
                     hideRunButton={false}
                     // No onRun prop — let Compiler use its internal run logic
                 />
+
+                <div style={{ marginTop: 12 }}>
+                    <button onClick={handleSave} disabled={saving} style={{
+                        background: saved ? '#10b981' : '#4f46e5',
+                        color: 'white', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer'
+                    }}>{saved ? '💾 Saved' : '💾 Save'}</button>
+                </div>
             </div>
 
             <div style={{

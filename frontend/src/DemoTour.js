@@ -80,7 +80,7 @@ export class DemoTour {
                         Just sit back and watch, or click through at your own pace!
                     </p>
                     <p style="margin: 15px 0 0 0; font-size: 14px; color: #9ca3af;">
-                        <strong>Duration:</strong> ~3 minutes | <strong>Steps:</strong> 12
+                        <strong>Duration:</strong> ~3 minutes | <strong>Steps:</strong> 13
                     </p>
                 </div>
             `,
@@ -409,6 +409,41 @@ public class Demo {
 `,
             beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); },
             buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Next: Complete →', action: () => this.tour.next() } ]
+        });
+
+        // Step 13: My Work
+        this.tour.addStep({
+            id: 'my-work',
+            attachTo: { element: '[data-tour="my-work-link"]', on: 'right' },
+            text: `
+<h3 style="margin: 0 0 10px 0; color: #128C7E;">📁 My Work Space</h3>
+<p style="margin: 0 0 8px 0; line-height: 1.6;">
+    All your learning activity is <strong>automatically saved</strong> to your personal workspace:
+</p>
+<ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+    <li>📝 <strong>Quiz results</strong> — every quiz you complete is saved with your full Q&amp;A review</li>
+    <li>🧪 <strong>Test submissions</strong> — your code, score, grade and AI feedback are all stored</li>
+    <li>💻 <strong>Playground snippets</strong> — save any code you write with one click</li>
+    <li>🔍 <strong>Review anytime</strong> — expand any saved item to revisit questions and your answers</li>
+    <li>🗑️ <strong>Delete</strong> — clean up old work you no longer need</li>
+</ul>
+`,
+            beforeShowPromise: async () => {
+                await this.closeAI();
+                await this.navigateTo('/home');
+                await this.openSidebar();
+            },
+            buttons: [
+                { text: 'Back', action: () => this.tour.back(), secondary: true },
+                {
+                    text: 'See My Work →',
+                    action: async () => {
+                        await this.closeSidebar();
+                        await this.navigateTo('/my-work');
+                        this.tour.next();
+                    }
+                }
+            ]
         });
 
         // Updated Completion step
