@@ -3,7 +3,7 @@ import Editor from '@monaco-editor/react';
 import { v4 as uuidv4 } from 'uuid';
 import { colors, radii, font, spacing, btn, codeOutput, transition } from './theme';
 
-function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
+function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnly = false }) {
     const [files, setFiles] = useState([]);
     const [activeFileId, setActiveFileId] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -365,14 +365,14 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false }) {
 
             {/* ── Monaco Editor ── */}
             {activeFile && (
-                <Editor
+                    <Editor
                     height="220px"
                     language="java"
                     theme="vs-light"
                     value={activeFile.content}
                     onMount={handleEditorDidMount}
                     onChange={(value) => updateFileContent(activeFile.id, value || '')}
-                    options={{ fontSize: 13, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true, scrollBeyondLastLine: false }}
+                        options={{ fontSize: 13, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true, scrollBeyondLastLine: false, readOnly: readOnly }}
                     path={activeFile.filename}
                 />
             )}
