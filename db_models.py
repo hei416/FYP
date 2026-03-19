@@ -18,20 +18,14 @@ class User(Base):
 class SavedWork(Base):
     """User's saved work items — playground snippets, quiz results, test results"""
     __tablename__ = "saved_work"
-
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
-
-    # Type: 'playground', 'quiz', 'test'
-    work_type = Column(String(50), nullable=False, index=True)
-    title = Column(String(500), nullable=False)          # e.g. "My Solution - Variables"
-    topic_id = Column(String(255), nullable=True)        # which topic it belongs to
-    content = Column(Text, nullable=True)                # code or notes
-    result_data = Column(JSON, nullable=True)            # score, passed, answers, etc.
-
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    work_type = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
+    topic_id = Column(String(255), nullable=True)
+    content = Column(Text, nullable=True)
+    result_data = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_active = Column(Boolean, default=True)
 
 class UserProgress(Base):
     """User learning progress tracking"""

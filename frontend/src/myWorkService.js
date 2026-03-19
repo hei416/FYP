@@ -1,8 +1,8 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',
-  Authorization: `Bearer ${localStorage.getItem('token')}`,
+  Authorization: `Bearer ${localStorage.getItem('authToken')}`,
 });
 
 export const saveWork = async ({ work_type, title, topic_id, content, result_data }) => {
