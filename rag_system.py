@@ -7,7 +7,25 @@ from langchain_core.runnables import RunnablePassthrough
 import os
 import time
 
-from models import HKBUEmbeddings, HKBULLM
+# Try to import local HKBU model wrappers. If missing, attempt a LangChain OpenAI
+# fallback so the app doesn't fail to import at startup with ModuleNotFoundError.
+try:
+    from models import HKBUEmbeddings, HKBULLM
+except Exception as e:
+    print(f"⚠️ Local 'models' import failed: {e}. Attempting LangChain OpenAI fallback.")
+    try:
+        from langchain.embeddings import OpenAIEmbeddings
+        from langchain.chat_models import ChatOpenAI
+
+        # Use LangChain OpenAI classes as a best-effort fallback. These will
+        # be instantiated later using the project's config (API_KEY, BASE_URL).
+        HKBUEmbeddings = OpenAIEmbeddings
+        HKBULLM = ChatOpenAI
+        print("ℹ️ Fallback to LangChain OpenAI classes successful.")
+    except Exception as e2:
+        print(f"⚠️ LangChain OpenAI fallback unavailable: {e2}. RAG cannot initialize.")
+        HKBUEmbeddings = None
+        HKBULLM = None
 from core.config import (
     API_KEY, BASE_URL,
     FAISS_MODEL_NAME, FAISS_API_VERSION, FAISS_TEMPERATURE, FAISS_MAX_TOKENS,

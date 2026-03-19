@@ -109,8 +109,12 @@ class QuizGenerateResponse(BaseModel):
 
 # ==================== DB HELPERS ====================
 
-def get_questions_from_db(topic_ids: List[str]) -> List[dict]:
-    """Fetch all stored questions for the given topics."""
+def get_questions_from_db(topic_ids: List[str], user_id: Optional[int] = None) -> List[dict]:
+    """Fetch all stored questions for the given topics.
+
+    If `user_id` is provided, exclude questions the user has already
+    answered correctly (retired) as recorded in `SavedWork`.
+    """
     try:
         if not topic_ids:
             print(f"⚠️ No topics provided to get_questions_from_db")
@@ -125,7 +129,8 @@ def get_questions_from_db(topic_ids: List[str]) -> List[dict]:
                 QuizQuestionModel.topic_id.in_(main_topics)
             ).all()
             print(f"🔍 DB query for topics {main_topics}: found {len(rows)} questions")
-            return [
+
+            questions = [
                 {
                     "id": row.id,
                     "topic_id": row.topic_id,
@@ -136,6 +141,46 @@ def get_questions_from_db(topic_ids: List[str]) -> List[dict]:
                 }
                 for row in rows
             ]
+
+            # If user_id provided, exclude any retired (passed) questions
+            if user_id:
+                retired_ids = set()
+                try:
+                    sw_rows = db.query(SavedWork).filter(
+                        SavedWork.user_id == user_id,
+                        SavedWork.work_type == 'quiz'
+                    ).all()
+                    for row in sw_rows:
+                        raw = row.result_data
+                        review = []
+                        # result_data may be stored as a JSON string or as a dict
+                        try:
+                            if isinstance(raw, str):
+                                parsed = json.loads(raw) if raw.strip() else {}
+                                review = parsed.get('review', []) if isinstance(parsed, dict) else []
+                            elif isinstance(raw, dict):
+                                review = raw.get('review', [])
+                        except Exception as parse_e:
+                            print(f"⚠️ Failed to parse SavedWork.result_data for user {user_id}: {parse_e}")
+
+                        for item in (review or []):
+                            try:
+                                if item.get('is_correct'):
+                                    qid = item.get('question_id')
+                                    if qid is not None:
+                                        retired_ids.add(str(qid))
+                            except Exception:
+                                continue
+                except Exception as e:
+                    print(f"⚠️ Failed to read SavedWork for user {user_id}: {e}")
+
+                if retired_ids:
+                    before = len(questions)
+                    # Normalize comparison by converting stored question ids to strings
+                    questions = [q for q in questions if str(q['id']) not in retired_ids]
+                    print(f"🚫 Excluded {before - len(questions)} retired questions for user {user_id}")
+
+            return questions
         finally:
             db.close()
     except Exception as e:
@@ -261,35 +306,8 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
         if adjusted_num > req.num_questions:
             print(f"📈 Adjusted num_questions: {req.num_questions} → {adjusted_num} (one per topic)")
 
-        db_questions = get_questions_from_db(req.completed_topics)
-        print(f"💾 DB has {len(db_questions)} questions for these topics")
-
-        # If user is logged in, hard-exclude any questions they've already
-        # answered correctly (retired). These are stored in SavedWork rows
-        # with work_type == 'quiz' and a `result_data.review` list.
-        if req.user_id:
-            db = SessionLocal()
-            try:
-                rows = db.query(SavedWork).filter(
-                    SavedWork.user_id == req.user_id,
-                    SavedWork.work_type == 'quiz'
-                ).all()
-
-                retired_ids = set()
-                for row in rows:
-                    review = (row.result_data or {}).get('review', [])
-                    for item in review:
-                        if item.get('is_correct') and item.get('question_id'):
-                            retired_ids.add(item['question_id'])
-
-                print(f"👤 User {req.user_id} has {len(retired_ids)} retired questions")
-                print(f"🚫 retired_ids count: {len(retired_ids)}")
-            finally:
-                db.close()
-
-            # Hard filter — retired questions never appear again
-            db_questions = [q for q in db_questions if q['id'] not in retired_ids]
-            print(f"📊 Pool after retirement filter: {len(db_questions)} questions remaining")
+        db_questions = get_questions_from_db(req.completed_topics, req.user_id)
+        print(f"💾 DB has {len(db_questions)} questions for these topics (after user retire filter)")
 
         if len(db_questions) >= adjusted_num:
             sampled = sample_questions_with_topic_coverage(db_questions, adjusted_num, main_topics)
@@ -346,8 +364,8 @@ async def stream_more_questions(req: QuizGenerateRequest):
     # ✅ lazy-init RAG before entering the streaming generator
     ret = await get_retriever()
 
-    existing = get_questions_from_db(req.completed_topics)
-    print(f"💾 DB has {len(existing)} existing questions to avoid")
+    existing = get_questions_from_db(req.completed_topics, req.user_id)
+    print(f"💾 DB has {len(existing)} existing questions to avoid (after user retire filter)")
 
     topics = req.completed_topics
     num_topics = len(topics)
@@ -396,7 +414,7 @@ async def stream_more_questions(req: QuizGenerateRequest):
                 print(f"  ❌ Failed to generate question {i+1}: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-        total_pool = len(get_questions_from_db(req.completed_topics))
+        total_pool = len(get_questions_from_db(req.completed_topics, req.user_id))
         yield f"data: {json.dumps({'done': True, 'total_pool': total_pool})}\n\n"
 
     return StreamingResponse(
