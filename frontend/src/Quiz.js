@@ -57,6 +57,17 @@ export default function Quiz() {
     const location = useLocation();
     const { user: authUser } = useAuth();
 
+    // Refs to avoid stale-closure issues in the completed effect
+    const scoreRef = useRef(0);
+    const filteredQuestionsRef = useRef([]);
+    const allUserAnswersRef = useRef({});
+
+    // Derived values must be declared before any useEffect that references them
+    
+
+    useEffect(() => { scoreRef.current = score; }, [score]);
+    useEffect(() => { allUserAnswersRef.current = allUserAnswers; }, [allUserAnswers]);
+
     // Pre-populate selected topics if navigated from a milestone prompt
     useEffect(() => {
         const preSelected = location.state?.preSelectedTopics;
@@ -238,6 +249,8 @@ export default function Quiz() {
     const filteredQuestions =
         selectedType === "all" ? quizData : quizData.filter((q) => q.type === selectedType);
 
+    useEffect(() => { filteredQuestionsRef.current = filteredQuestions; }, [filteredQuestions]);
+
     const currentQ = filteredQuestions[currentIndex] || null;
 
     useEffect(() => {
@@ -327,22 +340,22 @@ export default function Quiz() {
     };
 
     useEffect(() => {
-        if (completed && filteredQuestions.length > 0) {
-            const scorePercent = Math.round((score / filteredQuestions.length) * 100);
+        if (completed && filteredQuestionsRef.current.length > 0) {
+            const scorePercent = Math.round((scoreRef.current / filteredQuestionsRef.current.length) * 100);
             const quizId = `quiz_${Date.now()}`;
             tracker.markQuizCompleted(quizId, scorePercent);
             window.dispatchEvent(new Event('progress-updated'));
 
-            // Auto-save to My Work if logged in
+            // Auto-save to My Work if logged in — use refs to ensure latest values
             const token = localStorage.getItem('authToken');
             if (token) {
                 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-                const reviewData = filteredQuestions.map((q, idx) => ({
+                const reviewData = filteredQuestionsRef.current.map((q, idx) => ({
                     question_id: q.id,
                     question: q.question,
-                    your_answer: allUserAnswers[idx]?.answer || '(no answer)',
+                    your_answer: allUserAnswersRef.current[idx]?.answer || '(no answer)',
                     correct_answer: q.options ? q.options[q.correct_index] : q.answer,
-                    is_correct: (allUserAnswers[idx]?.answer) === (q.options ? q.options[q.correct_index] : q.answer),
+                    is_correct: (allUserAnswersRef.current[idx]?.answer) === (q.options ? q.options[q.correct_index] : q.answer),
                     explanation: q.explanation || '',
                 }));
                 fetch(`${API_BASE}/my-work/save`, {
@@ -358,8 +371,8 @@ export default function Quiz() {
                         content: null,
                         result_data: {
                             score: scorePercent,
-                            total_questions: filteredQuestions.length,
-                            correct: score,
+                            total_questions: filteredQuestionsRef.current.length,
+                            correct: scoreRef.current,
                             topics: lastTopics,
                             review: reviewData,
                         },
