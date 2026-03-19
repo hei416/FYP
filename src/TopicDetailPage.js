@@ -175,7 +175,7 @@ export default function TopicDetailPage() {
             </div>
 
             {/* Main Content */}
-            <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+            <div data-tour="topic-content" className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
                 {/* Overview */}
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg mb-8">
                     <h2 className="text-xl font-semibold text-gray-800 mb-3">Overview</h2>
@@ -294,7 +294,7 @@ export default function TopicDetailPage() {
 
                 {/* RAG Document Resources */}
                 {(ragContent?.sources?.length > 0) && (
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+                    <div data-tour="document-viewer" className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
                         <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
                             <svg className="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C6.5 6.253 2 10.998 2 17.25m20-11.002c5.003 5.987 8.548 11.25 8.548 11.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

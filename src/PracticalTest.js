@@ -8,16 +8,10 @@ import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, co
 function buildInstructionHtml(q) {
     const lines = [];
 
-    // Title
     if (q.title) lines.push(`<h3 style="margin:0 0 8px 0">${q.title}</h3>`);
-
-    // Description
     if (q.description) lines.push(`<p style="margin:0 0 10px 0">${q.description}</p>`);
-
-    // Optional note
     if (q.note) lines.push(`<p style="margin:0 0 10px 0;color:#6b7280"><em>${q.note}</em></p>`);
 
-    // Methods to implement
     if (Array.isArray(q.methods) && q.methods.length > 0) {
         lines.push(`<p style="margin:0 0 4px 0"><strong>Implement:</strong></p><ul style="margin:0 0 10px 0;padding-left:20px">`);
         q.methods.forEach(m => {
@@ -26,7 +20,6 @@ function buildInstructionHtml(q) {
         lines.push(`</ul>`);
     }
 
-    // Expected output
     if (Array.isArray(q.expectedOutput) && q.expectedOutput.length > 0) {
         lines.push(`<p style="margin:0 0 4px 0"><strong>Expected output:</strong></p>`);
         lines.push(`<pre style="background:#f3f4f6;padding:8px 12px;border-radius:6px;margin:0;font-size:13px">${q.expectedOutput.join("\n")}</pre>`);
@@ -36,7 +29,7 @@ function buildInstructionHtml(q) {
 }
 
 function buildStarterCode(baseCode) {
-    const baseClass = baseCode?.class || "Solution";
+    const baseClass = baseCode?.class || "Main";
     const methods = baseCode?.methods || {};
     let code = `public class ${baseClass} {\n`;
     for (let methodName in methods) {
@@ -59,60 +52,37 @@ const ALL_TOPICS = TOPIC_GROUPS.map(g => g.label);
 export default function PracticalTest() {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-    // screen: 'select' | 'active'
     const [screen, setScreen] = useState('select');
-
-    // topic selection
     const [selectedTopics, setSelectedTopics] = useState([]);
-
-    // generation
     const [generating, setGenerating] = useState(false);
     const [genError, setGenError] = useState('');
 
-    // current question
     const [currentQuestionData, setCurrentQuestionData] = useState(null);
     const [questionDbId, setQuestionDbId] = useState(null);
     const [isAiQuestion, setIsAiQuestion] = useState(false);
+    // ✅ track baseClass in React state instead of localStorage
+    const [baseClassName, setBaseClassName] = useState('Main');
 
-    // test state
     const [instruction, setInstruction] = useState('');
     const [studentCode, setStudentCode] = useState('');
     const [result, setResult] = useState('');
     const [elapsedTime, setElapsedTime] = useState(0);
     const [started, setStarted] = useState(false);
 
-    // grading / hints
     const [gradingResults, setGradingResults] = useState(null);
     const [hints, setHints] = useState([]);
     const [hintLevel, setHintLevel] = useState('gentle');
     const [hintLoading, setHintLoading] = useState(false);
     const [testResults, setTestResults] = useState(null);
 
-    // dedup tracking: last recorded "questionId+score" pair
-    const lastRecordedRef = useRef(null);
-
     const tracker = useRef(new ProgressTracker()).current;
 
-    // timer
     useEffect(() => {
         if (!started) return;
         const interval = setInterval(() => setElapsedTime(t => t + 1), 1000);
         return () => clearInterval(interval);
     }, [started]);
 
-    // Fire when gradingResults arrives — call markTestPassed + dispatch event (deduped)
-    useEffect(() => {
-        if (!gradingResults) return;
-        const score = gradingResults.total_score ?? 0;
-        const testId = `test_${questionDbId || 'unknown'}`;
-        const dedupKey = `${testId}__${score}`;
-        if (lastRecordedRef.current === dedupKey) return;
-        lastRecordedRef.current = dedupKey;
-        tracker.markTestPassed(testId, score);
-        window.dispatchEvent(new Event('progress-updated'));
-    }, [gradingResults, questionDbId, tracker]);
-
-    // ── topic toggle ──────────────────────────────────────────────────────────
     const toggleTopic = (label) => {
         setSelectedTopics(prev =>
             prev.includes(label) ? prev.filter(t => t !== label) : [...prev, label]
@@ -134,20 +104,20 @@ export default function PracticalTest() {
 
     // ── load question data into component state ───────────────────────────────
     const applyQuestionData = (data, aiId) => {
+        const cls = data.baseCode?.class || "Main";
         setCurrentQuestionData(data);
         setIsAiQuestion(!!aiId);
         setQuestionDbId(aiId || null);
+        setBaseClassName(cls);  // ✅ store in React state
         setInstruction(buildInstructionHtml(data.question));
         setStudentCode(buildStarterCode(data.baseCode));
-        localStorage.setItem("baseClass", data.baseCode?.class || "Solution");
+        // keep expectedOutput in localStorage (read-only during grading, safe)
         localStorage.setItem("expectedOutput", JSON.stringify(data.question?.expectedOutput || []));
         setGradingResults(null);
         setHints([]);
         setHintLevel('gentle');
         setTestResults(null);
         setResult('');
-        // reset dedup when a new question loads
-        lastRecordedRef.current = null;
     };
 
     // ── generate AI question ──────────────────────────────────────────────────
@@ -177,19 +147,27 @@ export default function PracticalTest() {
 
     // ── evaluate helpers ──────────────────────────────────────────────────────
     const buildEvalPayload = () => {
-        const baseClass = localStorage.getItem("baseClass");
         const cleanCode = studentCode
             .replace(/public\s+void\s+runApp\s*\([^)]*\)\s*\{[\s\S]*?\n\s*\}/g, '')
             .trim();
+
+        // ✅ Always send code under the actual class name from current question.
+        // Also include "Main" and "Solution" as fallbacks so backend always finds it.
+        const codeFiles = {
+            [baseClassName]: cleanCode,
+            Main: cleanCode,
+            Solution: cleanCode,
+        };
+
         if (isAiQuestion && questionDbId) {
             return {
                 url: `${API_BASE}/api/practical-tests/evaluate-ai`,
-                body: { code_files: { [baseClass]: cleanCode }, question_db_id: questionDbId },
+                body: { code_files: codeFiles, question_db_id: questionDbId },
             };
         }
         return {
             url: `${API_BASE}/evaluate`,
-            body: { code_files: { [baseClass]: cleanCode }, question_id: currentQuestionData?.id || '' },
+            body: { code_files: codeFiles, question_id: currentQuestionData?.id || '' },
         };
     };
 
@@ -233,6 +211,9 @@ export default function PracticalTest() {
             setTestResults(results);
             if (failed.length === 0) {
                 setResult(`✅ All tests passed! Your solution is correct.\n\nYour Output:\n${actualOutput}`);
+                const testId = `test_${questionDbId || 'unknown'}_${Date.now()}`;
+                tracker.markTestPassed(testId, 100);
+                window.dispatchEvent(new Event('progress-updated'));
             } else {
                 const lines = ["❌ Tests failed - Output does not match expected:\n"];
                 for (let i = 0; i < maxLines; i++) {
@@ -264,7 +245,46 @@ export default function PracticalTest() {
                     actual_outputs: results.actual_outputs || [],
                 }),
             });
-            if (res.ok) setGradingResults(await res.json());
+            if (res.ok) {
+                const grading = await res.json();
+                setGradingResults(grading);
+
+                // Auto-save to My Work if logged in
+                const token = localStorage.getItem('authToken');
+                if (token) {
+                    const passed = results.failed?.length === 0;
+                    fetch(`${API_BASE}/my-work/save`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            work_type: 'test',
+                            title: `${questionTitle}`,
+                            topic_id: selectedTopics[0] || null,
+                            content: studentCode,
+                            result_data: {
+                                score: grading.total_score,
+                                grade: grading.grade_letter,
+                                passed: passed,
+                                feedback: grading.feedback,
+                                suggestions: grading.suggestions || [],
+                                question: {
+                                    title: questionTitle,
+                                    description: questionDesc,
+                                    methods: currentQuestionData?.question?.methods || [],
+                                    expected_output: currentQuestionData?.question?.expectedOutput || [],
+                                },
+                                test_cases: {
+                                    passed: results.passed,
+                                    failed: results.failed,
+                                },
+                            },
+                        }),
+                    }).catch(err => console.warn('saveWork failed:', err));
+                }
+            }
         } catch {}
     };
 
@@ -294,28 +314,22 @@ export default function PracticalTest() {
     const formatTime = secs => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
     const handleBackToSelect = () => { setScreen('select'); setStarted(false); setElapsedTime(0); };
 
-    // ════════════════════════════════════════════════════════════════════════
-    // RENDER
-    // ════════════════════════════════════════════════════════════════════════
     return (
         <div style={pageContainer(1100)}>
             <h2 style={pageHeading}>🎯 Code Exercise</h2>
 
-            {/* ── SCREEN 1: topic selection ────────────────────────────────── */}
             {screen === 'select' && (
                 <>
                     <p style={{ color: colors.textSecondary, fontSize: font.sizeMd, marginBottom: spacing.lg }}>
                         Select one or more topics, then generate an AI coding exercise tailored to those concepts.
                     </p>
 
-                    {/* quick-select row */}
                     <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.lg }}>
                         <button onClick={selectCompleted} style={{ ...btn.primary, fontSize: font.sizeSm }}>✅ My Completed Topics</button>
                         <button onClick={selectAll}       style={{ ...btn.secondary, fontSize: font.sizeSm }}>Select All</button>
                         <button onClick={clearAll}        style={{ ...btn.ghost, fontSize: font.sizeSm }}>Clear</button>
                     </div>
 
-                    {/* topic grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
                         {ALL_TOPICS.map(label => {
                             const selected = selectedTopics.includes(label);
@@ -369,10 +383,8 @@ export default function PracticalTest() {
                 </>
             )}
 
-            {/* ── SCREEN 2: active test ────────────────────────────────────── */}
             {screen === 'active' && currentQuestionData && (
                 <>
-                    {/* header row */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                             {!started ? (
@@ -398,20 +410,16 @@ export default function PracticalTest() {
                         </div>
                     </div>
 
-                    {/* question card */}
                     <div style={{ ...card.base, marginTop: spacing.lg, maxHeight: 320, overflowY: 'auto' }}
                         dangerouslySetInnerHTML={{ __html: instruction }} />
 
-                    {/* code editor */}
                     <Compiler code={studentCode} setCode={setStudentCode} onRun={handleRun} output={result} hideRunButton={true} />
 
-                    {/* action buttons */}
                     <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
                         <button onClick={handleRun} style={btn.primary}>▶ Run Code</button>
                         <button onClick={handleSubmit} style={btn.success}>📤 Submit Code</button>
                     </div>
 
-                    {/* hints */}
                     <div style={{ ...card.warning, padding: spacing.xl, margin: `${spacing.xl}px 0` }}>
                         <h3 style={{ marginTop: 0, color: colors.text, fontSize: font.sizeLg }}>💡 Need Help?</h3>
                         {testResults ? (
@@ -448,7 +456,6 @@ export default function PracticalTest() {
                         ))}
                     </div>
 
-                    {/* grading */}
                     {gradingResults && (
                         <div style={{ ...card.info, padding: spacing.xl, margin: `${spacing.xl}px 0` }}>
                             <h3 style={{ color: colors.primary, marginBottom: spacing.lg, fontSize: font.sizeLg }}>

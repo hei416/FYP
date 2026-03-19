@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { pullProgressFromBackend, pushProgressToBackend } from './progressService';
 
 const AuthContext = createContext(null);
 
@@ -80,6 +81,9 @@ export const AuthProvider = ({ children }) => {
       });
       localStorage.setItem('authToken', data.access_token);
 
+      // Merge backend progress into local cache after register/login
+      try { await pullProgressFromBackend(); } catch (_) {}
+
       return data;
     } catch (err) {
       setError(err.message);
@@ -116,6 +120,9 @@ export const AuthProvider = ({ children }) => {
       });
       localStorage.setItem('authToken', data.access_token);
 
+      // After successful login, pull backend progress into localStorage
+      try { await pullProgressFromBackend(); } catch (_) {}
+
       return data;
     } catch (err) {
       setError(err.message);
@@ -125,8 +132,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Logout
-  const logout = useCallback(() => {
+  // Logout (async flush to backend)
+  const logout = useCallback(async () => {
+    try {
+      await pushProgressToBackend();
+    } catch (_) {}
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');

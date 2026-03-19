@@ -1,32 +1,58 @@
+# Copilot Instructions for CodeTutor (Java Learning Platform)
 
-# Copilot instructions — CodeTutor (concise, repo-specific)
+## Project Overview
+- **CodeTutor** is an AI-powered Java learning platform with a backend (Python FastAPI) and frontend (React).
+- Key features: RAG-based tutoring, quizzes, practical tests, code playground, progress tracking.
 
-Purpose: help an AI coding agent be productive quickly in this repository.
+## Architecture & Structure
+- **Backend:**
+  - Located in root and `core/`, `routers/`, `services/`, `models.py`, `database.py`.
+  - Uses FastAPI, with routers for modular endpoints (e.g., `routers/lessons.py`, `routers/practical_tests.py`).
+  - Data models in `db_models.py`, `models.py`.
+  - RAG system logic in `rag_system.py`.
+  - Database migrations/scripts: `migrate_to_postgres.py`, `initdb.py`.
+- **Frontend:**
+  - Located in `frontend/` and `src/`.
+  - React app with components for lessons, quizzes, playground, progress.
+  - Uses `npm` for builds, `npm start` for dev server.
 
-Key components
-- Backend: FastAPI app entry `main.py`. Routers in `routers/` (per-feature), business logic in `services/`.
-- Frontend: React app under `frontend/` — note there are nested `frontend/` folders; inspect `frontend/package.json` vs `frontend/frontend/package.json` to determine which to run.
-- Database: models in `db_models.py` and `database.py`. Migration helper: `migrate_to_postgres.py`.
-- RAG & Vectorstore: core RAG code in `rag_system.py`; FAISS index and helpers live in `vectorstore/` (`index.faiss`, `extract_from_faiss.py`).
+## Developer Workflows
+- **Backend:**
+  - Install dependencies: `pip install -r requirements.txt`
+  - Run server: `uvicorn main:app --reload`
+  - API docs: `http://localhost:8000/docs`
+- **Frontend:**
+  - Install dependencies: `npm install` (in `frontend/`)
+  - Run dev server: `npm start`
+- **Testing:**
+  - Dummy account: `test@test.com` (see README)
+  - Practical tests in `practical_tests/`
 
-Quick start (developer commands)
-- Activate venv and install: `source .venv/bin/activate && pip install -r requirements.txt`.
-- Start backend: `uvicorn main:app --reload` — API UI at `http://localhost:8000/docs`.
-- Start frontend: `cd frontend` (or `cd frontend/frontend` if needed), then `npm install && npm start`.
-- Regenerate vectorstore / migrate DB: inspect and run `python migrate_to_postgres.py` and `python vectorstore/extract_from_faiss.py` as needed.
+## Patterns & Conventions
+- **Routers:** All API endpoints are grouped by feature in `routers/`.
+- **Services:** Business logic is separated in `services/`.
+- **Models:** Data models are defined in `db_models.py`, `models.py`.
+- **RAG:** Retrieval-Augmented Generation logic is in `rag_system.py`.
+- **Frontend:** React components are in `src/`, with CSS in `index.css`, `App.css`.
 
-Project conventions (do this same way)
-- Router → Service: keep HTTP handlers in `routers/` thin; put business rules in `services/`.
-- Models: update `db_models.py` and any migration scripts together; preserve field names to avoid breakage.
-- RAG initialization: use `await get_retriever()` or `ensure_rag_initialized()`; do not rely on module-level `retriever` globals (see `routers/rag.py`).
-- Vectorstore: treat FAISS files as binary artifacts; use provided scripts to rebuild indexes.
+## Integration Points
+- **Backend ↔ Frontend:** Communicate via REST API (`/api/*` endpoints).
+- **Database:** Uses Postgres (see `migrate_to_postgres.py`).
+- **Vectorstore:** FAISS index for document retrieval (`vectorstore/`).
 
-Concrete examples
-- New lesson endpoint: add `routers/lessons.py`, implement logic in `services/lessons.py`, and register the router in `main.py`.
-- RAG call pattern: in `routers/rag.py` use `retriever = await get_retriever()` then pass to RAG helpers; follow existing usage sites for pagination/embedding choices.
-- Frontend calls: examine `frontend/src/ragDocMapping.js` and `frontend/src/progressService.js` for request/response shapes.
+## Examples
+- To add a new lesson endpoint: create a router in `routers/lessons.py`, update models, and add business logic in `services/`.
+- To extend frontend: add a React component in `src/`, update API calls as needed.
 
-Files to read first
-- `main.py`, `routers/`, `services/`, `rag_system.py`, `vectorstore/`, `db_models.py`, `migrate_to_postgres.py`, `frontend/src/`.
+## References
+- See `README.md` (root and frontend/) for setup, test account, and quickstart.
+- Key files: `main.py`, `routers/`, `services/`, `models.py`, `rag_system.py`, `frontend/src/`.
 
-If something is unclear (which `frontend` folder is primary, RAG init timing, or DB credentials), tell me which area to expand and I will refine these instructions.
+---
+
+**Update this file if major architecture or workflow changes occur.**
+
+## RAG System
+- Always access retriever via `await get_retriever()` in routers/rag.py
+- Never read the `retriever` global directly in endpoints
+- `ensure_rag_initialized()` in main.py is the single init entry point

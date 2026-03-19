@@ -18,6 +18,7 @@ dist/
 
 # IDE
 .vscode/
+*.log
 .idea/
 *.swp
 *.swo
@@ -34,10 +35,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Python virtual environments
-.venv/
-venv/
 
 # Deployment zip
 deploy.zip
