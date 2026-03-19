@@ -118,12 +118,25 @@ def load_or_create_vectorstore(chunks, embeddings, vectorstore_path=VECTORSTORE_
             # HKBU embedding *callable* to avoid calling old OpenAIEmbedding
             # instances that may be baked into the saved index.
             try:
-                vectorstore.embedding_function = embeddings.embed_query
+                vectorstore.embedding_function = embeddings
             except Exception:
                 try:
-                    vectorstore._embedding_function = embeddings.embed_query
+                    vectorstore._embedding_function = embeddings
                 except Exception:
                     pass
+
+            # Nuclear override: monkey-patch the internal method FAISS actually
+            # calls to embed queries. This ensures the live object uses our
+            # `HKBUEmbeddings.embed_query` regardless of what was serialized.
+            try:
+                import types
+
+                def _patched_embed_query(self, text: str):
+                    return embeddings.embed_query(text)
+
+                vectorstore._embed_query = types.MethodType(_patched_embed_query, vectorstore)
+            except Exception as _e:
+                print(f"⚠️ Could not monkey-patch _embed_query: {_e}")
 
             print(f"Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             return vectorstore
@@ -144,13 +157,38 @@ def load_or_create_vectorstore(chunks, embeddings, vectorstore_path=VECTORSTORE_
         
         if vectorstore is None:
             vectorstore = FAISS.from_documents(batch, embeddings)
+            # Ensure the new vectorstore uses the current embeddings callable
+            try:
+                vectorstore.embedding_function = embeddings
+            except Exception:
+                try:
+                    vectorstore._embedding_function = embeddings
+                except Exception:
+                    pass
         else:
             vectorstore.add_documents(batch)
+            # After adding documents, ensure embedding override is set
+            try:
+                vectorstore.embedding_function = embeddings
+            except Exception:
+                try:
+                    vectorstore._embedding_function = embeddings
+                except Exception:
+                    pass
         
         vectorstore.save_local(vectorstore_path)
         time.sleep(1)
     
     print("Vectorstore created and saved!")
+    # Final safety override before returning (ensure retrievers built later
+    # will use the correct embeddings callable)
+    try:
+        vectorstore.embedding_function = embeddings
+    except Exception:
+        try:
+            vectorstore._embedding_function = embeddings
+        except Exception:
+            pass
     return vectorstore
 
 
@@ -274,12 +312,24 @@ def setup_rag_system(rebuild_vectorstore=False, force_delete=False):
             # OpenAI path; override to ensure we use the direct HKBU
             # deployment embeddings implementation.
             try:
-                vectorstore.embedding_function = embeddings.embed_query
+                vectorstore.embedding_function = embeddings
             except Exception:
                 try:
-                    vectorstore._embedding_function = embeddings.embed_query
+                    vectorstore._embedding_function = embeddings
                 except Exception:
                     pass
+            # Nuclear override: monkey-patch the internal method FAISS actually
+            # calls to embed queries. This ensures the live object uses our
+            # `HKBUEmbeddings.embed_query` regardless of what was serialized.
+            try:
+                import types
+
+                def _patched_embed_query(self, text: str):
+                    return embeddings.embed_query(text)
+
+                vectorstore._embed_query = types.MethodType(_patched_embed_query, vectorstore)
+            except Exception as _e:
+                print(f"⚠️ Could not monkey-patch _embed_query: {_e}")
             print(f"✅ Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             
             # Build chain and return immediately
