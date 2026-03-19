@@ -1,58 +1,72 @@
-# Copilot Instructions for CodeTutor (Java Learning Platform)
 
-## Project Overview
-- **CodeTutor** is an AI-powered Java learning platform with a backend (Python FastAPI) and frontend (React).
-- Key features: RAG-based tutoring, quizzes, practical tests, code playground, progress tracking.
+# Copilot instructions — CodeTutor (concise, repo-specific)
 
-## Architecture & Structure
-- **Backend:**
-  - Located in root and `core/`, `routers/`, `services/`, `models.py`, `database.py`.
-  - Uses FastAPI, with routers for modular endpoints (e.g., `routers/lessons.py`, `routers/practical_tests.py`).
-  - Data models in `db_models.py`, `models.py`.
-  - RAG system logic in `rag_system.py`.
-  - Database migrations/scripts: `migrate_to_postgres.py`, `initdb.py`.
-- **Frontend:**
-  - Located in `frontend/` and `src/`.
-  - React app with components for lessons, quizzes, playground, progress.
-  - Uses `npm` for builds, `npm start` for dev server.
+Purpose: Make an AI coding agent productive in this repository quickly.
 
-## Developer Workflows
-- **Backend:**
-  - Install dependencies: `pip install -r requirements.txt`
-  - Run server: `uvicorn main:app --reload`
-  - API docs: `http://localhost:8000/docs`
-- **Frontend:**
-  - Install dependencies: `npm install` (in `frontend/`)
-  - Run dev server: `npm start`
-- **Testing:**
-  - Dummy account: `test@test.com` (see README)
-  - Practical tests in `practical_tests/`
+Key components (big picture)
+- Backend: FastAPI app at `main.py`. Feature routes live under `routers/`; keep handlers thin and put business logic in `services/`.
+- Frontend: React app in `frontend/`. There is a nested `frontend/frontend/`—check which `package.json` contains the `start` script before running.
+ - Frontend: React app in `frontend/`. There is a nested `frontend/frontend/`—check which `package.json` contains the `start` script before running.
+	 - Canonical dev target: use the top-level `frontend/` folder. Both `frontend/package.json` and `frontend/frontend/package.json` are identical in this repo; prefer `frontend/` unless a different deploy config exists.
+- Data layer: `database.py` and `db_models.py` define DB connections and ORM models. `migrate_to_postgres.py` is the simple migration helper.
+- RAG / Vectorstore: `rag_system.py` contains RAG orchestration. FAISS index and helpers live in `vectorstore/` (e.g., `index.faiss`, `extract_from_faiss.py`).
 
-## Patterns & Conventions
-- **Routers:** All API endpoints are grouped by feature in `routers/`.
-- **Services:** Business logic is separated in `services/`.
-- **Models:** Data models are defined in `db_models.py`, `models.py`.
-- **RAG:** Retrieval-Augmented Generation logic is in `rag_system.py`.
-- **Frontend:** React components are in `src/`, with CSS in `index.css`, `App.css`.
+Quick developer commands
+- Python env and deps: `source .venv/bin/activate && pip install -r requirements.txt`.
+- Run backend: `uvicorn main:app --reload` (OpenAPI at `/docs`).
+- Run frontend: inspect `frontend/package.json` and `frontend/frontend/package.json` to pick which folder has `scripts.start`. Typical commands:
+	- `cd frontend && npm install && npm start` or
+	- `cd frontend/frontend && npm install && npm start`.
+- Rebuild vectorstore / summaries: `python vectorstore/extract_from_faiss.py` (or the frontend copy under `frontend/vectorstore/` if used there).
+- DB dump / migrate: `python migrate_to_postgres.py` and backup file `backup_learning_platform.sql` present for restores.
 
-## Integration Points
-- **Backend ↔ Frontend:** Communicate via REST API (`/api/*` endpoints).
-- **Database:** Uses Postgres (see `migrate_to_postgres.py`).
-- **Vectorstore:** FAISS index for document retrieval (`vectorstore/`).
+Project conventions & patterns (specific)
+- Router → Service: Add HTTP surface in `routers/<feature>.py` and place business rules in `services/<feature>.py`.
+	Example: to add a new API, create `routers/my_feature.py`, implement `services/my_feature.py`, then register the router in `main.py`.
+- RAG pattern: Always acquire a retriever at call time: `retriever = await get_retriever()` or call `ensure_rag_initialized()`; avoid module-level retriever globals (see `routers/rag.py`).
+- Vectorstore handling: `vectorstore/index.faiss` is a binary artifact—do not edit directly in Git. Use `extract_from_faiss.py` to regenerate or extract metadata.
+- DB models: Keep `db_models.py` and `database.py` aligned; migration is lightweight—update both when changing schema.
+- Code execution integration: The project calls external code-run APIs (e.g., Paiza). Credentials are stored in `core/config.py` (e.g., `PAIZA_API_KEY`)—check environment variables before running.
 
-## Examples
-- To add a new lesson endpoint: create a router in `routers/lessons.py`, update models, and add business logic in `services/`.
-- To extend frontend: add a React component in `src/`, update API calls as needed.
+Integration & environment notes
+- Postgres: connection details used by migration scripts; examples in repo show usage of `PGPASSWORD` for `pg_dump`/`psql` commands.
+- Secrets: `core/config.py` reads some API keys—when running locally set env vars (e.g., `PAIZA_API_KEY`, `PGPASSWORD`).
 
-## References
-- See `README.md` (root and frontend/) for setup, test account, and quickstart.
-- Key files: `main.py`, `routers/`, `services/`, `models.py`, `rag_system.py`, `frontend/src/`.
+Where to look first (recommended reading order)
+1. `main.py` — app wiring and router registration.
+2. `routers/` — HTTP endpoints; good for request shapes and auth patterns.
+3. `services/` — core business logic implementations.
+4. `rag_system.py` and `vectorstore/` — RAG flow, retriever usage, and FAISS handling.
+5. `db_models.py`, `database.py`, and `migrate_to_postgres.py` — schema and migration patterns.
+6. `frontend/` (and nested `frontend/frontend/`) — UI shapes, `ragDocMapping.js`, and client-side request patterns.
 
----
+Concrete examples to follow
+- New lesson endpoint: add `routers/lessons.py`, put logic in `services/lessons.py`, update DI / registration in `main.py`.
+- RAG call: see `routers/rag.py` for `await get_retriever()` usage and passing retriever into RAG helpers.
+- Vectorstore rebuild: run `python vectorstore/extract_from_faiss.py` and commit only derived metadata (not the `.faiss` binary unless intentionally updated).
 
-**Update this file if major architecture or workflow changes occur.**
+If you update these instructions
+- Preserve the Router→Service guidance and RAG retriever pattern.
+- Keep commands realistic: prefer `uvicorn main:app --reload` and checking `frontend/package.json` to choose the frontend folder.
 
-## RAG System
-- Always access retriever via `await get_retriever()` in routers/rag.py
-- Never read the `retriever` global directly in endpoints
-- `ensure_rag_initialized()` in main.py is the single init entry point
+Questions / gaps
+- Which `frontend` folder should be the canonical dev target? If you want, I can inspect both `package.json` files and mark the correct one.
+
+Feedback
+Please review and tell me if you'd like more examples (e.g., a sample new-route PR checklist, or explicit env var names and defaults).
+
+PR Checklist — Adding a new backend route
+- **Router/Service:** Add `routers/<feature>.py` and `services/<feature>.py` (keep handler thin).
+- **Register:** Register the router in `main.py` (import and `app.include_router(...)`).
+- **Docs / Manual Test:** Verify OpenAPI at `/docs` and exercise endpoint with `curl` or `httpie`.
+- **DB changes:** If adding DB fields, update `db_models.py` and `migrate_to_postgres.py`; include migration notes in PR.
+- **Env / Secrets:** Document any new env variables (e.g., in `core/config.py`) in the PR description.
+- **Vectorstore / RAG:** If the route interacts with RAG, ensure `get_retriever()` is called per-request and mention any index rebuild commands used.
+
+PR Checklist — Frontend changes
+- **Folder:** Use the top-level `frontend/` for development; only use `frontend/frontend/` if deploy tooling points to it.
+- **Build / Test:** Run `npm install` then `npm start` in `frontend/` and exercise UI flows that call your API.
+- **API contracts:** Check request/response shapes in `frontend/src/ragDocMapping.js`, `frontend/src/progressService.js`, and update mocks if needed.
+- **Assets / Vectorstore:** If frontend touches `vectorstore/`, only update derived metadata (e.g., `faiss_summary.json`); do not commit `index.faiss` unless intended.
+- **Static changes:** Update `public/` files (e.g., `index.html`) and `frontend/src/` components; run lint/tests if present.
+- **Docs / PR notes:** Note env variables or backend endpoints required (e.g., CORS, backend base URL) in the PR description.
