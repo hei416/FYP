@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useAuth } from './AuthContext';
 import { useLocation } from "react-router-dom";
 import { ProgressTracker } from "./ProgressTracker";
 import { TOPIC_GROUPS } from "./HomePage";
@@ -54,6 +55,7 @@ export default function Quiz() {
     const tracker = useMemo(() => new ProgressTracker(), []);
 
     const location = useLocation();
+    const { user: authUser } = useAuth();
 
     // Pre-populate selected topics if navigated from a milestone prompt
     useEffect(() => {
@@ -75,7 +77,14 @@ export default function Quiz() {
         setAllUserAnswers({});
 
         try {
-            const completedTopics = tracker.getCompletedTopics();
+                // Resolve user id from AuthContext first, then fall back to common localStorage keys
+                const userId = authUser?.id
+                    || JSON.parse(localStorage.getItem('user') || 'null')?.id
+                    || JSON.parse(localStorage.getItem('userData') || 'null')?.id
+                    || JSON.parse(localStorage.getItem('currentUser') || 'null')?.id
+                    || null;
+                console.log('🔑 userId for quiz:', userId);
+                const completedTopics = tracker.getCompletedTopics();
             // Only allow completed topics - no fallback to all topics
             const topicsToUse = topicsOverride || (completedTopics.length > 0 ? completedTopics : null);
             
@@ -99,7 +108,8 @@ export default function Quiz() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     completed_topics: topicsToUse,
-                    num_questions: 10
+                    num_questions: 10,
+                    user_id: userId || null,
                 })
             });
 
@@ -128,7 +138,7 @@ export default function Quiz() {
             isFetchingRef.current = false;
             setShowTopicSelect(false);
         }
-    }, [tracker]);
+    }, [tracker, authUser]);
 
 
 
@@ -148,12 +158,21 @@ export default function Quiz() {
         setShowTopicSelect(false);
 
         try {
+            // Resolve user id for streaming endpoint as well
+            const userId = authUser?.id
+                || JSON.parse(localStorage.getItem('user') || 'null')?.id
+                || JSON.parse(localStorage.getItem('userData') || 'null')?.id
+                || JSON.parse(localStorage.getItem('currentUser') || 'null')?.id
+                || null;
+            console.log('🔑 userId for streaming quiz:', userId);
+
             const res = await fetch(`${API_BASE}/api/quizzes/more`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     completed_topics: lastTopics,
                     num_questions: 5
+                    , user_id: userId || null
                 })
             });
 
@@ -214,7 +233,7 @@ export default function Quiz() {
             setGeneratingMore(false);
             isFetchingRef.current = false;
         }
-    }, [lastTopics]);
+    }, [lastTopics, authUser]);
 
     const filteredQuestions =
         selectedType === "all" ? quizData : quizData.filter((q) => q.type === selectedType);

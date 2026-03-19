@@ -251,6 +251,7 @@ def sample_questions_with_topic_coverage(
 async def generate_mcq_quiz(req: QuizGenerateRequest):
     """Serve quiz from DB (random pick). If not enough questions exist, auto-generate via AI."""
     print(f"📥 Quiz request: {req.completed_topics}, num={req.num_questions}")
+    print(f"📥 user_id received: {req.user_id}")
 
     try:
         main_topics = convert_topic_ids_to_main_topics(req.completed_topics)
@@ -282,6 +283,7 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
                             retired_ids.add(item['question_id'])
 
                 print(f"👤 User {req.user_id} has {len(retired_ids)} retired questions")
+                print(f"🚫 retired_ids count: {len(retired_ids)}")
             finally:
                 db.close()
 
@@ -339,6 +341,7 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
 async def stream_more_questions(req: QuizGenerateRequest):
     """Stream NEW questions via SSE, one at a time as they are generated."""
     print(f"📥 'More Questions' SSE request: {req.completed_topics}, num={req.num_questions}")
+    print(f"📥 user_id received: {req.user_id}")
 
     # ✅ lazy-init RAG before entering the streaming generator
     ret = await get_retriever()
