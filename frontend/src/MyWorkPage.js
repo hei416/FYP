@@ -18,6 +18,10 @@ export default function MyWorkPage() {
   }, []);
 
   const handleDelete = async (id) => {
+    if (!window.confirm(
+      "Delete this record? Your score and answer history will be permanently removed."
+    )) return;
+
     await deleteWork(id);
     setItems(items.filter(i => i.id !== id));
   };
