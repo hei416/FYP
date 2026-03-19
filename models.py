@@ -1,0 +1,142 @@
+import os
+import openai
+from typing import Any, List, Optional
+
+try:
+    from langchain.embeddings import OpenAIEmbeddings
+except Exception:
+    OpenAIEmbeddings = None
+
+try:
+    from langchain.chat_models import ChatOpenAI
+except Exception:
+    ChatOpenAI = None
+
+
+def _configure_openai_base(base_url: Optional[str], api_key: Optional[str], api_version: Optional[str] = None):
+    """Configure openai.client globals to use the HKBU OpenAI-compatible route.
+
+    The HKBU server exposes an OpenAI-compatible path under `/openai`.
+    """
+    if not base_url:
+        return
+
+    # Ensure we have a base that points to the OpenAI-compatible route
+    if base_url.rstrip('/').endswith('/openai'):
+        api_base = base_url.rstrip('/')
+    else:
+        api_base = base_url.rstrip('/') + '/openai'
+
+    openai.api_key = api_key
+    openai.api_base = api_base
+
+
+class HKBUEmbeddings:
+    """Wrapper around LangChain/OpenAI embeddings configured for HKBU.
+
+    If LangChain's `OpenAIEmbeddings` is available we instantiate it with
+    the HKBU OpenAI-compatible base. Otherwise we fall back to a simple
+    requests-based implementation (not required for typical setups).
+    """
+
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None,
+                 model: Optional[str] = None, api_version: Optional[str] = None, **kwargs: Any):
+        self.api_key = api_key or os.getenv('HKBU_API_KEY') or os.getenv('API_KEY')
+        self.base_url = base_url or os.getenv('HKBU_BASE_URL') or os.getenv('BASE_URL')
+        self.model = model or os.getenv('EMBEDDING_MODEL')
+        self.api_version = api_version or os.getenv('EMBEDDING_API_VERSION')
+
+        _configure_openai_base(self.base_url, self.api_key, self.api_version)
+
+        if OpenAIEmbeddings:
+            # LangChain-compatible wrapper
+            self._impl = OpenAIEmbeddings(
+                model=self.model,
+                openai_api_key=self.api_key,
+                openai_api_base=openai.api_base,
+                **kwargs,
+            )
+        else:
+            self._impl = None
+
+    def embed_query(self, text: str) -> List[float]:
+        if self._impl:
+            return self._impl.embed_query(text)
+
+        # Minimal HTTP fallback using the HKBU direct REST embeddings route
+        import requests
+        url = f"{(self.base_url or '').rstrip('/')}/deployments/{self.model}/embeddings?api-version={self.api_version}"
+        resp = requests.post(
+            url,
+            headers={
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={'input': text}
+        )
+        resp.raise_for_status()
+        return resp.json()['data'][0]['embedding']
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        if self._impl:
+            return self._impl.embed_documents(texts)
+        return [self.embed_query(t) for t in texts]
+
+
+class HKBULLM:
+    """Light wrapper that configures LangChain ChatOpenAI to use HKBU OpenAI route.
+
+    If `langchain.chat_models.ChatOpenAI` is available we instantiate it so
+    the object behaves as a LangChain LLM. Otherwise a minimal requests-based
+    `__call__` is provided for basic usage.
+    """
+
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None,
+                 model: Optional[str] = None, api_version: Optional[str] = None,
+                 temperature: float = 0.0, max_tokens: int = 512, **kwargs: Any):
+        self.api_key = api_key or os.getenv('HKBU_API_KEY') or os.getenv('API_KEY')
+        self.base_url = base_url or os.getenv('HKBU_BASE_URL') or os.getenv('BASE_URL')
+        self.model = model or os.getenv('FAISS_MODEL_NAME')
+        self.api_version = api_version or os.getenv('FAISS_API_VERSION')
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+
+        _configure_openai_base(self.base_url, self.api_key, self.api_version)
+
+        if ChatOpenAI:
+            # LangChain ChatOpenAI expects openai_api_base/openai_api_key kwargs
+            self._impl = ChatOpenAI(
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                openai_api_key=self.api_key,
+                openai_api_base=openai.api_base,
+                **kwargs,
+            )
+        else:
+            self._impl = None
+
+    def __call__(self, *args, **kwargs):
+        # Make this object callable for simple chain compatibility.
+        if self._impl:
+            return self._impl(*args, **kwargs)
+
+        # Minimal REST fallback: call HKBU chat endpoint
+        import requests
+        url = f"{(self.base_url or '').rstrip('/')}/deployments/{self.model}/chat/completions?api-version={self.api_version}"
+        payload = kwargs.get('json') or {}
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        resp = requests.post(url, headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        # Attempt to extract textual response in a few common shapes
+        if isinstance(data, dict):
+            # OpenAI-like response
+            try:
+                return data['choices'][0]['message']['content']
+            except Exception:
+                return data
+        return data
