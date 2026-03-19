@@ -68,6 +68,7 @@ export default function PracticalTest() {
     const [result, setResult] = useState('');
     const [elapsedTime, setElapsedTime] = useState(0);
     const [started, setStarted] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
 
     const [gradingResults, setGradingResults] = useState(null);
     const [hints, setHints] = useState([]);
@@ -118,6 +119,9 @@ export default function PracticalTest() {
         setHintLevel('gentle');
         setTestResults(null);
         setResult('');
+        setElapsedTime(0);   // auto-reset timer when loading a question
+        setStarted(true);    // auto-start timer when question loads
+        setSubmitted(false); // unlock editor for new question
     };
 
     // ── generate AI question ──────────────────────────────────────────────────
@@ -135,8 +139,6 @@ export default function PracticalTest() {
             if (!res.ok) throw new Error(await res.text());
             const payload = await res.json();
             applyQuestionData(payload.question_data, payload.question_data.id);
-            setStarted(false);
-            setElapsedTime(0);
             setScreen('active');
         } catch (e) {
             setGenError(`Failed to generate question: ${e.message}`);
@@ -183,7 +185,10 @@ export default function PracticalTest() {
     };
 
     const handleSubmit = async (e) => {
+        if (submitted) return; // block double submit
         if (e) e.preventDefault();
+        setSubmitted(true);      // lock immediately
+        setStarted(false);       // stop timer
         const { url, body } = buildEvalPayload();
         try {
             const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -387,11 +392,9 @@ export default function PracticalTest() {
                 <>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-                            {!started ? (
-                                <button onClick={() => { setStarted(true); setElapsedTime(0); }} style={btn.success}>▶ Start Timer</button>
-                            ) : (
-                                <span style={{ fontWeight: font.weightBold, color: colors.text, fontSize: font.sizeMd }}>⏱ {formatTime(elapsedTime)}</span>
-                            )}
+                            <span style={{ fontWeight: font.weightBold, color: colors.text, fontSize: font.sizeMd }}>
+                                ⏱ {formatTime(elapsedTime)}
+                            </span>
                             <span style={{
                                 background: isAiQuestion ? colors.primaryLight : colors.successLight,
                                 color: isAiQuestion ? colors.primary : colors.success,
@@ -413,11 +416,16 @@ export default function PracticalTest() {
                     <div style={{ ...card.base, marginTop: spacing.lg, maxHeight: 320, overflowY: 'auto' }}
                         dangerouslySetInnerHTML={{ __html: instruction }} />
 
-                    <Compiler code={studentCode} setCode={setStudentCode} onRun={handleRun} output={result} hideRunButton={true} />
+                    <Compiler code={studentCode} setCode={setStudentCode} onRun={handleRun} output={result}
+                        hideRunButton={true}
+                        readOnly={submitted}
+                    />
 
                     <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                        <button onClick={handleRun} style={btn.primary}>▶ Run Code</button>
-                        <button onClick={handleSubmit} style={btn.success}>📤 Submit Code</button>
+                        <button onClick={handleRun} disabled={submitted} style={{ ...btn.primary, opacity: submitted ? 0.5 : 1 }}>▶ Run Code</button>
+                        <button onClick={handleSubmit} disabled={submitted} style={{ ...btn.success, opacity: submitted ? 0.5 : 1 }}>
+                            {submitted ? '✅ Submitted' : '📤 Submit Code'}
+                        </button>
                     </div>
 
                     <div style={{ ...card.warning, padding: spacing.xl, margin: `${spacing.xl}px 0` }}>
