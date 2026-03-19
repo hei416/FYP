@@ -12,7 +12,7 @@ import asyncio
 import random
 from sqlalchemy import func
 from database import SessionLocal
-from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel
+from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
 from services.conversation_manager import ConversationManager
 
@@ -92,6 +92,7 @@ class GradingResponse(BaseModel):
 class QuizGenerateRequest(BaseModel):
     completed_topics: List[str]
     num_questions: int = 10
+    user_id: Optional[int] = None
 
 class MCQ(BaseModel):
     id: str
@@ -261,6 +262,32 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
 
         db_questions = get_questions_from_db(req.completed_topics)
         print(f"💾 DB has {len(db_questions)} questions for these topics")
+
+        # If user is logged in, hard-exclude any questions they've already
+        # answered correctly (retired). These are stored in SavedWork rows
+        # with work_type == 'quiz' and a `result_data.review` list.
+        if req.user_id:
+            db = SessionLocal()
+            try:
+                rows = db.query(SavedWork).filter(
+                    SavedWork.user_id == req.user_id,
+                    SavedWork.work_type == 'quiz'
+                ).all()
+
+                retired_ids = set()
+                for row in rows:
+                    review = (row.result_data or {}).get('review', [])
+                    for item in review:
+                        if item.get('is_correct') and item.get('question_id'):
+                            retired_ids.add(item['question_id'])
+
+                print(f"👤 User {req.user_id} has {len(retired_ids)} retired questions")
+            finally:
+                db.close()
+
+            # Hard filter — retired questions never appear again
+            db_questions = [q for q in db_questions if q['id'] not in retired_ids]
+            print(f"📊 Pool after retirement filter: {len(db_questions)} questions remaining")
 
         if len(db_questions) >= adjusted_num:
             sampled = sample_questions_with_topic_coverage(db_questions, adjusted_num, main_topics)

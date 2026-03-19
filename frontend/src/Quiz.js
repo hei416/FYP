@@ -319,6 +319,7 @@ export default function Quiz() {
             if (token) {
                 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
                 const reviewData = filteredQuestions.map((q, idx) => ({
+                    question_id: q.id,
                     question: q.question,
                     your_answer: allUserAnswers[idx]?.answer || '(no answer)',
                     correct_answer: q.options ? q.options[q.correct_index] : q.answer,
