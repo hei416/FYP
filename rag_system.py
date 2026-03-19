@@ -114,6 +114,17 @@ def load_or_create_vectorstore(chunks, embeddings, vectorstore_path=VECTORSTORE_
                 embeddings,
                 allow_dangerous_deserialization=True
             )
+            # Force-override any serialized embedding references with the
+            # HKBU embedding *callable* to avoid calling old OpenAIEmbedding
+            # instances that may be baked into the saved index.
+            try:
+                vectorstore.embedding_function = embeddings.embed_query
+            except Exception:
+                try:
+                    vectorstore._embedding_function = embeddings.embed_query
+                except Exception:
+                    pass
+
             print(f"Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             return vectorstore
         except Exception as e:
@@ -263,9 +274,12 @@ def setup_rag_system(rebuild_vectorstore=False, force_delete=False):
             # OpenAI path; override to ensure we use the direct HKBU
             # deployment embeddings implementation.
             try:
-                vectorstore.embedding_function = embeddings
+                vectorstore.embedding_function = embeddings.embed_query
             except Exception:
-                pass
+                try:
+                    vectorstore._embedding_function = embeddings.embed_query
+                except Exception:
+                    pass
             print(f"✅ Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             
             # Build chain and return immediately
