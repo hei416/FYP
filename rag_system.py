@@ -14,14 +14,44 @@ try:
 except Exception as e:
     print(f"⚠️ Local 'models' import failed: {e}. Attempting LangChain OpenAI fallback.")
     try:
-        from langchain.embeddings import OpenAIEmbeddings
+        # Prefer the Azure-compatible embeddings class which supports
+        # explicit deployment + endpoint configuration that HKBU requires.
+        from langchain_openai import AzureOpenAIEmbeddings
         from langchain.chat_models import ChatOpenAI
+        print("ℹ️ Fallback to LangChain Azure-compatible classes successful.")
 
-        # Use LangChain OpenAI classes as a best-effort fallback. These will
-        # be instantiated later using the project's config (API_KEY, BASE_URL).
-        HKBUEmbeddings = OpenAIEmbeddings
-        HKBULLM = ChatOpenAI
-        print("ℹ️ Fallback to LangChain OpenAI classes successful.")
+        def _hkbu_embeddings_factory(api_key=None, base_url=None, model=None, api_version=None, **kwargs):
+            # Normalize endpoint: strip HKBU's `/api/v0/rest` or `/openai` suffix
+            endpoint = (base_url or "").rstrip('/')
+            if endpoint.endswith('/api/v0/rest'):
+                endpoint = endpoint[: -len('/api/v0/rest')]
+            if endpoint.endswith('/openai'):
+                endpoint = endpoint[: -len('/openai')]
+            return AzureOpenAIEmbeddings(
+                azure_deployment=model,
+                azure_endpoint=endpoint,
+                api_key=api_key,
+                api_version=api_version,
+                **kwargs,
+            )
+
+        def _hkbu_llm_factory(api_key=None, base_url=None, model=None, api_version=None, temperature=None, max_tokens=None, **kwargs):
+            endpoint = (base_url or "").rstrip('/')
+            if endpoint.endswith('/api/v0/rest'):
+                endpoint = endpoint[: -len('/api/v0/rest')]
+            if endpoint.endswith('/openai'):
+                endpoint = endpoint[: -len('/openai')]
+            return ChatOpenAI(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                openai_api_key=api_key,
+                openai_api_base=endpoint,
+                **kwargs,
+            )
+
+        HKBUEmbeddings = _hkbu_embeddings_factory
+        HKBULLM = _hkbu_llm_factory
     except Exception as e2:
         print(f"⚠️ LangChain OpenAI fallback unavailable: {e2}. RAG cannot initialize.")
         HKBUEmbeddings = None
