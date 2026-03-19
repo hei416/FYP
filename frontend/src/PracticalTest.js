@@ -71,6 +71,7 @@ export default function PracticalTest() {
     const [submitted, setSubmitted] = useState(false);
 
     const [gradingResults, setGradingResults] = useState(null);
+    const [gradingLoading, setGradingLoading] = useState(false);
     const [hints, setHints] = useState([]);
     const [hintLevel, setHintLevel] = useState('gentle');
     const [hintLoading, setHintLoading] = useState(false);
@@ -236,8 +237,9 @@ export default function PracticalTest() {
     };
 
     const gradeSubmission = async (results) => {
+        setGradingLoading(true);
         try {
-            const questionDesc = currentQuestionData?.question?.description || "Complete the coding task";
+            const questionDesc  = currentQuestionData?.question?.description || "Complete the coding task";
             const questionTitle = currentQuestionData?.question?.title || "Coding Challenge";
             const res = await fetch(`${API_BASE}/api/grading/evaluate`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -247,50 +249,38 @@ export default function PracticalTest() {
                     student_code: studentCode,
                     test_results: { passed: results.passed || [], failed: results.failed || [] },
                     expected_outputs: results.expected_outputs || [],
-                    actual_outputs: results.actual_outputs || [],
+                    actual_outputs:   results.actual_outputs  || [],
                 }),
             });
             if (res.ok) {
                 const grading = await res.json();
                 setGradingResults(grading);
 
-                // Auto-save to My Work if logged in
                 const token = localStorage.getItem('authToken');
                 if (token) {
                     const passed = results.failed?.length === 0;
                     fetch(`${API_BASE}/my-work/save`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${token}`,
-                        },
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                         body: JSON.stringify({
                             work_type: 'test',
                             title: `${questionTitle}`,
                             topic_id: selectedTopics[0] || null,
                             content: studentCode,
                             result_data: {
-                                score: grading.total_score,
-                                grade: grading.grade_letter,
-                                passed: passed,
-                                feedback: grading.feedback,
-                                suggestions: grading.suggestions || [],
-                                question: {
-                                    title: questionTitle,
-                                    description: questionDesc,
+                                score: grading.total_score, grade: grading.grade_letter, passed,
+                                feedback: grading.feedback, suggestions: grading.suggestions || [],
+                                question: { title: questionTitle, description: questionDesc,
                                     methods: currentQuestionData?.question?.methods || [],
-                                    expected_output: currentQuestionData?.question?.expectedOutput || [],
-                                },
-                                test_cases: {
-                                    passed: results.passed,
-                                    failed: results.failed,
-                                },
+                                    expected_output: currentQuestionData?.question?.expectedOutput || [] },
+                                test_cases: { passed: results.passed, failed: results.failed },
                             },
                         }),
                     }).catch(err => console.warn('saveWork failed:', err));
                 }
             }
         } catch {}
+        finally { setGradingLoading(false); }
     };
 
     const requestHint = async () => {
@@ -463,6 +453,32 @@ export default function PracticalTest() {
                             </div>
                         ))}
                     </div>
+
+                    {gradingLoading && !gradingResults && (
+                        <div style={{
+                            ...card.info,
+                            padding: spacing.xl,
+                            margin: `${spacing.xl}px 0`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: spacing.md,
+                        }}>
+                            <div style={{
+                                width: 40, height: 40,
+                                border: `4px solid ${colors.primaryLight}`,
+                                borderTop: `4px solid ${colors.primary}`,
+                                borderRadius: '50%',
+                                animation: 'spin 0.8s linear infinite',
+                            }} />
+                            <p style={{ color: colors.primary, fontWeight: font.weightSemibold, margin: 0 }}>
+                                🤖 AI is grading your submission…
+                            </p>
+                            <p style={{ color: colors.textSecondary, fontSize: font.sizeSm, margin: 0 }}>
+                                This usually takes 5–10 seconds
+                            </p>
+                        </div>
+                    )}
 
                     {gradingResults && (
                         <div style={{ ...card.info, padding: spacing.xl, margin: `${spacing.xl}px 0` }}>

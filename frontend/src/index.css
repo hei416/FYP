@@ -101,3 +101,8 @@ p, li, label, span, td, th {
     line-height: 1.5;
   }
 }
+
+/* Spinner keyframe for AI grading indicator */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

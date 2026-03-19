@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from './AuthContext';
 import { useLocation } from "react-router-dom";
-import { ProgressTracker } from "./ProgressTracker";
+import { ProgressTracker, QUIZ_PASS_SCORE } from "./ProgressTracker";
 import { TOPIC_GROUPS } from "./HomePage";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
@@ -588,7 +588,7 @@ export default function Quiz() {
 
     if (completed) {
         const scorePercent = Math.round((score / filteredQuestions.length) * 100);
-        const passed = scorePercent >= 60;
+        const passed = scorePercent >= QUIZ_PASS_SCORE;
 
         return (
             <div style={pageContainer(800)}>
