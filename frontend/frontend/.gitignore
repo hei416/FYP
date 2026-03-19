@@ -18,6 +18,7 @@ dist/
 
 # IDE
 .vscode/
+*.log
 .idea/
 *.swp
 *.swo
@@ -35,17 +36,5 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Python virtual environments
-.venv/
-venv/
-
 # Deployment zip
 deploy.zip
-.DS_Store
-__pycache__/
-*.log
-.venv/
-.idea/
-.VSCodeCounter/
-*.iml
-
