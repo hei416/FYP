@@ -227,6 +227,15 @@ def setup_rag_system(rebuild_vectorstore=False, force_delete=False):
                 embeddings,
                 allow_dangerous_deserialization=True
             )
+            # Ensure the loaded vectorstore uses the current embeddings
+            # implementation (HKBUEmbeddings). Some saved vectorstores may
+            # contain serialized embedding clients that call the wrong
+            # OpenAI path; override to ensure we use the direct HKBU
+            # deployment embeddings implementation.
+            try:
+                vectorstore.embedding_function = embeddings
+            except Exception:
+                pass
             print(f"✅ Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             
             # Build chain and return immediately

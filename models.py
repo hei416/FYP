@@ -48,16 +48,11 @@ class HKBUEmbeddings:
 
         _configure_openai_base(self.base_url, self.api_key, self.api_version)
 
-        if OpenAIEmbeddings:
-            # LangChain-compatible wrapper
-            self._impl = OpenAIEmbeddings(
-                model=self.model,
-                openai_api_key=self.api_key,
-                openai_api_base=openai.api_base,
-                **kwargs,
-            )
-        else:
-            self._impl = None
+        # Do NOT instantiate LangChain's OpenAIEmbeddings here because it
+        # will call the wrong `/openai/embeddings` path (missing
+        # `/deployments/{model}/`). Use direct HTTP calls to the HKBU
+        # OpenAI-compatible `/openai/deployments/{model}/embeddings` route.
+        self._impl = None
 
     def embed_query(self, text: str) -> List[float]:
         if self._impl:
@@ -65,7 +60,10 @@ class HKBUEmbeddings:
 
         # Minimal HTTP fallback using the HKBU direct REST embeddings route
         import requests
-        url = f"{(self.base_url or '').rstrip('/')}/deployments/{self.model}/embeddings?api-version={self.api_version}"
+        url = (
+            f"{(self.base_url or '').rstrip('/')}"
+            f"/openai/deployments/{self.model}/embeddings?api-version={self.api_version}"
+        )
         resp = requests.post(
             url,
             headers={
