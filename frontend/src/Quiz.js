@@ -419,7 +419,17 @@ export default function Quiz() {
                     }}
                 >
                     {DEFAULT_TOPICS.map((topic, idx) => {
-                        const completed = isTopicAvailable(topic);
+                        const groupIdx = topicGroupMap[topic];
+                        if (groupIdx === undefined) {
+                            return null;
+                        }
+                        const group = TOPIC_GROUPS[groupIdx];
+                        const anyDone = Array.isArray(group?.subtopics) && group.subtopics.some((id) => completedTopics.includes(id));
+                        const allDone = Array.isArray(group?.subtopics) && group.subtopics.every((id) => completedTopics.includes(id));
+
+                        // `anyDone` keeps current availability behavior; `allDone` used for completed styling
+                        const completed = allDone;
+
                         return (
                             <label
                                 key={idx}
@@ -454,8 +464,8 @@ export default function Quiz() {
                                     }}
                                     style={{ width: 18, height: 18, marginTop: 1 }}
                                 />
-                                <span style={{ flex: 1 }}>{completed ? "" : "⚠️ "}{topic}</span>
-                                {completed ? (
+                                <span style={{ flex: 1 }}>{allDone ? "" : anyDone ? "" : "⚠️ "}{topic}</span>
+                                {allDone ? (
                                     <span
                                         style={{
                                             fontSize: font.sizeXs,
@@ -464,6 +474,16 @@ export default function Quiz() {
                                         }}
                                     >
                                         ✓ Completed
+                                    </span>
+                                ) : anyDone ? (
+                                    <span
+                                        style={{
+                                            fontSize: font.sizeXs,
+                                            color: '#2563eb',
+                                            fontWeight: font.weightSemibold,
+                                        }}
+                                    >
+                                        📖 In Progress
                                     </span>
                                 ) : (
                                     <span

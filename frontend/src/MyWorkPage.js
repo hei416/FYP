@@ -53,12 +53,21 @@ export default function MyWorkPage() {
         </div>
       )}
 
-      {filtered.map(item => (
-        <div key={item.id} style={{
-          background: '#fff', borderRadius: 12, padding: '16px 20px',
-          marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          borderLeft: `4px solid ${typeColor[item.work_type]}`
-        }}>
+      {filtered.map(item => {
+        const passed = item.result_data?.score >= 60 || item.result_data?.passed === true;
+        const hasPassed = (item.work_type === 'quiz' || item.work_type === 'test') && item.result_data?.score !== undefined;
+
+        return (
+          <div key={item.id} style={{
+            background: hasPassed ? (passed ? '#f0fdf4' : '#fef2f2') : '#fff',
+            borderRadius: 12, padding: '16px 20px',
+            marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            borderLeft: `4px solid ${
+              hasPassed
+                ? (passed ? '#10b981' : '#ef4444')
+                : typeColor[item.work_type]
+            }`
+          }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
               <span style={{ fontSize: 12, color: typeColor[item.work_type], fontWeight: 700, textTransform: 'uppercase' }}>
@@ -193,7 +202,8 @@ export default function MyWorkPage() {
             </div>
           </div>
         </div>
-      ))}
+      );
+      })}
     </div>
   );
 }

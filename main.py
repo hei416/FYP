@@ -101,22 +101,22 @@ async def ensure_pdf_chunks_loaded():
             PDF_INITIALIZED = True
 
 
-    def run_migrations(db_engine):
-        """Quick manual migrations helper — run once at startup."""
-        try:
-            from sqlalchemy import text
-            with db_engine.connect() as conn:
-                try:
-                    conn.execute(text("""
-                        ALTER TABLE user_progress
-                        ADD COLUMN IF NOT EXISTS dismissed_milestones TEXT[] DEFAULT '{}'
-                    """))
-                    conn.commit()
-                    print("✅ Migration: dismissed_milestones column ensured on user_progress")
-                except Exception as e:
-                    print(f"⚠️ dismissed_milestones migration: {e}")
-        except Exception as e:
-            print(f"⚠️ run_migrations error: {e}")
+def run_migrations(db_engine):
+    """Quick manual migrations helper — run once at startup."""
+    try:
+        from sqlalchemy import text
+        with db_engine.connect() as conn:
+            try:
+                conn.execute(text("""
+                    ALTER TABLE user_progress
+                    ADD COLUMN IF NOT EXISTS dismissed_milestones TEXT[] DEFAULT '{}'
+                """))
+                conn.commit()
+                print("✅ Migration: dismissed_milestones column ensured on user_progress")
+            except Exception as e:
+                print(f"⚠️ dismissed_milestones migration: {e}")
+    except Exception as e:
+        print(f"⚠️ run_migrations error: {e}")
 
 @app.on_event("startup")
 async def startup():
@@ -191,6 +191,23 @@ async def startup():
                 print("✅ Migration: conversation_summaries table ready")
             except Exception as e:
                 print(f"⚠️ conversation_summaries migration: {e}")
+
+            # quiz_attempts table
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS quiz_attempts (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id),
+                        quiz_id VARCHAR(255) NOT NULL,
+                        score FLOAT NOT NULL,
+                        answers JSONB,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: quiz_attempts table ready")
+            except Exception as e:
+                print(f"⚠️ quiz_attempts migration: {e}")
 
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")
