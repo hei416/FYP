@@ -66,6 +66,7 @@ export default function PracticalTest() {
     const [instruction, setInstruction] = useState('');
     const [studentCode, setStudentCode] = useState('');
     const [result, setResult] = useState('');
+    const [compilerErrorLines, setCompilerErrorLines] = useState([]); // lines to highlight in editor (1-based)
     const [elapsedTime, setElapsedTime] = useState(0);
     const [started, setStarted] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -179,7 +180,24 @@ export default function PracticalTest() {
         try {
             const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const data = await res.json();
-            setResult(data.success ? `Output:\n\n${data.output}` : `❌ Compilation/Runtime Error:\n${data.error}`);
+            if (data.error && !data.success) {
+                setResult(`❌ Compilation/Runtime Error:\n${data.error}`);
+                // IMPORTANT: adjust WRAPPER_LINE_OFFSET to match how many lines your server-side wrapper injects.
+                const WRAPPER_LINE_OFFSET = 0; // <-- set this to e.g. 38 if your wrapper adds 38 lines before student code
+                const parsed = (function parseCompilerErrors(errorText) {
+                    const errors = [];
+                    const regex = /(?:[\w\-]+)\.java:(\d+):/g;
+                    let match;
+                    while ((match = regex.exec(errorText)) !== null) {
+                        errors.push(parseInt(match[1], 10));
+                    }
+                    return errors;
+                })(data.error).map(l => Math.max(1, l - WRAPPER_LINE_OFFSET));
+                setCompilerErrorLines(parsed);
+            } else {
+                setResult(data.success ? `Output:\n\n${data.output}` : `❌ Compilation/Runtime Error:\n${data.error}`);
+                setCompilerErrorLines([]);
+            }
         } catch (e) {
             setResult(`Failed to run code: ${e.message}`);
         }
@@ -196,6 +214,18 @@ export default function PracticalTest() {
             const data = await res.json();
             if (!data.success) {
                 setResult(`❌ Submission Failed - Compilation/Runtime Error:\n${data.error}`);
+                // parse and pass error lines to the editor
+                const WRAPPER_LINE_OFFSET = 0; // adjust to your wrapper's prepended lines
+                const parsed = (function parseCompilerErrors(errorText) {
+                    const errors = [];
+                    const regex = /(?:[\w\-]+)\.java:(\d+):/g;
+                    let match;
+                    while ((match = regex.exec(errorText)) !== null) {
+                        errors.push(parseInt(match[1], 10));
+                    }
+                    return errors;
+                })(data.error).map(l => Math.max(1, l - WRAPPER_LINE_OFFSET));
+                setCompilerErrorLines(parsed);
                 const errorResults = { passed: [], failed: ["Compilation Error"], expected_outputs: [], actual_outputs: [data.error] };
                 setTestResults(errorResults);
                 await gradeSubmission(errorResults);
@@ -409,6 +439,7 @@ export default function PracticalTest() {
                     <Compiler code={studentCode} setCode={setStudentCode} onRun={handleRun} output={result}
                         hideRunButton={true}
                         readOnly={submitted}
+                        compilerErrorLines={compilerErrorLines}
                     />
 
                     <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>

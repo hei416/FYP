@@ -66,6 +66,18 @@ from core.config import (
 )
 
 
+def load_faiss_with_forced_embeddings(path: str, embeddings) -> FAISS:
+    """Load FAISS but force our embeddings by reclassifying the loaded object."""
+
+    class PatchedFAISS(FAISS):
+        def _embed_query(self, text: str) -> list:
+            return embeddings.embed_query(text)
+
+    vs = FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
+    vs.__class__ = PatchedFAISS  # reclassify live object to use overridden method
+    return vs
+
+
 def load_documents(docs_dir=DOCS_DIR):
     """Load all .txt documents from directory"""
     print("Loading documents...")
@@ -109,35 +121,7 @@ def load_or_create_vectorstore(chunks, embeddings, vectorstore_path=VECTORSTORE_
     if os.path.exists(vectorstore_path):
         print("Loading existing vectorstore...")
         try:
-            vectorstore = FAISS.load_local(
-                vectorstore_path,
-                embeddings,
-                allow_dangerous_deserialization=True
-            )
-            # Force-override any serialized embedding references with the
-            # HKBU embedding *callable* to avoid calling old OpenAIEmbedding
-            # instances that may be baked into the saved index.
-            try:
-                vectorstore.embedding_function = embeddings
-            except Exception:
-                try:
-                    vectorstore._embedding_function = embeddings
-                except Exception:
-                    pass
-
-            # Nuclear override: monkey-patch the internal method FAISS actually
-            # calls to embed queries. This ensures the live object uses our
-            # `HKBUEmbeddings.embed_query` regardless of what was serialized.
-            try:
-                import types
-
-                def _patched_embed_query(self, text: str):
-                    return embeddings.embed_query(text)
-
-                vectorstore._embed_query = types.MethodType(_patched_embed_query, vectorstore)
-            except Exception as _e:
-                print(f"⚠️ Could not monkey-patch _embed_query: {_e}")
-
+            vectorstore = load_faiss_with_forced_embeddings(vectorstore_path, embeddings)
             print(f"Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             return vectorstore
         except Exception as e:
@@ -301,35 +285,7 @@ def setup_rag_system(rebuild_vectorstore=False, force_delete=False):
     if os.path.exists(VECTORSTORE_PATH) and not rebuild_vectorstore:
         print("Loading existing vectorstore...")
         try:
-            vectorstore = FAISS.load_local(
-                VECTORSTORE_PATH,
-                embeddings,
-                allow_dangerous_deserialization=True
-            )
-            # Ensure the loaded vectorstore uses the current embeddings
-            # implementation (HKBUEmbeddings). Some saved vectorstores may
-            # contain serialized embedding clients that call the wrong
-            # OpenAI path; override to ensure we use the direct HKBU
-            # deployment embeddings implementation.
-            try:
-                vectorstore.embedding_function = embeddings
-            except Exception:
-                try:
-                    vectorstore._embedding_function = embeddings
-                except Exception:
-                    pass
-            # Nuclear override: monkey-patch the internal method FAISS actually
-            # calls to embed queries. This ensures the live object uses our
-            # `HKBUEmbeddings.embed_query` regardless of what was serialized.
-            try:
-                import types
-
-                def _patched_embed_query(self, text: str):
-                    return embeddings.embed_query(text)
-
-                vectorstore._embed_query = types.MethodType(_patched_embed_query, vectorstore)
-            except Exception as _e:
-                print(f"⚠️ Could not monkey-patch _embed_query: {_e}")
+            vectorstore = load_faiss_with_forced_embeddings(VECTORSTORE_PATH, embeddings)
             print(f"✅ Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             
             # Build chain and return immediately
@@ -372,3 +328,4 @@ def setup_rag_system(rebuild_vectorstore=False, force_delete=False):
     print()
     
     return rag_chain, retriever
+    

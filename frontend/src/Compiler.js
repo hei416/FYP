@@ -3,7 +3,7 @@ import Editor from '@monaco-editor/react';
 import { v4 as uuidv4 } from 'uuid';
 import { colors, radii, font, spacing, btn, codeOutput, transition } from './theme';
 
-function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnly = false }) {
+function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnly = false, compilerErrorLines = [] }) {
     const [files, setFiles] = useState([]);
     const [activeFileId, setActiveFileId] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -14,6 +14,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const [errorExplanations, setErrorExplanations] = useState({}); // { idx: "explanation text" }
+    const decorationIdsRef = useRef([]);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
     const filesRef = useRef(files);
@@ -115,6 +116,30 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
 
         setTimeout(() => checkSyntax(), 300);
     };
+
+    // Apply editor decorations for compiler errors coming from remote compile step
+    useEffect(() => {
+        if (!editorRef.current || !monacoRef.current) return;
+        const monaco = monacoRef.current;
+        // convert lines into decorations
+        if (Array.isArray(compilerErrorLines) && compilerErrorLines.length > 0) {
+            const decorations = compilerErrorLines.map(line => ({
+                range: new monaco.Range(line, 1, line, 1),
+                options: {
+                    isWholeLine: true,
+                    className: 'errorLineHighlight',
+                    glyphMarginClassName: 'errorGlyph',
+                    hoverMessage: { value: `⚠️ Compiler error on line ${line}` }
+                }
+            }));
+            try {
+                decorationIdsRef.current = editorRef.current.deltaDecorations(decorationIdsRef.current || [], decorations);
+            } catch (e) { console.warn('Decoration error:', e); }
+        } else {
+            // clear decorations
+            try { decorationIdsRef.current = editorRef.current.deltaDecorations(decorationIdsRef.current || [], []); } catch (e) {}
+        }
+    }, [compilerErrorLines]);
 
     const addFile = () => {
         const newFile = {
