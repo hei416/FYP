@@ -10,6 +10,7 @@ import json
 import time
 import asyncio
 import random
+import requests
 from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork
@@ -1085,6 +1086,12 @@ async def ai_partial_grading(req: GradingRequest):
             raise HTTPException(status_code=400, detail="No test results provided")
 
         test_case_score = (len(req.test_results['passed']) / total_tests) * 50
+        # DEBUG: print retriever/vectorstore types to detect stale unpatched vectorstore
+        try:
+            print(f"DEBUG retriever vectorstore class: {type(ret.vectorstore).__name__}")
+            print(f"DEBUG vectorstore embed fn: {type(getattr(ret.vectorstore, 'embedding_function', None)).__name__}")
+        except Exception as e:
+            print(f"DEBUG failed to introspect retriever: {e}")
         relevant_docs = ret.invoke(f"Java {req.problem_description} best practices")
         best_practices = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:400]}"
@@ -1168,6 +1175,16 @@ Respond in JSON:
     except json.JSONDecodeError as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to parse grading JSON: {str(e)}")
+    except requests.exceptions.HTTPError as e:
+        traceback.print_exc()
+        status_code = None
+        try:
+            status_code = e.response.status_code if e.response is not None else None
+        except Exception:
+            status_code = None
+        if status_code == 401:
+            raise HTTPException(status_code=503, detail="Embedding service unauthorized — API key may have expired")
+        raise HTTPException(status_code=502, detail=f"Embedding service error: {str(e)}")
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Grading error: {str(e)}")
