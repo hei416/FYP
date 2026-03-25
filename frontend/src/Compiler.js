@@ -85,6 +85,16 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         await Promise.all(
             errors.map(async (err, idx) => {
                 try {
+                    // For known class-name mismatch errors, return a deterministic hint
+                    if (err.message && err.message.startsWith("Class name mismatch")) {
+                        const m = err.message.match(/class '([a-zA-Z0-9_]+)'/);
+                        const cls = m ? m[1] : 'YourClass';
+                        const activeFilename = filesRef.current.find(f => f.id === activeFileIdRef.current)?.filename || 'YourFile.java';
+                        const fileBase = activeFilename.replace(/\.java$/i, '');
+                        results[idx] = `Rename the file to ${cls}.java, or change the public class name to match the file name ${fileBase}.`;
+                        return;
+                    }
+
                     const res = await fetch(`${API_BASE}/api/explain-error`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

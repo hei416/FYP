@@ -195,8 +195,14 @@ async def check_syntax(request: Request):
                 # run the compiler to collect other errors (e.g. missing semicolons).
                 mismatch_error = validate_filename_class(filename, source)
                 if mismatch_error:
+                    # Try to report the actual line number of the public class
+                    source_lines = source.splitlines()
+                    mismatch_line = next(
+                        (i + 1 for i, l in enumerate(source_lines) if re.search(r'public\s+class\s+', l)),
+                        1  # fallback to 1 if not found
+                    )
                     all_errors.append({
-                        "file": filename, "line": 1, "column": 0,
+                        "file": filename, "line": mismatch_line, "column": 0,
                         "severity": "error", "message": mismatch_error
                     })
                     # do NOT `continue` here — keep collecting other errors below
