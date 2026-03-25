@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listWork, deleteWork } from './myWorkService';
+import { useAuth } from './AuthContext';
 
 const typeLabel = { playground: '💻 Code', quiz: '📝 Quiz', test: '🧪 Test' };
 const typeColor = { playground: '#3b82f6', quiz: '#8b5cf6', test: '#10b981' };
@@ -11,13 +12,18 @@ export default function MyWorkPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     listWork().then(data => {
       setItems(Array.isArray(data) ? data : []);
       setLoading(false);
     });
-  }, []);
+  }, [isAuthenticated]);
 
   const handleDelete = async (id) => {
     if (!window.confirm(
@@ -31,6 +37,47 @@ export default function MyWorkPage() {
   const toggleExpand = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   const filtered = filter === 'all' ? items : items.filter(i => i.work_type === filter);
+
+  // Auth gate — shown before any fetch is made
+  if (!isAuthenticated) {
+    return (
+      <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>📁 My Work</h1>
+        <div style={{
+          textAlign: 'center', padding: '60px 20px', borderRadius: 16,
+          background: '#f8fafc', border: '1px dashed #cbd5e1', marginTop: 32
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+            Login Required
+          </h2>
+          <p style={{ color: '#6b7280', marginBottom: 24, fontSize: 15 }}>
+            Register or log in to save and view your quiz results, test submissions, and playground code.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button
+              onClick={() => navigate('/auth?mode=login')}
+              style={{
+                padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 15
+              }}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => navigate('/auth?mode=register')}
+              style={{
+                padding: '10px 28px', borderRadius: 8, border: '2px solid #1d4ed8',
+                cursor: 'pointer', background: '#fff', color: '#1d4ed8', fontWeight: 700, fontSize: 15
+              }}
+            >
+              Register
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
