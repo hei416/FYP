@@ -62,12 +62,12 @@ class HKBUEmbeddings:
         import requests
         url = (
             f"{(self.base_url or '').rstrip('/')}"
-            f"/openai/deployments/{self.model}/embeddings?api-version={self.api_version}"
+            f"/deployments/{self.model}/embeddings?api-version={self.api_version}"
         )
         resp = requests.post(
             url,
             headers={
-                'Authorization': f'Bearer {self.api_key}',
+                'api-key': self.api_key,
                 'Content-Type': 'application/json'
             },
             json={'input': text}
@@ -124,7 +124,7 @@ class HKBULLM:
         url = f"{(self.base_url or '').rstrip('/')}/deployments/{self.model}/chat/completions?api-version={self.api_version}"
         payload = kwargs.get('json') or {}
         headers = {
-            'Authorization': f'Bearer {self.api_key}',
+            'api-key': self.api_key,
             'Content-Type': 'application/json'
         }
         resp = requests.post(url, headers=headers, json=payload)

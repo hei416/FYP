@@ -1,7 +1,7 @@
 import os
 # API Configuration
 # ============================================
-API_KEY = os.environ.get("API_KEY", "9acb2d5d-2ad0-40b9-975d-f6c9985f74c0")
+API_KEY = os.environ.get("API_KEY")
 PAIZA_API_KEY = os.environ.get("PAIZA_API_KEY", "guest")
 BASE_URL = "https://genai.hkbu.edu.hk/api/v0/rest"
 
