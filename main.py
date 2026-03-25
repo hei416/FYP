@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import traceback
 import time
 import asyncio

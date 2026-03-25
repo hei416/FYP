@@ -2,16 +2,6 @@ import os
 import openai
 from typing import Any, List, Optional
 
-try:
-    from langchain.embeddings import OpenAIEmbeddings
-except Exception:
-    OpenAIEmbeddings = None
-
-try:
-    from langchain.chat_models import ChatOpenAI
-except Exception:
-    ChatOpenAI = None
-
 
 def _configure_openai_base(base_url: Optional[str], api_key: Optional[str], api_version: Optional[str] = None):
     """Configure openai.client globals to use the HKBU OpenAI-compatible route.
@@ -101,40 +91,25 @@ class HKBULLM:
 
         _configure_openai_base(self.base_url, self.api_key, self.api_version)
 
-        if ChatOpenAI:
-            # LangChain ChatOpenAI expects openai_api_base/openai_api_key kwargs
-            self._impl = ChatOpenAI(
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                openai_api_key=self.api_key,
-                openai_api_base=openai.api_base,
-                **kwargs,
-            )
-        else:
-            self._impl = None
+        # Skip LangChain's ChatOpenAI completely — use the REST fallback below.
+        self._impl = None
 
-    def __call__(self, *args, **kwargs):
-        # Make this object callable for simple chain compatibility.
-        if self._impl:
-            return self._impl(*args, **kwargs)
-
-        # Minimal REST fallback: call HKBU chat endpoint
+    def __call__(self, prompt, **kwargs):
+        # Always use direct REST call to HKBU-compatible endpoint.
         import requests
         url = f"{(self.base_url or '').rstrip('/')}/deployments/{self.model}/chat/completions?api-version={self.api_version}"
-        payload = kwargs.get('json') or {}
+        messages = prompt if isinstance(prompt, list) else [{"role": "user", "content": str(prompt)}]
+        payload = {
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        # Allow caller to override or pass extra fields via kwargs
+        payload.update(kwargs.get('json', {}))
         headers = {
             'api-key': self.api_key,
             'Content-Type': 'application/json'
         }
         resp = requests.post(url, headers=headers, json=payload)
         resp.raise_for_status()
-        data = resp.json()
-        # Attempt to extract textual response in a few common shapes
-        if isinstance(data, dict):
-            # OpenAI-like response
-            try:
-                return data['choices'][0]['message']['content']
-            except Exception:
-                return data
-        return data
+        return resp.json()['choices'][0]['message']['content']
