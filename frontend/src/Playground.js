@@ -9,10 +9,9 @@ export default function Playground() {
     const location = useLocation();
     const navigate = useNavigate();
     const [code, setCode] = useState(() => {
-        // Check if code was passed from TopicDetailPage
-        if (location.state?.code) {
-            return location.state.code;
-        }
+        // Prefer restoredCode when navigating from My Work / tests, fall back to TopicDetailPage code
+        if (location.state?.restoredCode) return location.state.restoredCode;
+        if (location.state?.code) return location.state.code;
         return `public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, Java Playground!");

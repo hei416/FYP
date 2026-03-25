@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { listWork, deleteWork } from './myWorkService';
 
 const typeLabel = { playground: '💻 Code', quiz: '📝 Quiz', test: '🧪 Test' };
@@ -9,6 +10,7 @@ export default function MyWorkPage() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     listWork().then(data => {
@@ -124,6 +126,20 @@ export default function MyWorkPage() {
                 }}>{item.content}</pre>
               )}
 
+              {/* Open in Playground button for playground items */}
+              {item.work_type === 'playground' && (
+                <button
+                  onClick={() => navigate('/playground', { state: { restoredCode: item.content, title: item.title } })}
+                  style={{
+                    background: '#3b82f6', color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '6px 12px', cursor: 'pointer',
+                    fontSize: 12, marginTop: 10, display: 'block', width: '100%'
+                  }}
+                >
+                  🚀 Open in Playground
+                </button>
+              )}
+
               {/* View Details toggle */}
               {(item.result_data?.review || item.result_data?.question || (item.work_type === 'test' && item.content)) && (
                 <button onClick={() => toggleExpand(item.id)} style={{
@@ -188,6 +204,18 @@ export default function MyWorkPage() {
                         {item.content}
                       </pre>
                     </>
+                  )}
+                  {/* Open test submission in playground */}
+                  {item.content && (
+                    <button
+                      onClick={() => navigate('/playground', { state: { restoredCode: item.content, title: `Test: ${item.title}` } })}
+                      style={{
+                        marginTop: 10, background: '#10b981', color: '#fff', border: 'none',
+                        borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12
+                      }}
+                    >
+                      💻 Open Code in Playground
+                    </button>
                   )}
                 </div>
               )}
