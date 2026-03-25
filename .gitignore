@@ -1,4 +1,13 @@
-# 依賴
+__pycache__/
+*.pyc
+.env
+.venv/
+node_modules/
+frontend/node_modules/
+index.faiss
+.DS_Store
+.idea/
+.vscode/# 依賴
 node_modules/
 npm-debug.log*
 yarn-debug.log*

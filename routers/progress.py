@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 from database import get_db
 from db_models import User, UserProgress, QuizAttempt, TestAttempt
 from routers.auth import get_current_user
@@ -25,7 +25,7 @@ class ProgressUpdate(BaseModel):
 class QuizAttemptRequest(BaseModel):
     quiz_id: str
     score: float
-    answers: dict = None
+    answers: Optional[Any] = None
 
 class TestAttemptRequest(BaseModel):
     test_id: str
