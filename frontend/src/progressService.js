@@ -149,6 +149,22 @@ export async function markTopicCompleteOnBackend(topicId) {
  * Record a quiz attempt on the backend
  */
 export async function recordQuizAttempt(quizId, score, answers = null) {
+  // Update local progress immediately so UI doesn't depend on backend availability
+  try {
+    const local = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
+    local.quizzes = local.quizzes || { attempted: 0, completed: [], passed: [], totalQuizzes: 0 };
+    local.quizzes.attempted = (local.quizzes.attempted || 0) + 1;
+    // Consider a passing score threshold for marking completed locally (best-effort)
+    const PASS_THRESHOLD = 60;
+    if (score >= PASS_THRESHOLD && !local.quizzes.completed.includes(quizId)) {
+      local.quizzes.completed.push(quizId);
+    }
+    localStorage.setItem('codetutor_learning_progress', JSON.stringify(local));
+  } catch (e) {
+    console.warn('[ProgressService] Failed to update local progress for quiz attempt:', e);
+  }
+
+  // Then attempt to sync to backend if authenticated
   if (!isAuthenticated()) return;
 
   try {

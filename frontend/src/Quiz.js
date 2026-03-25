@@ -339,10 +339,18 @@ export default function Quiz() {
         }
     };
 
+    const finishQuiz = () => {
+        // mark quiz as completed — the existing completed useEffect will handle recording
+        setFeedback(null);
+        setUserAnswers({});
+        setCompleted(true);
+    };
+
     useEffect(() => {
         if (completed && filteredQuestionsRef.current.length > 0) {
             const scorePercent = Math.round((scoreRef.current / filteredQuestionsRef.current.length) * 100);
-            const quizId = `quiz_${Date.now()}`;
+            const topicsPart = (lastTopics && lastTopics.length > 0) ? lastTopics.join('_') : 'anon';
+            const quizId = `quiz_${topicsPart}_${Date.now()}`;
             tracker.markQuizCompleted(quizId, scorePercent);
             window.dispatchEvent(new Event('progress-updated'));
 
@@ -853,15 +861,29 @@ export default function Quiz() {
             )}
 
             {hasAnswered && (
-                <button
-                    onClick={nextQuestion}
-                    style={{
-                        ...btn.primary,
-                        marginTop: spacing.md,
-                    }}
-                >
-                    Next Question →
-                </button>
+                currentIndex < filteredQuestions.length - 1 ? (
+                    <button
+                        onClick={nextQuestion}
+                        style={{
+                            ...btn.primary,
+                            marginTop: spacing.md,
+                        }}
+                    >
+                        Next Question →
+                    </button>
+                ) : (
+                    <button
+                        onClick={finishQuiz}
+                        style={{
+                            ...btn.primary,
+                            marginTop: spacing.md,
+                            background: '#10b981',
+                            color: '#fff'
+                        }}
+                    >
+                        🏁 Finish Quiz
+                    </button>
+                )
             )}
 
             <p style={{ marginTop: spacing.xxl, fontWeight: font.weightBold, fontSize: font.sizeLg, color: colors.text }}>
