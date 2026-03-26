@@ -335,24 +335,12 @@ export default function ProgressDisplay() {
                                     </div>
                                     <div style={{
                                         fontSize: font.sizeSm, fontWeight: font.weightBold,
-                                        color: detailedProgress.playground.completed ? '#4CAF50' : colors.textSecondary
+                                        color: colors.textSecondary
                                     }}>
-                                        {detailedProgress.playground.completed
-                                            ? '✓ Completed'
-                                            : `${detailedProgress.playground.executions} / 3`}
+                                       
                                     </div>
                                 </div>
-                                <div style={{
-                                    marginTop: '10px',
-                                    width: '100%', height: '8px',
-                                    background: colors.divider, borderRadius: radii.sm, overflow: 'hidden'
-                                }}>
-                                    <div style={{
-                                        width: `${Math.min(100, Math.round((detailedProgress.playground.executions / 3) * 100))}%`,
-                                        height: '100%', background: '#4CAF50',
-                                        transition: 'width 0.5s ease', borderRadius: radii.sm
-                                    }} />
-                                </div>
+                                {/* Removed decorative progress bar per UX request */}
                             </div>
 
                             {/* AI Interactions */}
