@@ -164,7 +164,7 @@ export default function AI({ showChat, setShowChat }) {
                                                 disabled={loadingContext}
                                             >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
                                         </div>
-                                        {m.snippet.replace(/\n+/g, ' ').trim()}
+                                        {(m.display_snippet || m.snippet).replace(/\n+/g, ' ').trim()}
                                     </div>
                                 )}
                                 {isExpanded && hasContext && (

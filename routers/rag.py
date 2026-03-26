@@ -772,27 +772,70 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 
 
 def clean_chunk_for_display(text: str) -> str:
-    """Clean a document chunk for frontend display without mutating the vectorstore.
-
-    - Insert space before uppercase letters following lowercase letters (fix merged words).
-    - Remove figure/table/listing caption lines like "Figure 6.2 ...".
-    - Normalize whitespace to single spaces and trim.
-    """
     if not text:
         return text
-    # Fix merged words: insert space before uppercase after lowercase
-    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
-    # Ensure space after a period if missing (e.g. "word.Aforloop" -> "word. Aforloop")
-    text = re.sub(r'\.(?=[A-Z0-9])', '. ', text)
-    # Fix hyphenated line breaks (e.g. "state- ments" -> "statements")
+
+    # Remove obvious UI/footer noise first
+    text = re.sub(
+        r'❮\s*Previous\s+Next\s*❯.*?$',
+        ' ',
+        text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+    text = re.sub(
+        r'\bSign in to track progress\b.*?$',
+        ' ',
+        text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    # Fix hyphenated line breaks / wrapped words
     text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-    # Fix specific merged keyword cases like 'awhileloop' -> 'a while loop', 'aforloop' -> 'a for loop'
-    text = re.sub(r'\bawhileloop\b', 'a while loop', text, flags=re.IGNORECASE)
-    text = re.sub(r'\baforloop\b', 'a for loop', text, flags=re.IGNORECASE)
-    # Remove figure/table/listing caption lines
-    text = re.sub(r'\b(Figure|Table|Listing)\s+\d+[\.\d]*[^\n]*\n?', '', text, flags=re.IGNORECASE)
-    # Remove page/section bleed: sequences of standalone short numbers (e.g. "97 26")
-    text = re.sub(r'\b\d{1,3}(?:\s+\d{1,3})+\b', ' ', text)
+
+    # Insert missing space after sentence period only for letter->Uppercase
+    text = re.sub(r'(?<=[A-Za-z])\.(?=[A-Z])', '. ', text)
+
+    # Remove figure/table/listing references, including Figure?? and inline captions
+    text = re.sub(
+        r'\b(Figure|Table|Listing)\s*(?:\?+|\d+(?:\.\d+)*)\s*[:.-]?\s*[A-Za-z][^.:\n]{0,120}',
+        ' ',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Remove page/section bleed like "6.7 String Iteration 97"
+    text = re.sub(
+        r'\b\d+\.\d+\s+[A-Z][A-Za-z]+\s+[A-Z][A-Za-z]+\s+\d+\b',
+        ' ',
+        text
+    )
+
+    # Domain-specific loop repairs
+    replacements = {
+        r'\baforloop\b': 'a for loop',
+        r'\bawhileloop\b': 'a while loop',
+        r'\btheforloop\b': 'the for loop',
+        r'\bthewhileloop\b': 'the while loop',
+        r'\bforloops\b': 'for loops',
+        r'\bwhileloops\b': 'while loops',
+        r'\bbetweenforloops\b': 'between for loops',
+        r'\bandwhileloops\b': 'and while loops',
+        r'\bonlyinsidetheforloop\b': 'only inside the for loop',
+        r'\binsideforloops\b': 'inside for loops',
+        r'\billustratesforloops\b': 'illustrates for loops',
+    }
+    for pattern, repl in replacements.items():
+        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+
+    # General glue fixes around common loop phrases
+    text = re.sub(r'\b([A-Za-z]+)(for loop)\b', r'\1 \2', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b([A-Za-z]+)(while loop)\b', r'\1 \2', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b(for loop)([A-Za-z]+)\b', r'\1 \2', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b(while loop)([A-Za-z]+)\b', r'\1 \2', text, flags=re.IGNORECASE)
+
+    # Collapse repeated punctuation junk like Figure??
+    text = re.sub(r'\?{2,}', ' ', text)
+
     # Normalize whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     return text
@@ -836,7 +879,10 @@ async def rag_ai(req: ExplainRequest):
         pdf_matches = [
             {
                 "file": doc.metadata.get('source', 'Unknown').split('/')[-1],
-                "snippet": clean_chunk_for_display(doc.page_content),
+                # raw snippet for context lookup
+                "snippet": doc.page_content,
+                # cleaned snippet for UI display only
+                "display_snippet": clean_chunk_for_display(doc.page_content),
                 "page": 1
             }
             for doc in docs[:3]

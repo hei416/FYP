@@ -176,7 +176,7 @@ export default function ConversationHistoryPage() {
                                                         style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}
                                                     >{loadingContext ? '⏳' : hasContext ? 'Hide' : '🔍 Context'}</button>
                                                 </div>
-                                                {m.snippet}
+                                                {(m.display_snippet || m.snippet).replace(/\n+/g, ' ').trim()}
                                             </div>
                                         )}
                                         {isOpen && hasContext && (
