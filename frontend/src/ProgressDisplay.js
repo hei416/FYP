@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ProgressTracker } from './ProgressTracker';
+import { ProgressTracker, QUIZ_TARGET, TEST_TARGET } from './ProgressTracker';
 import { listWork } from './myWorkService';
 import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './HomePage';
 import { colors, radii, shadows, spacing, font, transition } from './theme';
@@ -152,9 +152,16 @@ export default function ProgressDisplay() {
                         testedTopics: testTestedCount
                     }
                 };
+                // Build a corrected overall count from live backend data so button and modal match
+                const roadmapCompleted = tracker.getValidCompletedTopics().length;
+                const correctedCompleted = roadmapCompleted
+                    + Math.min(quizPassedTopics, TOPIC_GROUPS.length)
+                    + Math.min(testPassedTopics, TOPIC_GROUPS.length);
+                const correctedTotal = tracker.totalTopics + QUIZ_TARGET + TEST_TARGET;
+                setProgress({ completed: correctedCompleted, total: correctedTotal });
+            } else {
+                setProgress(current);
             }
-
-            setProgress(current);
             setDetailedProgress(detailed);
         } catch (error) {
             console.error('Error updating progress:', error);

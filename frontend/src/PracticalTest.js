@@ -54,6 +54,7 @@ export default function PracticalTest() {
 
     const [screen, setScreen] = useState('select');
     const [selectedTopics, setSelectedTopics] = useState([]);
+    const [activeTestTopics, setActiveTestTopics] = useState([]);
     const [generating, setGenerating] = useState(false);
     const [genError, setGenError] = useState('');
 
@@ -131,16 +132,28 @@ export default function PracticalTest() {
         if (selectedTopics.length === 0) { alert("Please select at least one topic first."); return; }
         setGenerating(true);
         setGenError('');
-        const topic = selectedTopics[Math.floor(Math.random() * selectedTopics.length)];
+
+        // Send all selected topics to backend so the generated question can cover them
+        // (previously we capped at 3 for quality; remove cap to let backend attempt all)
+        const topicsForQuestion = [...selectedTopics];
+
         try {
             const res = await fetch(`${API_BASE}/api/practical-tests/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic, force_new: forceNew }),
+                body: JSON.stringify({
+                    // keep single `topic` for backward compatibility
+                    topic: topicsForQuestion[0],
+                    // new: send all chosen topics so backend can craft multi-topic questions
+                    topics: topicsForQuestion,
+                    force_new: forceNew
+                }),
             });
             if (!res.ok) throw new Error(await res.text());
             const payload = await res.json();
             applyQuestionData(payload.question_data, payload.question_data.id);
+            // track which topics were actually used for this generated question
+            setActiveTestTopics(topicsForQuestion);
             setScreen('active');
         } catch (e) {
             setGenError(`Failed to generate question: ${e.message}`);
@@ -295,14 +308,14 @@ export default function PracticalTest() {
                         body: JSON.stringify({
                             work_type: 'test',
                             title: `${questionTitle}`,
-                            topic_id: selectedTopics[0] || null,
+                            topic_id: (activeTestTopics && activeTestTopics[0]) || selectedTopics[0] || null,
                             content: studentCode,
                             result_data: {
                                 score: grading.total_score, grade: grading.grade_letter, passed,
                                 feedback: grading.feedback, suggestions: grading.suggestions || [],
                                 // include explicit topics covered so frontend can aggregate by topic
-                                topics: selectedTopics || [],
-                                topics_covered: selectedTopics || [],
+                                topics: activeTestTopics && activeTestTopics.length > 0 ? activeTestTopics : (selectedTopics || []),
+                                topics_covered: activeTestTopics && activeTestTopics.length > 0 ? activeTestTopics : (selectedTopics || []),
                                 question: { title: questionTitle, description: questionDesc,
                                     methods: currentQuestionData?.question?.methods || [],
                                     expected_output: currentQuestionData?.question?.expectedOutput || [] },

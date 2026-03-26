@@ -304,32 +304,42 @@ class AiCodeRequest(BaseModel):
 
 class PracticalGenerateRequest(BaseModel):
     topic: str
+    topics: Optional[List[str]] = None
     force_new: bool = False
 
 
 @router.post("/generate")
 async def generate_practical_test(req: PracticalGenerateRequest):
-    main_topic = to_main_topic(req.topic)
-    print(f"📥 Practical test generate: topic={main_topic}, force_new={req.force_new}")
+    # Support multi-topic generation: prefer `topics` array, fallback to single `topic`.
+    topics = req.topics if req.topics and len(req.topics) > 0 else [req.topic]
+    # Map subtopics to main topics where applicable
+    main_topics = to_main_topics(topics)
+    topic_str = " and ".join(main_topics)
+    print(f"📥 Practical test generate: topics={topic_str}, force_new={req.force_new}")
 
-    if not req.force_new:
-        cached = _get_db_questions_for_topic(main_topic)
+    # If a single main topic, allow cached DB questions; for multi-topic prompts, skip cache
+    use_cache = (len(main_topics) == 1)
+    if use_cache and not req.force_new:
+        cached = _get_db_questions_for_topic(main_topics[0])
         if cached:
             chosen = random.choice(cached)
-            print(f"✅ Serving cached practical question {chosen['id']} for topic '{main_topic}'")
-            return {"question_data": chosen, "source": "database", "topic": main_topic}
+            print(f"✅ Serving cached practical question {chosen['id']} for topic '{main_topics[0]}'")
+            return {"question_data": chosen, "source": "database", "topic": main_topics[0]}
 
-    existing = _get_db_questions_for_topic(main_topic)
+    existing = _get_db_questions_for_topic(main_topics[0]) if use_cache else []
     existing_titles = [q["question"]["title"] for q in existing]
 
     try:
-        new_q = await _generate_practical_question(main_topic, existing_titles)
+        # Pass the combined topic string to the generator so the prompt can reference all topics
+        new_q = await _generate_practical_question(topic_str, existing_titles)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
 
-    _save_db_question(new_q)
-    return {"question_data": new_q, "source": "ai_generated", "topic": main_topic}
+    # When single-topic, save to DB for caching; multi-topic questions are not saved to per-topic cache
+    if use_cache:
+        _save_db_question(new_q)
+    return {"question_data": new_q, "source": "ai_generated", "topics": main_topics}
 
 
 def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, helper_classes: str = "") -> dict:

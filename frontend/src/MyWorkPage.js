@@ -118,8 +118,23 @@ export default function MyWorkPage() {
                 {typeLabel[item.work_type]}
               </span>
               <h3 style={{ margin: '4px 0 6px', fontSize: 17 }}>{item.title}</h3>
-              {item.topic_id && (
-                <span style={{ fontSize: 12, color: '#6b7280' }}>Topic: {item.topic_id}</span>
+              {item.work_type === 'test' ? (
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                  Topics: {(
+                    (item.result_data?.topics_covered && item.result_data.topics_covered.length > 0)
+                      ? item.result_data.topics_covered
+                      : (item.topic_id ? [item.topic_id] : [])
+                  ).join(' · ')}
+                </div>
+              ) : (
+                item.topic_id && <span style={{ fontSize: 12, color: '#6b7280' }}>Topic: {item.topic_id}</span>
+              )}
+
+              {/* Show all topics for test submissions */}
+              {item.work_type === 'test' && item.result_data?.topics_covered?.length > 1 && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                      Topics covered: {item.result_data.topics_covered.join(', ')}
+                  </div>
               )}
 
               {/* Score row */}
