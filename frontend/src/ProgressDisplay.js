@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ProgressTracker } from './ProgressTracker';
 import { listWork } from './myWorkService';
+import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './HomePage';
 import { colors, radii, shadows, spacing, font, transition } from './theme';
 
 export default function ProgressDisplay() {
@@ -36,12 +37,55 @@ export default function ProgressDisplay() {
                 // Quizzes
                 const quizTotalAttempts = savedWorks.filter(w => w.work_type === 'quiz').length;
                 const quizPassedAttempts = savedWorks.filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70).length;
-                const quizPassedTopics = new Set(savedWorks.filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70).map(w => w.topic_id)).size;
+                const subtopicToGroupLabel = (subId) => {
+                    if (!subId) return null;
+                    if (JAVA_SUBTOPIC_IDS.includes(subId)) {
+                        const g = TOPIC_GROUPS.find(gr => gr.subtopics.includes(subId));
+                        return g ? g.label : null;
+                    }
+                    // if it's already a group label
+                    const g2 = TOPIC_GROUPS.find(gr => gr.label === subId);
+                    if (g2) return g2.label;
+                    return null;
+                };
+
+                const normalizeWorkToMainTopic = (w) => {
+                    // prefer result_data.topics if present
+                    const topicsArr = w.result_data && Array.isArray(w.result_data.topics) ? w.result_data.topics : null;
+                    if (topicsArr && topicsArr.length > 0) {
+                        for (const t of topicsArr) {
+                            const lbl = subtopicToGroupLabel(t) || (TOPIC_GROUPS.find(g => g.label === t) ? t : null);
+                            if (lbl) return lbl;
+                        }
+                    }
+                    const tid = w.topic_id || null;
+                    const lbl = subtopicToGroupLabel(tid) || (TOPIC_GROUPS.find(g => g.label === tid) ? tid : null);
+                    return lbl || null;
+                };
+
+                // Debug: show quiz savedWork rows (helpful to verify topic_id presence)
+                try {
+                    console.log('Quiz savedWorks:', savedWorks
+                        .filter(w => w.work_type === 'quiz')
+                        .map(w => ({ id: w.id, topic_id: w.topic_id, result_data: w.result_data, score: scoreOf(w) }))
+                    );
+                } catch (e) { /* ignore console errors in old browsers */ }
+
+                const quizPassedTopics = new Set(
+                    savedWorks
+                        .filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70)
+                        // prefer normalized topic label, fall back to topic_id, then row id
+                        .map(w => normalizeWorkToMainTopic(w) || w.topic_id || w.id)
+                ).size;
 
                 // Tests
                 const testTotalAttempts = savedWorks.filter(w => w.work_type === 'test').length;
                 const testPassedAttempts = savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).length;
-                const testPassedTopics = new Set(savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).map(w => w.topic_id)).size;
+                const testPassedTopics = new Set(
+                    savedWorks
+                        .filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60)
+                        .map(w => normalizeWorkToMainTopic(w) || w.topic_id || w.id)
+                ).size;
 
                 detailed = {
                     ...detailed,
@@ -217,7 +261,7 @@ export default function ProgressDisplay() {
                             <ProgressItem
                                 icon="📝" title="Quizzes"
                                 completed={detailedProgress.quizzes.passed}
-                                total={detailedProgress.quizzes.target}
+                                total={TOPIC_GROUPS.length}
                                 subtitle={`${detailedProgress.quizzes.attempted} attempted · ${detailedProgress.quizzes.passedAttempts} passed`}
                                 passCriteria={`Pass score: ≥${detailedProgress.quizzes.passScore}% per quiz`}
                                 passColor="#FF9800"
@@ -227,7 +271,7 @@ export default function ProgressDisplay() {
                             <ProgressItem
                                 icon="🎯" title="Practical Tests"
                                 completed={detailedProgress.tests.passed}
-                                total={detailedProgress.tests.target}
+                                total={TOPIC_GROUPS.length}
                                 subtitle={`${detailedProgress.tests.attempted} attempted · ${detailedProgress.tests.passedAttempts} passed`}
                                 passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per test`}
                                 passColor="#F44336"
