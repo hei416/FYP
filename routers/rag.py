@@ -12,6 +12,7 @@ import asyncio
 import random
 import requests
 import difflib
+import re
 from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork
@@ -770,6 +771,24 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
         return json.loads(result)
 
 
+def clean_chunk_for_display(text: str) -> str:
+    """Clean a document chunk for frontend display without mutating the vectorstore.
+
+    - Insert space before uppercase letters following lowercase letters (fix merged words).
+    - Remove figure/table/listing caption lines like "Figure 6.2 ...".
+    - Normalize whitespace to single spaces and trim.
+    """
+    if not text:
+        return text
+    # Fix merged words: insert space before uppercase after lowercase
+    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+    # Remove figure/table/listing caption lines
+    text = re.sub(r'\b(Figure|Table|Listing)\s+\d+[\.\d]*[^\n]*\n?', '', text, flags=re.IGNORECASE)
+    # Normalize whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
 # ==================== RAG ====================
 
 @router.post("/ragAI")
@@ -808,7 +827,7 @@ async def rag_ai(req: ExplainRequest):
         pdf_matches = [
             {
                 "file": doc.metadata.get('source', 'Unknown').split('/')[-1],
-                "snippet": doc.page_content,
+                "snippet": clean_chunk_for_display(doc.page_content),
                 "page": 1
             }
             for doc in docs[:3]
@@ -1311,12 +1330,12 @@ async def get_chunk_context(request: Request):
                 target_idx = best_i
 
         if target_idx == -1:
-            return {"chunks": [chunk_content], "target_index": 0, "total_chunks": len(all_chunks)}
+            return {"chunks": [clean_chunk_for_display(chunk_content)], "target_index": 0, "total_chunks": len(all_chunks)}
 
         start_idx = max(0, target_idx - 1)
         end_idx = min(len(all_chunks), target_idx + 2)
         return {
-            "chunks": all_chunks[start_idx:end_idx],
+            "chunks": [clean_chunk_for_display(c) for c in all_chunks[start_idx:end_idx]],
             "target_index": target_idx - start_idx,
             "total_chunks": len(all_chunks)
         }
