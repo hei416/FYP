@@ -74,8 +74,13 @@ export default function ProgressDisplay() {
                 const quizTestedTopics = new Set();
                 const quizPassedTopicsSet = new Set();
                 quizWorks.forEach(w => {
-                    // Prefer an explicit list of topics if the quiz generator saved them
-                    const declaredTopics = Array.isArray(w.result_data?.topics) ? w.result_data.topics : (Array.isArray(w.result_data?.topics_covered) ? w.result_data.topics_covered : null);
+                    // Prefer an explicit list of topics if the quiz generator saved them.
+                    // Fallback to `topic_id` on the work row for older records.
+                    const declaredTopics = Array.isArray(w.result_data?.topics_covered) && w.result_data.topics_covered.length > 0
+                        ? w.result_data.topics_covered
+                        : (Array.isArray(w.result_data?.topics) && w.result_data.topics.length > 0
+                            ? w.result_data.topics
+                            : (w.topic_id ? [w.topic_id] : null));
                     const passedSession = (scoreOf(w) !== undefined) && scoreOf(w) >= 70;
                     if (declaredTopics && declaredTopics.length > 0) {
                         declaredTopics.forEach(t => {
@@ -112,7 +117,12 @@ export default function ProgressDisplay() {
 
                 // Read `topics_covered` (or fallback to `topics`) saved at the session level
                 testWorks.forEach(w => {
-                    const topics = Array.isArray(w.result_data?.topics_covered) ? w.result_data.topics_covered : (Array.isArray(w.result_data?.topics) ? w.result_data.topics : []);
+                    // Try topics_covered → topics → topic_id fallback for old rows
+                    const topics = (Array.isArray(w.result_data?.topics_covered) && w.result_data.topics_covered.length > 0)
+                        ? w.result_data.topics_covered
+                        : (Array.isArray(w.result_data?.topics) && w.result_data.topics.length > 0)
+                            ? w.result_data.topics
+                            : (w.topic_id ? [w.topic_id] : []);
                     const passed = (scoreOf(w) ?? 0) >= 60;
                     topics.forEach(t => {
                         const key = subtopicToGroupLabel(t) || (TOPIC_GROUPS.find(g => g.label === t) ? t : null) || t;
