@@ -81,8 +81,11 @@ export const AuthProvider = ({ children }) => {
       });
       localStorage.setItem('authToken', data.access_token);
 
-      // Merge backend progress into local cache after register/login
-      try { await pullProgressFromBackend(); } catch (_) {}
+      // Push any pre-registration local progress up, then pull to merge
+      try {
+        await pushProgressToBackend();
+        await pullProgressFromBackend();
+      } catch (_) {}
 
       return data;
     } catch (err) {
@@ -120,8 +123,11 @@ export const AuthProvider = ({ children }) => {
       });
       localStorage.setItem('authToken', data.access_token);
 
-      // After successful login, pull backend progress into localStorage
-      try { await pullProgressFromBackend(); } catch (_) {}
+      // Push pre-login local progress to backend first, then pull to get full merged state
+      try {
+        await pushProgressToBackend();
+        await pullProgressFromBackend();
+      } catch (_) {}
 
       return data;
     } catch (err) {
