@@ -11,6 +11,7 @@ import time
 import asyncio
 import random
 import requests
+import difflib
 from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork
@@ -1243,7 +1244,30 @@ async def get_chunk_context(request: Request):
         if not all_chunks:
             raise HTTPException(status_code=404, detail=f"No chunks: {source_file}")
 
-        target_idx = next((i for i, c in enumerate(all_chunks) if c.strip() == chunk_content.strip()), -1)
+        def _normalize(s: str) -> str:
+            return " ".join(s.split()).strip()
+
+        needle = _normalize(chunk_content)
+        # Use a short fingerprint to avoid huge comparisons
+        needle_preview = needle[:400]
+
+        target_idx = -1
+        for i, c in enumerate(all_chunks):
+            norm_c = _normalize(c)
+            if norm_c == needle:
+                target_idx = i
+                break
+            if needle_preview and (needle_preview in norm_c or norm_c[:len(needle_preview)] in needle):
+                target_idx = i
+                break
+
+        # Fallback: fuzzy match using sequence similarity
+        if target_idx == -1:
+            scores = [(i, difflib.SequenceMatcher(None, needle_preview, _normalize(c)[:400]).ratio()) for i, c in enumerate(all_chunks)]
+            best_i, best_score = max(scores, key=lambda x: x[1]) if scores else (-1, 0)
+            if best_score > 0.6:
+                target_idx = best_i
+
         if target_idx == -1:
             return {"chunks": [chunk_content], "target_index": 0, "total_chunks": len(all_chunks)}
 
