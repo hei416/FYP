@@ -20,6 +20,16 @@ function formatDate(ts) {
     return d.toLocaleDateString('en-HK', { month: 'short', day: 'numeric' });
 }
 
+function cleanSnippet(text) {
+    if (!text) return '';
+    // Remove W3Schools interactive elements
+    text = text.replace(/Try it Yourself\s*[»›]?/gi, '');
+    text = text.replace(/Try it\s+\w+\s*[»›]?/gi, '');
+    // Remove W3Schools navigation/UI noise
+    text = text.replace(/\b(Try it Yourself|Try it Now|Run Example|Edit & Run|Exercise|Quiz Yourself)\s*[»›]?/gi, '');
+    return text.replace(/\n+/g, ' ').trim();
+}
+
 // Expand icon (two outward arrows)
 const ExpandIcon = () => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -164,7 +174,7 @@ export default function AI({ showChat, setShowChat }) {
                                                 disabled={loadingContext}
                                             >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
                                         </div>
-                                        {(m.display_snippet || m.snippet).replace(/\n+/g, ' ').trim()}
+                                        {cleanSnippet(m.display_snippet || m.snippet)}
                                     </div>
                                 )}
                                 {isExpanded && hasContext && (

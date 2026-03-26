@@ -789,6 +789,13 @@ def clean_chunk_for_display(text: str) -> str:
         flags=re.IGNORECASE | re.DOTALL
     )
 
+    # Remove W3Schools interactive elements
+    text = re.sub(r'Try it Yourself\s*[»›]?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\bTry it\s+\w+\s*[»›]?', '', text, flags=re.IGNORECASE)
+
+    # Remove W3Schools navigation/UI noise
+    text = re.sub(r'\b(Try it Yourself|Try it Now|Run Example|Edit & Run|Exercise|Quiz Yourself)\s*[»›]?', '', text, flags=re.IGNORECASE)
+
     # Fix hyphenated line breaks / wrapped words
     text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
 
