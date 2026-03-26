@@ -782,8 +782,17 @@ def clean_chunk_for_display(text: str) -> str:
         return text
     # Fix merged words: insert space before uppercase after lowercase
     text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+    # Ensure space after a period if missing (e.g. "word.Aforloop" -> "word. Aforloop")
+    text = re.sub(r'\.(?=[A-Z0-9])', '. ', text)
+    # Fix hyphenated line breaks (e.g. "state- ments" -> "statements")
+    text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
+    # Fix specific merged keyword cases like 'awhileloop' -> 'a while loop', 'aforloop' -> 'a for loop'
+    text = re.sub(r'\bawhileloop\b', 'a while loop', text, flags=re.IGNORECASE)
+    text = re.sub(r'\baforloop\b', 'a for loop', text, flags=re.IGNORECASE)
     # Remove figure/table/listing caption lines
     text = re.sub(r'\b(Figure|Table|Listing)\s+\d+[\.\d]*[^\n]*\n?', '', text, flags=re.IGNORECASE)
+    # Remove page/section bleed: sequences of standalone short numbers (e.g. "97 26")
+    text = re.sub(r'\b\d{1,3}(?:\s+\d{1,3})+\b', ' ', text)
     # Normalize whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     return text

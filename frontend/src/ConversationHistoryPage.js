@@ -159,9 +159,10 @@ export default function ConversationHistoryPage() {
                             {msg.pdf_matches.map((m, i) => {
                                 const key = `${msgIndex}-${i}`;
                                 const isOpen = expandedChunk === key;
+                                const hasContext = chunkContext && expandedChunk === key;
                                 return (
                                     <div key={i} style={{ width: '100%', marginBottom: 6 }}>
-                                        <button onClick={() => { setExpandedChunk(isOpen ? null : key); setChunkContext(null); }}
+                                        <button onClick={() => { if (isOpen) { setExpandedChunk(null); setChunkContext(null); } else { setChunkContext(null); setExpandedChunk(key); } }}
                                             style={{ padding: '6px 12px', border: `1px solid ${colors.primaryBorder}`, borderRadius: radii.xl, background: isOpen ? colors.primary : colors.primaryLight, color: isOpen ? colors.surface : colors.primary, cursor: 'pointer', fontSize: font.sizeXs, fontWeight: font.weightSemibold }}
                                         >
                                             {isOpen ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {isOpen ? '▼' : '▶'}
@@ -170,12 +171,27 @@ export default function ConversationHistoryPage() {
                                             <div style={{ marginTop: 8, padding: 16, background: colors.warningLight, border: `2px solid ${colors.warningBorder}`, borderRadius: radii.md, fontSize: font.sizeSm, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', maxHeight: 300, overflowY: 'auto' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                                                     <span style={{ fontWeight: 700, fontFamily: 'system-ui', color: '#92400e', fontSize: 13 }}>📄 Retrieved Paragraph</span>
-                                                    <button onClick={() => chunkContext ? setChunkContext(null) : fetchChunkContext(m.file, m.snippet)}
+                                                    <button onClick={() => hasContext ? setChunkContext(null) : fetchChunkContext(m.file, m.snippet)}
                                                         disabled={loadingContext}
                                                         style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}
-                                                    >{loadingContext ? '⏳' : chunkContext ? 'Hide' : '🔍 Context'}</button>
+                                                    >{loadingContext ? '⏳' : hasContext ? 'Hide' : '🔍 Context'}</button>
                                                 </div>
                                                 {m.snippet}
+                                            </div>
+                                        )}
+                                        {isOpen && hasContext && (
+                                            <div style={{ marginTop: 8, padding: 16, background: colors.primaryLight, border: `2px solid ${colors.primaryBorder}`, borderRadius: radii.md, maxHeight: 400, overflowY: 'auto' }}>
+                                                <div style={{ fontSize: font.sizeSm, color: colors.primary, marginBottom: 12, fontWeight: font.weightBold }}>📚 Full Context ({chunkContext.chunks.length} chunks):</div>
+                                                {chunkContext.chunks.map((chunk, idx) => {
+                                                    const isTarget = idx === chunkContext.target_index;
+                                                    return (
+                                                        <div key={idx} style={{ padding: 14, marginBottom: 10, backgroundColor: isTarget ? '#fef3c7' : '#ffffff', border: isTarget ? '3px solid #f59e0b' : '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', position: 'relative' }}>
+                                                            {isTarget && <div style={{ position: 'absolute', top: -10, left: 10, backgroundColor: '#f59e0b', color: 'white', padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 'bold', fontFamily: 'system-ui' }}>⭐ RETRIEVED</div>}
+                                                            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6, fontFamily: 'system-ui', fontStyle: 'italic' }}>{isTarget ? '→ Used in answer' : idx < chunkContext.target_index ? '↑ Previous' : '↓ Next'}</div>
+                                                            {chunk}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>

@@ -150,7 +150,7 @@ export default function AI({ showChat, setShowChat }) {
                         return (
                             <div key={i} style={{ marginBottom: 10 }}>
                                 <button style={{ backgroundColor: isExpanded ? colors.success : colors.primary, color: colors.surface, padding: '12px 16px', borderRadius: radii.md, border: 'none', cursor: 'pointer', fontSize: font.sizeMd, fontWeight: font.weightSemibold, width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition }}
-                                    onClick={() => { if (isExpanded) { setExpandedChunk(null); setChunkContext(null); } else { setExpandedChunk(chunkKey); } }}
+                                    onClick={() => { if (isExpanded) { setExpandedChunk(null); setChunkContext(null); } else { setChunkContext(null); setExpandedChunk(chunkKey); } }}
                                 >
                                     <span>{isExpanded ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()}</span>
                                     <span style={{ fontSize: font.sizeSm, opacity: 0.9 }}>{isExpanded ? '▼ Collapse' : '▶ Expand'}</span>
