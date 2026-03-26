@@ -316,6 +316,7 @@ class AiCodeRequest(BaseModel):
     code_files: dict[str, str]
     question_db_id: str
     question_data: Optional[dict] = None  # fallback for questions not yet in DB
+    input: Optional[str] = None
 
 
 class PracticalGenerateRequest(BaseModel):
@@ -357,7 +358,7 @@ async def generate_practical_test(req: PracticalGenerateRequest):
     return {"question_data": new_q, "source": "ai_generated", "topics": main_topics}
 
 
-def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, helper_classes: str = "") -> dict:
+def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, helper_classes: str = "", stdin: str | None = None) -> dict:
     helper_block = f"{helper_classes}\n\n" if helper_classes.strip() else ""
     indented_run_app = "\n".join(
         "    " + line if line.strip() else line
@@ -382,9 +383,19 @@ def _run_java_via_paiza(class_name: str, class_body: str, run_app_method: str, h
 
     api_key = _get_paiza_key()
     try:
+        # Default to a single newline when stdin is not supplied so that
+        # calls to Scanner.nextLine() receive an empty line instead of
+        # causing NoSuchElementException in environments with closed stdin.
+        input_payload = stdin if (stdin is not None and stdin != "") else "\n"
+
         response = requests.post(
             "https://api.paiza.io/runners/create",
-            data={"source_code": full_class, "language": "java", "api_key": api_key},
+            data={
+                "source_code": full_class,
+                "language": "java",
+                "api_key": api_key,
+                "input": input_payload,
+            },
             timeout=30,
         )
         run_id = response.json().get("id")
@@ -531,4 +542,11 @@ def evaluate_ai(req: AiCodeRequest):
     class_name, class_body = _extract_student_methods(user_code)
     helper_classes = _extract_helper_classes(user_code)
     run_app_method = _build_smart_run_app(row.base_methods)
-    return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes)
+    # Pass through optional stdin from the client (if provided).
+    stdin_value = None
+    try:
+        stdin_value = getattr(req, 'input', None)
+    except Exception:
+        stdin_value = None
+
+    return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes, stdin=stdin_value)

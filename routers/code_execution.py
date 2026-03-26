@@ -121,10 +121,18 @@ async def run_code(request: Request):
     # Normalize public class to `Main` for the external executor (Paiza)
     paiza_source = normalize_public_class(source, "Main")
 
+    # Ensure the external executor always receives at least one newline when
+    # no explicit stdin is provided. This prevents student programs that call
+    # Scanner.nextLine() from throwing NoSuchElementException in sandboxed
+    # environments where System.in may be closed/empty.
+    input_value = data.get("input")
+    if input_value is None or input_value == "":
+        input_value = "\n"
+
     payload = {
         "source_code": paiza_source,
         "language": "java",
-        "input": data.get("input", ""),
+        "input": input_value,
         "api_key": paiza_key,
         "longpoll": "true",
         "longpoll_timeout": "20",

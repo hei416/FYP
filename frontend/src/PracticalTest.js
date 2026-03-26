@@ -109,7 +109,11 @@ export default function PracticalTest() {
             alert("⚠️ You haven't completed any topics on the Roadmap yet. Select topics manually or complete some lessons first!");
             return;
         }
-        setSelectedTopics(completedLabels);
+        const capped = completedLabels.slice(0, MAX_TOPICS);
+        if (completedLabels.length > MAX_TOPICS) {
+            alert(`You have ${completedLabels.length} completed topics. Only the first ${MAX_TOPICS} have been selected.`);
+        }
+        setSelectedTopics(capped);
     };
 
     // ── load question data into component state ───────────────────────────────
