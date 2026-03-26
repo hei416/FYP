@@ -56,22 +56,13 @@ export default function MyWorkPage() {
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <button
-              onClick={() => navigate('/auth?mode=login')}
+              onClick={() => navigate('/login')}
               style={{
                 padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer',
                 background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 15
               }}
             >
-              Login
-            </button>
-            <button
-              onClick={() => navigate('/auth?mode=register')}
-              style={{
-                padding: '10px 28px', borderRadius: 8, border: '2px solid #1d4ed8',
-                cursor: 'pointer', background: '#fff', color: '#1d4ed8', fontWeight: 700, fontSize: 15
-              }}
-            >
-              Register
+              Login / Register
             </button>
           </div>
         </div>
