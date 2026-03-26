@@ -1,3 +1,66 @@
+# Copilot instructions — CodeTutor (concise, repo-specific)
+
+Purpose: Help an AI coding agent be immediately productive in this repository.
+
+Big picture
+- Backend: FastAPI app wired in `main.py`. Routes live in `routers/` and should be thin; business logic belongs in `services/`.
+- Frontend: React app in `frontend/`. There is a nested `frontend/frontend/`—confirm which `package.json` has the `start` script; prefer the top-level `frontend/` for dev.
+- Data layer: `database.py` (connection), `db_models.py` (ORM models). Use `migrate_to_postgres.py` for simple migrations.
+- RAG / Vectorstore: RAG orchestration is in `rag_system.py`. Vectorstore lives in `vectorstore/` (binary `index.faiss`, metadata `faiss_summary.json`, helper `extract_from_faiss.py`).
+- Config & secrets: `core/config.py` centralizes API keys and env-driven settings (e.g., `PAIZA_API_KEY`).
+
+Essential conventions (do not change)
+- Router → Service: Add HTTP handlers under `routers/<feature>.py` and implement logic in `services/<feature>.py`. Handlers should validate inputs and call services.
+- Retriever per-request: For RAG flows, acquire a retriever at call time (see `routers/rag.py`). Avoid module-level retriever singletons.
+- Vectorstore is a binary artifact: never edit `vectorstore/index.faiss` directly. Use `vectorstore/extract_from_faiss.py` to rebuild/inspect.
+- DB schema changes: update `db_models.py` and `migrate_to_postgres.py` together.
+
+Key files to inspect (quick links)
+- App wiring: `main.py` — router registration, middleware, OpenAPI.
+- Example RAG usage: `routers/rag.py` and `rag_system.py`.
+- Backend patterns: `routers/` and `services/` folders.
+- Data & migrations: `database.py`, `db_models.py`, `migrate_to_postgres.py`.
+- Vectorstore: `vectorstore/extract_from_faiss.py`, `vectorstore/faiss_summary.json`.
+- Frontend integration: `frontend/src/ragDocMapping.js`, `frontend/src/*` components.
+
+Developer commands
+- Setup Python env and deps:
+  ```bash
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  ```
+- Run backend (dev):
+  ```bash
+  uvicorn main:app --reload
+  # OpenAPI: http://localhost:8000/docs
+  ```
+- Run frontend (dev):
+  ```bash
+  # confirm which package.json has `start` then:
+  cd frontend && npm install && npm start
+  ```
+- Rebuild or extract vectorstore metadata:
+  ```bash
+  python vectorstore/extract_from_faiss.py
+  ```
+- Run migrations / simple DB helpers:
+  ```bash
+  python migrate_to_postgres.py
+  ```
+
+PR / change checklist (practical)
+- Add route: create `routers/<feature>.py` and `services/<feature>.py`.
+- Register router: import and `app.include_router(...)` in `main.py`.
+- If DB changed: update `db_models.py` and `migrate_to_postgres.py`.
+- If RAG touched: call `get_retriever()` per-request and document any index rebuild steps.
+- Do not commit `vectorstore/index.faiss` unless intentionally updating the index artifact.
+
+Notes / gotchas
+- There are two `frontend` folders — always confirm `scripts.start` before running the frontend.
+- External code-run integrations (e.g., Paiza) use credentials from `core/config.py`; ensure env vars are set locally.
+- Use `routers/rag.py` as the canonical example for how to pass a retriever into `rag_system.py`.
+
+If anything is missing or you'd like a sample PR checklist adapted to a specific feature, tell me which area to expand.
 
 # Copilot instructions — CodeTutor (concise, repo-specific)
 

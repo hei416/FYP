@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ProgressTracker } from './ProgressTracker';
+import { listWork } from './myWorkService';
 import { colors, radii, shadows, spacing, font, transition } from './theme';
 
 export default function ProgressDisplay() {
@@ -11,10 +12,54 @@ export default function ProgressDisplay() {
 
     const tracker = useMemo(() => new ProgressTracker(), []);
 
-    const updateProgress = useCallback(() => {
+    const updateProgress = useCallback(async () => {
         try {
             const current = tracker.getTotalCompletion();
-            const detailed = tracker.getDetailedProgress();
+            let detailed = tracker.getDetailedProgress();
+
+            // Fetch saved works from backend to compute honest attempted/passed counts
+            let savedWorks = [];
+            try {
+                const res = await listWork();
+                savedWorks = Array.isArray(res) ? res : [];
+            } catch (e) {
+                savedWorks = [];
+            }
+
+            if (savedWorks.length > 0) {
+                const scoreOf = (w) => {
+                    if (w.result_data && typeof w.result_data.score === 'number') return w.result_data.score;
+                    if (typeof w.score === 'number') return w.score;
+                    return undefined;
+                };
+
+                // Quizzes
+                const quizTotalAttempts = savedWorks.filter(w => w.work_type === 'quiz').length;
+                const quizPassedAttempts = savedWorks.filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70).length;
+                const quizPassedTopics = new Set(savedWorks.filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70).map(w => w.topic_id)).size;
+
+                // Tests
+                const testTotalAttempts = savedWorks.filter(w => w.work_type === 'test').length;
+                const testPassedAttempts = savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).length;
+                const testPassedTopics = new Set(savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).map(w => w.topic_id)).size;
+
+                detailed = {
+                    ...detailed,
+                    quizzes: {
+                        ...detailed.quizzes,
+                        attempted: quizTotalAttempts,
+                        passedAttempts: quizPassedAttempts,
+                        passed: quizPassedTopics
+                    },
+                    tests: {
+                        ...detailed.tests,
+                        attempted: testTotalAttempts,
+                        passedAttempts: testPassedAttempts,
+                        passed: testPassedTopics
+                    }
+                };
+            }
+
             setProgress(current);
             setDetailedProgress(detailed);
         } catch (error) {
@@ -173,7 +218,7 @@ export default function ProgressDisplay() {
                                 icon="📝" title="Quizzes"
                                 completed={detailedProgress.quizzes.passed}
                                 total={detailedProgress.quizzes.target}
-                                subtitle={`${detailedProgress.quizzes.attempted} attempted`}
+                                subtitle={`${detailedProgress.quizzes.attempted} attempted · ${detailedProgress.quizzes.passedAttempts} passed`}
                                 passCriteria={`Pass score: ≥${detailedProgress.quizzes.passScore}% per quiz`}
                                 passColor="#FF9800"
                                 color="#FF9800"
@@ -183,7 +228,7 @@ export default function ProgressDisplay() {
                                 icon="🎯" title="Practical Tests"
                                 completed={detailedProgress.tests.passed}
                                 total={detailedProgress.tests.target}
-                                subtitle={`${detailedProgress.tests.attempted} attempted`}
+                                subtitle={`${detailedProgress.tests.attempted} attempted · ${detailedProgress.tests.passedAttempts} passed`}
                                 passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per test`}
                                 passColor="#F44336"
                                 color="#F44336"

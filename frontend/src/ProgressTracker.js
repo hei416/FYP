@@ -44,12 +44,16 @@ export class ProgressTracker {
                     attempted: 0,
                     completed: [],
                     passed: [],
+                    // number of individual passing attempts (not unique topics)
+                    passedAttempts: 0,
                     totalQuizzes: QUIZ_TARGET
                 },
                 tests: {
                     attempted: 0,
                     completed: [],
                     passed: [],
+                    // number of individual passing attempts (not unique topics)
+                    passedAttempts: 0,
                     totalTests: TEST_TARGET
                 },
                 roadmapTopics: { total: this.totalTopics, completed: [] },
@@ -62,7 +66,9 @@ export class ProgressTracker {
             const progress = this.getProgress();
             let dirty = false;
             if (!Array.isArray(progress.quizzes.passed)) { progress.quizzes.passed = []; dirty = true; }
+            if (typeof progress.quizzes.passedAttempts !== 'number') { progress.quizzes.passedAttempts = 0; dirty = true; }
             if (!Array.isArray(progress.tests.passed)) { progress.tests.passed = []; dirty = true; }
+            if (typeof progress.tests.passedAttempts !== 'number') { progress.tests.passedAttempts = 0; dirty = true; }
             if (!Array.isArray(progress.tests.completed)) { progress.tests.completed = []; dirty = true; }
             if (dirty) localStorage.setItem(this.storageKey, JSON.stringify(progress));
         }
@@ -137,6 +143,9 @@ export class ProgressTracker {
         }
         progress.quizzes.attempted++;
         if (score >= QUIZ_PASS_SCORE) {
+            // count this passing attempt
+            if (typeof progress.quizzes.passedAttempts !== 'number') progress.quizzes.passedAttempts = 0;
+            progress.quizzes.passedAttempts++;
             if (!Array.isArray(progress.quizzes.passed)) progress.quizzes.passed = [];
             if (!progress.quizzes.passed.includes(quizId)) {
                 progress.quizzes.passed.push(quizId);
@@ -154,6 +163,9 @@ export class ProgressTracker {
         }
         progress.tests.attempted++;
         if (score >= TEST_PASS_SCORE) {
+            // count this passing attempt
+            if (typeof progress.tests.passedAttempts !== 'number') progress.tests.passedAttempts = 0;
+            progress.tests.passedAttempts++;
             if (!Array.isArray(progress.tests.passed)) progress.tests.passed = [];
             if (!progress.tests.passed.includes(testId)) {
                 progress.tests.passed.push(testId);
@@ -194,12 +206,14 @@ export class ProgressTracker {
             },
             quizzes: {
                 passed: (progress.quizzes.passed || []).length,
+                passedAttempts: progress.quizzes.passedAttempts || 0,
                 target: QUIZ_TARGET,
                 attempted: progress.quizzes.attempted,
                 passScore: QUIZ_PASS_SCORE
             },
             tests: {
                 passed: (progress.tests.passed || []).length,
+                passedAttempts: progress.tests.passedAttempts || 0,
                 target: TEST_TARGET,
                 attempted: progress.tests.attempted,
                 passScore: TEST_PASS_SCORE

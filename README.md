@@ -1,95 +1,79 @@
 # ☕ CodeTutor — Java Learning Platform
 
-An AI-powered Java learning platform with RAG-based tutoring, quizzes, practical tests, and a code playground.
+Monorepo for an AI-powered Java learning platform (backend + frontend).
 
----
+Overview
 
-## 🚀 Getting Started
+- Backend: FastAPI app (API, RAG orchestration, DB access).
+- Frontend: React app in `frontend/` (UI, progress sync, code playground).
+- RAG / Vectorstore: FAISS index and helpers in `vectorstore/`.
 
-### Backend
+Quick start
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+- Prepare Python environment and install deps:
+	```bash
+	source .venv/bin/activate
+	pip install -r requirements.txt
+	```
 
-# Start the server
-uvicorn main:app --reload
-```
+- Run backend (development):
+	```bash
+	uvicorn main:app --reload
+	# API docs: http://localhost:8000/docs
+	```
 
-Server runs at: `http://localhost:8000`  
-API docs: `http://localhost:8000/docs`
+- Run frontend (development):
+	```bash
+	cd frontend
+	npm install
+	npm start
+	# Frontend runs at http://localhost:3000
+	```
 
-### Frontend
+Test account (dev)
 
-```bash
-cd frontend
-npm install
-npm start
-```
+- Email: `test@test.com`
+- Password: `test1234`
 
-Frontend runs at: `http://localhost:3000`
+Features
 
----
+- RAG-based AI Tutor with NLI faithfulness checks
+- Roadmap and topic progress tracking
+- Quizzes (MCQ) and practical coding tests with auto-grading
+- In-browser Java playground
 
-## 🔐 Test Account
+Database
 
-A pre-created dummy account for testing login and progress sync:
+- Default: SQLite (`learning_platform.db`) created on first run.
+- Key files: `database.py`, `db_models.py`, `migrate_to_postgres.py`.
+- Recreate the dummy account (example):
+	```bash
+	python -c "
+	import bcrypt
+	from database import SessionLocal
+	from db_models import User
 
-| Field    | Value          |
-|----------|----------------|
-| Email    | `test@test.com` |
-| Password | `test1234`      |
+	db = SessionLocal()
+	pwd_hash = bcrypt.hashpw('test1234'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+	user = User(email='test@test.com', password_hash=pwd_hash, full_name='Test User')
+	db.add(user)
+	db.commit()
+	print('Done!')
+	db.close()
+	"
+	```
 
-> **Note:** Login is optional. Users can use the platform as a guest and their progress is saved in `localStorage`. Logging in at any time will upload the local progress to the backend without overwriting any completed items.
+Vectorstore / RAG notes
 
----
+- The FAISS binary is stored at `vectorstore/index.faiss` with metadata in `vectorstore/faiss_summary.json`.
+- Do not commit or edit `index.faiss` unless intentionally rebuilding the index. Use `vectorstore/extract_from_faiss.py` to extract or rebuild metadata.
 
-## ✨ Features
+Developer tips & conventions
 
-- **AI Tutor** — RAG-based Q&A with NLI faithfulness verification (97.62%)
-- **Roadmap** — Visual Java learning roadmap with topic completion tracking
-- **Quizzes** — AI-generated MCQ quizzes based on completed topics
-- **Practical Tests** — Coding tests with automated grading and hints
-- **Playground** — In-browser Java code execution
-- **Progress Tracking** — Local + backend sync (login optional)
+- Router → Service: add API handlers under `routers/` and put business logic in `services/`.
+- For RAG flows, acquire a retriever per-request (see `routers/rag.py` and `rag_system.py`). Avoid module-level retriever singletons.
+- External-run integrations (e.g., Paiza) rely on env vars configured in `core/config.py`.
 
----
+Questions / next steps
 
-## 🗄️ Database
-
-SQLite (`learning_platform.db`) is created automatically on first run.
-
-Tables:
-- `users` — registered accounts
-- `user_progress` — per-user learning progress
-- `quiz_attempts` — individual quiz attempt history
-- `test_attempts` — individual test attempt history
-
-To recreate the dummy account:
-
-```bash
-python -c "
-import bcrypt
-from database import SessionLocal
-from db_models import User
-
-db = SessionLocal()
-pwd_hash = bcrypt.hashpw('test1234'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-user = User(email='test@test.com', password_hash=pwd_hash, full_name='Test User')
-db.add(user)
-db.commit()
-print('Done!')
-db.close()
-"
-```
-
----
-
-## 📊 AI Performance Metrics
-
-| Metric | Score |
-|--------|-------|
-| NLI Faithfulness | 97.62% (46/47 claims) |
-| Semantic Similarity | 80.78% |
-| Context Recall | 74.21% |
-| Avg Response Time | 6.73s |
+- This README is now the canonical doc. I removed the duplicate `frontend/README.md`. If you prefer splitting frontend docs again, I can re-create a short frontend-only README.
