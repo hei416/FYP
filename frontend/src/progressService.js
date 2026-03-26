@@ -79,7 +79,8 @@ export async function syncProgressToBackend(localProgress, roadmapCompleted) {
     const payload = {
       completed_topics: roadmapCompleted || [],
       quizzes_attempted: localProgress?.quizzes?.attempted || 0,
-      quizzes_completed: localProgress?.quizzes?.completed || [],
+      // sync the `passed` array (frontend uses `quizzes.passed` for progress bar)
+      quizzes_completed: localProgress?.quizzes?.passed || [],
       tests_attempted: localProgress?.tests?.attempted || 0,
       tests_passed: localProgress?.tests?.passed || [],
       playground_executions: localProgress?.playground?.codeExecutions || 0,
@@ -110,7 +111,8 @@ export const pushProgressToBackend = async () => {
       completed_topics: completed,
       dismissed_milestones: dismissed,
       quizzes_attempted: local?.quizzes?.attempted || 0,
-      quizzes_completed: local?.quizzes?.completed || [],
+      // send the `passed` array because frontend progress uses `quizzes.passed`
+      quizzes_completed: local?.quizzes?.passed || [],
       tests_attempted: local?.tests?.attempted || 0,
       tests_passed: local?.tests?.passed || [],
       playground_executions: local?.playground?.codeExecutions || 0,
@@ -262,6 +264,11 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
         ...(local?.quizzes?.completed || []),
         ...(backendProgress.quizzes_completed || [])
       ])),
+      // restore the `passed` array (frontend uses `quizzes.passed` for progress bar)
+      passed: Array.from(new Set([
+        ...(local?.quizzes?.passed || []),
+        ...(backendProgress.quizzes_completed || [])
+      ])),
       totalQuizzes: local?.quizzes?.totalQuizzes || 0
     },
     tests: {
@@ -269,6 +276,11 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
         local?.tests?.attempted || 0,
         backendProgress.tests_attempted || 0
       ),
+      // keep both completed and passed for tests
+      completed: Array.from(new Set([
+        ...(local?.tests?.completed || []),
+        ...(backendProgress.tests_passed || [])
+      ])),
       passed: Array.from(new Set([
         ...(local?.tests?.passed || []),
         ...(backendProgress.tests_passed || [])
