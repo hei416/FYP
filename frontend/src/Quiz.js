@@ -382,6 +382,7 @@ export default function Quiz() {
                             total_questions: filteredQuestionsRef.current.length,
                             correct: scoreRef.current,
                             topics: lastTopics,
+                            topics_covered: lastTopics,
                             review: reviewData,
                         },
                     }),

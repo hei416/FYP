@@ -92,8 +92,9 @@ export class ProgressTracker {
     getTotalCompletion() {
         const progress = this.syncWithRoadmap();
         const roadmapCompleted = progress.roadmapTopics.completed.length;
-        const quizzesPassed = (progress.quizzes.passed || []).length;
-        const testsPassed = (progress.tests.passed || []).length;
+        // Cap passed quiz/test counts at their respective targets
+        const quizzesPassed = Math.min((progress.quizzes.passed || []).length, QUIZ_TARGET);
+        const testsPassed = Math.min((progress.tests.passed || []).length, TEST_TARGET);
         const playgroundCompleted = progress.playground.completed ? 1 : 0;
         const completed = roadmapCompleted + quizzesPassed + testsPassed + playgroundCompleted;
         const total = this.totalTopics + QUIZ_TARGET + TEST_TARGET + 1;

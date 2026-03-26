@@ -109,28 +109,17 @@ export default function ProgressDisplay() {
                 const testWorks = savedWorks.filter(w => w.work_type === 'test');
                 const testPassedTopicsSet = new Set();
                 const testTestedTopics = new Set();
-                testWorks.forEach(w => {
-                    const declaredTopics = Array.isArray(w.result_data?.topics) ? w.result_data.topics : (Array.isArray(w.result_data?.topics_covered) ? w.result_data.topics_covered : null);
-                    const passedSession = (scoreOf(w) !== undefined) && scoreOf(w) >= 60;
-                    if (declaredTopics && declaredTopics.length > 0) {
-                        declaredTopics.forEach(t => {
-                            const key = subtopicToGroupLabel(t) || (TOPIC_GROUPS.find(g => g.label === t) ? t : null) || t;
-                            if (key) {
-                                testTestedTopics.add(key);
-                                if (passedSession) testPassedTopicsSet.add(key);
-                            }
-                        });
-                    }
 
-                    const review = (w.result_data && Array.isArray(w.result_data.review)) ? w.result_data.review : [];
-                    const questions = review.length > 0 ? review : (Array.isArray(w.result_data?.questions) ? w.result_data.questions : []);
-                    questions.forEach(q => {
-                        const tid = q.topic_id || q.subtopic || q.topic || null;
-                        const normalized = tid ? (subtopicToGroupLabel(tid) || (TOPIC_GROUPS.find(g => g.label === tid) ? tid : null)) : null;
-                        const key = normalized || tid || null;
-                        if (key) testTestedTopics.add(key);
-                        const correct = (typeof q.is_correct === 'boolean') ? q.is_correct : (q.correct === true || q.isCorrect === true);
-                        if (key && correct) testPassedTopicsSet.add(key);
+                // Read `topics_covered` (or fallback to `topics`) saved at the session level
+                testWorks.forEach(w => {
+                    const topics = Array.isArray(w.result_data?.topics_covered) ? w.result_data.topics_covered : (Array.isArray(w.result_data?.topics) ? w.result_data.topics : []);
+                    const passed = (scoreOf(w) ?? 0) >= 60;
+                    topics.forEach(t => {
+                        const key = subtopicToGroupLabel(t) || (TOPIC_GROUPS.find(g => g.label === t) ? t : null) || t;
+                        if (key) {
+                            testTestedTopics.add(key);
+                            if (passed) testPassedTopicsSet.add(key);
+                        }
                     });
                 });
                 const testPassedTopics = testPassedTopicsSet.size;
