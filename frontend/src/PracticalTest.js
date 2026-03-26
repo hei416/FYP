@@ -47,6 +47,7 @@ function buildStarterCode(baseCode) {
 }
 
 const ALL_TOPICS = TOPIC_GROUPS.map(g => g.label);
+const MAX_TOPICS = 3;
 
 // ─── component ────────────────────────────────────────────────────────────────
 export default function PracticalTest() {
@@ -88,11 +89,16 @@ export default function PracticalTest() {
     }, [started]);
 
     const toggleTopic = (label) => {
-        setSelectedTopics(prev =>
-            prev.includes(label) ? prev.filter(t => t !== label) : [...prev, label]
-        );
+        setSelectedTopics(prev => {
+            if (prev.includes(label)) return prev.filter(t => t !== label);
+            if (prev.length >= MAX_TOPICS) {
+                alert(`You can select up to ${MAX_TOPICS} topics per exercise.`);
+                return prev;
+            }
+            return [...prev, label];
+        });
     };
-    const selectAll = () => setSelectedTopics([...ALL_TOPICS]);
+    const selectAll = () => setSelectedTopics([...ALL_TOPICS].slice(0, MAX_TOPICS));
     const clearAll  = () => setSelectedTopics([]);
     const selectCompleted = () => {
         const completed = tracker.getCompletedTopics();
@@ -260,9 +266,6 @@ export default function PracticalTest() {
             setTestResults(results);
             if (failed.length === 0) {
                 setResult(`✅ All tests passed! Your solution is correct.\n\nYour Output:\n${actualOutput}`);
-                const testId = `test_${questionDbId || 'unknown'}_${Date.now()}`;
-                tracker.markTestPassed(testId, 100);
-                window.dispatchEvent(new Event('progress-updated'));
             } else {
                 const lines = ["❌ Tests failed - Output does not match expected:\n"];
                 for (let i = 0; i < maxLines; i++) {
@@ -298,6 +301,19 @@ export default function PracticalTest() {
             if (res.ok) {
                 const grading = await res.json();
                 setGradingResults(grading);
+
+                // If we have a numeric total_score, record progress with the actual score
+                if (grading && typeof grading.total_score === 'number') {
+                    if (grading.total_score >= 60) {
+                        const testId = `test_${questionDbId || 'unknown'}_${Date.now()}`;
+                        try {
+                            tracker.markTestPassed(testId, grading.total_score);
+                            window.dispatchEvent(new Event('progress-updated'));
+                        } catch (err) {
+                            console.warn('Failed to mark progress locally:', err);
+                        }
+                    }
+                }
 
                 const token = localStorage.getItem('authToken');
                     if (token) {
@@ -416,9 +432,10 @@ export default function PracticalTest() {
                         </button>
                     </div>
 
-                    {selectedTopics.length > 0 && (
+                    {(
                         <p style={{ marginTop: spacing.md, fontSize: font.sizeSm, color: colors.textSecondary }}>
-                            Selected: {selectedTopics.join(' · ')}
+                            Selected: {selectedTopics.length}/{MAX_TOPICS} topics
+                            {selectedTopics.length > 0 && ` · ${selectedTopics.join(' · ')}`}
                         </p>
                     )}
                 </>

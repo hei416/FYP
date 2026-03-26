@@ -196,51 +196,68 @@ async def _generate_practical_question(topic: str, existing_titles: List[str]) -
             f"- {t}" for t in existing_titles[-10:]
         )
 
-    topic_hint = TOPIC_HINTS.get(topic, "")
-    hint_block = f"\nTOPIC HINT: {topic_hint}" if topic_hint else ""
+        # Support multi-topic prompts. `topic` may contain multiple main topics joined by " and ".
+        topics_list = [t.strip() for t in topic.split(" and ")]
+        is_multi = len(topics_list) > 1
 
-    id_val = f"pt_{int(time.time())}_{random.randint(1000, 9999)}"
-    class_name = "Main"
-
-    prompt = f"""You are a Java instructor. Create a simple, beginner-friendly coding exercise for the topic: "{topic}".
-{exclusion}{hint_block}
-
-KEEP IT SIMPLE:
+        if is_multi:
+                hints = [TOPIC_HINTS[t] for t in topics_list if t in TOPIC_HINTS]
+                hint_block = (
+                        "\nTOPIC HINTS — your solution MUST demonstrate ALL of the following:\n"
+                        + "\n".join(f"- {h}" for h in hints)
+                ) if hints else ""
+                complexity_block = """COMPLEXITY:
+- 2 to 3 methods
+- Each method should relate to a different topic listed above
+- Use only basic Java but DO demonstrate all required concepts
+- Expected output should be 3–6 lines"""
+        else:
+                topic_hint = TOPIC_HINTS.get(topic, "")
+                hint_block = f"\nTOPIC HINT: {topic_hint}" if topic_hint else ""
+                complexity_block = """KEEP IT SIMPLE:
 - 1 to 2 methods only
 - A single clear sentence describing what each method does
 - Use only basic Java (int, String, arrays, loops) — no generics, no complex data structures
 - Expected output should be 3–6 lines at most
-- No puzzles, no grids, no complex scenarios
+- No puzzles, no grids, no complex scenarios"""
+
+        id_val = f"pt_{int(time.time())}_{random.randint(1000, 9999)}"
+        class_name = "Main"
+
+        prompt = f"""You are a Java instructor. Create a beginner-friendly coding exercise covering: "{topic}".
+{exclusion}{hint_block}
+
+{complexity_block}
 
 Return a JSON object with this EXACT schema:
 
 {{
-  "id": "{id_val}",
-  "topic_id": "{topic}",
-  "question": {{
-    "title": "Short title (5 words max)",
-    "description": "One or two plain sentences describing the task.",
-    "note": "",
-    "methods": [
-      {{"name": "actualMethodName", "description": "One sentence: what to implement."}}
-    ],
-    "expectedOutput": ["line1", "line2"]
-  }},
-  "baseCode": {{
-    "class": "{class_name}",
-    "helperClasses": "",
-    "methods": {{
-      "actualMethodName": "public ReturnType actualMethodName() {{}}"
+    "id": "{id_val}",
+    "topic_id": "{topic}",
+    "question": {{
+        "title": "Short title (5 words max)",
+        "description": "One or two plain sentences describing the task.",
+        "note": "",
+        "methods": [
+            {{"name": "actualMethodName", "description": "One sentence: what to implement."}}
+        ],
+        "expectedOutput": ["line1", "line2"]
+    }},
+    "baseCode": {{
+        "class": "{class_name}",
+        "helperClasses": "",
+        "methods": {{
+            "actualMethodName": "public ReturnType actualMethodName() {{}}"
+        }}
+    }},
+    "solution": {{
+        "class": "{class_name}",
+        "helperClasses": "",
+        "methods": {{
+            "actualMethodName": ["// implementation lines that solve the problem"],
+            "runApp": ["actualMethodName();", "System.out.println(result);"]
+        }}
     }}
-  }},
-  "solution": {{
-    "class": "{class_name}",
-    "helperClasses": "",
-    "methods": {{
-      "actualMethodName": ["// implementation lines that solve the problem"],
-      "runApp": ["actualMethodName();", "System.out.println(result);"]
-    }}
-  }}
 }}
 
 CRITICAL RULES - READ CAREFULLY:
@@ -313,6 +330,10 @@ async def generate_practical_test(req: PracticalGenerateRequest):
     topics = req.topics if req.topics and len(req.topics) > 0 else [req.topic]
     # Map subtopics to main topics where applicable
     main_topics = to_main_topics(topics)
+    # Enforce a server-side cap for topics per generated question
+    MAX_TOPICS_PER_QUESTION = 3
+    if len(main_topics) > MAX_TOPICS_PER_QUESTION:
+        main_topics = random.sample(main_topics, MAX_TOPICS_PER_QUESTION)
     topic_str = " and ".join(main_topics)
     print(f"📥 Practical test generate: topics={topic_str}, force_new={req.force_new}")
 
