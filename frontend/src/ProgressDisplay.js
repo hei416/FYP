@@ -1,5 +1,3 @@
-// ProgressDisplay.js - Complete version for homepage
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ProgressTracker } from './ProgressTracker';
 import { listWork } from './myWorkService';
@@ -71,21 +69,72 @@ export default function ProgressDisplay() {
                     );
                 } catch (e) { /* ignore console errors in old browsers */ }
 
-                const quizPassedTopics = new Set(
-                    savedWorks
-                        .filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70)
-                        // prefer normalized topic label, fall back to topic_id, then row id
-                        .map(w => normalizeWorkToMainTopic(w) || w.topic_id || w.id)
-                ).size;
+                // Parse result_data.review to collect which subtopics/main topics were tested and passed
+                const quizWorks = savedWorks.filter(w => w.work_type === 'quiz');
+                const quizTestedTopics = new Set();
+                const quizPassedTopicsSet = new Set();
+                quizWorks.forEach(w => {
+                    // Prefer an explicit list of topics if the quiz generator saved them
+                    const declaredTopics = Array.isArray(w.result_data?.topics) ? w.result_data.topics : (Array.isArray(w.result_data?.topics_covered) ? w.result_data.topics_covered : null);
+                    const passedSession = (scoreOf(w) !== undefined) && scoreOf(w) >= 70;
+                    if (declaredTopics && declaredTopics.length > 0) {
+                        declaredTopics.forEach(t => {
+                            const key = subtopicToGroupLabel(t) || (TOPIC_GROUPS.find(g => g.label === t) ? t : null) || t;
+                            if (key) {
+                                quizTestedTopics.add(key);
+                                if (passedSession) quizPassedTopicsSet.add(key);
+                            }
+                        });
+                    }
+
+                    // Also scan per-question review as a fallback to capture subtopic-level metadata
+                    const review = (w.result_data && Array.isArray(w.result_data.review)) ? w.result_data.review : [];
+                    const questions = review.length > 0 ? review : (Array.isArray(w.result_data?.questions) ? w.result_data.questions : []);
+                    questions.forEach(q => {
+                        const tid = q.topic_id || q.subtopic || q.topic || null;
+                        const normalized = tid ? (subtopicToGroupLabel(tid) || (TOPIC_GROUPS.find(g => g.label === tid) ? tid : null)) : null;
+                        const key = normalized || tid || null;
+                        if (key) quizTestedTopics.add(key);
+                        const correct = (typeof q.is_correct === 'boolean') ? q.is_correct : (q.correct === true || q.isCorrect === true);
+                        if (key && correct) quizPassedTopicsSet.add(key);
+                    });
+                });
+                const quizPassedTopics = quizPassedTopicsSet.size;
+                const quizTestedCount = quizTestedTopics.size;
 
                 // Tests
                 const testTotalAttempts = savedWorks.filter(w => w.work_type === 'test').length;
                 const testPassedAttempts = savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).length;
-                const testPassedTopics = new Set(
-                    savedWorks
-                        .filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60)
-                        .map(w => normalizeWorkToMainTopic(w) || w.topic_id || w.id)
-                ).size;
+                // Parse test result_data similarly to quizzes
+                const testWorks = savedWorks.filter(w => w.work_type === 'test');
+                const testPassedTopicsSet = new Set();
+                const testTestedTopics = new Set();
+                testWorks.forEach(w => {
+                    const declaredTopics = Array.isArray(w.result_data?.topics) ? w.result_data.topics : (Array.isArray(w.result_data?.topics_covered) ? w.result_data.topics_covered : null);
+                    const passedSession = (scoreOf(w) !== undefined) && scoreOf(w) >= 60;
+                    if (declaredTopics && declaredTopics.length > 0) {
+                        declaredTopics.forEach(t => {
+                            const key = subtopicToGroupLabel(t) || (TOPIC_GROUPS.find(g => g.label === t) ? t : null) || t;
+                            if (key) {
+                                testTestedTopics.add(key);
+                                if (passedSession) testPassedTopicsSet.add(key);
+                            }
+                        });
+                    }
+
+                    const review = (w.result_data && Array.isArray(w.result_data.review)) ? w.result_data.review : [];
+                    const questions = review.length > 0 ? review : (Array.isArray(w.result_data?.questions) ? w.result_data.questions : []);
+                    questions.forEach(q => {
+                        const tid = q.topic_id || q.subtopic || q.topic || null;
+                        const normalized = tid ? (subtopicToGroupLabel(tid) || (TOPIC_GROUPS.find(g => g.label === tid) ? tid : null)) : null;
+                        const key = normalized || tid || null;
+                        if (key) testTestedTopics.add(key);
+                        const correct = (typeof q.is_correct === 'boolean') ? q.is_correct : (q.correct === true || q.isCorrect === true);
+                        if (key && correct) testPassedTopicsSet.add(key);
+                    });
+                });
+                const testPassedTopics = testPassedTopicsSet.size;
+                const testTestedCount = testTestedTopics.size;
 
                 detailed = {
                     ...detailed,
@@ -93,13 +142,15 @@ export default function ProgressDisplay() {
                         ...detailed.quizzes,
                         attempted: quizTotalAttempts,
                         passedAttempts: quizPassedAttempts,
-                        passed: quizPassedTopics
+                        passed: quizPassedTopics,
+                        testedTopics: quizTestedCount
                     },
                     tests: {
                         ...detailed.tests,
                         attempted: testTotalAttempts,
                         passedAttempts: testPassedAttempts,
-                        passed: testPassedTopics
+                        passed: testPassedTopics,
+                        testedTopics: testTestedCount
                     }
                 };
             }
@@ -262,7 +313,7 @@ export default function ProgressDisplay() {
                                 icon="📝" title="Quizzes"
                                 completed={detailedProgress.quizzes.passed}
                                 total={TOPIC_GROUPS.length}
-                                subtitle={`${detailedProgress.quizzes.attempted} attempted · ${detailedProgress.quizzes.passedAttempts} passed`}
+                                subtitle={`${detailedProgress.quizzes.attempted} sessions · ${detailedProgress.quizzes.passedAttempts} passing sessions · ${detailedProgress.quizzes.testedTopics || 0} topics covered`}
                                 passCriteria={`Pass score: ≥${detailedProgress.quizzes.passScore}% per quiz`}
                                 passColor="#FF9800"
                                 color="#FF9800"
@@ -272,7 +323,7 @@ export default function ProgressDisplay() {
                                 icon="🎯" title="Practical Tests"
                                 completed={detailedProgress.tests.passed}
                                 total={TOPIC_GROUPS.length}
-                                subtitle={`${detailedProgress.tests.attempted} attempted · ${detailedProgress.tests.passedAttempts} passed`}
+                                subtitle={`${detailedProgress.tests.attempted} sessions · ${detailedProgress.tests.passedAttempts} passing sessions · ${detailedProgress.tests.testedTopics || 0} topics covered`}
                                 passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per test`}
                                 passColor="#F44336"
                                 color="#F44336"

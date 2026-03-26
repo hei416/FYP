@@ -287,7 +287,7 @@ export default function PracticalTest() {
                 setGradingResults(grading);
 
                 const token = localStorage.getItem('authToken');
-                if (token) {
+                    if (token) {
                     const passed = results.failed?.length === 0;
                     fetch(`${API_BASE}/my-work/save`, {
                         method: 'POST',
@@ -300,6 +300,9 @@ export default function PracticalTest() {
                             result_data: {
                                 score: grading.total_score, grade: grading.grade_letter, passed,
                                 feedback: grading.feedback, suggestions: grading.suggestions || [],
+                                // include explicit topics covered so frontend can aggregate by topic
+                                topics: selectedTopics || [],
+                                topics_covered: selectedTopics || [],
                                 question: { title: questionTitle, description: questionDesc,
                                     methods: currentQuestionData?.question?.methods || [],
                                     expected_output: currentQuestionData?.question?.expectedOutput || [] },
