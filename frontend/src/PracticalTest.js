@@ -179,7 +179,7 @@ export default function PracticalTest() {
         if (isAiQuestion && questionDbId) {
             return {
                 url: `${API_BASE}/api/practical-tests/evaluate-ai`,
-                body: { code_files: codeFiles, question_db_id: questionDbId },
+                body: { code_files: codeFiles, question_db_id: questionDbId, question_data: currentQuestionData },
             };
         }
         return {

@@ -104,6 +104,7 @@ class PracticalTestQuestion(Base):
 
     id = Column(String(255), primary_key=True)          # unique ID, e.g. pt_<timestamp>_<n>
     topic_id = Column(String(255), nullable=False, index=True)  # main topic name
+    topics = Column(JSON, nullable=True)  # list of all topics for multi-topic questions
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
     note = Column(Text, nullable=True)

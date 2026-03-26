@@ -112,6 +112,7 @@ def _row_to_dict(row) -> dict:
     return {
         "id": row.id,
         "topic_id": row.topic_id,
+        "topics": getattr(row, "topics", None) or [row.topic_id],
         "question": {
             "title": row.title,
             "description": row.description,
@@ -132,23 +133,19 @@ def _row_to_dict(row) -> dict:
     }
 
 
-def _get_db_questions_for_topic(topic_id: str) -> List[dict]:
-    if not SessionLocal or not PracticalTestQuestion:
-        print("⚠️ Database not available, skipping cache lookup")
-        return []
-
+def _get_db_questions_for_topics(topics: List[str]) -> List[dict]:
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-        try:
+        if len(topics) == 1:
             rows = db.query(PracticalTestQuestion).filter(
-                PracticalTestQuestion.topic_id == topic_id
-            ).all()
-            return [_row_to_dict(r) for r in rows]
-        finally:
-            db.close()
-    except Exception as e:
-        print(f"⚠️ Error querying practical questions: {e}")
-        return []
+                PracticalTestQuestion.topic_id == topics[0]).all()
+        else:
+            all_rows = db.query(PracticalTestQuestion).filter(
+                PracticalTestQuestion.topics.isnot(None)).all()
+            rows = [r for r in all_rows if all(t in (r.topics or []) for t in topics)]
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        db.close()
 
 
 def _save_db_question(q: dict):
@@ -167,6 +164,7 @@ def _save_db_question(q: dict):
                 PracticalTestQuestion(
                     id=q["id"],
                     topic_id=q["topic_id"],
+                    topics=q.get("topics", [q["topic_id"]]),
                     title=q["question"]["title"],
                     description=q["question"]["description"],
                     note=q["question"].get("note"),
@@ -300,6 +298,7 @@ class CodeRequest(BaseModel):
 class AiCodeRequest(BaseModel):
     code_files: dict[str, str]
     question_db_id: str
+    question_data: Optional[dict] = None  # fallback for questions not yet in DB
 
 
 class PracticalGenerateRequest(BaseModel):
@@ -317,28 +316,23 @@ async def generate_practical_test(req: PracticalGenerateRequest):
     topic_str = " and ".join(main_topics)
     print(f"📥 Practical test generate: topics={topic_str}, force_new={req.force_new}")
 
-    # If a single main topic, allow cached DB questions; for multi-topic prompts, skip cache
-    use_cache = (len(main_topics) == 1)
-    if use_cache and not req.force_new:
-        cached = _get_db_questions_for_topic(main_topics[0])
+    # Check DB cache across the full topics list (fast path)
+    if not req.force_new:
+        cached = _get_db_questions_for_topics(main_topics)
         if cached:
-            chosen = random.choice(cached)
-            print(f"✅ Serving cached practical question {chosen['id']} for topic '{main_topics[0]}'")
-            return {"question_data": chosen, "source": "database", "topic": main_topics[0]}
-
-    existing = _get_db_questions_for_topic(main_topics[0]) if use_cache else []
-    existing_titles = [q["question"]["title"] for q in existing]
+            return {"question_data": random.choice(cached), "source": "database"}
 
     try:
         # Pass the combined topic string to the generator so the prompt can reference all topics
-        new_q = await _generate_practical_question(topic_str, existing_titles)
+        new_q = await _generate_practical_question(topic_str, [])
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
 
-    # When single-topic, save to DB for caching; multi-topic questions are not saved to per-topic cache
-    if use_cache:
-        _save_db_question(new_q)
+    # Tag with all topics and persist as a record (primary topic is first)
+    new_q["topics"] = main_topics
+    new_q["topic_id"] = main_topics[0]
+    _save_db_question(new_q)
     return {"question_data": new_q, "source": "ai_generated", "topics": main_topics}
 
 
@@ -485,16 +479,22 @@ def _build_smart_run_app(base_methods: dict) -> str:
 
 @router.post("/evaluate-ai")
 def evaluate_ai(req: AiCodeRequest):
-    db = SessionLocal()
-    try:
-        row = db.query(PracticalTestQuestion).filter(
-            PracticalTestQuestion.id == req.question_db_id
-        ).first()
-    finally:
-        db.close()
+    row = None
+    if SessionLocal and PracticalTestQuestion:
+        db = SessionLocal()
+        try:
+            row = db.query(PracticalTestQuestion).filter(
+                PracticalTestQuestion.id == req.question_db_id).first()
+        finally:
+            db.close()
 
     if not row:
-        raise HTTPException(status_code=404, detail="Question not found in database.")
+        if not req.question_data:
+            raise HTTPException(status_code=404, detail="Question not found.")
+        class SimpleRow:
+            base_class = req.question_data.get("baseCode", {}).get("class", "Main")
+            base_methods = req.question_data.get("baseCode", {}).get("methods", {})
+        row = SimpleRow()
 
     user_code = (
         req.code_files.get(row.base_class)
