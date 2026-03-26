@@ -1200,11 +1200,32 @@ async def get_full_document(req: DocumentRequest):
         ret = await get_retriever()
 
         vectorstore = ret.vectorstore
-        matching_docs = []
+        # Collect documents (keep full doc objects so we can sort by metadata)
+        chunk_list = []
         for doc_id in vectorstore.index_to_docstore_id.values():
             doc = vectorstore.docstore.search(doc_id)
             if doc and doc.metadata.get('source', '').endswith(req.source_file):
-                matching_docs.append({'content': doc.page_content, 'metadata': doc.metadata})
+                chunk_list.append(doc)
+
+        # Debug: print a sample metadata so we can inspect what fields are available
+        if chunk_list:
+            try:
+                print(f"DEBUG doc metadata sample: {chunk_list[0].metadata}")
+            except Exception:
+                pass
+
+        # Sort by common order fields if present (page, chunk_index, start_index)
+        def _sort_key(d):
+            m = d.metadata or {}
+            return (
+                m.get('page', 0) or 0,
+                m.get('chunk_index', 0) or 0,
+                m.get('start_index', 0) or 0,
+            )
+
+        chunk_list.sort(key=_sort_key)
+
+        matching_docs = [{'content': d.page_content, 'metadata': d.metadata} for d in chunk_list]
 
         if not matching_docs:
             raise HTTPException(status_code=404, detail=f"No documents found: {req.source_file}")
@@ -1235,11 +1256,32 @@ async def get_chunk_context(request: Request):
         ret = await get_retriever()
 
         vectorstore = ret.vectorstore
-        all_chunks = []
+        # Build a list of Document objects for this source, then sort by metadata
+        chunk_list = []
         for doc_id in vectorstore.index_to_docstore_id.values():
             doc = vectorstore.docstore.search(doc_id)
             if doc and doc.metadata.get('source', '').endswith(source_file):
-                all_chunks.append(doc.page_content)
+                chunk_list.append(doc)
+
+        if not chunk_list:
+            raise HTTPException(status_code=404, detail=f"No chunks: {source_file}")
+
+        # Debug sample metadata
+        try:
+            print(f"DEBUG doc metadata sample: {chunk_list[0].metadata}")
+        except Exception:
+            pass
+
+        def _sort_key(d):
+            m = d.metadata or {}
+            return (
+                m.get('page', 0) or 0,
+                m.get('chunk_index', 0) or 0,
+                m.get('start_index', 0) or 0,
+            )
+
+        chunk_list.sort(key=_sort_key)
+        all_chunks = [d.page_content for d in chunk_list]
 
         if not all_chunks:
             raise HTTPException(status_code=404, detail=f"No chunks: {source_file}")
