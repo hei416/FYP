@@ -56,6 +56,7 @@ class ConversationManager:
         code_snippet: Optional[str] = None,
         input_tokens: int = 0,
         output_tokens: int = 0,
+        pdf_matches: Optional[List[Dict[str, Any]]] = None,
     ) -> ConversationHistory:
         """Save a single conversation turn"""
         try:
@@ -71,6 +72,11 @@ class ConversationManager:
             
             turn_number = (last_turn or 0) + 1
             
+            # Store pdf_matches in summary_of_turns JSONB field
+            summary_of_turns = None
+            if pdf_matches:
+                summary_of_turns = {"pdf_matches": pdf_matches}
+            
             # Create and save turn
             turn = ConversationHistory(
                 user_id=user_id,
@@ -83,6 +89,7 @@ class ConversationManager:
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 is_summarized=False,
+                summary_of_turns=summary_of_turns,
             )
             
             self.db.add(turn)
@@ -331,7 +338,6 @@ SUMMARY:"""
                     end_turn = oldest_turns[-1].turn_number
                     
                     # Run summarization asynchronously without blocking
-                    # In production, consider using a task queue
                     asyncio.create_task(
                         self.summarize_old_turns(user_id, conversation_id, start_turn, end_turn)
                     )
@@ -375,7 +381,6 @@ SUMMARY:"""
     
     def _extract_key_points(self, conversation: str, summary: str) -> List[str]:
         """Extract key points from conversation and summary"""
-        # Simple extraction - in production, could use NLP
         key_points = []
         
         sentences = summary.split(".")
@@ -395,7 +400,6 @@ SUMMARY:"""
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             
-            # Delete old conversations and their summaries
             old_conversations = self.db.query(ConversationHistory.conversation_id).filter(
                 and_(
                     ConversationHistory.user_id == user_id,
@@ -406,12 +410,10 @@ SUMMARY:"""
             conversation_ids = [c[0] for c in old_conversations]
             
             if conversation_ids:
-                # Delete histories
                 deleted = self.db.query(ConversationHistory).filter(
                     ConversationHistory.conversation_id.in_(conversation_ids)
                 ).delete()
                 
-                # Delete summaries
                 self.db.query(ConversationSummary).filter(
                     ConversationSummary.conversation_id.in_(conversation_ids)
                 ).delete()
@@ -435,7 +437,6 @@ SUMMARY:"""
         """Get statistics about conversation usage and token costs"""
         try:
             if conversation_id:
-                # Stats for single conversation
                 unsummarized = self.db.query(ConversationHistory).filter(
                     and_(
                         ConversationHistory.user_id == user_id,
@@ -478,7 +479,6 @@ SUMMARY:"""
                     "total_tokens": total_tokens,
                 }
             else:
-                # Stats for all conversations
                 all_turns = self.db.query(ConversationHistory).filter(
                     ConversationHistory.user_id == user_id
                 ).count()
@@ -499,7 +499,7 @@ SUMMARY:"""
                     "total_turns": all_turns,
                     "total_tokens": total_tokens,
                     "total_summary_segments": total_summaries,
-                    "estimated_cost_usd": (total_tokens / 1000000) * 0.001,  # Rough estimate
+                    "estimated_cost_usd": (total_tokens / 1000000) * 0.001,
                 }
         
         except Exception as e:

@@ -14,7 +14,6 @@ function generateId() {
 function parseTs(ts) {
     if (!ts) return new Date(0);
     if (typeof ts === 'number') return new Date(ts);
-    // Python datetime isoformat omits the Z — append it so JS treats it as UTC
     const s = String(ts);
     return new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z');
 }
@@ -98,9 +97,15 @@ export default function ConversationHistoryPage() {
                 const res = await fetch(`${API_BASE}/conversation/history/${activeId}`, { headers: authHeaders });
                 if (!res.ok) return;
                 const turns = await res.json();
+                // Restore pdf_matches from DB so sources section works after refresh
                 const messages = turns.flatMap(t => [
                     { role: 'user', content: t.user_message },
-                    { role: 'assistant', content: t.assistant_response, pdf_matches: [], debug_log: null },
+                    {
+                        role: 'assistant',
+                        content: t.assistant_response,
+                        pdf_matches: t.pdf_matches || [],
+                        debug_log: null,
+                    },
                 ]);
                 setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages } : s));
             } catch (e) {
@@ -187,22 +192,9 @@ export default function ConversationHistoryPage() {
                 pdf_matches: data.debug_log?.pdf_matches || [],
                 debug_log: data.debug_log,
             };
+            // /ragAI already saves the turn to DB via ConversationManager.save_turn
+            // No need to call /conversation/save separately (would create duplicates)
             setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...(s.messages || []), aiMsg] } : s));
-
-            // Persist turn to DB
-            try {
-                await fetch(`${API_BASE}/conversation/save`, {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({
-                        conversation_id: currentId,
-                        user_message: questionText,
-                        assistant_response: data.final_answer || 'No response.',
-                        context_type: 'general',
-                    }),
-                });
-            } catch (_) { console.warn('Failed to save turn to DB'); }
-
         } catch (err) {
             setSessions(prev => prev.map(s => s.id === currentId
                 ? { ...s, messages: [...(s.messages || []), { role: 'assistant', content: 'Error: ' + err.message }] }

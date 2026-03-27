@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 import uuid
 
 from database import get_db
@@ -34,6 +34,8 @@ class ConversationTurnResponse(BaseModel):
     context_type: str
     code_snippet: Optional[str]
     created_at: datetime
+    # pdf_matches stored in summary_of_turns JSONB
+    pdf_matches: Optional[List[Any]] = None
 
     class Config:
         from_attributes = True
@@ -53,7 +55,6 @@ def save_turn(
     current_user: User = Depends(get_current_user),
 ):
     """Save a single Q&A turn to conversation history."""
-    # Count existing turns to assign turn_number
     existing_count = (
         db.query(ConversationHistory)
         .filter(
@@ -77,10 +78,12 @@ def save_turn(
     db.add(turn)
     db.commit()
     db.refresh(turn)
+    # Attach empty pdf_matches for response schema
+    turn.pdf_matches = []
     return turn
 
 
-@router.get("/history/{conversation_id}", response_model=List[ConversationTurnResponse])
+@router.get("/history/{conversation_id}")
 def get_conversation(
     conversation_id: str,
     db: Session = Depends(get_db),
@@ -96,8 +99,26 @@ def get_conversation(
         .order_by(ConversationHistory.turn_number.asc())
         .all()
     )
-    # Only return the last MAX_HISTORY_TURNS to limit context size
-    return turns[-MAX_HISTORY_TURNS:]
+    turns = turns[-MAX_HISTORY_TURNS:]
+
+    result = []
+    for t in turns:
+        # Restore pdf_matches from summary_of_turns JSONB if present
+        pdf_matches = []
+        if t.summary_of_turns and isinstance(t.summary_of_turns, dict):
+            pdf_matches = t.summary_of_turns.get("pdf_matches", [])
+        result.append({
+            "id": t.id,
+            "conversation_id": t.conversation_id,
+            "turn_number": t.turn_number,
+            "user_message": t.user_message,
+            "assistant_response": t.assistant_response,
+            "context_type": t.context_type,
+            "code_snippet": t.code_snippet,
+            "created_at": t.created_at,
+            "pdf_matches": pdf_matches,
+        })
+    return result
 
 
 @router.get("/sessions", response_model=List[ConversationSessionResponse])
