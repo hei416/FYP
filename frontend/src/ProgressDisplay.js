@@ -32,7 +32,7 @@ export default function ProgressDisplay() {
                     return undefined;
                 };
 
-                // Quizzes
+                // Exercises (quizzes)
                 const quizTotalAttempts = savedWorks.filter(w => w.work_type === 'quiz').length;
                 const quizPassedAttempts = savedWorks.filter(w => w.work_type === 'quiz' && (scoreOf(w) !== undefined) && scoreOf(w) >= 70).length;
                 const subtopicToGroupLabel = (subId) => {
@@ -97,7 +97,7 @@ export default function ProgressDisplay() {
                 const quizPassedTopics = quizPassedTopicsSet.size;
                 const quizTestedCount = quizTestedTopics.size;
 
-                // Tests
+                // Coding Challenges (practical tests)
                 const testTotalAttempts = savedWorks.filter(w => w.work_type === 'test').length;
                 const testPassedAttempts = savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).length;
                 const testWorks = savedWorks.filter(w => w.work_type === 'test');
@@ -302,21 +302,21 @@ export default function ProgressDisplay() {
                             />
 
                             <ProgressItem
-                                icon="📝" title="Quizzes"
+                                icon="📝" title="Exercises"
                                 completed={detailedProgress.quizzes.passed}
                                 total={TOPIC_GROUPS.length}
                                 subtitle={`${detailedProgress.quizzes.attempted} sessions · ${detailedProgress.quizzes.passedAttempts} passing sessions · ${detailedProgress.quizzes.testedTopics || 0} topics covered`}
-                                passCriteria={`Pass score: ≥${detailedProgress.quizzes.passScore}% per quiz`}
+                                passCriteria={`Pass score: ≥${detailedProgress.quizzes.passScore}% per exercise`}
                                 passColor="#FF9800"
                                 color="#FF9800"
                             />
 
                             <ProgressItem
-                                icon="🎯" title="Practical Tests"
+                                icon="🎯" title="Coding Challenges"
                                 completed={detailedProgress.tests.passed}
                                 total={TOPIC_GROUPS.length}
                                 subtitle={`${detailedProgress.tests.attempted} sessions · ${detailedProgress.tests.passedAttempts} passing sessions · ${detailedProgress.tests.testedTopics || 0} topics covered`}
-                                passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per test`}
+                                passCriteria={`Pass score: ≥${detailedProgress.tests.passScore}% per coding challenge`}
                                 passColor="#F44336"
                                 color="#F44336"
                             />
