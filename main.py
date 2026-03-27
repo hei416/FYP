@@ -46,6 +46,8 @@ try:
     print("  ✓ my_work")
     from routers import conversation
     print("  ✓ conversation")
+    from routers import classroom
+    print("  ✓ classroom")
     import routers.rag as rag_router
     print("  ✓ rag_router\n")
     ROUTERS_IMPORTED = True
@@ -109,6 +111,7 @@ def run_migrations(db_engine):
     try:
         from sqlalchemy import text
         with db_engine.connect() as conn:
+            # --- Existing migrations ---
             try:
                 conn.execute(text("""
                     ALTER TABLE user_progress
@@ -118,6 +121,52 @@ def run_migrations(db_engine):
                 print("✅ Migration: dismissed_milestones column ensured on user_progress")
             except Exception as e:
                 print(f"⚠️ dismissed_milestones migration: {e}")
+
+            # --- Role column on users ---
+            try:
+                conn.execute(text("""
+                    ALTER TABLE users
+                    ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'student'
+                """))
+                conn.commit()
+                print("✅ Migration: role column ensured on users")
+            except Exception as e:
+                print(f"⚠️ role migration: {e}")
+
+            # --- Classrooms table ---
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS classrooms (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        description TEXT,
+                        class_code VARCHAR(20) UNIQUE NOT NULL,
+                        teacher_id INTEGER NOT NULL REFERENCES users(id),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: classrooms table ready")
+            except Exception as e:
+                print(f"⚠️ classrooms migration: {e}")
+
+            # --- Classroom members table ---
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS classroom_members (
+                        id SERIAL PRIMARY KEY,
+                        classroom_id INTEGER NOT NULL REFERENCES classrooms(id),
+                        student_id INTEGER NOT NULL REFERENCES users(id),
+                        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(classroom_id, student_id)
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: classroom_members table ready")
+            except Exception as e:
+                print(f"⚠️ classroom_members migration: {e}")
+
     except Exception as e:
         print(f"⚠️ run_migrations error: {e}")
 
@@ -238,6 +287,7 @@ if ROUTERS_IMPORTED:
             (practical_tests.router, "Tests", "/api/practical-tests"),
             (my_work.router, "My Work", None),
             (conversation.router, "Conversation", None),
+            (classroom.router, "Classroom", None),
         ]
         for router_obj, router_name, prefix in routers_to_include:
             try:
@@ -269,7 +319,7 @@ async def root():
             "avg_response_time": "6.73s",
             "claims_verified": "46/47"
         },
-        "features": ["AI Tutor", "Code Execution", "Lessons", "Tests", "PDFs", "Conversation History"],
+        "features": ["AI Tutor", "Code Execution", "Lessons", "Exercises", "PDFs", "Conversation History", "Classroom"],
         "endpoints": {
             "ai_tutor": "POST /ragAI",
             "health": "GET /rag/health",
