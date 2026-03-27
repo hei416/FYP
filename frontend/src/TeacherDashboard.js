@@ -87,6 +87,7 @@ export default function TeacherDashboard() {
     fontSize: font.sizeSm, fontWeight: font.weightBold,
     color: colors.textSecondary, borderBottom: `2px solid ${colors.border}`,
     background: colors.background,
+    whiteSpace: 'nowrap',
   };
 
   const tdStyle = {
@@ -94,8 +95,44 @@ export default function TeacherDashboard() {
     color: colors.text, borderBottom: `1px solid ${colors.border}`,
   };
 
+  // Column definitions — label + accessor
+  const columns = [
+    { header: 'Name',                   key: 'full_name',        render: (s) => s.full_name || '—' },
+    { header: 'Email',                  key: 'email',            render: (s) => s.email },
+    { header: 'Topics Completed',       key: 'completed_topics', render: (s) => s.completed_topics, center: true },
+    { header: 'Quizzes Attempted',      key: 'quizzes_attempted', render: (s) => s.quizzes_attempted, center: true },
+    {
+      header: 'Avg Quiz Score',
+      key: 'avg_quiz_score',
+      center: true,
+      render: (s) =>
+        s.avg_quiz_score !== null && s.avg_quiz_score !== undefined ? (
+          <span style={{
+            padding: '2px 8px', borderRadius: 9999, fontSize: 12, fontWeight: 600,
+            background: s.avg_quiz_score >= 70 ? '#dcfce7' : s.avg_quiz_score >= 50 ? '#fef9c3' : '#fee2e2',
+            color:      s.avg_quiz_score >= 70 ? '#16a34a' : s.avg_quiz_score >= 50 ? '#ca8a04' : '#dc2626',
+          }}>{s.avg_quiz_score}%</span>
+        ) : '—',
+    },
+    { header: 'Coding Challenges Attempted', key: 'tests_attempted', render: (s) => s.tests_attempted, center: true },
+    {
+      header: 'Coding Challenges Passed',
+      key: 'tests_passed',
+      center: true,
+      render: (s) => (
+        <span style={{
+          padding: '2px 8px', borderRadius: 9999, fontSize: 12,
+          background: s.tests_passed > 0 ? '#dcfce7' : '#f3f4f6',
+          color:      s.tests_passed > 0 ? '#16a34a' : colors.textMuted,
+        }}>{s.tests_passed}</span>
+      ),
+    },
+    { header: 'AI Interactions', key: 'ai_interactions', render: (s) => s.ai_interactions, center: true },
+    { header: 'Joined',         key: 'joined_at',       render: (s) => new Date(s.joined_at).toLocaleDateString(), muted: true },
+  ];
+
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
       <h2 style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.primary, marginBottom: 4 }}>🏫 Teacher Dashboard</h2>
       <p style={{ color: colors.textMuted, marginBottom: 32, marginTop: 0 }}>Manage your classrooms and monitor student progress.</p>
 
@@ -164,16 +201,22 @@ export default function TeacherDashboard() {
         <div style={{ ...card, padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: font.sizeLg, color: colors.text }}>{selectedClass.name} — Student Analytics</h3>
-              {analytics && <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textMuted }}>{analytics.total_students} student{analytics.total_students !== 1 ? 's' : ''} enrolled</p>}
+              <h3 style={{ margin: 0, fontSize: font.sizeLg, color: colors.text }}>{selectedClass.name} — Student Progress</h3>
+              {analytics && (
+                <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textMuted }}>
+                  {analytics.total_students} student{analytics.total_students !== 1 ? 's' : ''} enrolled
+                </p>
+              )}
             </div>
             <button onClick={() => { setSelectedClass(null); setAnalytics(null); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: 20 }}>✕</button>
           </div>
 
-          {analyticsLoading && <p style={{ color: colors.textMuted }}>Loading analytics...</p>}
+          {analyticsLoading && <p style={{ color: colors.textMuted }}>Loading student data...</p>}
 
           {analytics && analytics.students.length === 0 && (
-            <p style={{ color: colors.textMuted }}>No students have joined this classroom yet. Share the join code: <strong>{selectedClass.class_code}</strong></p>
+            <p style={{ color: colors.textMuted }}>
+              No students have joined this classroom yet. Share the join code: <strong>{selectedClass.class_code}</strong>
+            </p>
           )}
 
           {analytics && analytics.students.length > 0 && (
@@ -181,37 +224,32 @@ export default function TeacherDashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
                 <thead>
                   <tr>
-                    {['Name', 'Email', 'Topics Done', 'Exercises Attempted', 'Avg Exercise Score', 'Coding Challenges', 'Challenges Passed', 'AI Interactions', 'Joined'].map(h => (
-                      <th key={h} style={thStyle}>{h}</th>
+                    {columns.map(col => (
+                      <th key={col.key} style={{ ...thStyle, textAlign: col.center ? 'center' : 'left' }}>
+                        {col.header}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {analytics.students.map((s) => (
-                    <tr key={s.student_id} onMouseEnter={(e) => { e.currentTarget.style.background = colors.background; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
-                      <td style={tdStyle}>{s.full_name || '—'}</td>
-                      <td style={tdStyle}>{s.email}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>{s.completed_topics}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>{s.quizzes_attempted}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        {s.avg_quiz_score !== null ? (
-                          <span style={{
-                            padding: '2px 8px', borderRadius: 9999, fontSize: 12, fontWeight: 600,
-                            background: s.avg_quiz_score >= 70 ? '#dcfce7' : s.avg_quiz_score >= 50 ? '#fef9c3' : '#fee2e2',
-                            color: s.avg_quiz_score >= 70 ? '#16a34a' : s.avg_quiz_score >= 50 ? '#ca8a04' : '#dc2626',
-                          }}>{s.avg_quiz_score}%</span>
-                        ) : '—'}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>{s.tests_attempted}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: 9999, fontSize: 12,
-                          background: s.tests_passed > 0 ? '#dcfce7' : '#f3f4f6',
-                          color: s.tests_passed > 0 ? '#16a34a' : colors.textMuted,
-                        }}>{s.tests_passed}</span>
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>{s.ai_interactions}</td>
-                      <td style={{ ...tdStyle, color: colors.textMuted }}>{new Date(s.joined_at).toLocaleDateString()}</td>
+                    <tr
+                      key={s.student_id}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = colors.background; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
+                    >
+                      {columns.map(col => (
+                        <td
+                          key={col.key}
+                          style={{
+                            ...tdStyle,
+                            textAlign: col.center ? 'center' : 'left',
+                            color: col.muted ? colors.textMuted : colors.text,
+                          }}
+                        >
+                          {col.render(s)}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
