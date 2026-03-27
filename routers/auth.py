@@ -24,6 +24,7 @@ class UserRegister(BaseModel):
     email: str
     password: str
     full_name: str = None
+    role: str = "student"  # student / teacher (admin assigned manually)
 
 class UserLogin(BaseModel):
     email: str
@@ -34,11 +35,13 @@ class Token(BaseModel):
     token_type: str
     user_id: int
     email: str
+    role: str
 
 class UserResponse(BaseModel):
     id: int
     email: str
     full_name: str = None
+    role: str
     created_at: datetime
 
     class Config:
@@ -53,12 +56,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-def create_access_token(user_id: int, email: str) -> str:
+def create_access_token(user_id: int, email: str, role: str) -> str:
     """Create JWT access token"""
     expires = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "user_id": user_id,
         "email": email,
+        "role": role,
         "exp": expires
     }
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -75,7 +79,7 @@ def verify_token(token: str) -> dict:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token"
             )
-        return {"user_id": user_id, "email": email}
+        return {"user_id": user_id, "email": email, "role": payload.get("role", "student")}
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -115,10 +119,30 @@ def get_current_user(
     
     return user
 
+
+def require_role(*allowed_roles: str):
+    """Dependency factory: raises 403 if the current user's role is not in allowed_roles."""
+    def _checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role(s): {', '.join(allowed_roles)}"
+            )
+        return current_user
+    return _checker
+
+
 # Routes
 @router.post("/register", response_model=Token)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register a new user"""
+    """Register a new user. Role defaults to 'student'; pass role='teacher' to register as teacher."""
+    # Prevent self-assigning admin role
+    if user_data.role not in ("student", "teacher"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be 'student' or 'teacher'"
+        )
+
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -132,7 +156,8 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     new_user = User(
         email=user_data.email,
         password_hash=hashed_password,
-        full_name=user_data.full_name
+        full_name=user_data.full_name,
+        role=user_data.role
     )
     
     db.add(new_user)
@@ -140,13 +165,14 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.refresh(new_user)
     
     # Create token
-    token = create_access_token(new_user.id, new_user.email)
+    token = create_access_token(new_user.id, new_user.email, new_user.role)
     
     return {
         "access_token": token,
         "token_type": "bearer",
         "user_id": new_user.id,
-        "email": new_user.email
+        "email": new_user.email,
+        "role": new_user.role
     }
 
 @router.post("/login", response_model=Token)
@@ -162,13 +188,14 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
     
     # Create token
-    token = create_access_token(user.id, user.email)
+    token = create_access_token(user.id, user.email, user.role)
     
     return {
         "access_token": token,
         "token_type": "bearer",
         "user_id": user.id,
-        "email": user.email
+        "email": user.email,
+        "role": user.role
     }
 
 @router.get("/me", response_model=UserResponse)
@@ -183,11 +210,12 @@ async def refresh_token(
     current_user: User = Depends(get_current_user)
 ):
     """Refresh access token"""
-    new_token = create_access_token(current_user.id, current_user.email)
+    new_token = create_access_token(current_user.id, current_user.email, current_user.role)
     
     return {
         "access_token": new_token,
         "token_type": "bearer",
         "user_id": current_user.id,
-        "email": current_user.email
+        "email": current_user.email,
+        "role": current_user.role
     }
