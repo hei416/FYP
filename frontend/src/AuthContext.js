@@ -11,9 +11,8 @@ const PROGRESS_LOCAL_KEYS = [
   'hasSeenDemoTour',
 ];
 
-// Called on logout: clears progress keys only.
-// Chat history keys (codetutor_chat_<userId>) are user-scoped and intentionally
-// kept in localStorage so they survive re-login on the same device.
+// Only clears progress keys. Chat history keys (codetutor_chat_<userId>)
+// are user-scoped and intentionally kept so they survive re-login.
 const clearProgressLocalData = () => {
   PROGRESS_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
 };
@@ -115,14 +114,15 @@ export const AuthProvider = ({ children }) => {
   }, [API_BASE]);
 
   const logout = useCallback(async () => {
-    // Push progress to backend before clearing local progress data
+    // 1. Push progress to backend before clearing anything
     try { await pushProgressToBackend(); } catch (_) {}
-    // Clear progress keys only — chat history stays (user-scoped keys persist for re-login)
+    // 2. Clear progress-related local storage
     clearProgressLocalData();
-    setToken(null);
-    setUser(null);
+    // 3. Remove auth token
     localStorage.removeItem('authToken');
-    setError(null);
+    // 4. Force a full page reload to /login — this resets ALL in-memory React state
+    //    (progress counters, quiz state, roadmap state) back to zero with no stale data.
+    window.location.href = '/login';
   }, []);
 
   const refreshToken = useCallback(async () => {
