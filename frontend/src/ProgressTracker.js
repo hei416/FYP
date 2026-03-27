@@ -9,8 +9,8 @@ import {
     markTopicCompleteOnBackend
 } from './progressService';
 
-export const QUIZ_TARGET = 6;
-export const TEST_TARGET = 6;
+export const QUIZ_TARGET = 12;
+export const TEST_TARGET = 12;
 export const QUIZ_PASS_SCORE = 70;
 export const TEST_PASS_SCORE = 60;
 
