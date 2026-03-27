@@ -3,6 +3,22 @@ import { pullProgressFromBackend, pushProgressToBackend } from './progressServic
 
 const AuthContext = createContext(null);
 
+// All localStorage keys that are user-specific and must be cleared on logout
+const USER_LOCAL_KEYS = [
+  'codetutor_learning_progress',
+  'java-roadmap-completed',
+  'dismissed_milestones',
+  'hasSeenDemoTour',
+];
+
+const clearUserLocalData = () => {
+  USER_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
+  // Clear any user-scoped chat history keys (pattern: codetutor_chat_<userId>)
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('codetutor_chat_'))
+    .forEach(k => localStorage.removeItem(k));
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -74,6 +90,8 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+      // Clear any previous user's local data before loading the new user's data
+      clearUserLocalData();
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +116,10 @@ export const AuthProvider = ({ children }) => {
   }, [API_BASE]);
 
   const logout = useCallback(async () => {
+    // Push progress to backend before clearing local data
     try { await pushProgressToBackend(); } catch (_) {}
+    // Clear all user-specific local storage
+    clearUserLocalData();
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');

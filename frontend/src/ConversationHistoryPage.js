@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import TextareaAutosize from 'react-textarea-autosize';
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
+import { useAuth } from './AuthContext';
 
-const STORAGE_KEY = 'codetutor_chat_history';
+// Storage key is scoped per user ID so different accounts on the same
+// device never share chat history.
+function storageKey(userId) {
+    return userId ? `codetutor_chat_${userId}` : 'codetutor_chat_guest';
+}
+
 const SESSION_KEY = 'codetutor_active_session';
 
 function generateId() {
@@ -20,7 +26,6 @@ function formatDate(ts) {
     return d.toLocaleDateString('en-HK', { month: 'short', day: 'numeric' });
 }
 
-// Collapse/shrink icon (two inward arrows)
 const CollapseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="6" y1="6" x2="3" y2="3" />
@@ -36,11 +41,33 @@ const CollapseIcon = () => (
 
 export default function ConversationHistoryPage() {
     const navigate = useNavigate();
+    const { isAuthenticated, user, loading } = useAuth();
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
+    // Auth guard — redirect to login if not authenticated
+    useEffect(() => {
+        if (!loading && !isAuthenticated) {
+            navigate('/login');
+        }
+    }, [loading, isAuthenticated, navigate]);
+
+    const STORAGE_KEY = storageKey(user?.id);
+
     const [sessions, setSessions] = useState(() => {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+        if (!user?.id) return [];
+        try { return JSON.parse(localStorage.getItem(storageKey(user?.id)) || '[]'); } catch { return []; }
     });
+
+    // Re-load sessions when user changes (e.g. different account)
+    useEffect(() => {
+        if (user?.id) {
+            try {
+                setSessions(JSON.parse(localStorage.getItem(storageKey(user.id)) || '[]'));
+            } catch {
+                setSessions([]);
+            }
+        }
+    }, [user?.id]);
 
     const [activeId, setActiveId] = useState(() => {
         const fromChat = sessionStorage.getItem(SESSION_KEY);
@@ -49,12 +76,11 @@ export default function ConversationHistoryPage() {
             sessionStorage.removeItem(SESSION_KEY);
             return parsed.id;
         }
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        return stored.length > 0 ? stored[0].id : null;
+        return null;
     });
 
     const [userInput, setUserInput] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [loading2, setLoading2] = useState(false);
     const [expandedChunk, setExpandedChunk] = useState(null);
     const [chunkContext, setChunkContext] = useState(null);
     const [loadingContext, setLoadingContext] = useState(false);
@@ -64,8 +90,19 @@ export default function ConversationHistoryPage() {
     const activeSession = sessions.find(s => s.id === activeId) || null;
     const messages = activeSession ? activeSession.messages : [];
 
-    useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }, [sessions]);
+    // Persist sessions to user-scoped key
+    useEffect(() => {
+        if (user?.id) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+        }
+    }, [sessions, STORAGE_KEY, user?.id]);
+
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+    // Set default active session after sessions load
+    useEffect(() => {
+        if (!activeId && sessions.length > 0) setActiveId(sessions[0].id);
+    }, [sessions, activeId]);
 
     const createNewSession = () => {
         const ns = { id: generateId(), title: 'New conversation', createdAt: Date.now(), messages: [] };
@@ -117,7 +154,7 @@ export default function ConversationHistoryPage() {
             : s
         ));
         setUserInput('');
-        setLoading(true);
+        setLoading2(true);
 
         try {
             const res = await fetch(`${API_BASE}/ragAI`, {
@@ -130,7 +167,7 @@ export default function ConversationHistoryPage() {
         } catch (err) {
             setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...s.messages, { role: 'assistant', content: 'Error: ' + err.message }] } : s));
         }
-        setLoading(false);
+        setLoading2(false);
     };
 
     const renderMessage = (msg, msgIndex) => {
@@ -165,7 +202,7 @@ export default function ConversationHistoryPage() {
                                         <button onClick={() => { if (isOpen) { setExpandedChunk(null); setChunkContext(null); } else { setChunkContext(null); setExpandedChunk(key); } }}
                                             style={{ padding: '6px 12px', border: `1px solid ${colors.primaryBorder}`, borderRadius: radii.xl, background: isOpen ? colors.primary : colors.primaryLight, color: isOpen ? colors.surface : colors.primary, cursor: 'pointer', fontSize: font.sizeXs, fontWeight: font.weightSemibold }}
                                         >
-                                            {isOpen ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {isOpen ? '▼' : '▶'}
+                                            {isOpen ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {isOpen ? '▼' : '►'}
                                         </button>
                                         {isOpen && (
                                             <div style={{ marginTop: 8, padding: 16, background: colors.warningLight, border: `2px solid ${colors.warningBorder}`, borderRadius: radii.md, fontSize: font.sizeSm, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', maxHeight: 300, overflowY: 'auto' }}>
@@ -203,6 +240,14 @@ export default function ConversationHistoryPage() {
             </div>
         );
     };
+
+    // Show loading state while auth is being determined
+    if (loading) {
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh', color: colors.textMuted }}>Loading...</div>;
+    }
+
+    // If not authenticated, render nothing (redirect handled by useEffect)
+    if (!isAuthenticated) return null;
 
     return (
         <div style={{ display: 'flex', height: 'calc(100vh - 64px)', background: colors.bg, overflow: 'hidden' }}>
@@ -246,7 +291,6 @@ export default function ConversationHistoryPage() {
 
                 {/* Top bar */}
                 <div style={{ height: 56, borderBottom: `1px solid ${colors.divider}`, background: colors.surface, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 10, flexShrink: 0 }}>
-                    {/* Toggle sidebar */}
                     <button onClick={() => setSidebarOpen(v => !v)}
                         style={{ background: 'none', border: `1px solid ${colors.border}`, cursor: 'pointer', color: colors.textSecondary, padding: '5px 8px', borderRadius: radii.sm, display: 'flex', alignItems: 'center', gap: 5, fontSize: font.sizeSm, transition }}
                         title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
@@ -263,7 +307,6 @@ export default function ConversationHistoryPage() {
                         {activeSession ? activeSession.title : '☕ AI Java Tutor'}
                     </span>
 
-                    {/* Shrink back */}
                     <button
                         onClick={() => navigate(-1)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: colors.accentLight, color: colors.accent, border: `1px solid ${colors.accentBorder}`, borderRadius: radii.md, cursor: 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold, transition }}
@@ -285,7 +328,7 @@ export default function ConversationHistoryPage() {
                         </div>
                     )}
                     {messages.map((msg, idx) => renderMessage(msg, idx))}
-                    {loading && (
+                    {loading2 && (
                         <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
                             <div style={{ width: 32, height: 32, borderRadius: radii.full, background: colors.accent, color: colors.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>☕</div>
                             <div style={{ padding: '14px 18px', background: colors.surface, borderRadius: '4px 18px 18px 18px', boxShadow: shadows.sm, border: `1px solid ${colors.divider}` }}>
@@ -313,10 +356,10 @@ export default function ConversationHistoryPage() {
                             minRows={1} maxRows={6}
                             style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', resize: 'none', fontSize: font.sizeMd, fontFamily: font.family, color: colors.text, lineHeight: 1.6 }}
                         />
-                        <button type="submit" disabled={loading || !userInput.trim()}
-                            style={{ ...btn.accent, ...btn.small, opacity: (!loading && userInput.trim()) ? 1 : 0.45, cursor: (!loading && userInput.trim()) ? 'pointer' : 'not-allowed' }}
+                        <button type="submit" disabled={loading2 || !userInput.trim()}
+                            style={{ ...btn.accent, ...btn.small, opacity: (!loading2 && userInput.trim()) ? 1 : 0.45, cursor: (!loading2 && userInput.trim()) ? 'pointer' : 'not-allowed' }}
                         >
-                            {loading ? '⏳' : 'Send'}
+                            {loading2 ? '⏳' : 'Send'}
                         </button>
                     </form>
                     <div style={{ textAlign: 'center', marginTop: 6, fontSize: '11px', color: colors.textMuted }}>Enter to send · Shift+Enter for new line</div>
