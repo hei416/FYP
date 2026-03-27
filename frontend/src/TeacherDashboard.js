@@ -1,8 +1,79 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { createClassroom, getMyClassrooms, getClassroomAnalytics } from './classroomService';
-import { colors, radii, font, card, shadows, btn } from './theme';
+import { createClassroom, getMyClassrooms, getClassroomAnalytics, uploadDocument, listDocuments, deleteDocument } from './classroomService';
+import { radii, font, card, shadows } from './theme';
+import { btn, colors } from './theme';
+// Document Management Section for a classroom card
+function ClassroomDocuments({ classroomId, token }) {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [file, setFile] = useState(null);
+
+  const loadDocs = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await listDocuments(classroomId, token);
+      setDocs(res);
+    } catch (e) {
+      setDocs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [classroomId, token]);
+
+  useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  async function handleUpload(e) {
+    e.preventDefault();
+    if (!file) return;
+    setUploading(true); setUploadError('');
+    try {
+      await uploadDocument(classroomId, file, token);
+      setFile(null);
+      await loadDocs();
+    } catch (e) {
+      setUploadError('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(docId) {
+    if (!window.confirm('Delete this document?')) return;
+    await deleteDocument(classroomId, docId, token);
+    await loadDocs();
+  }
+
+  return (
+    <div style={{ marginTop: 18, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 15 }}>📁 Learning Materials</div>
+      <form onSubmit={handleUpload} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+        <input type="file" accept=".pdf,.txt,.docx" onChange={e => setFile(e.target.files[0])} disabled={uploading} />
+        <button type="submit" disabled={uploading || !file} style={{ ...btn.primary, ...btn.small }}>{uploading ? 'Uploading...' : 'Upload File'}</button>
+        {uploadError && <span style={{ color: '#dc2626', fontSize: 13 }}>{uploadError}</span>}
+      </form>
+      {loading ? (
+        <div style={{ color: colors.textMuted, fontSize: 14 }}>Loading documents...</div>
+      ) : docs.length === 0 ? (
+        <div style={{ color: colors.textMuted, fontSize: 14 }}>No documents yet</div>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {docs.map(doc => (
+            <li key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <span style={{ fontWeight: 500 }}>{doc.original_name}</span>
+              <span style={{ color: colors.textMuted, fontSize: 13 }}>({doc.chunk_count} chunks)</span>
+              <span style={{ color: doc.status === 'ready' ? '#16a34a' : '#ca8a04', fontSize: 13 }}>{doc.status === 'ready' ? 'Ready' : 'Processing...'}</span>
+              <button onClick={() => handleDelete(doc.id)} style={{ ...btn.danger, ...btn.small, marginLeft: 'auto' }}>🗑️</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const scoreColor = (score) => {
@@ -352,6 +423,8 @@ export default function TeacherDashboard() {
                     {copiedCode === cls.class_code ? '✓ Copied' : '📋 Copy'}
                   </button>
                 </div>
+                {/* Document management section */}
+                <ClassroomDocuments classroomId={cls.id} token={localStorage.getItem('authToken')} />
               </div>
             ))}
           </div>

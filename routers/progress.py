@@ -73,7 +73,21 @@ async def get_user_progress_endpoint(
 ):
     """Get current user's progress"""
     progress = get_user_progress(current_user.id, db)
-    return progress
+    return ProgressResponse(
+        id=progress.id,
+        user_id=progress.user_id,
+        completed_topics=progress.completed_topics or [],
+        dismissed_milestones=progress.dismissed_milestones or [],
+        quizzes_attempted=progress.quizzes_attempted or 0,
+        quizzes_completed=progress.quizzes_completed or [],
+        tests_attempted=progress.tests_attempted or 0,
+        tests_passed=progress.tests_passed or [],
+        playground_executions=progress.playground_executions or 0,
+        playground_completed=progress.playground_completed or False,
+        ai_interactions=progress.ai_interactions or 0,
+        completion_percentage=progress.completion_percentage or 0.0,
+        updated_at=progress.updated_at,
+    )
 
 @router.post("/sync")
 async def sync_progress(

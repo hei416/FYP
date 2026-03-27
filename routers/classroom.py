@@ -50,6 +50,7 @@ async def upload_document(
     return {"message": "Document uploaded", "chunks": chunk_count}
 
 
+
 @router.get("/{classroom_id}/documents")
 async def list_documents(
     classroom_id: int,
@@ -59,9 +60,27 @@ async def list_documents(
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
         raise HTTPException(404, "Classroom not found")
-    return db.query(ClassroomDocument).filter(
+    # Students must be enrolled; teachers must own it; admins see all
+    if current_user.role == "student":
+        membership = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.student_id == current_user.id
+        ).first()
+        if not membership:
+            raise HTTPException(403, "Not enrolled in this classroom")
+    elif current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "You do not own this classroom")
+    docs = db.query(ClassroomDocument).filter(
         ClassroomDocument.classroom_id == classroom_id
-    ).all()
+    ).order_by(ClassroomDocument.created_at.desc()).all()
+    return [{
+        "id": d.id,
+        "original_name": d.original_name,
+        "file_type": d.file_type,
+        "status": d.status,
+        "chunk_count": d.chunk_count,
+        "created_at": d.created_at
+    } for d in docs]
 
 
 @router.delete("/{classroom_id}/documents/{doc_id}")

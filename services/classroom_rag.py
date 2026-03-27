@@ -1,3 +1,4 @@
+
 import os
 import shutil
 from langchain_community.vectorstores import FAISS
@@ -6,7 +7,10 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from core.config import API_KEY, BASE_URL, FAISS_EMBEDDING_MODEL, FAISS_EMBEDDING_API_VERSION
 from models import HKBUEmbeddings
 
+
 CLASSROOM_VECTORSTORE_DIR = "vectorstore/classrooms"  # e.g. vectorstore/classrooms/42/
+# Ensure classroom vectorstore directory exists
+os.makedirs(CLASSROOM_VECTORSTORE_DIR, exist_ok=True)
 
 def get_classroom_vs_path(classroom_id: int) -> str:
     return os.path.join(CLASSROOM_VECTORSTORE_DIR, str(classroom_id))
