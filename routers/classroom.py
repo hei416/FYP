@@ -66,6 +66,7 @@ class StudentSummary(BaseModel):
     email: str
     completed_topics: int
     quizzes_attempted: int
+    quizzes_passed: int          # sessions scoring >= 70
     avg_quiz_score: Optional[float]
     tests_attempted: int
     tests_passed: int
@@ -79,8 +80,8 @@ class StudentSummary(BaseModel):
 class ClassSummary(BaseModel):
     avg_exercise_score: Optional[float]
     avg_challenge_score: Optional[float]
-    pct_passing_exercises: Optional[float]
-    pct_passing_challenges: Optional[float]
+    quiz_pass_rate: Optional[float]          # % of all exercise sessions that passed (>=70)
+    pct_passing_challenges: Optional[float]  # % of students who passed >= 1 challenge
     most_common_weak_topics: List[str]
 
 
@@ -208,11 +209,9 @@ async def get_classroom_analytics(
             .all()
         )
 
-        # Last active timestamp
         last_active = all_works[0].created_at if all_works else None
 
-        # --- Exercises (quizzes) ---
-        # Use SavedWork as single source of truth — UserProgress counters can drift
+        # --- Exercises (quizzes) from SavedWork ---
         quiz_works = [w for w in all_works if w.work_type == "quiz"]
         quiz_scores = [
             _score_of(w.result_data)
@@ -220,10 +219,10 @@ async def get_classroom_analytics(
             if _score_of(w.result_data) is not None
         ]
         quizzes_attempted = len(quiz_works)
+        quizzes_passed = sum(1 for sc in quiz_scores if sc >= 70)
         avg_quiz_score = round(sum(quiz_scores) / len(quiz_scores), 2) if quiz_scores else None
 
-        # --- Coding Challenges (tests) ---
-        # Both attempted and passed derived from SavedWork so passed can never exceed attempted
+        # --- Coding Challenges (tests) from SavedWork ---
         test_works = [w for w in all_works if w.work_type == "test"]
         tests_attempted_count = len(test_works)
         tests_passed_count = sum(
@@ -263,6 +262,7 @@ async def get_classroom_analytics(
             email=student.email,
             completed_topics=completed_topics_count,
             quizzes_attempted=quizzes_attempted,
+            quizzes_passed=quizzes_passed,
             avg_quiz_score=avg_quiz_score,
             tests_attempted=tests_attempted_count,
             tests_passed=tests_passed_count,
@@ -285,8 +285,12 @@ async def get_classroom_analytics(
         if _score_of(w.result_data) is not None
     ]
 
+    # quiz_pass_rate: % of all exercise sessions (across all students) that scored >= 70
+    total_quiz_attempted = sum(s.quizzes_attempted for s in student_summaries)
+    total_quiz_passed    = sum(s.quizzes_passed    for s in student_summaries)
+    quiz_pass_rate = round(total_quiz_passed / total_quiz_attempted * 100, 1) if total_quiz_attempted > 0 else None
+
     n = len(student_summaries)
-    passing_exercises  = sum(1 for s in student_summaries if s.avg_quiz_score is not None and s.avg_quiz_score >= 70)
     passing_challenges = sum(1 for s in student_summaries if s.tests_passed > 0)
 
     weak_topic_freq: Dict[str, int] = {}
@@ -298,7 +302,7 @@ async def get_classroom_analytics(
     class_summary = ClassSummary(
         avg_exercise_score=round(sum(all_quiz_scores) / len(all_quiz_scores), 1) if all_quiz_scores else None,
         avg_challenge_score=round(sum(all_test_scores) / len(all_test_scores), 1) if all_test_scores else None,
-        pct_passing_exercises=round(passing_exercises / n * 100, 1) if n > 0 else None,
+        quiz_pass_rate=quiz_pass_rate,
         pct_passing_challenges=round(passing_challenges / n * 100, 1) if n > 0 else None,
         most_common_weak_topics=most_common_weak,
     )
