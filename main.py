@@ -48,6 +48,8 @@ try:
     print("  ✓ conversation")
     from routers import classroom
     print("  ✓ classroom")
+    from routers import admin
+    print("  ✓ admin")
     import routers.rag as rag_router
     print("  ✓ rag_router\n")
     ROUTERS_IMPORTED = True
@@ -288,6 +290,7 @@ if ROUTERS_IMPORTED:
             (my_work.router, "My Work", None),
             (conversation.router, "Conversation", None),
             (classroom.router, "Classroom", None),
+            (admin.router, "Admin", None),
         ]
         for router_obj, router_name, prefix in routers_to_include:
             try:
@@ -319,7 +322,7 @@ async def root():
             "avg_response_time": "6.73s",
             "claims_verified": "46/47"
         },
-        "features": ["AI Tutor", "Code Execution", "Lessons", "Exercises", "PDFs", "Conversation History", "Classroom"],
+        "features": ["AI Tutor", "Code Execution", "Lessons", "Exercises", "PDFs", "Conversation History", "Classroom", "Admin"],
         "endpoints": {
             "ai_tutor": "POST /ragAI",
             "health": "GET /rag/health",
