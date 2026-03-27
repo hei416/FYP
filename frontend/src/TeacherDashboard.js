@@ -2,24 +2,52 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { createClassroom, getMyClassrooms, getClassroomAnalytics } from './classroomService';
-import { colors, radii, font, spacing, card, shadows, btn } from './theme';
+import { colors, radii, font, card, shadows, btn } from './theme';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 const scoreColor = (score) => {
-  if (score === null || score === undefined) return { bg: '#f3f4f6', fg: colors.textMuted };
+  if (score == null) return { bg: '#f3f4f6', fg: colors.textMuted };
   if (score >= 70) return { bg: '#dcfce7', fg: '#16a34a' };
   if (score >= 50) return { bg: '#fef9c3', fg: '#ca8a04' };
   return { bg: '#fee2e2', fg: '#dc2626' };
 };
 
 const rateColor = (rate) => {
-  if (rate === null || rate === undefined) return colors.textMuted;
+  if (rate == null) return colors.textMuted;
   if (rate >= 60) return '#16a34a';
   if (rate >= 40) return '#ca8a04';
   return '#dc2626';
 };
 
+// Compute per-student pass rate (%) from passed / attempted, null if no attempts
+const passRate = (passed, attempted) =>
+  attempted > 0 ? Math.round((passed / attempted) * 100) : null;
+
+// Traffic-light status derived from exercise pass rate, challenge pass rate, and weak topics
+const studentStatus = (s) => {
+  const exRate = passRate(s.quizzes_passed, s.quizzes_attempted);
+  const chRate = passRate(s.tests_passed, s.tests_attempted);
+  const hasActivity = s.quizzes_attempted > 0 || s.tests_attempted > 0;
+
+  if (!hasActivity) return { dot: '⚪', label: 'No Activity', bg: '#f3f4f6', fg: colors.textMuted };
+
+  const isAtRisk =
+    (exRate !== null && exRate < 40) ||
+    (chRate !== null && chRate < 40) ||
+    (s.weak_topics.length >= 3);
+  const needsAttention =
+    (exRate !== null && exRate < 60) ||
+    (chRate !== null && chRate < 60) ||
+    (s.weak_topics.length >= 1);
+
+  if (isAtRisk)        return { dot: '🔴', label: 'At Risk',          bg: '#fee2e2', fg: '#dc2626' };
+  if (needsAttention)  return { dot: '🟡', label: 'Needs Attention',  bg: '#fef9c3', fg: '#ca8a04' };
+  return                      { dot: '🟢', label: 'On Track',         bg: '#dcfce7', fg: '#16a34a' };
+};
+
+// ─── Components ──────────────────────────────────────────────────────────────
 const ScoreBadge = ({ score }) => {
-  if (score === null || score === undefined) return <span style={{ color: colors.textMuted }}>—</span>;
+  if (score == null) return <span style={{ color: colors.textMuted }}>—</span>;
   const { bg, fg } = scoreColor(score);
   return (
     <span style={{ padding: '2px 8px', borderRadius: 9999, fontSize: 12, fontWeight: 600, background: bg, color: fg }}>
@@ -28,12 +56,26 @@ const ScoreBadge = ({ score }) => {
   );
 };
 
+// Shows "passed/attempted (rate%)" with colour-coded rate
+const PassRateBadge = ({ passed, attempted, tooltip }) => {
+  if (attempted === 0) return <span style={{ color: colors.textMuted }}>—</span>;
+  const rate = passRate(passed, attempted);
+  const color = rateColor(rate);
+  return (
+    <span title={tooltip} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+      <span style={{ fontSize: 12, color: colors.textMuted }}>{passed}/{attempted}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color }}>{rate}%</span>
+    </span>
+  );
+};
+
+// ─── Class summary bar ────────────────────────────────────────────────────────
 function ClassSummaryBar({ summary }) {
   if (!summary) return null;
   const stats = [
     {
       label: 'Class Avg Exercise Score',
-      tooltip: "Mean average score across all students' exercise sessions",
+      tooltip: "Mean score across all students' exercise sessions",
       value: summary.avg_exercise_score != null ? `${summary.avg_exercise_score}%` : '—',
       color: scoreColor(summary.avg_exercise_score).fg,
     },
@@ -44,14 +86,14 @@ function ClassSummaryBar({ summary }) {
       color: scoreColor(summary.avg_challenge_score).fg,
     },
     {
-      label: 'Exercise Session Pass Rate',
-      tooltip: '% of individual exercise sessions that scored ≥70 (across all students)',
+      label: 'Exercise Pass Rate',
+      tooltip: '% of all exercise sessions (class-wide) that scored ≥70',
       value: summary.quiz_pass_rate != null ? `${summary.quiz_pass_rate}%` : '—',
       color: rateColor(summary.quiz_pass_rate),
     },
     {
       label: 'Challenge Pass Rate',
-      tooltip: '% of individual challenge sessions that scored ≥60 (across all students)',
+      tooltip: '% of all challenge sessions (class-wide) that scored ≥60',
       value: summary.challenge_pass_rate != null ? `${summary.challenge_pass_rate}%` : '—',
       color: rateColor(summary.challenge_pass_rate),
     },
@@ -68,11 +110,19 @@ function ClassSummaryBar({ summary }) {
           </div>
         ))}
       </div>
+
+      {/* Status breakdown mini-legend */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: font.sizeXs, color: colors.textMuted, flexWrap: 'wrap' }}>
+        <span title="Exercise or challenge pass rate < 40%, or ≥3 weak topics">🔴 At Risk — pass rate &lt;40% or 3+ weak topics</span>
+        <span title="Pass rate 40–59% or any weak topic">🟡 Needs Attention — pass rate 40–59% or weak topic</span>
+        <span title="All pass rates ≥60% and no weak topics">🟢 On Track — all rates ≥60%, no weak topics</span>
+      </div>
+
       {summary.most_common_weak_topics?.length > 0 && (
         <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: radii.md, padding: '12px 16px' }}>
           <span style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: '#c2410c' }}>⚠️ Class-wide weak topics: </span>
           {summary.most_common_weak_topics.map(t => (
-            <span key={t} style={{ fontSize: font.sizeSm, color: '#9a3412', background: '#ffedd5', borderRadius: 9999, padding: '1px 8px', marginLeft: 4, marginBottom: 2, display: 'inline-block' }}>
+            <span key={t} style={{ fontSize: font.sizeSm, color: '#9a3412', background: '#ffedd5', borderRadius: 9999, padding: '1px 8px', marginLeft: 4, display: 'inline-block' }}>
               {t}
             </span>
           ))}
@@ -82,43 +132,70 @@ function ClassSummaryBar({ summary }) {
   );
 }
 
+// ─── Per-student topic breakdown (expanded row) ───────────────────────────────
 function TopicBreakdown({ student }) {
-  if (!student.topic_stats || student.topic_stats.length === 0) {
-    return <p style={{ color: colors.textMuted, fontSize: font.sizeSm, margin: '8px 0' }}>No exercise or challenge data yet.</p>;
-  }
+  const exRate = passRate(student.quizzes_passed, student.quizzes_attempted);
+  const chRate = passRate(student.tests_passed, student.tests_attempted);
+
   return (
     <div style={{ marginTop: 12 }}>
+      {/* Mini stat row */}
+      <div style={{ display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>Exercise Pass Rate</div>
+          <div style={{ fontSize: font.sizeMd, fontWeight: 700, color: rateColor(exRate) }}>
+            {student.quizzes_attempted > 0 ? `${student.quizzes_passed}/${student.quizzes_attempted} (${exRate}%)` : '—'}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>Challenge Pass Rate</div>
+          <div style={{ fontSize: font.sizeMd, fontWeight: 700, color: rateColor(chRate) }}>
+            {student.tests_attempted > 0 ? `${student.tests_passed}/${student.tests_attempted} (${chRate}%)` : '—'}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>Avg Exercise Score</div>
+          <div style={{ fontSize: font.sizeMd, fontWeight: 700 }}><ScoreBadge score={student.avg_quiz_score} /></div>
+        </div>
+      </div>
+
       {student.weak_topics.length > 0 && (
         <div style={{ marginBottom: 10, padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: radii.sm, fontSize: font.sizeXs, color: '#c2410c' }}>
           ⚠️ Weak topics: <strong>{student.weak_topics.join(', ')}</strong>
         </div>
       )}
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeXs }}>
-        <thead>
-          <tr style={{ background: colors.background }}>
-            {['Topic', 'Exercise Attempts', 'Exercise Avg', 'Challenge Attempts', 'Challenge Avg'].map(h => (
-              <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Topic' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {student.topic_stats.map(ts => (
-            <tr key={ts.topic} style={{ background: ts.is_weak ? '#fff7ed' : 'transparent' }}>
-              <td style={{ padding: '6px 10px', color: colors.text, borderBottom: `1px solid ${colors.border}` }}>
-                {ts.is_weak && <span style={{ marginRight: 4 }}>⚠️</span>}{ts.topic}
-              </td>
-              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.exercise_attempts || '—'}</td>
-              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><ScoreBadge score={ts.exercise_avg_score} /></td>
-              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.challenge_attempts || '—'}</td>
-              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><ScoreBadge score={ts.challenge_avg_score} /></td>
+
+      {!student.topic_stats || student.topic_stats.length === 0 ? (
+        <p style={{ color: colors.textMuted, fontSize: font.sizeSm, margin: '8px 0' }}>No exercise or challenge data yet.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeXs }}>
+          <thead>
+            <tr style={{ background: colors.background }}>
+              {['Topic', 'Ex. Attempts', 'Ex. Avg', 'Ch. Attempts', 'Ch. Avg'].map(h => (
+                <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Topic' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {student.topic_stats.map(ts => (
+              <tr key={ts.topic} style={{ background: ts.is_weak ? '#fff7ed' : 'transparent' }}>
+                <td style={{ padding: '6px 10px', color: colors.text, borderBottom: `1px solid ${colors.border}` }}>
+                  {ts.is_weak && <span style={{ marginRight: 4 }}>⚠️</span>}{ts.topic}
+                </td>
+                <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.exercise_attempts || '—'}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><ScoreBadge score={ts.exercise_avg_score} /></td>
+                <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.challenge_attempts || '—'}</td>
+                <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><ScoreBadge score={ts.challenge_avg_score} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function TeacherDashboard() {
   const { isTeacher, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
@@ -173,9 +250,21 @@ export default function TeacherDashboard() {
     else { setSortKey(key); setSortAsc(true); }
   }
 
+  // Virtual sort keys for computed pass rates
+  function studentSortValue(s, key) {
+    if (key === 'ex_pass_rate') return passRate(s.quizzes_passed, s.quizzes_attempted);
+    if (key === 'ch_pass_rate') return passRate(s.tests_passed, s.tests_attempted);
+    if (key === 'status') {
+      const order = { 'At Risk': 0, 'Needs Attention': 1, 'On Track': 2, 'No Activity': 3 };
+      return order[studentStatus(s).label] ?? 99;
+    }
+    return s[key];
+  }
+
   function sortedStudents(students) {
     return [...students].sort((a, b) => {
-      let av = a[sortKey], bv = b[sortKey];
+      let av = studentSortValue(a, sortKey);
+      let bv = studentSortValue(b, sortKey);
       if (av === null || av === undefined) av = sortAsc ? Infinity : -Infinity;
       if (bv === null || bv === undefined) bv = sortAsc ? Infinity : -Infinity;
       if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
@@ -277,7 +366,8 @@ export default function TeacherDashboard() {
               <h3 style={{ margin: 0, fontSize: font.sizeLg, color: colors.text }}>{selectedClass.name} — Student Progress</h3>
               {analytics && <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textMuted }}>{analytics.total_students} student{analytics.total_students !== 1 ? 's' : ''} enrolled</p>}
             </div>
-            <button onClick={() => { setSelectedClass(null); setAnalytics(null); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: 20 }}>✕</button>
+            <button onClick={() => { setSelectedClass(null); setAnalytics(null); }}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: 20 }}>✕</button>
           </div>
 
           {analyticsLoading && <p style={{ color: colors.textMuted }}>Loading student data...</p>}
@@ -289,26 +379,28 @@ export default function TeacherDashboard() {
           {analytics && analytics.students.length > 0 && (
             <>
               <ClassSummaryBar summary={analytics.class_summary} />
+
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
                   <thead>
                     <tr>
                       <th style={{ width: 32, padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.background }} />
-                      <SortTh label="Name"               sortKeyName="full_name" />
-                      <SortTh label="Topics Completed"   sortKeyName="completed_topics" center />
-                      <SortTh label="Exercises"          sortKeyName="quizzes_attempted" center tooltip="Total exercise sessions attempted" />
-                      <SortTh label="Ex. Passed"         sortKeyName="quizzes_passed" center tooltip="Exercise sessions scoring ≥70" />
-                      <SortTh label="Avg Exercise Score" sortKeyName="avg_quiz_score" center />
-                      <SortTh label="Challenges"         sortKeyName="tests_attempted" center tooltip="Total coding challenge attempts" />
-                      <SortTh label="Ch. Passed"         sortKeyName="tests_passed" center tooltip="Challenges scoring ≥60" />
-                      <SortTh label="AI Interactions"    sortKeyName="ai_interactions" center />
-                      <SortTh label="Last Active"        sortKeyName="last_active" center />
-                      <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.textSecondary, borderBottom: `2px solid ${colors.border}`, background: colors.background, whiteSpace: 'nowrap' }}>Weak Topics</th>
+                      <SortTh label="Status"            sortKeyName="status" center tooltip="Traffic-light based on individual pass rates and weak topics" />
+                      <SortTh label="Name"              sortKeyName="full_name" />
+                      <SortTh label="Topics Done"       sortKeyName="completed_topics" center />
+                      <SortTh label="Ex. Attempts"      sortKeyName="quizzes_attempted" center tooltip="Total exercise sessions attempted" />
+                      <SortTh label="Ex. Pass Rate"     sortKeyName="ex_pass_rate" center tooltip="This student's exercise pass rate: sessions ≥70 / total attempted" />
+                      <SortTh label="Avg Ex. Score"     sortKeyName="avg_quiz_score" center />
+                      <SortTh label="Ch. Attempts"      sortKeyName="tests_attempted" center tooltip="Total coding challenge attempts" />
+                      <SortTh label="Ch. Pass Rate"     sortKeyName="ch_pass_rate" center tooltip="This student's challenge pass rate: sessions ≥60 / total attempted" />
+                      <SortTh label="AI Chats"          sortKeyName="ai_interactions" center />
+                      <SortTh label="Last Active"       sortKeyName="last_active" center />
                     </tr>
                   </thead>
                   <tbody>
                     {sortedStudents(analytics.students).map(s => {
                       const isExpanded = expandedStudent === s.student_id;
+                      const status = studentStatus(s);
                       return (
                         <React.Fragment key={s.student_id}>
                           <tr
@@ -320,42 +412,41 @@ export default function TeacherDashboard() {
                             <td style={{ ...tdStyle, textAlign: 'center', color: colors.primary, fontWeight: 700, fontSize: 16 }}>
                               {isExpanded ? '▾' : '▸'}
                             </td>
+                            {/* Traffic-light status */}
+                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                              <span title={status.label}
+                                style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: status.bg, color: status.fg, whiteSpace: 'nowrap' }}>
+                                {status.dot} {status.label}
+                              </span>
+                            </td>
                             <td style={tdStyle}>
                               <div style={{ fontWeight: font.weightSemibold }}>{s.full_name || '—'}</div>
                               <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{s.email}</div>
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>{s.completed_topics}</td>
-                            <td style={{ ...tdStyle, textAlign: 'center' }}>{s.quizzes_attempted}</td>
+                            <td style={{ ...tdStyle, textAlign: 'center' }}>{s.quizzes_attempted || '—'}</td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>
-                              <span style={{ padding: '2px 8px', borderRadius: 9999, fontSize: 12,
-                                background: s.quizzes_passed > 0 ? '#dcfce7' : '#f3f4f6',
-                                color: s.quizzes_passed > 0 ? '#16a34a' : colors.textMuted }}>
-                                {s.quizzes_passed}
-                              </span>
+                              <PassRateBadge
+                                passed={s.quizzes_passed}
+                                attempted={s.quizzes_attempted}
+                                tooltip={`${s.quizzes_passed} of ${s.quizzes_attempted} exercise sessions scored ≥70`}
+                              />
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}><ScoreBadge score={s.avg_quiz_score} /></td>
-                            <td style={{ ...tdStyle, textAlign: 'center' }}>{s.tests_attempted}</td>
+                            <td style={{ ...tdStyle, textAlign: 'center' }}>{s.tests_attempted || '—'}</td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>
-                              <span style={{ padding: '2px 8px', borderRadius: 9999, fontSize: 12,
-                                background: s.tests_passed > 0 ? '#dcfce7' : '#f3f4f6',
-                                color: s.tests_passed > 0 ? '#16a34a' : colors.textMuted }}>
-                                {s.tests_passed}
-                              </span>
+                              <PassRateBadge
+                                passed={s.tests_passed}
+                                attempted={s.tests_attempted}
+                                tooltip={`${s.tests_passed} of ${s.tests_attempted} challenges scored ≥60`}
+                              />
                             </td>
                             <td style={{ ...tdStyle, textAlign: 'center' }}>{s.ai_interactions}</td>
                             <td style={{ ...tdStyle, textAlign: 'center', color: colors.textMuted, fontSize: font.sizeXs }}>
                               {s.last_active ? new Date(s.last_active).toLocaleDateString() : '—'}
                             </td>
-                            <td style={{ ...tdStyle, textAlign: 'center' }}>
-                              {s.weak_topics.length > 0 ? (
-                                <span style={{ padding: '2px 8px', borderRadius: 9999, fontSize: 11, background: '#fff7ed', color: '#c2410c', fontWeight: 600 }}>
-                                  ⚠️ {s.weak_topics.length} topic{s.weak_topics.length !== 1 ? 's' : ''}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#16a34a', fontSize: 12 }}>✓ On track</span>
-                              )}
-                            </td>
                           </tr>
+
                           {isExpanded && (
                             <tr>
                               <td colSpan={11} style={{ padding: '0 16px 16px 48px', background: colors.primaryLight || '#eef2ff', borderBottom: `1px solid ${colors.border}` }}>
