@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext';
 
 export default function Navbar({ toggleChat }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const { user, logout, isAuthenticated } = useAuth();
+    const { user, logout, isAuthenticated, isTeacher, isStudent } = useAuth();
     const navigate = useNavigate();
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -21,6 +21,25 @@ export default function Navbar({ toggleChat }) {
             window.removeEventListener('close-sidebar', handleClose);
         };
     }, []);
+
+    // Base nav links for everyone
+    const baseLinks = [
+        { to: '/home', icon: '🗺️', label: 'Roadmap', 'data-tour': 'home-link' },
+        { to: '/playground', icon: '💻', label: 'Playground', 'data-tour': 'playground-link' },
+        { to: '/quiz', icon: '📝', label: 'Exercises', 'data-tour': 'quiz-link' },
+        { to: '/practical-test', icon: '🎯', label: 'Coding Challenges', 'data-tour': 'test-link' },
+        { to: '/my-work', icon: '📁', label: 'My Work', 'data-tour': 'my-work-link' },
+        { to: '/history', icon: '🕘', label: 'Chat History', 'data-tour': 'history-link' },
+    ];
+
+    // Role-specific links appended after base links
+    const roleLinks = isTeacher
+        ? [{ to: '/teacher-dashboard', icon: '🏫', label: 'Teacher Dashboard' }]
+        : isStudent
+        ? [{ to: '/my-classrooms', icon: '🎓', label: 'My Classrooms' }]
+        : [];
+
+    const navLinks = [...baseLinks, ...roleLinks];
 
     return (
         <>
@@ -52,7 +71,8 @@ export default function Navbar({ toggleChat }) {
 
                 {/* Right: Progress + AI + User */}
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <ProgressDisplay />
+                    {/* Hide progress bar for teachers — it's student-focused */}
+                    {!isTeacher && <ProgressDisplay />}
                     <button
                         data-tour="ai-button"
                         onClick={toggleChat}
@@ -66,8 +86,8 @@ export default function Navbar({ toggleChat }) {
 
                     {isAuthenticated ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: font.sizeSm, color: colors.textSecondary, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                👤 {user?.email}
+                            <span style={{ fontSize: font.sizeSm, color: colors.textSecondary, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {isTeacher ? '🏫' : '👤'} {user?.email}
                             </span>
                             <button
                                 onClick={() => { logout(); navigate('/home'); }}
@@ -109,14 +129,7 @@ export default function Navbar({ toggleChat }) {
 
                 {/* Nav Links */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                    {[
-                        { to: '/home', icon: '🗺️', label: 'Roadmap', 'data-tour': 'home-link' },
-                        { to: '/playground', icon: '💻', label: 'Playground', 'data-tour': 'playground-link' },
-                        { to: '/quiz', icon: '📝', label: 'Quiz', 'data-tour': 'quiz-link' },
-                        { to: '/practical-test', icon: '🎯', label: 'Tests', 'data-tour': 'test-link' },
-                        { to: '/my-work', icon: '📁', label: 'My Work', 'data-tour': 'my-work-link' },
-                        { to: '/history', icon: '🕘', label: 'Chat History', 'data-tour': 'history-link' },
-                    ].map(({ to, icon, label, ...rest }) => (
+                    {navLinks.map(({ to, icon, label, ...rest }) => (
                         <Link
                             key={to}
                             to={to}
@@ -130,6 +143,11 @@ export default function Navbar({ toggleChat }) {
                             <span>{label}</span>
                         </Link>
                     ))}
+
+                    {/* Divider before role links */}
+                    {isAuthenticated && (isTeacher || isStudent) && (
+                        <div style={{ margin: '8px 0', borderTop: `1px solid ${colors.border}` }} />
+                    )}
                 </div>
 
                 {/* Footer */}

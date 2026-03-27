@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
@@ -8,9 +7,11 @@ import HomePage from "./HomePage";
 import TopicDetailPage from "./TopicDetailPage";
 import Quiz from "./Quiz";
 import PracticalTest from "./PracticalTest";
-import Playground from "./Playground"; 
+import Playground from "./Playground";
 import MyWorkPage from './MyWorkPage';
 import ConversationHistoryPage from "./ConversationHistoryPage";
+import TeacherDashboard from "./TeacherDashboard";
+import StudentClassrooms from "./StudentClassrooms";
 import { DemoTour } from "./DemoTour";
 import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
 import { useAuth } from './AuthContext';
@@ -30,7 +31,7 @@ function AppContent() {
     const [demoTour, setDemoTour] = useState(null);
     const [showDemoButtons, setShowDemoButtons] = useState(true);
     const navigate = useNavigate();
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, isTeacher, user } = useAuth();
 
     const toggleChat = () => setShowChat(prev => !prev);
 
@@ -117,6 +118,10 @@ function AppContent() {
                     <Route path="/practical-test" element={<PracticalTest />} />
                     <Route path="/my-work" element={<MyWorkPage />} />
                     <Route path="/history" element={<ConversationHistoryPage />} />
+                    {/* Role-specific routes */}
+                    <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+                    <Route path="/my-classrooms" element={<StudentClassrooms />} />
+                    {/* Redirects */}
                     <Route path="/compiler" element={<Navigate to="/playground" replace />} />
                     <Route path="/" element={<Navigate to="/home" replace />} />
                 </Routes>

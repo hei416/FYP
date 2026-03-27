@@ -22,21 +22,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch current user
+  // Fetch current user — /auth/me now returns role too
   const fetchCurrentUser = useCallback(async (authToken) => {
     try {
       const response = await fetch(`${API_BASE}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+        headers: { 'Authorization': `Bearer ${authToken}` }
       });
 
       if (response.ok) {
         const userData = await response.json();
+        // userData now includes { id, email, full_name, role, created_at }
         setUser(userData);
         setError(null);
       } else {
-        // Token invalid, clear it
         localStorage.removeItem('authToken');
         setToken(null);
         setUser(null);
@@ -49,22 +47,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Register
-  const register = useCallback(async (email, password, fullName) => {
+  // Register — now accepts role ('student' | 'teacher')
+  const register = useCallback(async (email, password, fullName, role = 'student') => {
     try {
       setLoading(true);
       setError(null);
 
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          full_name: fullName
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, full_name: fullName, role })
       });
 
       if (!response.ok) {
@@ -74,18 +66,10 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       setToken(data.access_token);
-      setUser({
-        id: data.user_id,
-        email: data.email,
-        full_name: fullName
-      });
+      setUser({ id: data.user_id, email: data.email, full_name: fullName, role: data.role });
       localStorage.setItem('authToken', data.access_token);
 
-      // Push any pre-registration local progress up, then pull to merge
-      try {
-        await pushProgressToBackend();
-        await pullProgressFromBackend();
-      } catch (_) {}
+      try { await pushProgressToBackend(); await pullProgressFromBackend(); } catch (_) {}
 
       return data;
     } catch (err) {
@@ -96,7 +80,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Login
+  // Login — response now includes role
   const login = useCallback(async (email, password) => {
     try {
       setLoading(true);
@@ -104,9 +88,7 @@ export const AuthProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
@@ -117,17 +99,10 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       setToken(data.access_token);
-      setUser({
-        id: data.user_id,
-        email: data.email
-      });
+      setUser({ id: data.user_id, email: data.email, role: data.role });
       localStorage.setItem('authToken', data.access_token);
 
-      // Push pre-login local progress to backend first, then pull to get full merged state
-      try {
-        await pushProgressToBackend();
-        await pullProgressFromBackend();
-      } catch (_) {}
+      try { await pushProgressToBackend(); await pullProgressFromBackend(); } catch (_) {}
 
       return data;
     } catch (err) {
@@ -138,11 +113,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Logout (async flush to backend)
+  // Logout
   const logout = useCallback(async () => {
-    try {
-      await pushProgressToBackend();
-    } catch (_) {}
+    try { await pushProgressToBackend(); } catch (_) {}
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');
@@ -152,18 +125,16 @@ export const AuthProvider = ({ children }) => {
   // Refresh token
   const refreshToken = useCallback(async () => {
     if (!token) return;
-
     try {
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
       if (response.ok) {
         const data = await response.json();
         setToken(data.access_token);
+        // Update role in user state in case it changed
+        setUser(prev => prev ? { ...prev, role: data.role } : prev);
         localStorage.setItem('authToken', data.access_token);
         return data.access_token;
       } else {
@@ -178,7 +149,7 @@ export const AuthProvider = ({ children }) => {
   }, [token, API_BASE, logout]);
 
   const value = {
-    user,
+    user,           // { id, email, full_name, role }
     token,
     loading,
     error,
@@ -186,7 +157,9 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     refreshToken,
-    isAuthenticated: !!token
+    isAuthenticated: !!token,
+    isTeacher: user?.role === 'teacher' || user?.role === 'admin',
+    isStudent: user?.role === 'student',
   };
 
   return (
@@ -198,8 +171,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
