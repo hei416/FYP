@@ -9,10 +9,20 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+// Safely parse a timestamp that may be a UTC ISO string (no Z suffix from Python)
+// or a numeric ms value, and return a JS Date in local time.
+function parseTs(ts) {
+    if (!ts) return new Date(0);
+    if (typeof ts === 'number') return new Date(ts);
+    // Python datetime isoformat omits the Z — append it so JS treats it as UTC
+    const s = String(ts);
+    return new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z');
+}
+
 function formatDate(ts) {
     if (!ts) return '';
-    const d = new Date(ts);
-    const diff = Date.now() - d;
+    const d = parseTs(ts);
+    const diff = Date.now() - d.getTime();
     if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -40,7 +50,6 @@ export default function ConversationHistoryPage() {
         if (!loading && !isAuthenticated) navigate('/login');
     }, [loading, isAuthenticated, navigate]);
 
-    // sessions shape: [{ id, title, createdAt, messages: [{role, content, pdf_matches, debug_log}] }]
     const [sessions, setSessions] = useState([]);
     const [activeId, setActiveId] = useState(null);
     const [sessionsLoaded, setSessionsLoaded] = useState(false);
@@ -52,20 +61,19 @@ export default function ConversationHistoryPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const messagesEndRef = useRef(null);
 
-    // ── Load sessions from DB on mount ──────────────────────────────────────
+    // Load sessions from DB
     const loadSessions = useCallback(async () => {
         if (!token) return;
         try {
             const res = await fetch(`${API_BASE}/conversation/sessions`, { headers: authHeaders });
             if (!res.ok) return;
-            const dbSessions = await res.json(); // [{conversation_id, first_message, last_message_at, turn_count}]
-            // Convert to local shape (messages loaded lazily when session is opened)
+            const dbSessions = await res.json();
             const shaped = dbSessions.map(s => ({
                 id: s.conversation_id,
                 title: s.first_message,
                 createdAt: s.last_message_at,
                 turnCount: s.turn_count,
-                messages: null, // null = not yet loaded
+                messages: null,
             }));
             setSessions(shaped);
             if (shaped.length > 0) setActiveId(shaped[0].id);
@@ -80,11 +88,11 @@ export default function ConversationHistoryPage() {
         if (isAuthenticated && token) loadSessions();
     }, [isAuthenticated, token, loadSessions]);
 
-    // ── Load messages for a session when it becomes active ──────────────────
+    // Lazy-load messages when a session is opened
     useEffect(() => {
         if (!activeId || !token) return;
         const session = sessions.find(s => s.id === activeId);
-        if (!session || session.messages !== null) return; // already loaded
+        if (!session || session.messages !== null) return;
         (async () => {
             try {
                 const res = await fetch(`${API_BASE}/conversation/history/${activeId}`, { headers: authHeaders });
@@ -106,7 +114,6 @@ export default function ConversationHistoryPage() {
     const activeSession = sessions.find(s => s.id === activeId) || null;
     const messages = activeSession?.messages || [];
 
-    // ── Create new session (local only until first message) ─────────────────
     const createNewSession = () => {
         const ns = { id: generateId(), title: 'New conversation', createdAt: new Date().toISOString(), turnCount: 0, messages: [] };
         setSessions(prev => [ns, ...prev]);
@@ -114,7 +121,6 @@ export default function ConversationHistoryPage() {
         setUserInput('');
     };
 
-    // ── Delete session from DB + local state ────────────────────────────────
     const deleteSession = async (id, e) => {
         e.stopPropagation();
         try {
@@ -140,7 +146,6 @@ export default function ConversationHistoryPage() {
         setLoadingContext(false);
     };
 
-    // ── Send message ────────────────────────────────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!userInput.trim()) return;
@@ -166,9 +171,11 @@ export default function ConversationHistoryPage() {
         setChatLoading(true);
 
         try {
+            // Strip extra fields — backend only expects {role, content}
+            const historyPayload = updatedMsgs.map(({ role, content }) => ({ role, content }));
             const res = await fetch(`${API_BASE}/ragAI`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_input: questionText, history: updatedMsgs }),
+                body: JSON.stringify({ user_input: questionText, history: historyPayload }),
             });
             const data = await res.json();
             const aiMsg = {
@@ -179,7 +186,7 @@ export default function ConversationHistoryPage() {
             };
             setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...(s.messages || []), aiMsg] } : s));
 
-            // ── Persist turn to DB ──────────────────────────────────────────
+            // Persist turn to DB
             try {
                 await fetch(`${API_BASE}/conversation/save`, {
                     method: 'POST',

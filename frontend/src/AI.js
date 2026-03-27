@@ -22,25 +22,18 @@ function formatDate(ts) {
 
 function cleanSnippet(text) {
     if (!text) return '';
-    // Remove W3Schools interactive elements
     text = text.replace(/Try it Yourself\s*[»›]?/gi, '');
     text = text.replace(/Try it\s+\w+\s*[»›]?/gi, '');
-    // Remove W3Schools navigation/UI noise
     text = text.replace(/\b(Try it Yourself|Try it Now|Run Example|Edit & Run|Exercise|Quiz Yourself)\s*[»›]?/gi, '');
     return text.replace(/\n+/g, ' ').trim();
 }
 
-// Expand icon (two outward arrows)
 const ExpandIcon = () => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="5 3 3 3 3 5" />
-        <polyline points="11 3 13 3 13 5" />
-        <polyline points="5 13 3 13 3 11" />
-        <polyline points="11 13 13 13 13 11" />
-        <line x1="3" y1="3" x2="6" y2="6" />
-        <line x1="13" y1="3" x2="10" y2="6" />
-        <line x1="3" y1="13" x2="6" y2="10" />
-        <line x1="13" y1="13" x2="10" y2="10" />
+        <polyline points="5 3 3 3 3 5" /><polyline points="11 3 13 3 13 5" />
+        <polyline points="5 13 3 13 3 11" /><polyline points="11 13 13 13 13 11" />
+        <line x1="3" y1="3" x2="6" y2="6" /><line x1="13" y1="3" x2="10" y2="6" />
+        <line x1="3" y1="13" x2="6" y2="10" /><line x1="13" y1="13" x2="10" y2="10" />
     </svg>
 );
 
@@ -64,7 +57,6 @@ export default function AI({ showChat, setShowChat }) {
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }, [sessions]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
 
-    // Listen for global tour requests to close the AI chat
     useEffect(() => {
         const handleCloseTour = () => setShowChat(false);
         window.addEventListener('close-ai-chat', handleCloseTour);
@@ -72,9 +64,7 @@ export default function AI({ showChat, setShowChat }) {
     }, []);
 
     const toggleChat = () => setShowChat(v => !v);
-
     const startNewChat = () => { setActiveId(null); setHistory([]); setShowHistoryPanel(false); };
-
     const loadSession = (session) => { setActiveId(session.id); setHistory(session.messages); setShowHistoryPanel(false); };
 
     const deleteSession = (id, e) => {
@@ -127,9 +117,11 @@ export default function AI({ showChat, setShowChat }) {
         setUserInput('');
         setLoading(true);
         try {
+            // Strip extra fields (pdf_matches, debug_log) — backend only expects {role, content}
+            const historyPayload = newHistory.map(({ role, content }) => ({ role, content }));
             const res = await fetch(`${API_BASE}/ragAI`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_input: userInput, history: newHistory }),
+                body: JSON.stringify({ user_input: userInput, history: historyPayload }),
             });
             const data = await res.json();
             const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
@@ -163,7 +155,7 @@ export default function AI({ showChat, setShowChat }) {
                                     onClick={() => { if (isExpanded) { setExpandedChunk(null); setChunkContext(null); } else { setChunkContext(null); setExpandedChunk(chunkKey); } }}
                                 >
                                     <span>{isExpanded ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()}</span>
-                                    <span style={{ fontSize: font.sizeSm, opacity: 0.9 }}>{isExpanded ? '▼ Collapse' : '▶ Expand'}</span>
+                                    <span style={{ fontSize: font.sizeSm, opacity: 0.9 }}>{isExpanded ? '▼ Collapse' : '► Expand'}</span>
                                 </button>
                                 {isExpanded && (
                                     <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.warningLight, borderRadius: radii.md, border: `2px solid ${colors.warningBorder}`, fontSize: font.sizeMd, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'Georgia, serif' }}>
@@ -200,26 +192,11 @@ export default function AI({ showChat, setShowChat }) {
         </div>
     );
 
-    /* ── header icon button helper ── */
     const headerIconBtn = (onClick, title, children, extraStyle = {}) => (
-        <button
-            onClick={onClick}
-            title={title}
-            style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '5px 11px',
-                background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: radii.sm,
-                color: colors.surface,
-                fontSize: font.sizeSm,
-                fontWeight: font.weightSemibold,
-                cursor: 'pointer',
-                transition,
-                ...extraStyle
-            }}
+        <button onClick={onClick} title={title}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: radii.sm, color: colors.surface, fontSize: font.sizeSm, fontWeight: font.weightSemibold, cursor: 'pointer', transition, ...extraStyle }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.28)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = extraStyle.background || 'rgba(255,255,255,0.15)'; }}
         >
             {children}
         </button>
@@ -233,45 +210,20 @@ export default function AI({ showChat, setShowChat }) {
                     {/* Header */}
                     <div style={{ padding: `${spacing.md}px ${spacing.lg}px`, borderBottom: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.accent, borderRadius: `${radii.lg}px ${radii.lg}px 0 0`, color: colors.surface }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {/* History toggle */}
                             {headerIconBtn(
                                 () => setShowHistoryPanel(v => !v),
                                 showHistoryPanel ? 'Hide history' : 'Show history',
-                                <>
-                                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                                        <circle cx="8" cy="8" r="6" />
-                                        <polyline points="8 5 8 8 10.5 10" />
-                                    </svg>
-                                    <span>History</span>
-                                </>,
+                                <><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="8" cy="8" r="6" /><polyline points="8 5 8 8 10.5 10" /></svg><span>History</span></>,
                                 showHistoryPanel ? { background: 'rgba(255,255,255,0.3)' } : {}
                             )}
                             <h3 style={{ margin: 0, fontSize: font.sizeMd, fontWeight: font.weightSemibold }}>
                                 ☕ {activeId ? (sessions.find(s => s.id === activeId)?.title || 'AI Java Tutor') : 'AI Java Tutor'}
                             </h3>
                         </div>
-
                         <div style={{ display: 'flex', gap: 6 }}>
-                            {/* Enlarge */}
-                            {headerIconBtn(
-                                handleEnlarge,
-                                'Open full history page',
-                                <>
-                                    <ExpandIcon />
-                                    <span>Expand</span>
-                                </>
-                            )}
-                            {/* Close */}
-                            {headerIconBtn(
-                                toggleChat,
-                                'Close chat',
-                                <>
-                                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                                        <line x1="1" y1="1" x2="11" y2="11" />
-                                        <line x1="11" y1="1" x2="1" y2="11" />
-                                    </svg>
-                                    <span>Close</span>
-                                </>,
+                            {headerIconBtn(handleEnlarge, 'Open full history page', <><ExpandIcon /><span>Expand</span></>)}
+                            {headerIconBtn(toggleChat, 'Close chat',
+                                <><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="1" y1="1" x2="11" y2="11" /><line x1="11" y1="1" x2="1" y2="11" /></svg><span>Close</span></>,
                                 { background: 'rgba(220,38,38,0.55)', border: '1px solid rgba(220,38,38,0.7)' }
                             )}
                         </div>
@@ -279,7 +231,6 @@ export default function AI({ showChat, setShowChat }) {
 
                     {/* Body */}
                     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                        {/* History sidebar */}
                         {showHistoryPanel && (
                             <div style={{ width: 220, borderRight: `1px solid ${colors.divider}`, background: colors.bg, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                                 <div style={{ padding: '10px 10px 6px', borderBottom: `1px solid ${colors.divider}` }}>
@@ -333,7 +284,9 @@ export default function AI({ showChat, setShowChat }) {
 
                     {/* Input */}
                     <form onSubmit={handleSubmit} style={{ padding: spacing.lg, borderTop: `2px solid ${colors.border}`, backgroundColor: colors.surface, borderRadius: `0 0 ${radii.lg}px ${radii.lg}px` }}>
-                        <TextareaAutosize value={userInput} onChange={e => setUserInput(e.target.value)} placeholder="Ask anything about Java..." minRows={2} maxRows={6}
+                        <TextareaAutosize value={userInput} onChange={e => setUserInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+                            placeholder="Ask anything about Java..." minRows={2} maxRows={6}
                             style={{ width: '100%', padding: spacing.sm, marginBottom: spacing.sm, borderRadius: radii.sm, border: `2px solid ${colors.border}`, fontSize: font.sizeMd, fontFamily: font.family }}
                         />
                         <button type="submit" disabled={loading} style={loading ? btn.disabled : btn.accent}>
