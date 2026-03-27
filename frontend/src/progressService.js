@@ -107,6 +107,12 @@ export const pushProgressToBackend = async () => {
     const dismissed = JSON.parse(localStorage.getItem('dismissed_milestones') || '[]');
     const local = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
 
+    // ✅ Don't push if localStorage hasn't been loaded from backend yet
+    if (completed.length === 0 && !(local?.quizzes?.attempted > 0) && !(local?.aiInteractions > 0)) {
+      console.warn('[ProgressService] Skipping push — localStorage appears unloaded');
+      return;
+    }
+
     const payload = {
       completed_topics: completed,
       dismissed_milestones: dismissed,

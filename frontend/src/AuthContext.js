@@ -69,6 +69,8 @@ export const AuthProvider = ({ children }) => {
       }
       const data = await response.json();
       localStorage.setItem('authToken', data.access_token);
+      // ✅ Populate localStorage with backend progress before /home mounts
+      try { await pullProgressFromBackend(); } catch (_) {}
       // Hard reload so all state initialises fresh for the new user
       window.location.href = '/home';
       return data;
@@ -96,6 +98,8 @@ export const AuthProvider = ({ children }) => {
       }
       const data = await response.json();
       localStorage.setItem('authToken', data.access_token);
+      // ✅ Populate localStorage with backend progress before /home mounts
+      try { await pullProgressFromBackend(); } catch (_) {}
       // Hard reload — ensures progress, roadmap and all component state
       // re-initialises cleanly from the backend for this user.
       window.location.href = '/home';
