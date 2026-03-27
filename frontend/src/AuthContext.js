@@ -3,7 +3,6 @@ import { pullProgressFromBackend, pushProgressToBackend } from './progressServic
 
 const AuthContext = createContext(null);
 
-// Progress/tour keys that are safe to clear on logout (backed up to backend)
 const PROGRESS_LOCAL_KEYS = [
   'codetutor_learning_progress',
   'java-roadmap-completed',
@@ -11,8 +10,6 @@ const PROGRESS_LOCAL_KEYS = [
   'hasSeenDemoTour',
 ];
 
-// Only clears progress keys. Chat history keys (codetutor_chat_<userId>)
-// are user-scoped and intentionally kept so they survive re-login.
 const clearProgressLocalData = () => {
   PROGRESS_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
 };
@@ -71,16 +68,14 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorData.detail || 'Registration failed');
       }
       const data = await response.json();
-      setToken(data.access_token);
-      setUser({ id: data.user_id, email: data.email, full_name: fullName, role: data.role });
       localStorage.setItem('authToken', data.access_token);
-      try { await pushProgressToBackend(); await pullProgressFromBackend(); } catch (_) {}
+      // Hard reload so all state initialises fresh for the new user
+      window.location.href = '/home';
       return data;
     } catch (err) {
       setError(err.message);
-      throw err;
-    } finally {
       setLoading(false);
+      throw err;
     }
   }, [API_BASE]);
 
@@ -88,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      // Only clear progress keys — chat history is user-scoped and must survive re-login
+      // Clear stale progress before loading new user's data
       clearProgressLocalData();
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -100,28 +95,24 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorData.detail || 'Login failed');
       }
       const data = await response.json();
-      setToken(data.access_token);
-      setUser({ id: data.user_id, email: data.email, role: data.role });
       localStorage.setItem('authToken', data.access_token);
-      try { await pushProgressToBackend(); await pullProgressFromBackend(); } catch (_) {}
+      // Hard reload — ensures progress, roadmap and all component state
+      // re-initialises cleanly from the backend for this user.
+      window.location.href = '/home';
       return data;
     } catch (err) {
       setError(err.message);
-      throw err;
-    } finally {
       setLoading(false);
+      throw err;
     }
   }, [API_BASE]);
 
   const logout = useCallback(async () => {
-    // 1. Push progress to backend before clearing anything
+    // Push progress to backend before clearing
     try { await pushProgressToBackend(); } catch (_) {}
-    // 2. Clear progress-related local storage
     clearProgressLocalData();
-    // 3. Remove auth token
     localStorage.removeItem('authToken');
-    // 4. Force a full page reload to /login — this resets ALL in-memory React state
-    //    (progress counters, quiz state, roadmap state) back to zero with no stale data.
+    // Hard reload to /login — resets ALL in-memory React state to zero
     window.location.href = '/login';
   }, []);
 

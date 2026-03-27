@@ -1,23 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import TextareaAutosize from 'react-textarea-autosize';
 import { colors, radii, font, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 
-// Storage key scoped per user ID — different accounts on the same device
-// never share chat history, and history survives logout/re-login.
-function storageKey(userId) {
-    return userId ? `codetutor_chat_${userId}` : null;
-}
-
-const SESSION_KEY = 'codetutor_active_session';
-
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 function formatDate(ts) {
+    if (!ts) return '';
     const d = new Date(ts);
     const diff = Date.now() - d;
     if (diff < 60000) return 'Just now';
@@ -28,32 +21,29 @@ function formatDate(ts) {
 
 const CollapseIcon = () => (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="6" y1="6" x2="3" y2="3" />
-        <polyline points="3 6 3 3 6 3" />
-        <line x1="10" y1="6" x2="13" y2="3" />
-        <polyline points="13 6 13 3 10 3" />
-        <line x1="6" y1="10" x2="3" y2="13" />
-        <polyline points="3 10 3 13 6 13" />
-        <line x1="10" y1="10" x2="13" y2="13" />
-        <polyline points="13 10 13 13 10 13" />
+        <line x1="6" y1="6" x2="3" y2="3" /><polyline points="3 6 3 3 6 3" />
+        <line x1="10" y1="6" x2="13" y2="3" /><polyline points="13 6 13 3 10 3" />
+        <line x1="6" y1="10" x2="3" y2="13" /><polyline points="3 10 3 13 6 13" />
+        <line x1="10" y1="10" x2="13" y2="13" /><polyline points="13 10 13 13 10 13" />
     </svg>
 );
 
 export default function ConversationHistoryPage() {
     const navigate = useNavigate();
-    const { isAuthenticated, user, loading } = useAuth();
+    const { isAuthenticated, token, loading } = useAuth();
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-    // Auth guard — redirect to login if not authenticated
+    const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+    // Auth guard
     useEffect(() => {
-        if (!loading && !isAuthenticated) {
-            navigate('/login');
-        }
+        if (!loading && !isAuthenticated) navigate('/login');
     }, [loading, isAuthenticated, navigate]);
 
-    // Sessions start empty; loaded from localStorage once user.id is known
+    // sessions shape: [{ id, title, createdAt, messages: [{role, content, pdf_matches, debug_log}] }]
     const [sessions, setSessions] = useState([]);
     const [activeId, setActiveId] = useState(null);
+    const [sessionsLoaded, setSessionsLoaded] = useState(false);
     const [userInput, setUserInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
     const [expandedChunk, setExpandedChunk] = useState(null);
@@ -62,48 +52,74 @@ export default function ConversationHistoryPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const messagesEndRef = useRef(null);
 
-    // Load sessions from localStorage as soon as user.id is available
-    useEffect(() => {
-        if (!user?.id) return;
-        const key = storageKey(user.id);
+    // ── Load sessions from DB on mount ──────────────────────────────────────
+    const loadSessions = useCallback(async () => {
+        if (!token) return;
         try {
-            const saved = JSON.parse(localStorage.getItem(key) || '[]');
-            setSessions(saved);
-            // Restore last active session if coming from the chat widget
-            const fromChat = sessionStorage.getItem(SESSION_KEY);
-            if (fromChat) {
-                const parsed = JSON.parse(fromChat);
-                sessionStorage.removeItem(SESSION_KEY);
-                setActiveId(parsed.id);
-            } else if (saved.length > 0) {
-                setActiveId(saved[0].id);
-            }
-        } catch {
-            setSessions([]);
+            const res = await fetch(`${API_BASE}/conversation/sessions`, { headers: authHeaders });
+            if (!res.ok) return;
+            const dbSessions = await res.json(); // [{conversation_id, first_message, last_message_at, turn_count}]
+            // Convert to local shape (messages loaded lazily when session is opened)
+            const shaped = dbSessions.map(s => ({
+                id: s.conversation_id,
+                title: s.first_message,
+                createdAt: s.last_message_at,
+                turnCount: s.turn_count,
+                messages: null, // null = not yet loaded
+            }));
+            setSessions(shaped);
+            if (shaped.length > 0) setActiveId(shaped[0].id);
+        } catch (e) {
+            console.error('Failed to load sessions', e);
+        } finally {
+            setSessionsLoaded(true);
         }
-    }, [user?.id]);
+    }, [token, API_BASE]);
 
-    // Persist sessions to user-scoped key whenever they change
     useEffect(() => {
-        const key = storageKey(user?.id);
-        if (!key) return;
-        localStorage.setItem(key, JSON.stringify(sessions));
-    }, [sessions, user?.id]);
+        if (isAuthenticated && token) loadSessions();
+    }, [isAuthenticated, token, loadSessions]);
+
+    // ── Load messages for a session when it becomes active ──────────────────
+    useEffect(() => {
+        if (!activeId || !token) return;
+        const session = sessions.find(s => s.id === activeId);
+        if (!session || session.messages !== null) return; // already loaded
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/conversation/history/${activeId}`, { headers: authHeaders });
+                if (!res.ok) return;
+                const turns = await res.json();
+                const messages = turns.flatMap(t => [
+                    { role: 'user', content: t.user_message },
+                    { role: 'assistant', content: t.assistant_response, pdf_matches: [], debug_log: null },
+                ]);
+                setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages } : s));
+            } catch (e) {
+                console.error('Failed to load messages', e);
+            }
+        })();
+    }, [activeId, token, API_BASE]);
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [sessions, activeId]);
 
     const activeSession = sessions.find(s => s.id === activeId) || null;
-    const messages = activeSession ? activeSession.messages : [];
+    const messages = activeSession?.messages || [];
 
+    // ── Create new session (local only until first message) ─────────────────
     const createNewSession = () => {
-        const ns = { id: generateId(), title: 'New conversation', createdAt: Date.now(), messages: [] };
+        const ns = { id: generateId(), title: 'New conversation', createdAt: new Date().toISOString(), turnCount: 0, messages: [] };
         setSessions(prev => [ns, ...prev]);
         setActiveId(ns.id);
         setUserInput('');
     };
 
-    const deleteSession = (id, e) => {
+    // ── Delete session from DB + local state ────────────────────────────────
+    const deleteSession = async (id, e) => {
         e.stopPropagation();
+        try {
+            await fetch(`${API_BASE}/conversation/session/${id}`, { method: 'DELETE', headers: authHeaders });
+        } catch (_) {}
         setSessions(prev => prev.filter(s => s.id !== id));
         if (activeId === id) {
             const rem = sessions.filter(s => s.id !== id);
@@ -124,13 +140,14 @@ export default function ConversationHistoryPage() {
         setLoadingContext(false);
     };
 
+    // ── Send message ────────────────────────────────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!userInput.trim()) return;
 
         let currentId = activeId;
         if (!currentId) {
-            const ns = { id: generateId(), title: userInput.trim().slice(0, 50), createdAt: Date.now(), messages: [] };
+            const ns = { id: generateId(), title: userInput.trim().slice(0, 80), createdAt: new Date().toISOString(), turnCount: 0, messages: [] };
             setSessions(prev => [ns, ...prev]);
             setActiveId(ns.id);
             currentId = ns.id;
@@ -138,31 +155,47 @@ export default function ConversationHistoryPage() {
 
         const userMsg = { role: 'user', content: userInput };
         const currentMsgs = sessions.find(s => s.id === currentId)?.messages || [];
-        const updated = [...currentMsgs, userMsg];
+        const updatedMsgs = [...currentMsgs, userMsg];
 
         setSessions(prev => prev.map(s => s.id === currentId
-            ? { ...s, messages: updated, title: s.messages.length === 0 ? userInput.trim().slice(0, 50) : s.title }
+            ? { ...s, messages: updatedMsgs, title: currentMsgs.length === 0 ? userInput.trim().slice(0, 80) : s.title }
             : s
         ));
+        const questionText = userInput;
         setUserInput('');
         setChatLoading(true);
 
         try {
             const res = await fetch(`${API_BASE}/ragAI`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_input: userInput, history: updated }),
+                body: JSON.stringify({ user_input: questionText, history: updatedMsgs }),
             });
             const data = await res.json();
             const aiMsg = {
                 role: 'assistant',
                 content: data.final_answer || 'No response.',
                 pdf_matches: data.debug_log?.pdf_matches || [],
-                debug_log: data.debug_log
+                debug_log: data.debug_log,
             };
-            setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...s.messages, aiMsg] } : s));
+            setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...(s.messages || []), aiMsg] } : s));
+
+            // ── Persist turn to DB ──────────────────────────────────────────
+            try {
+                await fetch(`${API_BASE}/conversation/save`, {
+                    method: 'POST',
+                    headers: authHeaders,
+                    body: JSON.stringify({
+                        conversation_id: currentId,
+                        user_message: questionText,
+                        assistant_response: data.final_answer || 'No response.',
+                        context_type: 'general',
+                    }),
+                });
+            } catch (_) { console.warn('Failed to save turn to DB'); }
+
         } catch (err) {
             setSessions(prev => prev.map(s => s.id === currentId
-                ? { ...s, messages: [...s.messages, { role: 'assistant', content: 'Error: ' + err.message }] }
+                ? { ...s, messages: [...(s.messages || []), { role: 'assistant', content: 'Error: ' + err.message }] }
                 : s
             ));
         }
@@ -240,9 +273,7 @@ export default function ConversationHistoryPage() {
         );
     };
 
-    if (loading) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh', color: colors.textMuted }}>Loading...</div>;
-    }
+    if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh', color: colors.textMuted }}>Loading...</div>;
     if (!isAuthenticated) return null;
 
     return (
@@ -262,8 +293,11 @@ export default function ConversationHistoryPage() {
                     </button>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-                    {sessions.length === 0 && (
+                    {sessionsLoaded && sessions.length === 0 && (
                         <div style={{ padding: 16, color: colors.textMuted, fontSize: font.sizeXs, textAlign: 'center' }}>No conversations yet</div>
+                    )}
+                    {!sessionsLoaded && (
+                        <div style={{ padding: 16, color: colors.textMuted, fontSize: font.sizeXs, textAlign: 'center' }}>Loading...</div>
                     )}
                     {sessions.map(session => (
                         <div key={session.id} onClick={() => setActiveId(session.id)}
@@ -271,7 +305,7 @@ export default function ConversationHistoryPage() {
                         >
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: activeId === session.id ? colors.primary : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{session.title || 'Untitled'}</div>
-                                <div style={{ fontSize: '11px', color: colors.textMuted, marginTop: 2 }}>{formatDate(session.createdAt)} · {session.messages.length} msgs</div>
+                                <div style={{ fontSize: '11px', color: colors.textMuted, marginTop: 2 }}>{formatDate(session.createdAt)} · {session.turnCount ?? (session.messages?.length / 2 | 0)} msgs</div>
                             </div>
                             <button onClick={(e) => deleteSession(session.id, e)}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: '13px', padding: '0 2px', opacity: 0.5, flexShrink: 0 }}
@@ -284,37 +318,28 @@ export default function ConversationHistoryPage() {
 
             {/* Main */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-                {/* Top bar */}
                 <div style={{ height: 56, borderBottom: `1px solid ${colors.divider}`, background: colors.surface, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 10, flexShrink: 0 }}>
                     <button onClick={() => setSidebarOpen(v => !v)}
                         style={{ background: 'none', border: `1px solid ${colors.border}`, cursor: 'pointer', color: colors.textSecondary, padding: '5px 8px', borderRadius: radii.sm, display: 'flex', alignItems: 'center', gap: 5, fontSize: font.sizeSm, transition }}
-                        title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.color = colors.primary; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.textSecondary; }}
                     >
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <rect x="2" y="2" width="12" height="12" rx="1" />
-                            <line x1="6" y1="2" x2="6" y2="14" />
+                            <rect x="2" y="2" width="12" height="12" rx="1" /><line x1="6" y1="2" x2="6" y2="14" />
                         </svg>
                     </button>
-
                     <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeMd, color: colors.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {activeSession ? activeSession.title : '☕ AI Java Tutor'}
                     </span>
-
-                    <button
-                        onClick={() => navigate(-1)}
+                    <button onClick={() => navigate(-1)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: colors.accentLight, color: colors.accent, border: `1px solid ${colors.accentBorder}`, borderRadius: radii.md, cursor: 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold, transition }}
                         onMouseEnter={e => { e.currentTarget.style.background = colors.accent; e.currentTarget.style.color = colors.surface; }}
                         onMouseLeave={e => { e.currentTarget.style.background = colors.accentLight; e.currentTarget.style.color = colors.accent; }}
                     >
-                        <CollapseIcon />
-                        <span>Collapse</span>
+                        <CollapseIcon /><span>Collapse</span>
                     </button>
                 </div>
 
-                {/* Messages */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '32px 10%' }}>
                     {!activeSession && (
                         <div style={{ textAlign: 'center', marginTop: '15%', color: colors.textMuted }}>
@@ -323,15 +348,16 @@ export default function ConversationHistoryPage() {
                             <div style={{ fontSize: font.sizeMd, color: colors.textSecondary }}>Start a new conversation or select one from the sidebar</div>
                         </div>
                     )}
+                    {activeSession && activeSession.messages === null && (
+                        <div style={{ textAlign: 'center', marginTop: '20%', color: colors.textMuted }}>Loading messages...</div>
+                    )}
                     {messages.map((msg, idx) => renderMessage(msg, idx))}
                     {chatLoading && (
                         <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
                             <div style={{ width: 32, height: 32, borderRadius: radii.full, background: colors.accent, color: colors.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>☕</div>
                             <div style={{ padding: '14px 18px', background: colors.surface, borderRadius: '4px 18px 18px 18px', boxShadow: shadows.sm, border: `1px solid ${colors.divider}` }}>
                                 <span style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
-                                    {[0, 1, 2].map(i => (
-                                        <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: colors.textMuted, display: 'inline-block', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-                                    ))}
+                                    {[0, 1, 2].map(i => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: colors.textMuted, display: 'inline-block', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />)}
                                 </span>
                             </div>
                         </div>
@@ -339,7 +365,6 @@ export default function ConversationHistoryPage() {
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input */}
                 <div style={{ padding: '14px 10%', background: colors.surface, borderTop: `1px solid ${colors.divider}` }}>
                     <form onSubmit={handleSubmit}
                         style={{ display: 'flex', gap: 10, alignItems: 'flex-end', background: colors.bg, border: `1.5px solid ${colors.border}`, borderRadius: radii.lg, padding: '10px 14px', boxShadow: shadows.sm }}
@@ -362,12 +387,7 @@ export default function ConversationHistoryPage() {
                 </div>
             </div>
 
-            <style>{`
-                @keyframes bounce {
-                    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-                    40% { transform: scale(1); opacity: 1; }
-                }
-            `}</style>
+            <style>{`@keyframes bounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }`}</style>
         </div>
     );
 }
