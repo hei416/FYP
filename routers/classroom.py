@@ -66,7 +66,7 @@ class StudentSummary(BaseModel):
     email: str
     completed_topics: int
     quizzes_attempted: int
-    quizzes_passed: int          # sessions scoring >= 70
+    quizzes_passed: int
     avg_quiz_score: Optional[float]
     tests_attempted: int
     tests_passed: int
@@ -80,8 +80,8 @@ class StudentSummary(BaseModel):
 class ClassSummary(BaseModel):
     avg_exercise_score: Optional[float]
     avg_challenge_score: Optional[float]
-    quiz_pass_rate: Optional[float]          # % of all exercise sessions that passed (>=70)
-    pct_passing_challenges: Optional[float]  # % of students who passed >= 1 challenge
+    quiz_pass_rate: Optional[float]        # % of all exercise sessions that passed (>=70)
+    challenge_pass_rate: Optional[float]   # % of all challenge sessions that passed (>=60)
     most_common_weak_topics: List[str]
 
 
@@ -130,7 +130,7 @@ def _build_topic_stats(works: List[SavedWork], work_type: str) -> Dict[str, Dict
             if score is not None:
                 topic_scores[topic].append(score)
             else:
-                topic_scores[topic]  # ensure key exists even without score
+                topic_scores[topic]
     result = {}
     for topic, scores in topic_scores.items():
         result[topic] = {
@@ -201,7 +201,6 @@ async def get_classroom_analytics(
         )
         ai_interactions = progress.ai_interactions if progress else 0
 
-        # All saved works for this student
         all_works = (
             db.query(SavedWork)
             .filter(SavedWork.user_id == student.id)
@@ -211,18 +210,14 @@ async def get_classroom_analytics(
 
         last_active = all_works[0].created_at if all_works else None
 
-        # --- Exercises (quizzes) from SavedWork ---
+        # --- Exercises ---
         quiz_works = [w for w in all_works if w.work_type == "quiz"]
-        quiz_scores = [
-            _score_of(w.result_data)
-            for w in quiz_works
-            if _score_of(w.result_data) is not None
-        ]
+        quiz_scores = [_score_of(w.result_data) for w in quiz_works if _score_of(w.result_data) is not None]
         quizzes_attempted = len(quiz_works)
         quizzes_passed = sum(1 for sc in quiz_scores if sc >= 70)
         avg_quiz_score = round(sum(quiz_scores) / len(quiz_scores), 2) if quiz_scores else None
 
-        # --- Coding Challenges (tests) from SavedWork ---
+        # --- Challenges ---
         test_works = [w for w in all_works if w.work_type == "test"]
         tests_attempted_count = len(test_works)
         tests_passed_count = sum(
@@ -285,13 +280,15 @@ async def get_classroom_analytics(
         if _score_of(w.result_data) is not None
     ]
 
-    # quiz_pass_rate: % of all exercise sessions (across all students) that scored >= 70
+    # quiz_pass_rate: % of all exercise sessions scoring >= 70 (class-wide)
     total_quiz_attempted = sum(s.quizzes_attempted for s in student_summaries)
     total_quiz_passed    = sum(s.quizzes_passed    for s in student_summaries)
     quiz_pass_rate = round(total_quiz_passed / total_quiz_attempted * 100, 1) if total_quiz_attempted > 0 else None
 
-    n = len(student_summaries)
-    passing_challenges = sum(1 for s in student_summaries if s.tests_passed > 0)
+    # challenge_pass_rate: % of all challenge sessions scoring >= 60 (class-wide)
+    total_tests_attempted = sum(s.tests_attempted for s in student_summaries)
+    total_tests_passed    = sum(s.tests_passed    for s in student_summaries)
+    challenge_pass_rate = round(total_tests_passed / total_tests_attempted * 100, 1) if total_tests_attempted > 0 else None
 
     weak_topic_freq: Dict[str, int] = {}
     for s in student_summaries:
@@ -303,7 +300,7 @@ async def get_classroom_analytics(
         avg_exercise_score=round(sum(all_quiz_scores) / len(all_quiz_scores), 1) if all_quiz_scores else None,
         avg_challenge_score=round(sum(all_test_scores) / len(all_test_scores), 1) if all_test_scores else None,
         quiz_pass_rate=quiz_pass_rate,
-        pct_passing_challenges=round(passing_challenges / n * 100, 1) if n > 0 else None,
+        challenge_pass_rate=challenge_pass_rate,
         most_common_weak_topics=most_common_weak,
     )
 

@@ -4,12 +4,18 @@ import { useAuth } from './AuthContext';
 import { createClassroom, getMyClassrooms, getClassroomAnalytics } from './classroomService';
 import { colors, radii, font, spacing, card, shadows, btn } from './theme';
 
-// ─── Colour helpers ───────────────────────────────────────────────────────────
 const scoreColor = (score) => {
   if (score === null || score === undefined) return { bg: '#f3f4f6', fg: colors.textMuted };
   if (score >= 70) return { bg: '#dcfce7', fg: '#16a34a' };
   if (score >= 50) return { bg: '#fef9c3', fg: '#ca8a04' };
   return { bg: '#fee2e2', fg: '#dc2626' };
+};
+
+const rateColor = (rate) => {
+  if (rate === null || rate === undefined) return colors.textMuted;
+  if (rate >= 60) return '#16a34a';
+  if (rate >= 40) return '#ca8a04';
+  return '#dc2626';
 };
 
 const ScoreBadge = ({ score }) => {
@@ -22,14 +28,12 @@ const ScoreBadge = ({ score }) => {
   );
 };
 
-// ─── Class-level summary cards ────────────────────────────────────────────────
 function ClassSummaryBar({ summary }) {
   if (!summary) return null;
-
   const stats = [
     {
       label: 'Class Avg Exercise Score',
-      tooltip: 'Mean average score across all students\' exercise sessions',
+      tooltip: "Mean average score across all students' exercise sessions",
       value: summary.avg_exercise_score != null ? `${summary.avg_exercise_score}%` : '—',
       color: scoreColor(summary.avg_exercise_score).fg,
     },
@@ -43,13 +47,13 @@ function ClassSummaryBar({ summary }) {
       label: 'Exercise Session Pass Rate',
       tooltip: '% of individual exercise sessions that scored ≥70 (across all students)',
       value: summary.quiz_pass_rate != null ? `${summary.quiz_pass_rate}%` : '—',
-      color: summary.quiz_pass_rate >= 60 ? '#16a34a' : summary.quiz_pass_rate >= 40 ? '#ca8a04' : '#dc2626',
+      color: rateColor(summary.quiz_pass_rate),
     },
     {
-      label: 'Have Passed a Challenge',
-      tooltip: '% of students who have passed at least one coding challenge',
-      value: summary.pct_passing_challenges != null ? `${summary.pct_passing_challenges}%` : '—',
-      color: summary.pct_passing_challenges >= 50 ? '#16a34a' : '#ca8a04',
+      label: 'Challenge Pass Rate',
+      tooltip: '% of individual challenge sessions that scored ≥60 (across all students)',
+      value: summary.challenge_pass_rate != null ? `${summary.challenge_pass_rate}%` : '—',
+      color: rateColor(summary.challenge_pass_rate),
     },
   ];
 
@@ -64,7 +68,6 @@ function ClassSummaryBar({ summary }) {
           </div>
         ))}
       </div>
-
       {summary.most_common_weak_topics?.length > 0 && (
         <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: radii.md, padding: '12px 16px' }}>
           <span style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: '#c2410c' }}>⚠️ Class-wide weak topics: </span>
@@ -79,7 +82,6 @@ function ClassSummaryBar({ summary }) {
   );
 }
 
-// ─── Expandable per-student topic breakdown ───────────────────────────────────
 function TopicBreakdown({ student }) {
   if (!student.topic_stats || student.topic_stats.length === 0) {
     return <p style={{ color: colors.textMuted, fontSize: font.sizeSm, margin: '8px 0' }}>No exercise or challenge data yet.</p>;
@@ -117,7 +119,6 @@ function TopicBreakdown({ student }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
 export default function TeacherDashboard() {
   const { isTeacher, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
@@ -194,9 +195,7 @@ export default function TeacherDashboard() {
   const SortTh = ({ label, sortKeyName, center, tooltip }) => {
     const active = sortKey === sortKeyName;
     return (
-      <th
-        onClick={() => toggleSort(sortKeyName)}
-        title={tooltip}
+      <th onClick={() => toggleSort(sortKeyName)} title={tooltip}
         style={{
           padding: '10px 14px', textAlign: center ? 'center' : 'left',
           fontSize: font.sizeSm, fontWeight: font.weightBold,
@@ -218,7 +217,7 @@ export default function TeacherDashboard() {
       <h2 style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.primary, marginBottom: 4 }}>🏫 Teacher Dashboard</h2>
       <p style={{ color: colors.textMuted, marginBottom: 32, marginTop: 0 }}>Manage your classrooms and monitor student progress.</p>
 
-      {/* ── Create classroom ── */}
+      {/* Create classroom */}
       <div style={{ ...card, marginBottom: 32, padding: 24 }}>
         <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: font.sizeLg, color: colors.text }}>Create a New Classroom</h3>
         <form onSubmit={handleCreate} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -237,7 +236,7 @@ export default function TeacherDashboard() {
         {formError && <p style={{ color: '#ef4444', marginTop: 10, fontSize: font.sizeSm }}>{formError}</p>}
       </div>
 
-      {/* ── Classroom list ── */}
+      {/* Classroom list */}
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ fontSize: font.sizeLg, color: colors.text, marginBottom: 16 }}>Your Classrooms ({classes.length})</h3>
         {classes.length === 0 ? (
@@ -245,8 +244,7 @@ export default function TeacherDashboard() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {classes.map(cls => (
-              <div
-                key={cls.id} onClick={() => handleSelectClass(cls)}
+              <div key={cls.id} onClick={() => handleSelectClass(cls)}
                 style={{ ...card, padding: 20, cursor: 'pointer', transition: 'all 0.2s',
                   border: selectedClass?.id === cls.id ? `2px solid ${colors.primary}` : `1px solid ${colors.border}`,
                   background: selectedClass?.id === cls.id ? (colors.primaryLight || '#eef2ff') : colors.surface,
@@ -271,7 +269,7 @@ export default function TeacherDashboard() {
         )}
       </div>
 
-      {/* ── Analytics panel ── */}
+      {/* Analytics panel */}
       {selectedClass && (
         <div style={{ ...card, padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -291,7 +289,6 @@ export default function TeacherDashboard() {
           {analytics && analytics.students.length > 0 && (
             <>
               <ClassSummaryBar summary={analytics.class_summary} />
-
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
                   <thead>
@@ -359,7 +356,6 @@ export default function TeacherDashboard() {
                               )}
                             </td>
                           </tr>
-
                           {isExpanded && (
                             <tr>
                               <td colSpan={11} style={{ padding: '0 16px 16px 48px', background: colors.primaryLight || '#eef2ff', borderBottom: `1px solid ${colors.border}` }}>
