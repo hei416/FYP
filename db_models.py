@@ -57,6 +57,22 @@ class UserProgress(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+
+
+# --- ClassroomDocument model for classroom document uploads ---
+class ClassroomDocument(Base):
+    """Documents uploaded by teachers to a classroom"""
+    __tablename__ = "classroom_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=False, index=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    file_type = Column(String(50), nullable=False)   # 'pdf', 'txt', etc.
+    status = Column(String(50), default="processing") # 'processing', 'ready', 'error'
+    chunk_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
     
     # Topics/Lessons
     completed_topics = Column(JSON, default=list)  # List of topic IDs

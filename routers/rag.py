@@ -15,11 +15,51 @@ import difflib
 import re
 from sqlalchemy import func
 from database import SessionLocal
-from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork
+from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork, Classroom, ClassroomMember
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
+
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
+from services.classroom_rag import query_classroom_rag
+from routers.auth import get_current_user
+from database import get_db
 from services.conversation_manager import ConversationManager
 
 router = APIRouter()
+# ==================== CLASSROOM-SCOPED RAG ENDPOINT ====================
+
+class ClassroomRAGRequest(BaseModel):
+    question: str
+
+@router.post("/classroom/{classroom_id}/ask")
+async def ask_classroom_rag(
+    classroom_id: int,
+    request: ClassroomRAGRequest,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    membership = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id,
+        ClassroomMember.student_id == current_user.id
+    ).first()
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not membership and not (classroom and (
+        current_user.role == "admin" or classroom.teacher_id == current_user.id
+    )):
+        raise HTTPException(403, "You are not enrolled in this classroom")
+
+    docs = query_classroom_rag(classroom_id, request.question)
+    if not docs:
+        return {"answer": "No documents have been uploaded to this classroom yet."}
+
+    context = "\n\n".join(d.page_content for d in docs)
+    chain = await get_rag_chain()
+    answer = chain(f"Context from classroom materials:\n{context}\n\nQuestion: {request.question}")
+    return {
+        "answer": answer,
+        "sources": list({d.metadata.get("source_file") for d in docs})
+    }
 
 
 # Global variables

@@ -1,3 +1,90 @@
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from pydantic import BaseModel
+from datetime import datetime
+from typing import List, Optional, Dict, Any
+import random
+import string
+import shutil, uuid, os
+
+from database import get_db
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument
+from routers.auth import get_current_user, require_role
+from services.classroom_rag import ingest_document
+
+router = APIRouter(prefix="/classrooms", tags=["Classroom"])
+
+# ---------------------------------------------------------------------------
+# Document upload & delete endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/{classroom_id}/documents")
+async def upload_document(
+    classroom_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Only the classroom teacher can upload documents")
+
+    ext = file.filename.split(".")[-1]
+    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
+    with open(tmp_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    chunk_count = ingest_document(classroom_id, tmp_path, file.filename)
+    os.remove(tmp_path)
+
+    doc = ClassroomDocument(
+        classroom_id=classroom_id, uploaded_by=current_user.id,
+        filename=f"{classroom_id}/{file.filename}", original_name=file.filename,
+        file_type=ext, status="ready", chunk_count=chunk_count
+    )
+    db.add(doc)
+    db.commit()
+    return {"message": "Document uploaded", "chunks": chunk_count}
+
+
+@router.get("/{classroom_id}/documents")
+async def list_documents(
+    classroom_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    return db.query(ClassroomDocument).filter(
+        ClassroomDocument.classroom_id == classroom_id
+    ).all()
+
+
+@router.delete("/{classroom_id}/documents/{doc_id}")
+async def delete_document(
+    classroom_id: int,
+    doc_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Forbidden")
+    doc = db.query(ClassroomDocument).filter(
+        ClassroomDocument.id == doc_id,
+        ClassroomDocument.classroom_id == classroom_id
+    ).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    db.delete(doc)
+    db.commit()
+    return {"message": "Document deleted"}
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -8,7 +95,54 @@ import random
 import string
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument
+from fastapi import UploadFile, File
+import shutil, uuid, os
+from services.classroom_rag import ingest_document
+# ---------------------------------------------------------------------------
+# Document upload & delete endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/{classroom_id}/documents")
+async def upload_document(
+    classroom_id: int,
+    file: UploadFile = File(...),
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Only teacher who owns the classroom (or admin) can upload
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Only the classroom teacher can upload documents")
+
+    # Save file temporarily
+    ext = file.filename.split(".")[-1]
+    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
+    with open(tmp_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    # Ingest into classroom FAISS
+    chunk_count = ingest_document(classroom_id, tmp_path, file.filename)
+    os.remove(tmp_path)
+
+    # Save record to DB
+    doc = ClassroomDocument(
+        classroom_id=classroom_id, uploaded_by=current_user.id,
+        filename=f"{classroom_id}/{file.filename}", original_name=file.filename,
+        file_type=ext, status="ready", chunk_count=chunk_count
+    )
+    db.add(doc)
+    db.commit()
+    return {"message": "Document uploaded", "chunks": chunk_count}
+
+
+@router.delete("/{classroom_id}/documents/{doc_id}")
+async def delete_document(classroom_id: int, doc_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Admin or owning teacher only — delete DB record
+    # Note: full re-index needed for FAISS (see service)
+    ...
 from routers.auth import get_current_user, require_role
 
 router = APIRouter(prefix="/classrooms", tags=["Classroom"])
