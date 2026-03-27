@@ -60,6 +60,13 @@ except Exception as e:
 " || true
 }
 
+# Start terminal service if available (runs in background)
+if [ -d "$APP_DIR/terminal-service" ]; then
+    echo "Starting terminal-service from $APP_DIR/terminal-service"
+    (cd "$APP_DIR/terminal-service" && npm install --no-audit --no-fund 2>/dev/null || true)
+    (cd "$APP_DIR/terminal-service" && node server.js &) || echo "Failed to start terminal-service"
+fi
+
 # Start gunicorn from the correct app directory
 echo "[4/4] Starting gunicorn on port ${PORT:-8000} from $APP_DIR..."
 exec python -m gunicorn main:app \

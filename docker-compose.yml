@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    image: python:3.11-slim
+    container_name: codetutor-backend
+    working_dir: /app
+    volumes:
+      - ./:/app:cached
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    command: bash -lc "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    image: node:18
+    container_name: codetutor-frontend
+    working_dir: /app/frontend
+    volumes:
+      - ./:/app:cached
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    command: bash -lc "cd frontend && npm install && npm start"
+
+  terminal-service:
+    image: node:18
+    container_name: codetutor-terminal
+    working_dir: /app/terminal-service
+    volumes:
+      - ./:/app:cached
+    ports:
+      - "3001:3001"
+    # Ensure OpenJDK is installed so `java`/`javac` are available to node-pty
+    command: bash -lc "apt-get update && apt-get install -y openjdk-17-jre-headless \ 
+      && cd terminal-service && npm install && node server.js"
+
+# Notes:
+# - node-pty includes native binaries; if you hit build errors, run `npm rebuild node-pty --update-binary` inside the terminal-service container.
+# - This compose file is intended for local development only (hot-reload). For production, prefer separate containers with proper builds and a reverse proxy.

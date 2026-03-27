@@ -77,3 +77,53 @@ Developer tips & conventions
 Questions / next steps
 
 - This README is now the canonical doc. I removed the duplicate `frontend/README.md`. If you prefer splitting frontend docs again, I can re-create a short frontend-only README.
+
+## Interactive Terminal (dev & deploy)
+
+This project includes an optional `terminal-service/` Node.js microservice that provides an interactive PTY (via `node-pty`) for running Java programs that require stdin (e.g., `Scanner`). Use it only for development or when you control the server environment.
+
+Local development — quick start
+
+1. Start the terminal service:
+```bash
+cd terminal-service
+npm install
+node server.js
+```
+
+2. Start backend and frontend in separate terminals:
+```bash
+# backend (venv)
+uvicorn main:app --reload
+
+# frontend
+cd frontend
+npm install
+npm start
+```
+
+Optional: single-command dev (frontend)
+
+Install `concurrently` and add a script to `frontend/package.json` for convenience (dev only):
+
+```json
+"scripts": {
+	"dev:with-terminal": "concurrently \"node ../terminal-service/server.js\" \"npm start\" --names \"TERM,FRONT\" --kill-others-on-fail"
+}
+```
+
+Production / Azure notes
+
+- `node-pty` includes native binaries. On Azure App Service you may need to run:
+```bash
+cd terminal-service
+npm rebuild node-pty --update-binary
+```
+- Running background processes on App Service is fragile; recommended options:
+	- Run `terminal-service` as a separate service (PM2 / systemd / container) and expose/proxy a WebSocket endpoint.
+	- Or proxy WebSocket through the FastAPI app so the Node service is only bound to `localhost` and not publicly exposed.
+
+Security & configuration
+
+- Bind the service to `localhost` in production and proxy through your backend to add authentication.
+- Make the WS URL configurable in the frontend via `REACT_APP_TERMINAL_WS` (e.g., `ws://localhost:3001`).

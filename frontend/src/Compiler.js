@@ -1,7 +1,37 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Editor from '@monaco-editor/react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { colors, radii, font, spacing, btn, codeOutput, transition } from './theme';
+const Editor = React.lazy(() => import('@monaco-editor/react'));
+
+// Simple error boundary to catch editor runtime errors (monaco loader issues)
+class EditorErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error, info) {
+        console.error('Editor error:', error, info);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{ padding: 12, background: '#fff3cd', border: '1px solid #ffeeba', borderRadius: 6 }}>
+                    <strong>Editor failed to load.</strong>
+                    <div style={{ marginTop: 8 }}>
+                        The Monaco editor failed to initialize (this can happen with incompatible package versions during hot-reload).
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 13, color: '#6b7280' }}>
+                        Try restarting the dev server, or run <code>npm ls @monaco-editor/loader monaco-editor @monaco-editor/react</code>.
+                    </div>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnly = false, compilerErrorLines = [] }) {
     const [files, setFiles] = useState([]);
@@ -34,7 +64,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
             setFiles([initialFile]);
             setActiveFileId(initialFile.id);
         }
-    }, [code]);
+    }, [code, files.length]);
 
     useEffect(() => {
         const activeFile = files.find(f => f.id === activeFileId);
@@ -400,16 +430,18 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
 
             {/* ── Monaco Editor ── */}
             {activeFile && (
+                <Suspense fallback={<div style={{ padding: 12 }}>Loading editor…</div>}>
                     <Editor
-                    height="220px"
-                    language="java"
-                    theme="vs-light"
-                    value={activeFile.content}
-                    onMount={handleEditorDidMount}
-                    onChange={(value) => updateFileContent(activeFile.id, value || '')}
+                        height="220px"
+                        language="java"
+                        theme="vs-light"
+                        value={activeFile.content}
+                        onMount={handleEditorDidMount}
+                        onChange={(value) => updateFileContent(activeFile.id, value || '')}
                         options={{ fontSize: 13, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true, scrollBeyondLastLine: false, readOnly: readOnly }}
-                    path={activeFile.filename}
-                />
+                        path={activeFile.filename}
+                    />
+                </Suspense>
             )}
 
             {/* ── Problems panel ── */}
