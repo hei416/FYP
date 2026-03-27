@@ -11,7 +11,6 @@ export const AuthProvider = ({ children }) => {
 
   const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
-  // Load token from localStorage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');
     if (savedToken) {
@@ -22,16 +21,13 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch current user — /auth/me now returns role too
   const fetchCurrentUser = useCallback(async (authToken) => {
     try {
       const response = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
-
       if (response.ok) {
         const userData = await response.json();
-        // userData now includes { id, email, full_name, role, created_at }
         setUser(userData);
         setError(null);
       } else {
@@ -47,30 +43,24 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Register — now accepts role ('student' | 'teacher')
   const register = useCallback(async (email, password, fullName, role = 'student') => {
     try {
       setLoading(true);
       setError(null);
-
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, full_name: fullName, role })
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Registration failed');
       }
-
       const data = await response.json();
       setToken(data.access_token);
       setUser({ id: data.user_id, email: data.email, full_name: fullName, role: data.role });
       localStorage.setItem('authToken', data.access_token);
-
       try { await pushProgressToBackend(); await pullProgressFromBackend(); } catch (_) {}
-
       return data;
     } catch (err) {
       setError(err.message);
@@ -80,30 +70,24 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Login — response now includes role
   const login = useCallback(async (email, password) => {
     try {
       setLoading(true);
       setError(null);
-
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Login failed');
       }
-
       const data = await response.json();
       setToken(data.access_token);
       setUser({ id: data.user_id, email: data.email, role: data.role });
       localStorage.setItem('authToken', data.access_token);
-
       try { await pushProgressToBackend(); await pullProgressFromBackend(); } catch (_) {}
-
       return data;
     } catch (err) {
       setError(err.message);
@@ -113,7 +97,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [API_BASE]);
 
-  // Logout
   const logout = useCallback(async () => {
     try { await pushProgressToBackend(); } catch (_) {}
     setToken(null);
@@ -122,7 +105,6 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   }, []);
 
-  // Refresh token
   const refreshToken = useCallback(async () => {
     if (!token) return;
     try {
@@ -133,7 +115,6 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         setToken(data.access_token);
-        // Update role in user state in case it changed
         setUser(prev => prev ? { ...prev, role: data.role } : prev);
         localStorage.setItem('authToken', data.access_token);
         return data.access_token;
@@ -149,7 +130,7 @@ export const AuthProvider = ({ children }) => {
   }, [token, API_BASE, logout]);
 
   const value = {
-    user,           // { id, email, full_name, role }
+    user,
     token,
     loading,
     error,
@@ -159,6 +140,7 @@ export const AuthProvider = ({ children }) => {
     refreshToken,
     isAuthenticated: !!token,
     isTeacher: user?.role === 'teacher' || user?.role === 'admin',
+    isAdmin:   user?.role === 'admin',
     isStudent: user?.role === 'student',
   };
 

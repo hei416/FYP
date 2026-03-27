@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext';
 
 export default function Navbar({ toggleChat }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const { user, logout, isAuthenticated, isTeacher, isStudent } = useAuth();
+    const { user, logout, isAuthenticated, isTeacher, isAdmin, isStudent } = useAuth();
     const navigate = useNavigate();
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -22,24 +22,29 @@ export default function Navbar({ toggleChat }) {
         };
     }, []);
 
-    // Base nav links for everyone
     const baseLinks = [
-        { to: '/home', icon: '🗺️', label: 'Roadmap', 'data-tour': 'home-link' },
-        { to: '/playground', icon: '💻', label: 'Playground', 'data-tour': 'playground-link' },
-        { to: '/quiz', icon: '📝', label: 'Exercises', 'data-tour': 'quiz-link' },
+        { to: '/home',           icon: '🗺️', label: 'Roadmap',          'data-tour': 'home-link' },
+        { to: '/playground',     icon: '💻', label: 'Playground',        'data-tour': 'playground-link' },
+        { to: '/quiz',           icon: '📝', label: 'Exercises',         'data-tour': 'quiz-link' },
         { to: '/practical-test', icon: '🎯', label: 'Coding Challenges', 'data-tour': 'test-link' },
-        { to: '/my-work', icon: '📁', label: 'My Work', 'data-tour': 'my-work-link' },
-        { to: '/history', icon: '🕘', label: 'Chat History', 'data-tour': 'history-link' },
+        { to: '/my-work',        icon: '📁', label: 'My Work',           'data-tour': 'my-work-link' },
+        { to: '/history',        icon: '🕘', label: 'Chat History',      'data-tour': 'history-link' },
     ];
 
-    // Role-specific links appended after base links
-    const roleLinks = isTeacher
+    const roleLinks = isAdmin
+        ? [
+            { to: '/teacher-dashboard', icon: '🏫', label: 'Teacher Dashboard' },
+            { to: '/admin',             icon: '🛡️', label: 'Admin Panel' },
+          ]
+        : isTeacher
         ? [{ to: '/teacher-dashboard', icon: '🏫', label: 'Teacher Dashboard' }]
         : isStudent
-        ? [{ to: '/my-classrooms', icon: '🎓', label: 'My Classrooms' }]
+        ? [{ to: '/my-classrooms',     icon: '🎓', label: 'My Classrooms' }]
         : [];
 
     const navLinks = [...baseLinks, ...roleLinks];
+
+    const roleIcon = isAdmin ? '🛡️' : isTeacher ? '🏫' : '👤';
 
     return (
         <>
@@ -54,7 +59,6 @@ export default function Navbar({ toggleChat }) {
                     padding: '0 24px', zIndex: 100, boxShadow: navbar.shadow
                 }}
             >
-                {/* Left: Hamburger + Logo */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <button
                         onClick={toggleSidebar}
@@ -69,9 +73,7 @@ export default function Navbar({ toggleChat }) {
                     </h1>
                 </div>
 
-                {/* Right: Progress + AI + User */}
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    {/* Hide progress bar for teachers — it's student-focused */}
                     {!isTeacher && <ProgressDisplay />}
                     <button
                         data-tour="ai-button"
@@ -87,7 +89,7 @@ export default function Navbar({ toggleChat }) {
                     {isAuthenticated ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: font.sizeSm, color: colors.textSecondary, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {isTeacher ? '🏫' : '👤'} {user?.email}
+                                {roleIcon} {user?.email}
                             </span>
                             <button
                                 onClick={() => { logout(); navigate('/home'); }}
@@ -107,12 +109,10 @@ export default function Navbar({ toggleChat }) {
                 </div>
             </nav>
 
-            {/* Overlay */}
             {isSidebarOpen && (
                 <div onClick={toggleSidebar} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: colors.backdrop, zIndex: 998, animation: 'fadeIn 0.3s ease' }} />
             )}
 
-            {/* Sidebar */}
             <div style={{
                 position: 'fixed', top: 0,
                 left: isSidebarOpen ? 0 : `-${sidebar.width + 20}px`,
@@ -121,13 +121,11 @@ export default function Navbar({ toggleChat }) {
                 zIndex: 999, transition: 'left 0.3s ease',
                 display: 'flex', flexDirection: 'column', padding: spacing.xl
             }}>
-                {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30, paddingBottom: spacing.xl, borderBottom: `2px solid ${colors.border}` }}>
                     <h2 style={{ margin: 0, fontSize: font.sizeXl, color: colors.primary, fontWeight: font.weightBold }}>Java Learning Hub</h2>
                     <button onClick={toggleSidebar} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: colors.textMuted, padding: 4 }}>×</button>
                 </div>
 
-                {/* Nav Links */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
                     {navLinks.map(({ to, icon, label, ...rest }) => (
                         <Link
@@ -143,22 +141,17 @@ export default function Navbar({ toggleChat }) {
                             <span>{label}</span>
                         </Link>
                     ))}
-
-                    {/* Divider before role links */}
                     {isAuthenticated && (isTeacher || isStudent) && (
                         <div style={{ margin: '8px 0', borderTop: `1px solid ${colors.border}` }} />
                     )}
                 </div>
 
-                {/* Footer */}
                 <div style={{ marginTop: 'auto', paddingTop: spacing.xl, borderTop: `2px solid ${colors.border}` }}>
                     <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#9ca3af', textAlign: 'center' }} />
                 </div>
             </div>
 
-            <style>{`
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            `}</style>
+            <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
         </>
     );
 }
