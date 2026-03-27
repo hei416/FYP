@@ -907,6 +907,7 @@ async def rag_ai(req: ExplainRequest):
                     code_snippet=req.code_snippet if req.code_snippet else None,
                     input_tokens=len(query.split()),
                     output_tokens=len(final_answer.split()),
+                    pdf_matches=pdf_matches,
                 )
                 print(f"✅ Saved conversation turn for user {req.user_id}")
             except Exception as e:

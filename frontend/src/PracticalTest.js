@@ -377,7 +377,7 @@ export default function PracticalTest() {
 
     return (
         <div style={pageContainer(1100)}>
-            <h2 style={pageHeading}>🎯 Code Exercise</h2>
+            <h2 style={pageHeading}>🎯 Coding Challenge</h2>
 
             {screen === 'select' && (
                 <>

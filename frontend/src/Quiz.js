@@ -421,7 +421,7 @@ export default function Quiz() {
 
         return (
             <div style={pageContainer(800)}>
-                <h2 style={pageHeading}>🎯 Select Quiz Topics</h2>
+                <h2 style={pageHeading}>🎯 Select Exercise Topics</h2>
                 <p style={pageSubheading}>
                     {availableTopics.length > 0
                         ? `${availableTopics.length} topic(s) completed. All topics are available — uncompleted ones are marked with ⚠️:`
