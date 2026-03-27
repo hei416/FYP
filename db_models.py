@@ -11,8 +11,32 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
+    role = Column(String(50), default="student", nullable=False)  # student / teacher / admin
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Classroom(Base):
+    """A classroom created by a teacher"""
+    __tablename__ = "classrooms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    class_code = Column(String(20), unique=True, nullable=False, index=True)  # e.g. JAVA101A
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClassroomMember(Base):
+    """Membership linking students to classrooms"""
+    __tablename__ = "classroom_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    joined_at = Column(DateTime, default=datetime.utcnow)
 
 
 class SavedWork(Base):
