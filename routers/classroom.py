@@ -57,7 +57,7 @@ class TopicStat(BaseModel):
     exercise_avg_score: Optional[float]
     challenge_attempts: int
     challenge_avg_score: Optional[float]
-    is_weak: bool          # True if any attempted avg < 70
+    is_weak: bool
 
 
 class StudentSummary(BaseModel):
@@ -71,17 +71,17 @@ class StudentSummary(BaseModel):
     tests_passed: int
     ai_interactions: int
     joined_at: datetime
-    last_active: Optional[datetime]     # most recent SavedWork timestamp
-    topic_stats: List[TopicStat]        # per-topic breakdown
-    weak_topics: List[str]              # topics where avg < 70
+    last_active: Optional[datetime]
+    topic_stats: List[TopicStat]
+    weak_topics: List[str]
 
 
 class ClassSummary(BaseModel):
     avg_exercise_score: Optional[float]
     avg_challenge_score: Optional[float]
-    pct_passing_exercises: Optional[float]   # % students with avg_quiz_score >= 70
-    pct_passing_challenges: Optional[float]  # % students with tests_passed > 0
-    most_common_weak_topics: List[str]       # top 5 topics most students struggle with
+    pct_passing_exercises: Optional[float]
+    pct_passing_challenges: Optional[float]
+    most_common_weak_topics: List[str]
 
 
 class ClassroomAnalytics(BaseModel):
@@ -107,7 +107,6 @@ def _score_of(result_data: Any) -> Optional[float]:
 
 
 def _topics_of(work: SavedWork) -> List[str]:
-    """Return the list of main-topic strings declared in a SavedWork entry."""
     rd = work.result_data or {}
     for key in ("topics_covered", "topics"):
         val = rd.get(key)
@@ -130,8 +129,7 @@ def _build_topic_stats(works: List[SavedWork], work_type: str) -> Dict[str, Dict
             if score is not None:
                 topic_scores[topic].append(score)
             else:
-                # count attempt even without score
-                topic_scores[topic]  # ensure key exists
+                topic_scores[topic]  # ensure key exists even without score
     result = {}
     for topic, scores in topic_scores.items():
         result[topic] = {
@@ -178,13 +176,6 @@ async def get_classroom_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
-    """
-    Rich per-student analytics for a classroom including:
-    - Topic-level exercise & challenge scores
-    - Weak topic detection (avg < 70)
-    - Last active timestamp
-    - Class-level summary stats
-    """
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
         raise HTTPException(status_code=404, detail="Classroom not found")
@@ -207,13 +198,7 @@ async def get_classroom_analytics(
             len(progress.completed_topics)
             if progress and isinstance(progress.completed_topics, list) else 0
         )
-        quizzes_attempted = progress.quizzes_attempted if progress else 0
-        ai_interactions   = progress.ai_interactions   if progress else 0
-        tests_attempted_count = progress.tests_attempted if progress else 0
-        tests_passed_count = (
-            len(progress.tests_passed)
-            if progress and isinstance(progress.tests_passed, list) else 0
-        )
+        ai_interactions = progress.ai_interactions if progress else 0
 
         # All saved works for this student
         all_works = (
@@ -226,18 +211,29 @@ async def get_classroom_analytics(
         # Last active timestamp
         last_active = all_works[0].created_at if all_works else None
 
-        # Avg quiz score from SavedWork quiz entries
+        # --- Exercises (quizzes) ---
+        # Use SavedWork as single source of truth — UserProgress counters can drift
         quiz_works = [w for w in all_works if w.work_type == "quiz"]
         quiz_scores = [
             _score_of(w.result_data)
             for w in quiz_works
             if _score_of(w.result_data) is not None
         ]
+        quizzes_attempted = len(quiz_works)
         avg_quiz_score = round(sum(quiz_scores) / len(quiz_scores), 2) if quiz_scores else None
 
+        # --- Coding Challenges (tests) ---
+        # Both attempted and passed derived from SavedWork so passed can never exceed attempted
+        test_works = [w for w in all_works if w.work_type == "test"]
+        tests_attempted_count = len(test_works)
+        tests_passed_count = sum(
+            1 for w in test_works
+            if _score_of(w.result_data) is not None and _score_of(w.result_data) >= 60
+        )
+
         # Per-topic stats
-        quiz_topic_stats  = _build_topic_stats(all_works, "quiz")
-        test_topic_stats  = _build_topic_stats(all_works, "test")
+        quiz_topic_stats = _build_topic_stats(all_works, "quiz")
+        test_topic_stats = _build_topic_stats(all_works, "test")
         all_topics = set(list(quiz_topic_stats.keys()) + list(test_topic_stats.keys()))
 
         topic_stats_list: List[TopicStat] = []
@@ -246,15 +242,12 @@ async def get_classroom_analytics(
         for topic in sorted(all_topics):
             q = quiz_topic_stats.get(topic, {"attempts": 0, "avg": None})
             t = test_topic_stats.get(topic, {"attempts": 0, "avg": None})
-
-            # Weak if any attempted avg is below 70
             is_weak = (
                 (q["avg"] is not None and q["avg"] < 70) or
                 (t["avg"] is not None and t["avg"] < 70)
             )
             if is_weak:
                 weak_topics.append(topic)
-
             topic_stats_list.append(TopicStat(
                 topic=topic,
                 exercise_attempts=q["attempts"],
@@ -296,7 +289,6 @@ async def get_classroom_analytics(
     passing_exercises  = sum(1 for s in student_summaries if s.avg_quiz_score is not None and s.avg_quiz_score >= 70)
     passing_challenges = sum(1 for s in student_summaries if s.tests_passed > 0)
 
-    # Most common weak topics across students
     weak_topic_freq: Dict[str, int] = {}
     for s in student_summaries:
         for t in s.weak_topics:
