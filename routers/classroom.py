@@ -15,157 +15,6 @@ from services.classroom_rag import ingest_document
 
 router = APIRouter(prefix="/classrooms", tags=["Classroom"])
 
-# ---------------------------------------------------------------------------
-# Document upload & delete endpoints
-# ---------------------------------------------------------------------------
-
-@router.post("/{classroom_id}/documents")
-async def upload_document(
-    classroom_id: int,
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
-    if not classroom:
-        raise HTTPException(404, "Classroom not found")
-    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
-        raise HTTPException(403, "Only the classroom teacher can upload documents")
-
-    ext = file.filename.split(".")[-1]
-    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
-    with open(tmp_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    chunk_count = ingest_document(classroom_id, tmp_path, file.filename)
-    os.remove(tmp_path)
-
-    doc = ClassroomDocument(
-        classroom_id=classroom_id, uploaded_by=current_user.id,
-        filename=f"{classroom_id}/{file.filename}", original_name=file.filename,
-        file_type=ext, status="ready", chunk_count=chunk_count
-    )
-    db.add(doc)
-    db.commit()
-    return {"message": "Document uploaded", "chunks": chunk_count}
-
-
-
-@router.get("/{classroom_id}/documents")
-async def list_documents(
-    classroom_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
-    if not classroom:
-        raise HTTPException(404, "Classroom not found")
-    # Students must be enrolled; teachers must own it; admins see all
-    if current_user.role == "student":
-        membership = db.query(ClassroomMember).filter(
-            ClassroomMember.classroom_id == classroom_id,
-            ClassroomMember.student_id == current_user.id
-        ).first()
-        if not membership:
-            raise HTTPException(403, "Not enrolled in this classroom")
-    elif current_user.role == "teacher" and classroom.teacher_id != current_user.id:
-        raise HTTPException(403, "You do not own this classroom")
-    docs = db.query(ClassroomDocument).filter(
-        ClassroomDocument.classroom_id == classroom_id
-    ).order_by(ClassroomDocument.created_at.desc()).all()
-    return [{
-        "id": d.id,
-        "original_name": d.original_name,
-        "file_type": d.file_type,
-        "status": d.status,
-        "chunk_count": d.chunk_count,
-        "created_at": d.created_at
-    } for d in docs]
-
-
-@router.delete("/{classroom_id}/documents/{doc_id}")
-async def delete_document(
-    classroom_id: int,
-    doc_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
-    if not classroom:
-        raise HTTPException(404, "Classroom not found")
-    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
-        raise HTTPException(403, "Forbidden")
-    doc = db.query(ClassroomDocument).filter(
-        ClassroomDocument.id == doc_id,
-        ClassroomDocument.classroom_id == classroom_id
-    ).first()
-    if not doc:
-        raise HTTPException(404, "Document not found")
-    db.delete(doc)
-    db.commit()
-    return {"message": "Document deleted"}
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from pydantic import BaseModel
-from datetime import datetime
-from typing import List, Optional, Dict, Any
-import random
-import string
-
-from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument
-from fastapi import UploadFile, File
-import shutil, uuid, os
-from services.classroom_rag import ingest_document
-# ---------------------------------------------------------------------------
-# Document upload & delete endpoints
-# ---------------------------------------------------------------------------
-
-@router.post("/{classroom_id}/documents")
-async def upload_document(
-    classroom_id: int,
-    file: UploadFile = File(...),
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # Only teacher who owns the classroom (or admin) can upload
-    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
-    if not classroom:
-        raise HTTPException(404, "Classroom not found")
-    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
-        raise HTTPException(403, "Only the classroom teacher can upload documents")
-
-    # Save file temporarily
-    ext = file.filename.split(".")[-1]
-    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
-    with open(tmp_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    # Ingest into classroom FAISS
-    chunk_count = ingest_document(classroom_id, tmp_path, file.filename)
-    os.remove(tmp_path)
-
-    # Save record to DB
-    doc = ClassroomDocument(
-        classroom_id=classroom_id, uploaded_by=current_user.id,
-        filename=f"{classroom_id}/{file.filename}", original_name=file.filename,
-        file_type=ext, status="ready", chunk_count=chunk_count
-    )
-    db.add(doc)
-    db.commit()
-    return {"message": "Document uploaded", "chunks": chunk_count}
-
-
-@router.delete("/{classroom_id}/documents/{doc_id}")
-async def delete_document(classroom_id: int, doc_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Admin or owning teacher only — delete DB record
-    # Note: full re-index needed for FAISS (see service)
-    ...
-from routers.auth import get_current_user, require_role
-
-router = APIRouter(prefix="/classrooms", tags=["Classroom"])
-
 
 def generate_class_code(length: int = 8) -> str:
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
@@ -233,8 +82,8 @@ class StudentSummary(BaseModel):
 class ClassSummary(BaseModel):
     avg_exercise_score: Optional[float]
     avg_challenge_score: Optional[float]
-    quiz_pass_rate: Optional[float]        # % of all exercise sessions that passed (>=70)
-    challenge_pass_rate: Optional[float]   # % of all challenge sessions that passed (>=60)
+    quiz_pass_rate: Optional[float]
+    challenge_pass_rate: Optional[float]
     most_common_weak_topics: List[str]
 
 
@@ -282,8 +131,6 @@ def _build_topic_stats(works: List[SavedWork], work_type: str) -> Dict[str, Dict
             topic_scores.setdefault(topic, [])
             if score is not None:
                 topic_scores[topic].append(score)
-            else:
-                topic_scores[topic]
     result = {}
     for topic, scores in topic_scores.items():
         result[topic] = {
@@ -433,12 +280,10 @@ async def get_classroom_analytics(
         if _score_of(w.result_data) is not None
     ]
 
-    # quiz_pass_rate: % of all exercise sessions scoring >= 70 (class-wide)
     total_quiz_attempted = sum(s.quizzes_attempted for s in student_summaries)
     total_quiz_passed    = sum(s.quizzes_passed    for s in student_summaries)
     quiz_pass_rate = round(total_quiz_passed / total_quiz_attempted * 100, 1) if total_quiz_attempted > 0 else None
 
-    # challenge_pass_rate: % of all challenge sessions scoring >= 60 (class-wide)
     total_tests_attempted = sum(s.tests_attempted for s in student_summaries)
     total_tests_passed    = sum(s.tests_passed    for s in student_summaries)
     challenge_pass_rate = round(total_tests_passed / total_tests_attempted * 100, 1) if total_tests_attempted > 0 else None
@@ -510,3 +355,99 @@ async def list_enrolled_classrooms(
     )
     classroom_ids = [m.classroom_id for m in memberships]
     return db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
+
+
+# ---------------------------------------------------------------------------
+# Document management endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/{classroom_id}/documents")
+async def upload_document(
+    classroom_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Only the classroom teacher can upload documents")
+
+    ext = file.filename.split(".")[-1].lower()
+    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
+    with open(tmp_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    chunk_count = ingest_document(classroom_id, tmp_path, file.filename)
+    os.remove(tmp_path)
+
+    doc = ClassroomDocument(
+        classroom_id=classroom_id,
+        uploaded_by=current_user.id,
+        filename=f"{classroom_id}/{file.filename}",
+        original_name=file.filename,
+        file_type=ext,
+        status="ready",
+        chunk_count=chunk_count
+    )
+    db.add(doc)
+    db.commit()
+    return {"message": "Document uploaded", "chunks": chunk_count}
+
+
+@router.get("/{classroom_id}/documents")
+async def list_documents(
+    classroom_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role == "student":
+        membership = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.student_id == current_user.id
+        ).first()
+        if not membership:
+            raise HTTPException(403, "Not enrolled in this classroom")
+    elif current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "You do not own this classroom")
+    docs = db.query(ClassroomDocument).filter(
+        ClassroomDocument.classroom_id == classroom_id
+    ).order_by(ClassroomDocument.created_at.desc()).all()
+    return [
+        {
+            "id": d.id,
+            "original_name": d.original_name,
+            "file_type": d.file_type,
+            "status": d.status,
+            "chunk_count": d.chunk_count,
+            "created_at": d.created_at
+        }
+        for d in docs
+    ]
+
+
+@router.delete("/{classroom_id}/documents/{doc_id}")
+async def delete_document(
+    classroom_id: int,
+    doc_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Forbidden")
+    doc = db.query(ClassroomDocument).filter(
+        ClassroomDocument.id == doc_id,
+        ClassroomDocument.classroom_id == classroom_id
+    ).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    db.delete(doc)
+    db.commit()
+    return {"message": "Document deleted"}

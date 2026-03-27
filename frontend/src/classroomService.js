@@ -1,38 +1,3 @@
-// Document management and RAG API methods
-export const uploadDocument = async (classroomId, file, token) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
-  });
-  return res.json();
-};
-
-export const listDocuments = async (classroomId, token) => {
-  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.json();
-};
-
-export const deleteDocument = async (classroomId, docId, token) => {
-  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents/${docId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.json();
-};
-
-export const askClassroomRAG = async (classroomId, question, token) => {
-  const res = await fetch(`${API_BASE}/classroom/${classroomId}/ask`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question }),
-  });
-  return res.json();
-};
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 function authHeaders() {
@@ -42,6 +7,10 @@ function authHeaders() {
     Authorization: `Bearer ${token || ''}`,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Classroom CRUD
+// ---------------------------------------------------------------------------
 
 export async function createClassroom({ name, description }) {
   const res = await fetch(`${API_BASE}/classrooms`, {
@@ -86,3 +55,46 @@ export async function getEnrolledClassrooms() {
   if (!res.ok) throw new Error('Failed to load enrolled classrooms');
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Document management
+// ---------------------------------------------------------------------------
+
+export const uploadDocument = async (classroomId, file, token) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  return res.json();
+};
+
+export const listDocuments = async (classroomId, token) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const deleteDocument = async (classroomId, docId, token) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents/${docId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+// ---------------------------------------------------------------------------
+// Classroom RAG
+// ---------------------------------------------------------------------------
+
+export const askClassroomRAG = async (classroomId, question, token) => {
+  const res = await fetch(`${API_BASE}/classroom/${classroomId}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ question }),
+  });
+  return res.json();
+};

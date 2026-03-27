@@ -169,6 +169,27 @@ def run_migrations(db_engine):
             except Exception as e:
                 print(f"⚠️ classroom_members migration: {e}")
 
+                # --- Classroom documents table ---
+                try:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS classroom_documents (
+                            id SERIAL PRIMARY KEY,
+                            classroom_id INTEGER NOT NULL REFERENCES classrooms(id),
+                            uploaded_by INTEGER NOT NULL REFERENCES users(id),
+                            filename VARCHAR(255) NOT NULL,
+                            original_name VARCHAR(255) NOT NULL,
+                            file_type VARCHAR(50) NOT NULL,
+                            status VARCHAR(50) DEFAULT 'ready',
+                            chunk_count INTEGER DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                    conn.commit()
+                    print("✅ Migration: classroom_documents table ready")
+                except Exception as e:
+                    conn.rollback()
+                    print(f"⚠️ classroom_documents migration: {e}")
+
     except Exception as e:
         print(f"⚠️ run_migrations error: {e}")
 
