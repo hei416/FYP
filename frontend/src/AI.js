@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import TextareaAutosize from "react-textarea-autosize";
 import { useNavigate } from "react-router-dom";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
+import { useAuth } from './AuthContext';
 
 const STORAGE_KEY = 'codetutor_chat_history';
 const SESSION_KEY = 'codetutor_active_session';
@@ -40,6 +41,7 @@ const ExpandIcon = () => (
 export default function AI({ showChat, setShowChat }) {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [sessions, setSessions] = useState(() => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
@@ -53,6 +55,8 @@ export default function AI({ showChat, setShowChat }) {
     const [loadingContext, setLoadingContext] = useState(false);
     const [showHistoryPanel, setShowHistoryPanel] = useState(false);
     const messagesEndRef = useRef(null);
+    // Stable conversation_id for this chat session — reset on new chat
+    const conversationIdRef = useRef(generateId());
 
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }, [sessions]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
@@ -64,24 +68,36 @@ export default function AI({ showChat, setShowChat }) {
     }, []);
 
     const toggleChat = () => setShowChat(v => !v);
-    const startNewChat = () => { setActiveId(null); setHistory([]); setShowHistoryPanel(false); };
-    const loadSession = (session) => { setActiveId(session.id); setHistory(session.messages); setShowHistoryPanel(false); };
+    const startNewChat = () => {
+        setActiveId(null);
+        setHistory([]);
+        setShowHistoryPanel(false);
+        conversationIdRef.current = generateId();
+    };
+    const loadSession = (session) => {
+        setActiveId(session.id);
+        setHistory(session.messages);
+        setShowHistoryPanel(false);
+        // Restore conversation_id stored on the session, or generate a new one
+        conversationIdRef.current = session.conversationId || generateId();
+    };
 
     const deleteSession = (id, e) => {
         e.stopPropagation();
         setSessions(prev => prev.filter(s => s.id !== id));
-        if (activeId === id) { setActiveId(null); setHistory([]); }
+        if (activeId === id) { setActiveId(null); setHistory([]); conversationIdRef.current = generateId(); }
     };
 
     const saveCurrentSession = (msgs) => {
         if (msgs.length === 0) return null;
+        const convId = conversationIdRef.current;
         if (activeId) {
-            setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: msgs } : s));
+            setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: msgs, conversationId: convId } : s));
             return activeId;
         } else {
             const newId = generateId();
             const title = msgs.find(m => m.role === 'user')?.content?.slice(0, 50) || 'Chat';
-            const session = { id: newId, title, createdAt: Date.now(), messages: msgs };
+            const session = { id: newId, title, createdAt: Date.now(), messages: msgs, conversationId: convId };
             setSessions(prev => [session, ...prev]);
             setActiveId(newId);
             return newId;
@@ -117,13 +133,18 @@ export default function AI({ showChat, setShowChat }) {
         setUserInput('');
         setLoading(true);
         try {
-            // Strip extra fields (pdf_matches, debug_log) — backend only expects {role, content}
-            const historyPayload = newHistory.map(({ role, content }) => ({ role, content }));
             const res = await fetch(`${API_BASE}/ragAI`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_input: userInput, history: historyPayload }),
+                body: JSON.stringify({
+                    user_input: userInput,
+                    history: [],
+                    user_id: user?.id || null,
+                    conversation_id: conversationIdRef.current,
+                }),
             });
             const data = await res.json();
+            // Update conversationId if backend assigned one
+            if (data.conversation_id) conversationIdRef.current = data.conversation_id;
             const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
             const finalHistory = [...newHistory, aiMsg];
             setHistory(finalHistory);

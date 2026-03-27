@@ -40,7 +40,7 @@ const CollapseIcon = () => (
 
 export default function ConversationHistoryPage() {
     const navigate = useNavigate();
-    const { isAuthenticated, token, loading } = useAuth();
+    const { isAuthenticated, token, loading, user } = useAuth();
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
     const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
@@ -171,11 +171,14 @@ export default function ConversationHistoryPage() {
         setChatLoading(true);
 
         try {
-            // Strip extra fields — backend only expects {role, content}
-            const historyPayload = updatedMsgs.map(({ role, content }) => ({ role, content }));
             const res = await fetch(`${API_BASE}/ragAI`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_input: questionText, history: historyPayload }),
+                body: JSON.stringify({
+                    user_input: questionText,
+                    history: [],
+                    user_id: user?.id || null,
+                    conversation_id: currentId,
+                }),
             });
             const data = await res.json();
             const aiMsg = {
