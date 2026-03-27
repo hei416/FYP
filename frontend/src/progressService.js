@@ -4,6 +4,8 @@
  * Falls back to localStorage-only mode when not logged in.
  */
 
+import { QUIZ_PASS_SCORE } from './ProgressTracker';
+
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 const getToken = () => localStorage.getItem('authToken');
@@ -57,9 +59,8 @@ export const pullProgressFromBackend = async () => {
     localStorage.setItem('java-roadmap-completed', JSON.stringify(merged));
 
     // Restore dismissed milestones if present
-    if (backend.get('dismissed_milestones') || backend.dismissed_milestones) {
-      const dismissed = backend.dismissed_milestones || backend.get('dismissed_milestones');
-      localStorage.setItem('dismissed_milestones', JSON.stringify(dismissed));
+    if (backend.dismissed_milestones) {
+      localStorage.setItem('dismissed_milestones', JSON.stringify(backend.dismissed_milestones));
     }
 
     // Use existing merge util to merge richer progress object
@@ -79,7 +80,6 @@ export async function syncProgressToBackend(localProgress, roadmapCompleted) {
     const payload = {
       completed_topics: roadmapCompleted || [],
       quizzes_attempted: localProgress?.quizzes?.attempted || 0,
-      // sync the `passed` array (frontend uses `quizzes.passed` for progress bar)
       quizzes_completed: localProgress?.quizzes?.passed || [],
       tests_attempted: localProgress?.tests?.attempted || 0,
       tests_passed: localProgress?.tests?.passed || [],
@@ -111,7 +111,6 @@ export const pushProgressToBackend = async () => {
       completed_topics: completed,
       dismissed_milestones: dismissed,
       quizzes_attempted: local?.quizzes?.attempted || 0,
-      // send the `passed` array because frontend progress uses `quizzes.passed`
       quizzes_completed: local?.quizzes?.passed || [],
       tests_attempted: local?.tests?.attempted || 0,
       tests_passed: local?.tests?.passed || [],
@@ -156,9 +155,7 @@ export async function recordQuizAttempt(quizId, score, answers = null) {
     const local = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
     local.quizzes = local.quizzes || { attempted: 0, completed: [], passed: [], totalQuizzes: 0 };
     local.quizzes.attempted = (local.quizzes.attempted || 0) + 1;
-    // Consider a passing score threshold for marking completed locally (best-effort)
-    const PASS_THRESHOLD = 60;
-    if (score >= PASS_THRESHOLD && !local.quizzes.completed.includes(quizId)) {
+    if (score >= QUIZ_PASS_SCORE && !local.quizzes.completed.includes(quizId)) {
       local.quizzes.completed.push(quizId);
     }
     localStorage.setItem('codetutor_learning_progress', JSON.stringify(local));
@@ -235,7 +232,6 @@ export async function recordAIInteraction() {
 export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmapKey) {
   if (!backendProgress) return;
 
-  // Update roadmap completed topics
   const backendTopics = backendProgress.completed_topics || [];
   if (backendTopics.length > 0) {
     const localTopics = JSON.parse(localStorage.getItem(roadmapKey) || '[]');
@@ -243,7 +239,6 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
     localStorage.setItem(roadmapKey, JSON.stringify(merged));
   }
 
-  // Update internal progress store
   const stored = localStorage.getItem(localStorageKey);
   const local = stored ? JSON.parse(stored) : {};
 
@@ -264,7 +259,6 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
         ...(local?.quizzes?.completed || []),
         ...(backendProgress.quizzes_completed || [])
       ])),
-      // restore the `passed` array (frontend uses `quizzes.passed` for progress bar)
       passed: Array.from(new Set([
         ...(local?.quizzes?.passed || []),
         ...(backendProgress.quizzes_completed || [])
@@ -276,7 +270,6 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
         local?.tests?.attempted || 0,
         backendProgress.tests_attempted || 0
       ),
-      // keep both completed and passed for tests
       completed: Array.from(new Set([
         ...(local?.tests?.completed || []),
         ...(backendProgress.tests_passed || [])

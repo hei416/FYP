@@ -61,21 +61,11 @@ export default function ProgressDisplay() {
                     return lbl || null;
                 };
 
-                // Debug: show quiz savedWork rows (helpful to verify topic_id presence)
-                try {
-                    console.log('Quiz savedWorks:', savedWorks
-                        .filter(w => w.work_type === 'quiz')
-                        .map(w => ({ id: w.id, topic_id: w.topic_id, result_data: w.result_data, score: scoreOf(w) }))
-                    );
-                } catch (e) { /* ignore console errors in old browsers */ }
-
                 // Parse result_data.review to collect which subtopics/main topics were tested and passed
                 const quizWorks = savedWorks.filter(w => w.work_type === 'quiz');
                 const quizTestedTopics = new Set();
                 const quizPassedTopicsSet = new Set();
                 quizWorks.forEach(w => {
-                    // Prefer an explicit list of topics if the quiz generator saved them.
-                    // Fallback to `topic_id` on the work row for older records.
                     const declaredTopics = Array.isArray(w.result_data?.topics_covered) && w.result_data.topics_covered.length > 0
                         ? w.result_data.topics_covered
                         : (Array.isArray(w.result_data?.topics) && w.result_data.topics.length > 0
@@ -110,14 +100,11 @@ export default function ProgressDisplay() {
                 // Tests
                 const testTotalAttempts = savedWorks.filter(w => w.work_type === 'test').length;
                 const testPassedAttempts = savedWorks.filter(w => w.work_type === 'test' && (scoreOf(w) !== undefined) && scoreOf(w) >= 60).length;
-                // Parse test result_data similarly to quizzes
                 const testWorks = savedWorks.filter(w => w.work_type === 'test');
                 const testPassedTopicsSet = new Set();
                 const testTestedTopics = new Set();
 
-                // Read `topics_covered` (or fallback to `topics`) saved at the session level
                 testWorks.forEach(w => {
-                    // Try topics_covered → topics → topic_id fallback for old rows
                     const topics = (Array.isArray(w.result_data?.topics_covered) && w.result_data.topics_covered.length > 0)
                         ? w.result_data.topics_covered
                         : (Array.isArray(w.result_data?.topics) && w.result_data.topics.length > 0)
@@ -152,7 +139,6 @@ export default function ProgressDisplay() {
                         testedTopics: testTestedCount
                     }
                 };
-                // Build a corrected overall count from live backend data so button and modal match
                 const roadmapCompleted = tracker.getValidCompletedTopics().length;
                 const correctedCompleted = roadmapCompleted
                     + Math.min(quizPassedTopics, TOPIC_GROUPS.length)
@@ -174,15 +160,15 @@ export default function ProgressDisplay() {
     }, [tracker]);
 
     useEffect(() => {
+        // Initial load
         updateProgress();
+        // Event-driven updates only — no polling interval
         const handleProgressUpdate = () => updateProgress();
         window.addEventListener('progress-updated', handleProgressUpdate);
         window.addEventListener('storage', handleProgressUpdate);
-        const interval = setInterval(updateProgress, 2000);
         return () => {
             window.removeEventListener('progress-updated', handleProgressUpdate);
             window.removeEventListener('storage', handleProgressUpdate);
-            clearInterval(interval);
         };
     }, [updateProgress]);
 
@@ -305,7 +291,7 @@ export default function ProgressDisplay() {
                             </div>
                         </div>
 
-                        {/* Detailed Breakdown — order: Roadmap → Quizzes → Practical Tests → Playground → AI */}
+                        {/* Detailed Breakdown */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <ProgressItem
                                 icon="🗺️" title="Learning Roadmap"
@@ -335,7 +321,7 @@ export default function ProgressDisplay() {
                                 color="#F44336"
                             />
 
-                            {/* Code Playground — show execution count, not 0/1 */}
+                            {/* Code Playground */}
                             <div style={{
                                 padding: spacing.lg, background: colors.bg,
                                 borderRadius: radii.sm, border: `1px solid ${colors.divider}`
@@ -350,14 +336,7 @@ export default function ProgressDisplay() {
                                             {detailedProgress.playground.executions} code execution{detailedProgress.playground.executions !== 1 ? 's' : ''} completed
                                         </div>
                                     </div>
-                                    <div style={{
-                                        fontSize: font.sizeSm, fontWeight: font.weightBold,
-                                        color: colors.textSecondary
-                                    }}>
-                                       
-                                    </div>
                                 </div>
-                                {/* Removed decorative progress bar per UX request */}
                             </div>
 
                             {/* AI Interactions */}
