@@ -3,20 +3,19 @@ import { pullProgressFromBackend, pushProgressToBackend } from './progressServic
 
 const AuthContext = createContext(null);
 
-// All localStorage keys that are user-specific and must be cleared on logout
-const USER_LOCAL_KEYS = [
+// Progress/tour keys that are safe to clear on logout (backed up to backend)
+const PROGRESS_LOCAL_KEYS = [
   'codetutor_learning_progress',
   'java-roadmap-completed',
   'dismissed_milestones',
   'hasSeenDemoTour',
 ];
 
-const clearUserLocalData = () => {
-  USER_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
-  // Clear any user-scoped chat history keys (pattern: codetutor_chat_<userId>)
-  Object.keys(localStorage)
-    .filter(k => k.startsWith('codetutor_chat_'))
-    .forEach(k => localStorage.removeItem(k));
+// Called on logout: clears progress keys only.
+// Chat history keys (codetutor_chat_<userId>) are user-scoped and intentionally
+// kept in localStorage so they survive re-login on the same device.
+const clearProgressLocalData = () => {
+  PROGRESS_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
 };
 
 export const AuthProvider = ({ children }) => {
@@ -90,8 +89,8 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      // Clear any previous user's local data before loading the new user's data
-      clearUserLocalData();
+      // Only clear progress keys — chat history is user-scoped and must survive re-login
+      clearProgressLocalData();
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,10 +115,10 @@ export const AuthProvider = ({ children }) => {
   }, [API_BASE]);
 
   const logout = useCallback(async () => {
-    // Push progress to backend before clearing local data
+    // Push progress to backend before clearing local progress data
     try { await pushProgressToBackend(); } catch (_) {}
-    // Clear all user-specific local storage
-    clearUserLocalData();
+    // Clear progress keys only — chat history stays (user-scoped keys persist for re-login)
+    clearProgressLocalData();
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');

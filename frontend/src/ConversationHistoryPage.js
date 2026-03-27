@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import TextareaAutosize from 'react-textarea-autosize';
-import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
+import { colors, radii, font, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 
-// Storage key is scoped per user ID so different accounts on the same
-// device never share chat history.
+// Storage key scoped per user ID — different accounts on the same device
+// never share chat history, and history survives logout/re-login.
 function storageKey(userId) {
-    return userId ? `codetutor_chat_${userId}` : 'codetutor_chat_guest';
+    return userId ? `codetutor_chat_${userId}` : null;
 }
 
 const SESSION_KEY = 'codetutor_active_session';
@@ -51,58 +51,49 @@ export default function ConversationHistoryPage() {
         }
     }, [loading, isAuthenticated, navigate]);
 
-    const STORAGE_KEY = storageKey(user?.id);
-
-    const [sessions, setSessions] = useState(() => {
-        if (!user?.id) return [];
-        try { return JSON.parse(localStorage.getItem(storageKey(user?.id)) || '[]'); } catch { return []; }
-    });
-
-    // Re-load sessions when user changes (e.g. different account)
-    useEffect(() => {
-        if (user?.id) {
-            try {
-                setSessions(JSON.parse(localStorage.getItem(storageKey(user.id)) || '[]'));
-            } catch {
-                setSessions([]);
-            }
-        }
-    }, [user?.id]);
-
-    const [activeId, setActiveId] = useState(() => {
-        const fromChat = sessionStorage.getItem(SESSION_KEY);
-        if (fromChat) {
-            const parsed = JSON.parse(fromChat);
-            sessionStorage.removeItem(SESSION_KEY);
-            return parsed.id;
-        }
-        return null;
-    });
-
+    // Sessions start empty; loaded from localStorage once user.id is known
+    const [sessions, setSessions] = useState([]);
+    const [activeId, setActiveId] = useState(null);
     const [userInput, setUserInput] = useState('');
-    const [loading2, setLoading2] = useState(false);
+    const [chatLoading, setChatLoading] = useState(false);
     const [expandedChunk, setExpandedChunk] = useState(null);
     const [chunkContext, setChunkContext] = useState(null);
     const [loadingContext, setLoadingContext] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const messagesEndRef = useRef(null);
 
+    // Load sessions from localStorage as soon as user.id is available
+    useEffect(() => {
+        if (!user?.id) return;
+        const key = storageKey(user.id);
+        try {
+            const saved = JSON.parse(localStorage.getItem(key) || '[]');
+            setSessions(saved);
+            // Restore last active session if coming from the chat widget
+            const fromChat = sessionStorage.getItem(SESSION_KEY);
+            if (fromChat) {
+                const parsed = JSON.parse(fromChat);
+                sessionStorage.removeItem(SESSION_KEY);
+                setActiveId(parsed.id);
+            } else if (saved.length > 0) {
+                setActiveId(saved[0].id);
+            }
+        } catch {
+            setSessions([]);
+        }
+    }, [user?.id]);
+
+    // Persist sessions to user-scoped key whenever they change
+    useEffect(() => {
+        const key = storageKey(user?.id);
+        if (!key) return;
+        localStorage.setItem(key, JSON.stringify(sessions));
+    }, [sessions, user?.id]);
+
+    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [sessions, activeId]);
+
     const activeSession = sessions.find(s => s.id === activeId) || null;
     const messages = activeSession ? activeSession.messages : [];
-
-    // Persist sessions to user-scoped key
-    useEffect(() => {
-        if (user?.id) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-        }
-    }, [sessions, STORAGE_KEY, user?.id]);
-
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-    // Set default active session after sessions load
-    useEffect(() => {
-        if (!activeId && sessions.length > 0) setActiveId(sessions[0].id);
-    }, [sessions, activeId]);
 
     const createNewSession = () => {
         const ns = { id: generateId(), title: 'New conversation', createdAt: Date.now(), messages: [] };
@@ -154,7 +145,7 @@ export default function ConversationHistoryPage() {
             : s
         ));
         setUserInput('');
-        setLoading2(true);
+        setChatLoading(true);
 
         try {
             const res = await fetch(`${API_BASE}/ragAI`, {
@@ -162,12 +153,20 @@ export default function ConversationHistoryPage() {
                 body: JSON.stringify({ user_input: userInput, history: updated }),
             });
             const data = await res.json();
-            const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
+            const aiMsg = {
+                role: 'assistant',
+                content: data.final_answer || 'No response.',
+                pdf_matches: data.debug_log?.pdf_matches || [],
+                debug_log: data.debug_log
+            };
             setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...s.messages, aiMsg] } : s));
         } catch (err) {
-            setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...s.messages, { role: 'assistant', content: 'Error: ' + err.message }] } : s));
+            setSessions(prev => prev.map(s => s.id === currentId
+                ? { ...s, messages: [...s.messages, { role: 'assistant', content: 'Error: ' + err.message }] }
+                : s
+            ));
         }
-        setLoading2(false);
+        setChatLoading(false);
     };
 
     const renderMessage = (msg, msgIndex) => {
@@ -241,12 +240,9 @@ export default function ConversationHistoryPage() {
         );
     };
 
-    // Show loading state while auth is being determined
     if (loading) {
         return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh', color: colors.textMuted }}>Loading...</div>;
     }
-
-    // If not authenticated, render nothing (redirect handled by useEffect)
     if (!isAuthenticated) return null;
 
     return (
@@ -328,7 +324,7 @@ export default function ConversationHistoryPage() {
                         </div>
                     )}
                     {messages.map((msg, idx) => renderMessage(msg, idx))}
-                    {loading2 && (
+                    {chatLoading && (
                         <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
                             <div style={{ width: 32, height: 32, borderRadius: radii.full, background: colors.accent, color: colors.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>☕</div>
                             <div style={{ padding: '14px 18px', background: colors.surface, borderRadius: '4px 18px 18px 18px', boxShadow: shadows.sm, border: `1px solid ${colors.divider}` }}>
@@ -356,10 +352,10 @@ export default function ConversationHistoryPage() {
                             minRows={1} maxRows={6}
                             style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', resize: 'none', fontSize: font.sizeMd, fontFamily: font.family, color: colors.text, lineHeight: 1.6 }}
                         />
-                        <button type="submit" disabled={loading2 || !userInput.trim()}
-                            style={{ ...btn.accent, ...btn.small, opacity: (!loading2 && userInput.trim()) ? 1 : 0.45, cursor: (!loading2 && userInput.trim()) ? 'pointer' : 'not-allowed' }}
+                        <button type="submit" disabled={chatLoading || !userInput.trim()}
+                            style={{ ...btn.accent, ...btn.small, opacity: (!chatLoading && userInput.trim()) ? 1 : 0.45, cursor: (!chatLoading && userInput.trim()) ? 'pointer' : 'not-allowed' }}
                         >
-                            {loading2 ? '⏳' : 'Send'}
+                            {chatLoading ? '⏳' : 'Send'}
                         </button>
                     </form>
                     <div style={{ textAlign: 'center', marginTop: 6, fontSize: '11px', color: colors.textMuted }}>Enter to send · Shift+Enter for new line</div>
