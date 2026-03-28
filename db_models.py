@@ -58,6 +58,34 @@ class UserProgress(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
 
+    # Topics/Lessons
+    completed_topics = Column(JSON, default=list)       # List of topic IDs
+
+    # Quizzes
+    quizzes_attempted = Column(Integer, default=0)
+    quizzes_completed = Column(JSON, default=list)      # List of quiz IDs
+
+    # Practical Tests
+    tests_attempted = Column(Integer, default=0)
+    tests_passed = Column(JSON, default=list)           # List of test IDs
+
+    # Playground usage
+    playground_executions = Column(Integer, default=0)
+    playground_completed = Column(Boolean, default=False)
+
+    # AI interactions
+    ai_interactions = Column(Integer, default=0)
+
+    # Dismissed milestone reminders
+    dismissed_milestones = Column(JSON, default=list)
+
+    # Overall progress
+    completion_percentage = Column(Float, default=0.0)
+
+    # Timestamps
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_synced = Column(DateTime, default=datetime.utcnow)
+
 
 # --- ClassroomDocument model for classroom document uploads ---
 class ClassroomDocument(Base):
@@ -73,33 +101,6 @@ class ClassroomDocument(Base):
     status = Column(String(50), default="processing") # 'processing', 'ready', 'error'
     chunk_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Topics/Lessons
-    completed_topics = Column(JSON, default=list)  # List of topic IDs
-    
-    # Quizzes
-    quizzes_attempted = Column(Integer, default=0)
-    quizzes_completed = Column(JSON, default=list)  # List of quiz IDs
-    
-    # Practical Tests
-    tests_attempted = Column(Integer, default=0)
-    tests_passed = Column(JSON, default=list)  # List of test IDs
-    
-    # Playground usage
-    playground_executions = Column(Integer, default=0)
-    playground_completed = Column(Boolean, default=False)
-    
-    # AI interactions
-    ai_interactions = Column(Integer, default=0)
-    # Dismissed milestone reminders stored as a list of milestone ids/counts
-    dismissed_milestones = Column(JSON, default=list)
-    
-    # Overall progress
-    completion_percentage = Column(Float, default=0.0)
-    
-    # Timestamps
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_synced = Column(DateTime, default=datetime.utcnow)
 
 
 # ---------------------------------------------------------------------------
