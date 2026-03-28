@@ -4,7 +4,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { useNavigate } from "react-router-dom";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
-import { askClassroom } from "./services/classroomService";
+
 
 // Add getToken helper for fetching classrooms
 const getToken = () => localStorage.getItem("token") || sessionStorage.getItem("token") || "";
@@ -129,42 +129,76 @@ export default function AI({ showChat, setShowChat }) {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!userInput.trim()) return;
-        const userMessage = { role: 'user', content: userInput };
-        const newHistory = [...history, userMessage];
-        setHistory(newHistory);
-        setUserInput('');
-        setLoading(true);
-        try {
-            if (ragMode === "classroom" && selectedClassroomId) {
-                const result = await askClassroom(selectedClassroomId, userInput);
-                const aiMsg = { role: 'assistant', content: result.answer };
-                const finalHistory = [...newHistory, aiMsg];
-                setHistory(finalHistory);
-                saveCurrentSession(finalHistory);
-            } else {
-                const res = await fetch(`${API_BASE}/ragAI`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_input: userInput,
-                        history: [],
-                        user_id: user?.id || null,
-                        conversation_id: conversationIdRef.current,
-                    }),
-                });
-                const data = await res.json();
-                if (data.conversation_id) conversationIdRef.current = data.conversation_id;
-                const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
-                const finalHistory = [...newHistory, aiMsg];
-                setHistory(finalHistory);
-                saveCurrentSession(finalHistory);
-            }
-        } catch (err) {
-            setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
-        }
-        setLoading(false);
-    };
+                e.preventDefault();
+                if (!userInput.trim()) return;
+                const questionText = userInput; // capture before clearing
+                const userMessage = { role: 'user', content: questionText };
+                const newHistory = [...history, userMessage];
+                setHistory(newHistory);
+                setUserInput('');
+                setLoading(true);
+
+                try {
+                    const useGeneral = selectedSources['general'] !== false; // default true
+                    const classroomIds = Object.entries(selectedSources)
+                        .filter(([k, v]) => k !== 'general' && v)
+                        .map(([k]) => Number(k));
+
+                    let finalAnswer = '';
+                    let totalSources = 0;
+
+                    if (classroomIds.length > 0) {
+                        // Call multi-classroom RAG endpoint
+                        const res = await fetch(`/classrooms/ask-multi`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${getToken()}`,
+                            },
+                            body: JSON.stringify({
+                                question: questionText,
+                                classroom_ids: classroomIds,
+                                include_general: useGeneral,
+                            }),
+                        });
+                        const data = await res.json();
+                        finalAnswer = data.answer;
+                        totalSources = data.sources_count || 0;
+                    } else {
+                        // General RAG only
+                        const res = await fetch(`${API_BASE}/ragAI`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user_input: questionText,
+                                history: [],
+                                user_id: user?.id || null,
+                                conversation_id: conversationIdRef.current,
+                            }),
+                        });
+                        const data = await res.json();
+                        if (data.conversation_id) conversationIdRef.current = data.conversation_id;
+                        finalAnswer = data.final_answer || 'No response.';
+                        const aiMsg = { role: 'assistant', content: finalAnswer, pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
+                        const finalHistory = [...newHistory, aiMsg];
+                        setHistory(finalHistory);
+                        saveCurrentSession(finalHistory);
+                        setLoading(false);
+                        return;
+                    }
+
+                    const sourceBadge = totalSources > 0
+                        ? `\n\n*✓ Based on ${totalSources} source(s)*`
+                        : '';
+                    const aiMsg = { role: 'assistant', content: finalAnswer + sourceBadge };
+                    const finalHistory = [...newHistory, aiMsg];
+                    setHistory(finalHistory);
+                    saveCurrentSession(finalHistory);
+                } catch (err) {
+                    setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
+                }
+                setLoading(false);
+        };
 
     const renderAIMessage = (msg, msgIndex) => (
         <div>
@@ -235,19 +269,23 @@ export default function AI({ showChat, setShowChat }) {
     );
 
     // RAG/classroom mode state
-    const [ragMode, setRagMode] = useState("general"); // "general" | "classroom"
-    const [selectedClassroomId, setSelectedClassroomId] = useState("");
+    // Multi-source RAG state
+    const [selectedSources, setSelectedSources] = useState({ general: true }); // { general: bool, [classroomId]: bool }
     const [enrolledClassrooms, setEnrolledClassrooms] = useState([]);
 
-    useEffect(() => {
-        // Fetch enrolled classrooms for RAG mode
-        fetch("/classrooms/enrolled", {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        })
-          .then((r) => r.ok ? r.json() : [])
-          .then(setEnrolledClassrooms)
-          .catch(() => {});
-    }, []);
+        useEffect(() => {
+                // Fetch enrolled classrooms for RAG mode
+                fetch("/classrooms/enrolled", {
+                    headers: { Authorization: `Bearer ${getToken()}` },
+                })
+                    .then((r) => r.ok ? r.json() : [])
+                    .then(setEnrolledClassrooms)
+                    .catch(() => {});
+        }, []);
+
+        const toggleSource = (key) => {
+            setSelectedSources(prev => ({ ...prev, [key]: !prev[key] }));
+        };
 
     return (
         <>
@@ -332,26 +370,57 @@ export default function AI({ showChat, setShowChat }) {
                     {/* Input */}
                                         <form onSubmit={handleSubmit} style={{ padding: spacing.lg, borderTop: `2px solid ${colors.border}`, backgroundColor: colors.surface, borderRadius: `0 0 ${radii.lg}px ${radii.lg}px` }}>
                                                 {/* RAG Mode Selector */}
-                                                <div style={{ display: 'flex', gap: 8, marginBottom: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
-                                                    <button type="button"
-                                                        onClick={() => setRagMode("general")}
-                                                        style={{ padding: '4px 12px', borderRadius: radii.sm, border: `1px solid ${colors.border}`, background: ragMode === "general" ? colors.primary : colors.surface, color: ragMode === "general" ? colors.surface : colors.text, fontSize: font.sizeSm, cursor: 'pointer' }}
-                                                    >General AI</button>
-                                                    <button type="button"
-                                                        onClick={() => setRagMode("classroom")}
-                                                        style={{ padding: '4px 12px', borderRadius: radii.sm, border: `1px solid ${colors.border}`, background: ragMode === "classroom" ? colors.primary : colors.surface, color: ragMode === "classroom" ? colors.surface : colors.text, fontSize: font.sizeSm, cursor: 'pointer' }}
-                                                    >Classroom Docs</button>
-                                                    {ragMode === "classroom" && (
-                                                        <select value={selectedClassroomId} onChange={e => setSelectedClassroomId(e.target.value)}
-                                                            style={{ padding: '4px 8px', borderRadius: radii.sm, border: `1px solid ${colors.border}`, fontSize: font.sizeSm, background: colors.surface, color: colors.text }}
-                                                        >
-                                                            <option value="">Select classroom...</option>
-                                                            {enrolledClassrooms.map(c => (
-                                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                                            ))}
-                                                        </select>
-                                                    )}
-                                                </div>
+                                                                                                {/* Multi-Source Selector */}
+                                                                                                <div style={{ marginBottom: spacing.sm }}>
+                                                                                                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 4, fontWeight: 600 }}>
+                                                                                                        📚 Knowledge Sources:
+                                                                                                    </div>
+                                                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                                                                        {/* General KB chip */}
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => toggleSource('general')}
+                                                                                                            style={{
+                                                                                                                padding: '3px 10px',
+                                                                                                                borderRadius: radii.full,
+                                                                                                                border: `1px solid ${selectedSources['general'] ? colors.primary : colors.border}`,
+                                                                                                                background: selectedSources['general'] ? colors.primary : 'transparent',
+                                                                                                                color: selectedSources['general'] ? colors.surface : colors.textMuted,
+                                                                                                                fontSize: font.sizeXs,
+                                                                                                                cursor: 'pointer',
+                                                                                                                fontWeight: 600,
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            {selectedSources['general'] ? '✓' : '+'} General Java KB
+                                                                                                        </button>
+
+                                                                                                        {/* Classroom chips */}
+                                                                                                        {enrolledClassrooms.map(c => (
+                                                                                                            <button
+                                                                                                                key={c.id}
+                                                                                                                type="button"
+                                                                                                                onClick={() => toggleSource(String(c.id))}
+                                                                                                                style={{
+                                                                                                                    padding: '3px 10px',
+                                                                                                                    borderRadius: radii.full,
+                                                                                                                    border: `1px solid ${selectedSources[String(c.id)] ? colors.accent : colors.border}`,
+                                                                                                                    background: selectedSources[String(c.id)] ? colors.accent : 'transparent',
+                                                                                                                    color: selectedSources[String(c.id)] ? colors.surface : colors.textMuted,
+                                                                                                                    fontSize: font.sizeXs,
+                                                                                                                    cursor: 'pointer',
+                                                                                                                    fontWeight: 600,
+                                                                                                                }}
+                                                                                                            >
+                                                                                                                {selectedSources[String(c.id)] ? '✓' : '+'} {c.name}
+                                                                                                            </button>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                    {Object.values(selectedSources).every(v => !v) && (
+                                                                                                        <div style={{ fontSize: font.sizeXs, color: 'orange', marginTop: 3 }}>
+                                                                                                            ⚠️ No sources selected — answer will use general knowledge only
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </div>
                                                 <TextareaAutosize value={userInput} onChange={e => setUserInput(e.target.value)}
                                                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
                                                         placeholder="Ask anything about Java..." minRows={2} maxRows={6}

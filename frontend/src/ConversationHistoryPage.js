@@ -5,6 +5,9 @@ import TextareaAutosize from 'react-textarea-autosize';
 import { colors, radii, font, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 
+// Helper to get token from storage
+const getToken = () => localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -59,6 +62,22 @@ export default function ConversationHistoryPage() {
     const [loadingContext, setLoadingContext] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const messagesEndRef = useRef(null);
+
+    // Multi-source RAG state
+    const [selectedSources, setSelectedSources] = useState({ general: true });
+    const [enrolledClassrooms, setEnrolledClassrooms] = useState([]);
+
+    const toggleSource = (key) => {
+        setSelectedSources(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+    // Fetch enrolled classrooms for multi-source selector
+    useEffect(() => {
+        if (!isAuthenticated || !token) return;
+        fetch(`/classrooms/enrolled`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.ok ? r.json() : [])
+            .then(setEnrolledClassrooms)
+            .catch(() => {});
+    }, [isAuthenticated, token]);
 
     // Load sessions from DB
     const loadSessions = useCallback(async () => {
@@ -176,25 +195,53 @@ export default function ConversationHistoryPage() {
         setChatLoading(true);
 
         try {
-            const res = await fetch(`${API_BASE}/ragAI`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_input: questionText,
-                    history: [],
-                    user_id: user?.id || null,
-                    conversation_id: currentId,
-                }),
-            });
-            const data = await res.json();
-            const aiMsg = {
-                role: 'assistant',
-                content: data.final_answer || 'No response.',
-                pdf_matches: data.debug_log?.pdf_matches || [],
-                debug_log: data.debug_log,
-            };
-            // /ragAI already saves the turn to DB via ConversationManager.save_turn
-            // No need to call /conversation/save separately (would create duplicates)
-            setSessions(prev => prev.map(s => s.id === currentId ? { ...s, messages: [...(s.messages || []), aiMsg] } : s));
+            const useGeneral = selectedSources['general'] !== false;
+            const classroomIds = Object.entries(selectedSources)
+                .filter(([k, v]) => k !== 'general' && v)
+                .map(([k]) => Number(k));
+
+            let aiMsg;
+
+            if (classroomIds.length > 0) {
+                const res = await fetch(`/classrooms/ask-multi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({
+                        question: questionText,
+                        classroom_ids: classroomIds,
+                        include_general: useGeneral,
+                    }),
+                });
+                const data = await res.json();
+                aiMsg = {
+                    role: 'assistant',
+                    content: data.answer + (data.sources_count > 0 ? `\n\n*✓ Based on ${data.sources_count} classroom source(s)*` : ''),
+                    pdf_matches: [],
+                    debug_log: null,
+                };
+            } else {
+                const res = await fetch(`${API_BASE}/ragAI`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_input: questionText,
+                        history: [],
+                        user_id: user?.id || null,
+                        conversation_id: currentId,
+                    }),
+                });
+                const data = await res.json();
+                aiMsg = {
+                    role: 'assistant',
+                    content: data.final_answer || 'No response.',
+                    pdf_matches: data.debug_log?.pdf_matches || [],
+                    debug_log: data.debug_log,
+                };
+            }
+
+            setSessions(prev => prev.map(s =>
+                s.id === currentId ? { ...s, messages: [...(s.messages || []), aiMsg] } : s
+            ));
         } catch (err) {
             setSessions(prev => prev.map(s => s.id === currentId
                 ? { ...s, messages: [...(s.messages || []), { role: 'assistant', content: 'Error: ' + err.message }] }
@@ -368,6 +415,51 @@ export default function ConversationHistoryPage() {
                 </div>
 
                 <div style={{ padding: '14px 10%', background: colors.surface, borderTop: `1px solid ${colors.divider}` }}>
+                    {/* Multi-Source RAG Selector */}
+                    <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: '11px', color: colors.textMuted, marginBottom: 5, fontWeight: 600 }}>
+                            📚 Knowledge Sources:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            <button
+                                type="button"
+                                onClick={() => toggleSource('general')}
+                                style={{
+                                    padding: '3px 10px',
+                                    borderRadius: radii.full,
+                                    border: `1px solid ${selectedSources['general'] ? colors.primary : colors.border}`,
+                                    background: selectedSources['general'] ? colors.primary : 'transparent',
+                                    color: selectedSources['general'] ? colors.surface : colors.textMuted,
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    transition,
+                                }}
+                            >
+                                {selectedSources['general'] ? '✓' : '+'} General Java KB
+                            </button>
+                            {enrolledClassrooms.map(c => (
+                                <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => toggleSource(String(c.id))}
+                                    style={{
+                                        padding: '3px 10px',
+                                        borderRadius: radii.full,
+                                        border: `1px solid ${selectedSources[String(c.id)] ? colors.accent : colors.border}`,
+                                        background: selectedSources[String(c.id)] ? colors.accent : 'transparent',
+                                        color: selectedSources[String(c.id)] ? colors.surface : colors.textMuted,
+                                        fontSize: '11px',
+                                        cursor: 'pointer',
+                                        fontWeight: 600,
+                                        transition,
+                                    }}
+                                >
+                                    {selectedSources[String(c.id)] ? '✓' : '+'} {c.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <form onSubmit={handleSubmit}
                         style={{ display: 'flex', gap: 10, alignItems: 'flex-end', background: colors.bg, border: `1.5px solid ${colors.border}`, borderRadius: radii.lg, padding: '10px 14px', boxShadow: shadows.sm }}
                     >
