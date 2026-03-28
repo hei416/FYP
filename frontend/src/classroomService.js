@@ -91,7 +91,7 @@ export const deleteDocument = async (classroomId, docId, token) => {
 // ---------------------------------------------------------------------------
 
 export const askClassroomRAG = async (classroomId, question, token) => {
-  const res = await fetch(`${API_BASE}/classroom/${classroomId}/ask`, {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/ask`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ question }),
