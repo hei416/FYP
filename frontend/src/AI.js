@@ -4,6 +4,9 @@ import TextareaAutosize from "react-textarea-autosize";
 import { useNavigate } from "react-router-dom";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
+import { askClassroom } from "./services/classroomService";
+// Helper: get stored token (adjust if your app stores it differently)
+const getToken = () => localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 
 const STORAGE_KEY = 'codetutor_chat_history';
 const SESSION_KEY = 'codetutor_active_session';
@@ -133,22 +136,29 @@ export default function AI({ showChat, setShowChat }) {
         setUserInput('');
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/ragAI`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_input: userInput,
-                    history: [],
-                    user_id: user?.id || null,
-                    conversation_id: conversationIdRef.current,
-                }),
-            });
-            const data = await res.json();
-            // Update conversationId if backend assigned one
-            if (data.conversation_id) conversationIdRef.current = data.conversation_id;
-            const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
-            const finalHistory = [...newHistory, aiMsg];
-            setHistory(finalHistory);
-            saveCurrentSession(finalHistory);
+            if (ragMode === "classroom" && selectedClassroomId) {
+                const result = await askClassroom(selectedClassroomId, userInput);
+                const aiMsg = { role: 'assistant', content: result.answer };
+                const finalHistory = [...newHistory, aiMsg];
+                setHistory(finalHistory);
+                saveCurrentSession(finalHistory);
+            } else {
+                const res = await fetch(`${API_BASE}/ragAI`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_input: userInput,
+                        history: [],
+                        user_id: user?.id || null,
+                        conversation_id: conversationIdRef.current,
+                    }),
+                });
+                const data = await res.json();
+                if (data.conversation_id) conversationIdRef.current = data.conversation_id;
+                const aiMsg = { role: 'assistant', content: data.final_answer || 'No response.', pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
+                const finalHistory = [...newHistory, aiMsg];
+                setHistory(finalHistory);
+                saveCurrentSession(finalHistory);
+            }
         } catch (err) {
             setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
         }
@@ -222,6 +232,21 @@ export default function AI({ showChat, setShowChat }) {
             {children}
         </button>
     );
+
+    // RAG/classroom mode state
+    const [ragMode, setRagMode] = useState("general"); // "general" | "classroom"
+    const [selectedClassroomId, setSelectedClassroomId] = useState("");
+    const [enrolledClassrooms, setEnrolledClassrooms] = useState([]);
+
+    useEffect(() => {
+        // Fetch enrolled classrooms for RAG mode
+        fetch("/classrooms/enrolled", {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        })
+          .then((r) => r.ok ? r.json() : [])
+          .then(setEnrolledClassrooms)
+          .catch(() => {});
+    }, []);
 
     return (
         <>
