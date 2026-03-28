@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 import { askClassroom } from "./services/classroomService";
-// Helper: get stored token (adjust if your app stores it differently)
+
+// Add getToken helper for fetching classrooms
 const getToken = () => localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 
 const STORAGE_KEY = 'codetutor_chat_history';
@@ -329,16 +330,37 @@ export default function AI({ showChat, setShowChat }) {
                     </div>
 
                     {/* Input */}
-                    <form onSubmit={handleSubmit} style={{ padding: spacing.lg, borderTop: `2px solid ${colors.border}`, backgroundColor: colors.surface, borderRadius: `0 0 ${radii.lg}px ${radii.lg}px` }}>
-                        <TextareaAutosize value={userInput} onChange={e => setUserInput(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                            placeholder="Ask anything about Java..." minRows={2} maxRows={6}
-                            style={{ width: '100%', padding: spacing.sm, marginBottom: spacing.sm, borderRadius: radii.sm, border: `2px solid ${colors.border}`, fontSize: font.sizeMd, fontFamily: font.family }}
-                        />
-                        <button type="submit" disabled={loading} style={loading ? btn.disabled : btn.accent}>
-                            {loading ? '⏳ Thinking...' : '📤 Send'}
-                        </button>
-                    </form>
+                                        <form onSubmit={handleSubmit} style={{ padding: spacing.lg, borderTop: `2px solid ${colors.border}`, backgroundColor: colors.surface, borderRadius: `0 0 ${radii.lg}px ${radii.lg}px` }}>
+                                                {/* RAG Mode Selector */}
+                                                <div style={{ display: 'flex', gap: 8, marginBottom: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                    <button type="button"
+                                                        onClick={() => setRagMode("general")}
+                                                        style={{ padding: '4px 12px', borderRadius: radii.sm, border: `1px solid ${colors.border}`, background: ragMode === "general" ? colors.primary : colors.surface, color: ragMode === "general" ? colors.surface : colors.text, fontSize: font.sizeSm, cursor: 'pointer' }}
+                                                    >General AI</button>
+                                                    <button type="button"
+                                                        onClick={() => setRagMode("classroom")}
+                                                        style={{ padding: '4px 12px', borderRadius: radii.sm, border: `1px solid ${colors.border}`, background: ragMode === "classroom" ? colors.primary : colors.surface, color: ragMode === "classroom" ? colors.surface : colors.text, fontSize: font.sizeSm, cursor: 'pointer' }}
+                                                    >Classroom Docs</button>
+                                                    {ragMode === "classroom" && (
+                                                        <select value={selectedClassroomId} onChange={e => setSelectedClassroomId(e.target.value)}
+                                                            style={{ padding: '4px 8px', borderRadius: radii.sm, border: `1px solid ${colors.border}`, fontSize: font.sizeSm, background: colors.surface, color: colors.text }}
+                                                        >
+                                                            <option value="">Select classroom...</option>
+                                                            {enrolledClassrooms.map(c => (
+                                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </div>
+                                                <TextareaAutosize value={userInput} onChange={e => setUserInput(e.target.value)}
+                                                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+                                                        placeholder="Ask anything about Java..." minRows={2} maxRows={6}
+                                                        style={{ width: '100%', padding: spacing.sm, marginBottom: spacing.sm, borderRadius: radii.sm, border: `2px solid ${colors.border}`, fontSize: font.sizeMd, fontFamily: font.family }}
+                                                />
+                                                <button type="submit" disabled={loading} style={loading ? btn.disabled : btn.accent}>
+                                                        {loading ? '⏳ Thinking...' : '📤 Send'}
+                                                </button>
+                                        </form>
                 </div>
             )}
 
