@@ -4,6 +4,80 @@ import { useAuth } from './AuthContext';
 import { colors, radii, font, card, shadows, btn } from './theme';
 
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+// --- AdminClassroomFiles inline component ---
+function AdminClassroomFiles({ classroomId, token }) {
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef();
+
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const refresh = () =>
+    fetch(`/classrooms/${classroomId}/files`, { headers })
+      .then(r => r.ok ? r.json() : [])
+      .then(setFiles)
+      .catch(() => {});
+
+  useEffect(() => { refresh(); }, [classroomId]);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    await fetch(`/classrooms/${classroomId}/files/upload`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+    await refresh();
+    setUploading(false);
+    fileInputRef.current.value = '';
+  };
+
+  const handleDelete = async (fileId, filename) => {
+    if (!window.confirm(`Delete "${filename}"?`)) return;
+    await fetch(`/classrooms/${classroomId}/files/${fileId}`, { method: 'DELETE', headers });
+    await refresh();
+  };
+
+  const handleDownload = (fileId, filename) => {
+    const a = document.createElement('a');
+    a.href = `/classrooms/${classroomId}/files/${fileId}/download`;
+    a.download = filename;
+    a.target = '_blank';
+    a.click();
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <strong style={{ fontSize: 13 }}>📄 Classroom Documents</strong>
+        <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt,.md"
+          style={{ display: 'none' }} id={`upload-${classroomId}`} onChange={handleUpload} disabled={uploading} />
+        <label htmlFor={`upload-${classroomId}`}
+          style={{ padding: '4px 12px', background: colors.primary, color: '#fff', borderRadius: radii.sm, cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}>
+          {uploading ? 'Uploading...' : '+ Upload'}
+        </label>
+      </div>
+      {files.length === 0 ? (
+        <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>No files uploaded yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {files.map(f => (
+            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#fff', border: `1px solid ${colors.border}`, borderRadius: radii.sm }}>
+              <span style={{ fontSize: 12, flex: 1 }}>{f.mime_type?.includes('pdf') ? '📄' : '📝'} {f.filename}</span>
+              <span style={{ fontSize: 11, color: colors.textMuted }}>{f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString() : ''}</span>
+              <button onClick={() => handleDownload(f.id, f.filename)}
+                style={{ padding: '2px 8px', fontSize: 11, border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: 'transparent' }}>↓</button>
+              <button onClick={() => handleDelete(f.id, f.filename)}
+                style={{ padding: '2px 8px', fontSize: 11, border: '1px solid #ef4444', color: '#ef4444', borderRadius: radii.sm, cursor: 'pointer', background: 'transparent' }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function authHeader() {
   const token = localStorage.getItem('authToken');
@@ -25,21 +99,37 @@ const RoleBadge = ({ role }) => {
   );
 };
 
+
 export default function AdminDashboard() {
   const { isAdmin, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('classrooms'); // 'classrooms' | 'users'
+  const [tab, setTab] = useState('classrooms'); // 'classrooms' | 'users' | 'files'
 
   // --- Classrooms state ---
   const [classrooms, setClassrooms]             = useState([]);
   const [classroomsLoading, setClassroomsLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm]       = useState(null); // classroom id to confirm
+  // REMOVED expandedFilesId and file manager logic (now handled in classroom detail page)
+  const [expandedStudentsId, setExpandedStudentsId] = useState(null); // classroom id for students panel
+  const [classroomStudents, setClassroomStudents] = useState({}); // { [classroomId]: students[] from analytics }
 
   // --- Users state ---
   const [users, setUsers]           = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [roleEditing, setRoleEditing] = useState(null); // { userId, newRole }
   const [userSearch, setUserSearch] = useState('');
+  const [userEditing, setUserEditing] = useState(null); // { id, full_name, email, newPassword: '' }
+  // Load students for a classroom
+  const loadClassroomStudents = useCallback(async (classroomId) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/classrooms/${classroomId}/students`, { headers: authHeader() });
+      if (res.ok) {
+        const data = await res.json();
+        // data is now the full analytics object with data.students[]
+        setClassroomStudents(prev => ({ ...prev, [classroomId]: data.students || [] }));
+      }
+    } catch (e) { console.error(e); }
+  }, []);
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isAdmin)) navigate('/home');
@@ -136,6 +226,7 @@ export default function AdminDashboard() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: colors.background, borderRadius: radii.md, padding: 4, width: 'fit-content', border: `1px solid ${colors.border}` }}>
         {tabBtn('classrooms', 'All Classrooms', '🏫')}
         {tabBtn('users',      'User Accounts',  '👥')}
+        {tabBtn('files',      'Classroom Files', '📄')}
       </div>
 
       {/* ── CLASSROOMS TAB ── */}
@@ -160,7 +251,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {classrooms.map(cls => (
+                  {classrooms.map(cls => [
                     <tr key={cls.id}
                       onMouseEnter={e => e.currentTarget.style.background = colors.background}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -183,23 +274,163 @@ export default function AdminDashboard() {
                         {new Date(cls.created_at).toLocaleDateString()}
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        {deleteConfirm === cls.id ? (
-                          <span style={{ display: 'inline-flex', gap: 6 }}>
-                            <button onClick={() => deleteClassroom(cls.id)}
-                              style={{ padding: '3px 10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: radii.sm, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Confirm</button>
-                            <button onClick={() => setDeleteConfirm(null)}
-                              style={{ padding: '3px 10px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
-                          </span>
-                        ) : (
-                          <button onClick={() => setDeleteConfirm(cls.id)}
-                            style={{ padding: '3px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ef4444'; }}
-                          >🗑 Delete</button>
-                        )}
+                        <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+                          {/* View & Files (merged) */}
+                          <button
+                            onClick={() => navigate(`/classrooms/${cls.id}`)}
+                            style={{ padding: '3px 10px', background: 'transparent', border: `1px solid ${colors.primary}`, color: colors.primary, borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}
+                            onMouseEnter={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = colors.primary; }}
+                          >📄 View & Files</button>
+                          {/* Toggle students panel */}
+                          <button
+                            onClick={() => {
+                              const next = expandedStudentsId === cls.id ? null : cls.id;
+                              setExpandedStudentsId(next);
+                              if (next && !classroomStudents[cls.id]) loadClassroomStudents(cls.id);
+                            }}
+                            style={{ padding: '3px 10px', background: 'transparent', border: `1px solid ${colors.border}`, color: colors.textSecondary, borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}
+                          >👥 Students</button>
+                          {/* Delete */}
+                          {deleteConfirm === cls.id ? (
+                            <span style={{ display: 'inline-flex', gap: 4 }}>
+                              <button onClick={() => deleteClassroom(cls.id)}
+                                style={{ padding: '3px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}>Confirm</button>
+                              <button onClick={() => setDeleteConfirm(null)}
+                                style={{ padding: '3px 8px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                            </span>
+                          ) : (
+                            <button onClick={() => setDeleteConfirm(cls.id)}
+                              style={{ padding: '3px 10px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#ef4444'; }}
+                            >🗑 Delete</button>
+                          )}
+                        </div>
                       </td>
+                    </tr>,
+                   
+                    expandedStudentsId === cls.id && (
+                    <tr key={cls.id + '-students'}>
+                        <td colSpan={6} style={{ padding: '16px', background: '#f0fdf4', borderBottom: `1px solid ${colors.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <strong style={{ fontSize: 14 }}>👥 {cls.name} — Student Performance</strong>
+                            <span style={{ fontSize: 12, color: colors.textMuted }}>
+                            {classroomStudents[cls.id]?.length ?? 0} student(s)
+                            </span>
+                        </div>
+
+                        {!classroomStudents[cls.id] ? (
+                            <p style={{ fontSize: 12, color: colors.textMuted }}>Loading...</p>
+                        ) : classroomStudents[cls.id].length === 0 ? (
+                            <p style={{ fontSize: 12, color: colors.textMuted }}>No students enrolled yet.</p>
+                        ) : (() => {
+                            const students = classroomStudents[cls.id];
+
+                            // Class summary stats
+                            const withScores = students.filter(s => s.avg_quiz_score != null);
+                            const classAvg = withScores.length
+                            ? Math.round(withScores.reduce((sum, s) => sum + s.avg_quiz_score, 0) / withScores.length)
+                            : null;
+                            const totalAttempted = students.reduce((s, st) => s + (st.quizzes_attempted || 0), 0);
+                            const totalPassed = students.reduce((s, st) => s + (st.quizzes_passed || 0), 0);
+                            const classPassRate = totalAttempted > 0 ? Math.round(totalPassed / totalAttempted * 100) : null;
+                            const atRisk = students.filter(s => {
+                            const rate = s.quizzes_attempted > 0 ? s.quizzes_passed / s.quizzes_attempted * 100 : null;
+                            return rate !== null && rate < 40;
+                            }).length;
+
+                            return (
+                            <>
+                                {/* Class summary bar */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 14 }}>
+                                {[
+                                    { label: 'Class Avg Score', value: classAvg != null ? `${classAvg}%` : '—', color: classAvg >= 70 ? '#16a34a' : classAvg >= 50 ? '#ca8a04' : '#dc2626' },
+                                    { label: 'Exercise Pass Rate', value: classPassRate != null ? `${classPassRate}%` : '—', color: classPassRate >= 60 ? '#16a34a' : '#ca8a04' },
+                                    { label: 'Students At Risk', value: atRisk, color: atRisk > 0 ? '#dc2626' : '#16a34a' },
+                                    { label: 'Total Students', value: students.length, color: colors.primary },
+                                ].map(stat => (
+                                    <div key={stat.label} style={{ background: '#fff', border: '1px solid #bbf7d0', borderRadius: radii.sm, padding: '10px 12px' }}>
+                                    <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{stat.label}</div>
+                                    <div style={{ fontSize: 20, fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                                    </div>
+                                ))}
+                                </div>
+
+                                {/* Student table */}
+                                <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                    <tr style={{ background: '#dcfce7' }}>
+                                        {['Status', 'Student', 'Avg Score', 'Ex. Pass Rate', 'Ch. Pass Rate', 'Topics Done', 'AI Chats', 'Last Active'].map(h => (
+                                        <th key={h} style={{ padding: '6px 12px', fontSize: 11, fontWeight: 700, color: '#16a34a', textAlign: h === 'Student' ? 'left' : 'center', borderBottom: '1px solid #bbf7d0', whiteSpace: 'nowrap' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {students.map(s => {
+                                        const exRate = s.quizzes_attempted > 0 ? Math.round(s.quizzes_passed / s.quizzes_attempted * 100) : null;
+                                        const chRate = s.tests_attempted > 0 ? Math.round(s.tests_passed / s.tests_attempted * 100) : null;
+                                        const isAtRisk = (exRate !== null && exRate < 40) || (chRate !== null && chRate < 40);
+                                        const needsAttention = (exRate !== null && exRate < 60) || (chRate !== null && chRate < 60);
+                                        const status = isAtRisk ? { dot: '🔴', label: 'At Risk', color: '#dc2626' }
+                                        : needsAttention ? { dot: '🟡', label: 'Needs Attention', color: '#ca8a04' }
+                                        : (s.quizzes_attempted > 0 || s.tests_attempted > 0) ? { dot: '🟢', label: 'On Track', color: '#16a34a' }
+                                        : { dot: '⚪', label: 'No Activity', color: '#9ca3af' };
+
+                                        const tdS = { padding: '7px 12px', fontSize: 12, borderBottom: '1px solid #f0fdf4', textAlign: 'center' };
+
+                                        return (
+                                        <tr key={s.student_id}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <td style={tdS}>
+                                            <span title={status.label} style={{ fontSize: 11, fontWeight: 600, color: status.color }}>
+                                                {status.dot} {status.label}
+                                            </span>
+                                            </td>
+                                            <td style={{ ...tdS, textAlign: 'left' }}>
+                                            <div style={{ fontWeight: 600 }}>{s.full_name || '—'}</div>
+                                            <div style={{ fontSize: 11, color: colors.textMuted }}>{s.email}</div>
+                                            </td>
+                                            <td style={tdS}>
+                                            {s.avg_quiz_score != null
+                                                ? <span style={{ fontWeight: 700, color: s.avg_quiz_score >= 70 ? '#16a34a' : s.avg_quiz_score >= 50 ? '#ca8a04' : '#dc2626' }}>{s.avg_quiz_score}%</span>
+                                                : <span style={{ color: '#9ca3af' }}>—</span>}
+                                            </td>
+                                            <td style={tdS}>
+                                            {exRate != null
+                                                ? <span style={{ fontWeight: 700, color: exRate >= 60 ? '#16a34a' : exRate >= 40 ? '#ca8a04' : '#dc2626' }}>
+                                                    {s.quizzes_passed}/{s.quizzes_attempted} ({exRate}%)
+                                                </span>
+                                                : <span style={{ color: '#9ca3af' }}>—</span>}
+                                            </td>
+                                            <td style={tdS}>
+                                            {chRate != null
+                                                ? <span style={{ fontWeight: 700, color: chRate >= 60 ? '#16a34a' : chRate >= 40 ? '#ca8a04' : '#dc2626' }}>
+                                                    {s.tests_passed}/{s.tests_attempted} ({chRate}%)
+                                                </span>
+                                                : <span style={{ color: '#9ca3af' }}>—</span>}
+                                            </td>
+                                            <td style={tdS}>{s.completed_topics ?? 0}</td>
+                                            <td style={tdS}>{s.ai_interactions ?? '—'}</td>
+                                            <td style={{ ...tdS, fontSize: 11, color: colors.textMuted }}>
+                                            {s.last_active ? new Date(s.last_active).toLocaleDateString() : '—'}
+                                            </td>
+                                        </tr>
+                                        );
+                                    })}
+                                    </tbody>
+                                </table>
+                                </div>
+                            </>
+                            );
+                        })()}
+                        </td>
                     </tr>
-                  ))}
+                    )
+                  ])}
                 </tbody>
               </table>
             </div>
@@ -230,6 +461,7 @@ export default function AdminDashboard() {
                     <th style={{ ...thStyle, textAlign: 'center' }}>Role</th>
                     <th style={{ ...thStyle, textAlign: 'center' }}>Joined</th>
                     <th style={{ ...thStyle, textAlign: 'center' }}>Change Role</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,14 +503,61 @@ export default function AdminDashboard() {
                           >✏️ Edit Role</button>
                         )}
                       </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <button
+                          onClick={() => setUserEditing({ id: u.id, full_name: u.full_name || '', email: u.email, newPassword: '' })}
+                          style={{ padding: '3px 12px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', fontSize: 12, color: colors.textSecondary }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.color = colors.primary; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.textSecondary; }}
+                        >✏️ Edit User</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+          {/* User Edit Modal */}
+          {userEditing && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setUserEditing(null)}>
+              <div style={{ background: '#fff', borderRadius: radii.lg, padding: 28, width: 400, boxShadow: shadows.lg }}
+                onClick={e => e.stopPropagation()}>
+                <h3 style={{ margin: '0 0 16px', fontSize: font.sizeLg }}>Edit User</h3>
+                <label style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, display: 'block', marginBottom: 4 }}>Full Name</label>
+                <input value={userEditing.full_name} onChange={e => setUserEditing(p => ({ ...p, full_name: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 12, boxSizing: 'border-box' }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, display: 'block', marginBottom: 4 }}>Email</label>
+                <input value={userEditing.email} onChange={e => setUserEditing(p => ({ ...p, email: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 12, boxSizing: 'border-box' }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, display: 'block', marginBottom: 4 }}>New Password <span style={{ fontWeight: 400 }}>(leave blank to keep current)</span></label>
+                <input type="password" value={userEditing.newPassword} onChange={e => setUserEditing(p => ({ ...p, newPassword: e.target.value }))}
+                  placeholder="Enter new password..."
+                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 20, boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setUserEditing(null)}
+                    style={{ padding: '8px 16px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: 'transparent', fontSize: font.sizeSm }}>
+                    Cancel
+                  </button>
+                  <button onClick={async () => {
+                    const body = { full_name: userEditing.full_name, email: userEditing.email };
+                    if (userEditing.newPassword) body.password = userEditing.newPassword;
+                    await fetch(`${API_BASE}/admin/users/${userEditing.id}`, {
+                      method: 'PATCH', headers: authHeader(), body: JSON.stringify(body),
+                    });
+                    setUserEditing(null);
+                    loadUsers();
+                  }}
+                    style={{ padding: '8px 16px', background: colors.primary, color: '#fff', border: 'none', borderRadius: radii.sm, cursor: 'pointer', fontSize: font.sizeSm, fontWeight: 700 }}>
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
+          {/* Classroom Files Tab removed (now handled in classroom detail page) */}
     </div>
   );
 }

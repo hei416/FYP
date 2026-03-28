@@ -1039,7 +1039,7 @@ export default function JavaRoadmap() {
             <div className="p-5 space-y-5">
             {content ? (
                 <>
-                {/* Removed duplicate completion badge blocks here */}
+
 
                 {/* Completion Badge */}
                 {isCompleted && !isSkippedComplete && (

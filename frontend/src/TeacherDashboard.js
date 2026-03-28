@@ -104,16 +104,16 @@ const studentStatus = (s) => {
 
   const isAtRisk =
     (exRate !== null && exRate < 40) ||
-    (chRate !== null && chRate < 40) ||
-    (s.weak_topics.length >= 3);
+    (chRate !== null && chRate < 40);
+
   const needsAttention =
     (exRate !== null && exRate < 60) ||
     (chRate !== null && chRate < 60) ||
-    (s.weak_topics.length >= 1);
+    (s.weak_topics.length >= 3);
 
-  if (isAtRisk)        return { dot: '🔴', label: 'At Risk',          bg: '#fee2e2', fg: '#dc2626' };
-  if (needsAttention)  return { dot: '🟡', label: 'Needs Attention',  bg: '#fef9c3', fg: '#ca8a04' };
-  return                      { dot: '🟢', label: 'On Track',         bg: '#dcfce7', fg: '#16a34a' };
+  if (isAtRisk)       return { dot: '🔴', label: 'At Risk',         bg: '#fee2e2', fg: '#dc2626' };
+  if (needsAttention) return { dot: '🟡', label: 'Needs Attention', bg: '#fef9c3', fg: '#ca8a04' };
+  return                    { dot: '🟢', label: 'On Track',        bg: '#dcfce7', fg: '#16a34a' };
 };
 
 // ─── Components ──────────────────────────────────────────────────────────────
@@ -184,9 +184,9 @@ function ClassSummaryBar({ summary }) {
 
       {/* Status breakdown mini-legend */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: font.sizeXs, color: colors.textMuted, flexWrap: 'wrap' }}>
-        <span title="Exercise or challenge pass rate < 40%, or ≥3 weak topics">🔴 At Risk — pass rate &lt;40% or 3+ weak topics</span>
-        <span title="Pass rate 40–59% or any weak topic">🟡 Needs Attention — pass rate 40–59% or weak topic</span>
-        <span title="All pass rates ≥60% and no weak topics">🟢 On Track — all rates ≥60%, no weak topics</span>
+        <span title="Exercise or challenge pass rate < 40%">🔴 At Risk — pass rate &lt;40%</span>
+        <span title="Pass rate 40–59% or 3+ weak topics">🟡 Needs Attention — pass rate 40–59% or 3+ weak topics</span>
+        <span title="All pass rates ≥60% and fewer than 3 weak topics">🟢 On Track — all rates ≥60%, &lt;3 weak topics</span>
       </div>
 
       {summary.most_common_weak_topics?.length > 0 && (

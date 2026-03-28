@@ -36,6 +36,7 @@ class TestAttemptRequest(BaseModel):
 class TopicCompletionRequest(BaseModel):
     topic_id: str
 
+
 class ProgressResponse(BaseModel):
     id: int
     user_id: int
@@ -49,7 +50,7 @@ class ProgressResponse(BaseModel):
     playground_completed: bool
     ai_interactions: int
     completion_percentage: float
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -73,6 +74,7 @@ async def get_user_progress_endpoint(
 ):
     """Get current user's progress"""
     progress = get_user_progress(current_user.id, db)
+    from datetime import datetime
     return ProgressResponse(
         id=progress.id,
         user_id=progress.user_id,
@@ -86,7 +88,7 @@ async def get_user_progress_endpoint(
         playground_completed=progress.playground_completed or False,
         ai_interactions=progress.ai_interactions or 0,
         completion_percentage=progress.completion_percentage or 0.0,
-        updated_at=progress.updated_at,
+        updated_at=progress.updated_at or datetime.utcnow(),
     )
 
 @router.post("/sync")

@@ -33,7 +33,6 @@ export default function Navbar({ toggleChat }) {
 
     const roleLinks = isAdmin
         ? [
-            { to: '/teacher-dashboard', icon: '🏫', label: 'Teacher Dashboard' },
             { to: '/admin',             icon: '🛡️', label: 'Admin Panel' },
           ]
         : isTeacher

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from database import get_db
 from db_models import User, Classroom, ClassroomMember
@@ -125,3 +125,22 @@ async def delete_classroom(
     db.query(ClassroomMember).filter(ClassroomMember.classroom_id == classroom_id).delete()
     db.delete(classroom)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Classroom students performance
+# ---------------------------------------------------------------------------
+
+@router.get("/classrooms/{classroom_id}/students")
+async def get_classroom_students(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Proxy to the full classroom analytics used by the teacher dashboard."""
+    from routers.classroom import get_classroom_analytics
+    return await get_classroom_analytics(
+        classroom_id=classroom_id,
+        db=db,
+        current_user=current_user,
+    )
