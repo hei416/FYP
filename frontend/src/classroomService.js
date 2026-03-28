@@ -8,6 +8,10 @@ function authHeaders() {
   };
 }
 
+function getToken() {
+  return localStorage.getItem('authToken') || '';
+}
+
 // ---------------------------------------------------------------------------
 // Classroom CRUD
 // ---------------------------------------------------------------------------
@@ -57,14 +61,14 @@ export async function getEnrolledClassrooms() {
 }
 
 // ---------------------------------------------------------------------------
-// Document management
+// Legacy document management (kept for backwards compatibility)
 // ---------------------------------------------------------------------------
 
 export const uploadDocument = async (classroomId, file, token) => {
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append('file', file);
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents`, {
-    method: "POST",
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
@@ -80,21 +84,96 @@ export const listDocuments = async (classroomId, token) => {
 
 export const deleteDocument = async (classroomId, docId, token) => {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/documents/${docId}`, {
-    method: "DELETE",
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
-// ---------------------------------------------------------------------------
-// Classroom RAG
-// ---------------------------------------------------------------------------
-
 export const askClassroomRAG = async (classroomId, question, token) => {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/ask`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ question }),
   });
+  return res.json();
+};
+
+// ---------------------------------------------------------------------------
+// NEW: DB-backed file endpoints
+// ---------------------------------------------------------------------------
+
+/**
+ * Upload a file to a classroom (teacher only).
+ * The file is stored in the DB and immediately indexed for RAG.
+ */
+export const uploadClassroomFile = async (classroomId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/files/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    // Do NOT set Content-Type — browser sets multipart/form-data boundary automatically
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/**
+ * List file metadata for a classroom (no binary data returned).
+ */
+export const listClassroomFiles = async (classroomId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/files`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/**
+ * Trigger a browser download for a classroom file.
+ */
+export const downloadClassroomFile = (classroomId, fileId, filename) => {
+  const a = document.createElement('a');
+  a.href = `${API_BASE}/classrooms/${classroomId}/files/${fileId}/download`;
+  // Inject auth header via fetch+blob for protected routes
+  fetch(a.href, { headers: { Authorization: `Bearer ${getToken()}` } })
+    .then((r) => r.blob())
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    })
+    .catch(console.error);
+};
+
+/**
+ * Delete a classroom file (teacher only). Chunks are cascade-deleted.
+ */
+export const deleteClassroomFile = async (classroomId, fileId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/**
+ * Ask a question scoped to a classroom's uploaded documents.
+ */
+export const askClassroom = async (classroomId, question) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/ask`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ question, mode: 'classroom' }),
+  });
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 };

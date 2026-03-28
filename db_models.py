@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON, LargeBinary
 from datetime import datetime
 import json
 
@@ -98,9 +98,37 @@ class ClassroomDocument(Base):
     completion_percentage = Column(Float, default=0.0)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_synced = Column(DateTime, default=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Classroom File Storage (DB-backed RAG)
+# ---------------------------------------------------------------------------
+
+class ClassroomFile(Base):
+    """Raw file bytes uploaded by teachers to a classroom — stored in DB."""
+    __tablename__ = "classroom_files"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename     = Column(String(255), nullable=False)
+    mime_type    = Column(String(255), nullable=False)
+    file_data    = Column(LargeBinary, nullable=False)   # raw bytes
+    uploaded_by  = Column(Integer, ForeignKey("users.id"), nullable=True)
+    uploaded_at  = Column(DateTime, default=datetime.utcnow)
+
+
+class ClassroomChunk(Base):
+    """Chunked text + embedding for classroom RAG, stored in DB."""
+    __tablename__ = "classroom_chunks"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    file_id      = Column(Integer, ForeignKey("classroom_files.id", ondelete="CASCADE"), nullable=False)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_text   = Column(Text, nullable=False)
+    embedding    = Column(LargeBinary, nullable=False)   # np.float32.tobytes()
+
 
 class QuizAttempt(Base):
     """Individual quiz attempt tracking"""

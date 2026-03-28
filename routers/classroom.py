@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -9,9 +9,12 @@ import string
 import shutil, uuid, os
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile
 from routers.auth import get_current_user, require_role
-from services.classroom_rag import ingest_document
+from services.classroom_rag import (
+    ingest_document, upload_and_index, delete_classroom_file,
+    search_classroom_context,
+)
 
 router = APIRouter(prefix="/classrooms", tags=["Classroom"])
 
@@ -93,6 +96,21 @@ class ClassroomAnalytics(BaseModel):
     total_students: int
     class_summary: ClassSummary
     students: List[StudentSummary]
+
+
+class FileMetaResponse(BaseModel):
+    id: int
+    filename: str
+    mime_type: str
+    uploaded_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class ClassroomAskRequest(BaseModel):
+    question: str
+    mode: str = "classroom"  # "classroom" | "general"
 
 
 # ---------------------------------------------------------------------------
@@ -358,7 +376,7 @@ async def list_enrolled_classrooms(
 
 
 # ---------------------------------------------------------------------------
-# Document management endpoints
+# Legacy document management endpoints (kept for backwards compatibility)
 # ---------------------------------------------------------------------------
 
 @router.post("/{classroom_id}/documents")
@@ -451,3 +469,187 @@ async def delete_document(
     db.delete(doc)
     db.commit()
     return {"message": "Document deleted"}
+
+
+# ---------------------------------------------------------------------------
+# NEW: DB-backed file endpoints  (/classrooms/{id}/files/...)
+# ---------------------------------------------------------------------------
+
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+    "text/markdown",
+}
+
+
+@router.post("/{classroom_id}/files/upload")
+async def upload_file(
+    classroom_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Teacher uploads a document. Bytes stored in DB; chunks + embeddings indexed."""
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Only the classroom teacher can upload files")
+
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(415, "Unsupported file type. Use PDF, DOCX, or TXT/MD.")
+
+    raw_bytes = await file.read()
+
+    try:
+        file_id = upload_and_index(
+            classroom_id=classroom_id,
+            filename=file.filename,
+            mime_type=file.content_type,
+            raw_bytes=raw_bytes,
+            uploaded_by=current_user.id,
+            db=db,
+        )
+    except ValueError as exc:
+        raise HTTPException(413, str(exc))
+
+    return {"file_id": file_id, "filename": file.filename, "status": "indexed"}
+
+
+@router.get("/{classroom_id}/files", response_model=List[FileMetaResponse])
+def list_files(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return file metadata list (no binary data)."""
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+
+    # Both teacher and enrolled students can list files
+    if current_user.role == "student":
+        membership = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.student_id == current_user.id,
+        ).first()
+        if not membership:
+            raise HTTPException(403, "Not enrolled in this classroom")
+
+    files = (
+        db.query(ClassroomFile)
+        .filter(ClassroomFile.classroom_id == classroom_id)
+        .order_by(ClassroomFile.uploaded_at.desc())
+        .all()
+    )
+    return [
+        FileMetaResponse(
+            id=f.id,
+            filename=f.filename,
+            mime_type=f.mime_type,
+            uploaded_at=f.uploaded_at.isoformat() if f.uploaded_at else "",
+        )
+        for f in files
+    ]
+
+
+@router.get("/{classroom_id}/files/{file_id}/download")
+def download_file(
+    classroom_id: int,
+    file_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stream file bytes back to client."""
+    f = (
+        db.query(ClassroomFile)
+        .filter(ClassroomFile.id == file_id, ClassroomFile.classroom_id == classroom_id)
+        .first()
+    )
+    if not f:
+        raise HTTPException(404, "File not found")
+
+    return Response(
+        content=f.file_data,
+        media_type=f.mime_type,
+        headers={"Content-Disposition": f'attachment; filename="{f.filename}"'},
+    )
+
+
+@router.delete("/{classroom_id}/files/{file_id}")
+def delete_file(
+    classroom_id: int,
+    file_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Teacher deletes a file. Chunks are cascade-deleted."""
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Forbidden")
+
+    f = (
+        db.query(ClassroomFile)
+        .filter(ClassroomFile.id == file_id, ClassroomFile.classroom_id == classroom_id)
+        .first()
+    )
+    if not f:
+        raise HTTPException(404, "File not found")
+
+    delete_classroom_file(file_id, classroom_id, db)
+    return {"status": "deleted", "file_id": file_id}
+
+
+@router.post("/{classroom_id}/ask")
+async def ask_classroom(
+    classroom_id: int,
+    body: ClassroomAskRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Students ask a question scoped to this classroom's uploaded documents.
+    Falls back gracefully if no documents are uploaded yet.
+    """
+    from services.classroom_rag import search_classroom_context
+    from models import HKBULLM
+    from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
+
+    context_chunks = search_classroom_context(
+        classroom_id=classroom_id,
+        query=body.question,
+        db=db,
+        top_k=5,
+    )
+
+    if not context_chunks:
+        context_str = ""
+        system_note = "No classroom documents are available yet. Answer from general Java knowledge."
+    else:
+        context_str = "\n\n---\n\n".join(context_chunks)
+        system_note = "Use the provided classroom document excerpts to answer the question."
+
+    prompt = (
+        f"You are a Java programming tutor. {system_note}\n\n"
+        + (f"CLASSROOM CONTEXT:\n{context_str}\n\n" if context_str else "")
+        + f"STUDENT QUESTION: {body.question}\n\n"
+        + "Provide a clear, educational answer. If referencing classroom material, cite it."
+    )
+
+    llm = HKBULLM(
+        api_key=API_KEY,
+        base_url=BASE_URL,
+        model=FAISS_MODEL_NAME,
+        api_version=FAISS_API_VERSION,
+        max_tokens=1024,
+    )
+    answer = llm(prompt)
+
+    return {
+        "answer": answer,
+        "has_context": len(context_chunks) > 0,
+        "sources_count": len(context_chunks),
+    }
