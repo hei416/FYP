@@ -148,9 +148,17 @@ def upload_and_index(
     # Batch embed (16 per call)
     all_embeddings = []
     batch_size = 16
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i: i + batch_size]
-        all_embeddings.extend(embedder.embed_documents(batch))
+    try:
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i: i + batch_size]
+            embeddings = embedder.embed_documents(batch)
+            all_embeddings.extend(embeddings)
+        print(f"✓ Successfully embedded {len(chunks)} chunks for file {filename}")
+    except Exception as e:
+        # Rollback file if embedding fails
+        print(f"❌ Embedding failed: {str(e)}")
+        db.rollback()
+        raise ValueError(f"Failed to embed document chunks: {str(e)}")
 
     # Persist chunks
     for chunk_text, emb in zip(chunks, all_embeddings):
@@ -164,6 +172,7 @@ def upload_and_index(
 
     db.commit()
     _index_cache.pop(classroom_id, None)  # bust cache
+    print(f"✓ Successfully indexed {len(all_embeddings)} chunks for classroom {classroom_id}")
     return db_file.id
 
 
@@ -237,6 +246,7 @@ def search_classroom_context(
     """
     index, chunk_texts = _get_or_build_index(classroom_id, db)
     if index is None:
+        print(f"⚠️ No index found for classroom {classroom_id}")
         return []
 
     query_emb = np.array([_embed(query)], dtype=np.float32)
@@ -244,9 +254,13 @@ def search_classroom_context(
 
     scores, ids = index.search(query_emb, top_k)
     results = []
+    # Lower threshold to 0.1 for better matching
+    threshold = 0.1
     for score, idx in zip(scores[0], ids[0]):
-        if idx != -1 and score > 0.3:
+        if idx != -1 and score > threshold:
             results.append(chunk_texts[idx])
+    
+    print(f"✓ RAG search for classroom {classroom_id}: query='{query}' → {len(results)} chunks found (threshold={threshold}, raw_scores={list(scores[0][:3])})")
     return results
 
 
@@ -254,28 +268,29 @@ def search_classroom_context(
 # Legacy compatibility shims (kept so routers/classroom.py still compiles)
 # ---------------------------------------------------------------------------
 
-def ingest_document(classroom_id: int, file_path: str, filename: str) -> int:
-    """Legacy shim — reads file from disk and delegates to upload_and_index."""
+def ingest_document(
+    classroom_id: int,
+    file_path: str,
+    filename: str,
+    uploaded_by: int,   # new
+    db: Session,        # new
+) -> int:
+    """Reads file from disk and delegates to upload_and_index with user and db."""
     import os
-    from database import SessionLocal
-    db = SessionLocal()
-    try:
-        with open(file_path, "rb") as fh:
-            raw_bytes = fh.read()
-        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
-        mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "txt": "text/plain", "md": "text/markdown"}
-        mime_type = mime_map.get(ext, "application/octet-stream")
-        upload_and_index(
-            classroom_id=classroom_id,
-            filename=filename,
-            mime_type=mime_type,
-            raw_bytes=raw_bytes,
-            uploaded_by=0,
-            db=db,
-        )
-    finally:
-        db.close()
-    return 0
+    with open(file_path, "rb") as fh:
+        raw_bytes = fh.read()
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
+    mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "txt": "text/plain", "md": "text/markdown"}
+    mime_type = mime_map.get(ext, "application/octet-stream")
+    chunk_count = upload_and_index(
+        classroom_id=classroom_id,
+        filename=filename,
+        mime_type=mime_type,
+        raw_bytes=raw_bytes,
+        uploaded_by=uploaded_by,
+        db=db,
+    )
+    return chunk_count
 
 
 def query_classroom_rag(classroom_id: int, question: str, k: int = 5) -> list:

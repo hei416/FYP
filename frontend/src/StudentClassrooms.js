@@ -93,7 +93,27 @@ export default function StudentClassrooms() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {classes.map((cls) => (
-            <div key={cls.id} style={{ ...card, padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div 
+              key={cls.id} 
+              onClick={() => navigate(`/classrooms/${cls.id}`)}
+              style={{ 
+                ...card, 
+                padding: 20, 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = card.boxShadow || '0 1px 3px rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
               <div>
                 <h4 style={{ margin: '0 0 4px 0', color: colors.primary }}>{cls.name}</h4>
                 {cls.description && <p style={{ margin: 0, fontSize: font.sizeSm, color: colors.textSecondary }}>{cls.description}</p>}

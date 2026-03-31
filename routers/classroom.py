@@ -9,7 +9,7 @@ import string
 import shutil, uuid, os
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk
 from routers.auth import get_current_user, require_role
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
@@ -364,15 +364,36 @@ async def join_classroom(
 @router.get("/enrolled", response_model=List[ClassroomResponse])
 async def list_enrolled_classrooms(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("student"))
+    current_user: User = Depends(get_current_user)
 ):
-    memberships = (
-        db.query(ClassroomMember)
-        .filter(ClassroomMember.student_id == current_user.id)
-        .all()
-    )
-    classroom_ids = [m.classroom_id for m in memberships]
-    return db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
+    """List classrooms for the current user: 
+    - Students: classrooms they're enrolled in
+    - Teachers: classrooms they teach
+    - Admins: all classrooms
+    """
+    print(f"📚 [CLASSROOM] Fetching enrolled classrooms for user {current_user.id} (role={current_user.role})")
+    if current_user.role == "admin":
+        classrooms = db.query(Classroom).all()
+        print(f"   → Admin: returning all {len(classrooms)} classrooms")
+        return classrooms
+    elif current_user.role == "teacher":
+        classrooms = db.query(Classroom).filter(Classroom.teacher_id == current_user.id).all()
+        print(f"   → Teacher: returning {len(classrooms)} classrooms they teach")
+        return classrooms
+    else:  # student
+        memberships = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.student_id == current_user.id)
+            .all()
+        )
+        classroom_ids = [m.classroom_id for m in memberships]
+        print(f"   → Student: enrolled in classrooms: {classroom_ids}")
+        if not classroom_ids:
+            print(f"   → No classrooms found")
+            return []
+        classrooms = db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
+        print(f"   → Returning {len(classrooms)} classrooms")
+        return classrooms
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +418,13 @@ async def upload_document(
     with open(tmp_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    chunk_count = ingest_document(classroom_id, tmp_path, file.filename)
+    chunk_count = ingest_document(
+        classroom_id,
+        tmp_path,
+        file.filename,
+        uploaded_by=current_user.id,  # ← FIX: was missing, caused uploaded_by=0
+        db=db,                         # ← FIX: pass session so service doesn't create its own
+    )
     os.remove(tmp_path)
 
     doc = ClassroomDocument(
@@ -511,7 +538,11 @@ async def upload_file(
             uploaded_by=current_user.id,
             db=db,
         )
+        # Verify chunks were created
+        chunk_count = db.query(ClassroomChunk).filter(ClassroomChunk.file_id == file_id).count()
+        print(f"✅ File uploaded: {file.filename} (ID={file_id}), chunks created: {chunk_count}")
     except ValueError as exc:
+        print(f"❌ Upload failed: {str(exc)}")
         raise HTTPException(413, str(exc))
 
     return {"file_id": file_id, "filename": file.filename, "status": "indexed"}
@@ -552,6 +583,45 @@ def list_files(
         )
         for f in files
     ]
+
+
+@router.get("/test-view/{classroom_id}/{file_id}")
+def test_view_endpoint(
+    classroom_id: int,
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """Test endpoint to verify routing."""
+    return {
+        "test": "success",
+        "classroom_id": classroom_id,
+        "file_id": file_id,
+        "user": current_user.email,
+    }
+
+
+@router.get("/{classroom_id}/files/{file_id}/view")
+def view_file(
+    classroom_id: int,
+    file_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stream file bytes back to client for inline viewing."""
+    # For now, just require auth and return file (same as download)
+    f = (
+        db.query(ClassroomFile)
+        .filter(ClassroomFile.id == file_id, ClassroomFile.classroom_id == classroom_id)
+        .first()
+    )
+    if not f:
+        raise HTTPException(404, "File not found")
+
+    return Response(
+        content=f.file_data,
+        media_type=f.mime_type,
+        headers={"Content-Disposition": f'inline; filename="{f.filename}"'},
+    )
 
 
 @router.get("/{classroom_id}/files/{file_id}/download")
@@ -601,6 +671,50 @@ def delete_file(
 
     delete_classroom_file(file_id, classroom_id, db)
     return {"status": "deleted", "file_id": file_id}
+
+
+@router.get("/{classroom_id}/rag-status")
+def get_rag_status(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Debug endpoint: Check RAG indexing status for a classroom."""
+    from db_models import ClassroomFile, ClassroomChunk
+    
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    
+    # Verify access
+    if current_user.role == "student":
+        membership = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.student_id == current_user.id,
+        ).first()
+        if not membership and current_user.role != "admin":
+            raise HTTPException(403, "Not enrolled")
+    
+    files = db.query(ClassroomFile).filter(ClassroomFile.classroom_id == classroom_id).all()
+    total_chunks = db.query(ClassroomChunk).filter(ClassroomChunk.classroom_id == classroom_id).count()
+    
+    file_statuses = []
+    for f in files:
+        chunk_count = db.query(ClassroomChunk).filter(ClassroomChunk.file_id == f.id).count()
+        file_statuses.append({
+            "file_id": f.id,
+            "filename": f.filename,
+            "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else None,
+            "chunk_count": chunk_count,
+        })
+    
+    return {
+        "classroom_id": classroom_id,
+        "total_files": len(files),
+        "total_chunks": total_chunks,
+        "files": file_statuses,
+        "rag_ready": total_chunks > 0,
+    }
 
 
 @router.post("/{classroom_id}/ask")

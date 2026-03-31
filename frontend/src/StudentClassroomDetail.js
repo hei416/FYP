@@ -2,23 +2,109 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { listClassroomFiles, downloadClassroomFile, askClassroom } from './classroomService';
 
+const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+
 export default function StudentClassroomDetail() {
   const { classroomId } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState('materials'); // 'materials' | 'ask'
   const [files, setFiles] = useState([]);
+  const [filesError, setFilesError] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filesLoading, setFilesLoading] = useState(true);
+  const [viewerFile, setViewerFile] = useState(null); // For modal viewer
+  const [token, setToken] = useState(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+  const [textContent, setTextContent] = useState(null);
 
   useEffect(() => {
     setFilesLoading(true);
+    setFilesError(null);
     listClassroomFiles(classroomId)
       .then(setFiles)
-      .catch(console.error)
+      .catch((err) => {
+        console.error("Error loading classroom files:", err);
+        setFilesError(err.message);
+      })
       .finally(() => setFilesLoading(false));
   }, [classroomId]);
+
+  // Get token on mount
+  useEffect(() => {
+    const t = getToken();
+    console.log(`🔑 [StudentClassroomDetail] Token loaded: ${t ? `length=${t.length}` : 'null'}`);
+    if (t) {
+      setToken(t);
+    }
+  }, []);
+
+  // Load text file content for viewer
+  useEffect(() => {
+    if (!viewerFile || !token) return;
+    if (!(viewerFile.mime_type?.includes('text') || viewerFile.mime_type?.includes('markdown'))) return;
+    
+    setTextContent(null); // Reset while loading
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    console.log(`📄 Loading text file: ${viewerFile.filename}`);
+    fetch(`${API_BASE}/classrooms/${classroomId}/files/${viewerFile.id}/view`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.text();
+      })
+      .then((content) => {
+        setTextContent(content);
+        console.log(`✅ Text file loaded (${content.length} chars)`);
+      })
+      .catch((err) => {
+        console.error('❌ Error loading text file:', err);
+        setTextContent(`Error loading file: ${err.message}`);
+      });
+  }, [viewerFile, classroomId, token]);
+
+  // Load PDF/other files as blob for iframe
+  useEffect(() => {
+    if (!viewerFile || !token) {
+      if (viewerFile && !token) {
+        console.log(`⏭️ [PDF] Skipping - token not available yet`);
+      }
+      return;
+    }
+    if (!viewerFile.mime_type?.includes('pdf')) return;
+    
+    setPdfBlobUrl(null); // Reset while loading
+    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    console.log(`📄 [PDF] Loading: ${viewerFile.filename} (token=${token?.length} chars)`);
+    fetch(`${API_BASE}/classrooms/${classroomId}/files/${viewerFile.id}/view`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+      })
+      .then((blob) => {
+        console.log(`✅ [PDF] Blob loaded (${blob.size} bytes)`);
+        const url = URL.createObjectURL(blob);
+        console.log(`📍 [PDF] Blob URL: ${url.substring(0, 30)}...`);
+        setPdfBlobUrl(url);
+      })
+      .catch((err) => {
+        console.error('❌ [PDF] Error:', err);
+        setPdfBlobUrl(`data:text/html,<p style="color: red; padding: 20px;">Failed to load PDF: ${err.message}<br/>Try downloading instead.</p>`);
+      });
+  }, [viewerFile, classroomId, token]);
+
+  // Cleanup blob URL when modal closes
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl && pdfBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [pdfBlobUrl]);
 
   const handleAsk = async (e) => {
     e.preventDefault();
@@ -158,6 +244,11 @@ export default function StudentClassroomDetail() {
 
       {tab === 'materials' && (
         <div>
+          {filesError && (
+            <div style={{ padding: '12px 16px', background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#991B1B' }}>
+              ❌ Error loading materials: {filesError}
+            </div>
+          )}
           {filesLoading ? (
             <p style={styles.empty}>Loading materials…</p>
           ) : files.length === 0 ? (
@@ -174,15 +265,100 @@ export default function StudentClassroomDetail() {
                 <span style={styles.fileDate}>
                   {f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString() : ''}
                 </span>
-                <button
-                  style={styles.downloadBtn}
-                  onClick={() => downloadClassroomFile(classroomId, f.id, f.filename)}
-                >
-                  Download
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    style={{...styles.downloadBtn, background: '#16A34A'}}
+                    onClick={() => setViewerFile(f)}
+                    title="View file in browser"
+                  >
+                    👁️ View
+                  </button>
+                  <button
+                    style={styles.downloadBtn}
+                    onClick={() => downloadClassroomFile(classroomId, f.id, f.filename)}
+                    title="Download file"
+                  >
+                    ⬇️ Download
+                  </button>
+                </div>
               </div>
             ))
           )}
+        
+        {/* File Viewer - Shows below file list */}
+        {viewerFile && (
+          <div style={{ marginTop: 24, padding: 16, background: '#F3F4F6', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                📄 {viewerFile.filename}
+              </h3>
+              <button
+                onClick={() => {
+                  setViewerFile(null);
+                  setPdfBlobUrl(null);
+                  setTextContent(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 20,
+                  cursor: 'pointer',
+                  color: '#6B7280',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{
+              width: '100%',
+              height: 600,
+              border: '1px solid #D1D5DB',
+              borderRadius: 8,
+              background: '#fff',
+              overflow: 'auto',
+            }}>
+              {viewerFile.mime_type?.includes('pdf') ? (
+                <iframe
+                  key={pdfBlobUrl}
+                  src={pdfBlobUrl || 'about:blank'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: 8,
+                  }}
+                  title={viewerFile.filename}
+                />
+              ) : viewerFile.mime_type?.includes('text') || viewerFile.mime_type?.includes('markdown') ? (
+                <textarea
+                  readOnly
+                  value={textContent || 'Loading...'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: 12,
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    resize: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  color: '#6B7280',
+                }}>
+                  <p>Preview not available for this file type.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         </div>
       )}
 
@@ -223,6 +399,7 @@ export default function StudentClassroomDetail() {
           )}
         </div>
       )}
+
     </div>
   );
 }

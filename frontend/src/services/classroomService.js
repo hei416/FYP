@@ -28,8 +28,16 @@ export const downloadClassroomFile = (classroomId, fileId, filename) => {
   const a = document.createElement("a");
   a.href = `/classrooms/${classroomId}/files/${fileId}/download`;
   a.download = filename;
-  // Include auth header via a hidden form if needed, or rely on cookie auth
-  // For Bearer token auth, open in new tab so the browser sends the request with a fresh token header
+  a.target = "_blank";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+export const viewClassroomFile = (classroomId, fileId, filename) => {
+  const a = document.createElement("a");
+  a.href = `/classrooms/${classroomId}/files/${fileId}/view`;
+  a.download = filename;
   a.target = "_blank";
   document.body.appendChild(a);
   a.click();

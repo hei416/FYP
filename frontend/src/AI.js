@@ -7,7 +7,7 @@ import { useAuth } from './AuthContext';
 
 
 // Add getToken helper for fetching classrooms
-const getToken = () => localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 
 const STORAGE_KEY = 'codetutor_chat_history';
 const SESSION_KEY = 'codetutor_active_session';
@@ -149,7 +149,8 @@ export default function AI({ showChat, setShowChat }) {
 
                     if (classroomIds.length > 0) {
                         // Call multi-classroom RAG endpoint
-                        const res = await fetch(`/classrooms/ask-multi`, {
+                        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                        const res = await fetch(`${API_BASE}/classrooms/ask-multi`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -161,6 +162,11 @@ export default function AI({ showChat, setShowChat }) {
                                 include_general: useGeneral,
                             }),
                         });
+                        if (!res.ok) {
+                            const text = await res.text();
+                            console.error(`❌ [ASK-MULTI] HTTP ${res.status}: ${text.substring(0, 200)}`);
+                            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                        }
                         const data = await res.json();
                         finalAnswer = data.answer;
                         totalSources = data.sources_count || 0;
@@ -274,14 +280,45 @@ export default function AI({ showChat, setShowChat }) {
     const [enrolledClassrooms, setEnrolledClassrooms] = useState([]);
 
         useEffect(() => {
-                // Fetch enrolled classrooms for RAG mode
-                fetch("/classrooms/enrolled", {
-                    headers: { Authorization: `Bearer ${getToken()}` },
+                // Fetch enrolled classrooms for RAG mode when chat opens
+                if (!showChat) return;
+                
+                const token = getToken();
+                
+                // If no token yet, retry after a short delay
+                if (!token) {
+                    console.log('⏭️ [AI] No token available yet, retrying in 500ms...');
+                    const timer = setTimeout(() => {
+                        const retryToken = getToken();
+                        if (retryToken) {
+                            console.log(`🔑 [AI] Token available after retry, fetching classrooms...`);
+                        }
+                    }, 500);
+                    return () => clearTimeout(timer);
+                }
+
+                const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                console.log(`🔑 [AI] Fetching classrooms with valid token (length=${token.length})`);
+                
+                fetch(`${API_BASE}/classrooms/enrolled`, {
+                    headers: { Authorization: `Bearer ${token}` },
                 })
-                    .then((r) => r.ok ? r.json() : [])
-                    .then(setEnrolledClassrooms)
-                    .catch(() => {});
-        }, []);
+                    .then((r) => {
+                        if (!r.ok) {
+                            console.warn(`❌ [AI] Failed to fetch classrooms: ${r.status}`);
+                            return [];
+                        }
+                        return r.json();
+                    })
+                    .then((data) => {
+                        console.log('✅ [AI] Enrolled classrooms:', data);
+                        setEnrolledClassrooms(Array.isArray(data) ? data : []);
+                    })
+                    .catch((err) => {
+                        console.error('❌ [AI] Error fetching classrooms:', err);
+                        setEnrolledClassrooms([]);
+                    });
+        }, [showChat]);
 
         const toggleSource = (key) => {
             setSelectedSources(prev => ({ ...prev, [key]: !prev[key] }));
@@ -395,25 +432,31 @@ export default function AI({ showChat, setShowChat }) {
                                                                                                         </button>
 
                                                                                                         {/* Classroom chips */}
-                                                                                                        {enrolledClassrooms.map(c => (
-                                                                                                            <button
-                                                                                                                key={c.id}
-                                                                                                                type="button"
-                                                                                                                onClick={() => toggleSource(String(c.id))}
-                                                                                                                style={{
-                                                                                                                    padding: '3px 10px',
-                                                                                                                    borderRadius: radii.full,
-                                                                                                                    border: `1px solid ${selectedSources[String(c.id)] ? colors.accent : colors.border}`,
-                                                                                                                    background: selectedSources[String(c.id)] ? colors.accent : 'transparent',
-                                                                                                                    color: selectedSources[String(c.id)] ? colors.surface : colors.textMuted,
-                                                                                                                    fontSize: font.sizeXs,
-                                                                                                                    cursor: 'pointer',
-                                                                                                                    fontWeight: 600,
-                                                                                                                }}
-                                                                                                            >
-                                                                                                                {selectedSources[String(c.id)] ? '✓' : '+'} {c.name}
-                                                                                                            </button>
-                                                                                                        ))}
+                                                                                                        {enrolledClassrooms && enrolledClassrooms.length > 0 ? (
+                                                                                                            enrolledClassrooms.map(c => (
+                                                                                                                <button
+                                                                                                                    key={c.id}
+                                                                                                                    type="button"
+                                                                                                                    onClick={() => toggleSource(String(c.id))}
+                                                                                                                    style={{
+                                                                                                                        padding: '3px 10px',
+                                                                                                                        borderRadius: radii.full,
+                                                                                                                        border: `1px solid ${selectedSources[String(c.id)] ? colors.accent : colors.border}`,
+                                                                                                                        background: selectedSources[String(c.id)] ? colors.accent : 'transparent',
+                                                                                                                        color: selectedSources[String(c.id)] ? colors.surface : colors.textMuted,
+                                                                                                                        fontSize: font.sizeXs,
+                                                                                                                        cursor: 'pointer',
+                                                                                                                        fontWeight: 600,
+                                                                                                                    }}
+                                                                                                                >
+                                                                                                                    {selectedSources[String(c.id)] ? '✓' : '+'} {c.name}
+                                                                                                                </button>
+                                                                                                            ))
+                                                                                                        ) : (
+                                                                                                            <div style={{ fontSize: font.sizeXs, color: colors.textMuted, padding: '4px 0' }}>
+                                                                                                                No classrooms joined yet
+                                                                                                            </div>
+                                                                                                        )}
                                                                                                     </div>
                                                                                                     {Object.values(selectedSources).every(v => !v) && (
                                                                                                         <div style={{ fontSize: font.sizeXs, color: 'orange', marginTop: 3 }}>

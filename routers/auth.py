@@ -98,6 +98,7 @@ def get_current_user(
 ) -> User:
     """Get current authenticated user from Authorization header"""
     if not authorization:
+        print("❌ [AUTH] No Authorization header provided")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
@@ -108,15 +109,19 @@ def get_current_user(
     if authorization.lower().startswith("bearer "):
         token = authorization[7:]
     
+    print(f"🔑 [AUTH] Token received (length={len(token)}): {token[:20]}...")
     payload = verify_token(token)
+    print(f"✅ [AUTH] Token verified for user_id={payload['user_id']}")
     user = db.query(User).filter(User.id == payload["user_id"]).first()
     
     if not user:
+        print(f"❌ [AUTH] User not found for user_id={payload['user_id']}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
     
+    print(f"✅ [AUTH] User authenticated: {user.email} (role={user.role})")
     return user
 
 

@@ -151,6 +151,26 @@ export const downloadClassroomFile = (classroomId, fileId, filename) => {
 };
 
 /**
+ * View a classroom file in the browser (inline viewing).
+ */
+export const viewClassroomFile = (classroomId, fileId, filename) => {
+  const a = document.createElement('a');
+  a.href = `${API_BASE}/classrooms/${classroomId}/files/${fileId}/view`;
+  a.target = '_blank';
+  // Inject auth header via fetch+blob for protected routes
+  fetch(a.href, { headers: { Authorization: `Bearer ${getToken()}` } })
+    .then((r) => r.blob())
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.target = '_blank';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    })
+    .catch(console.error);
+};
+
+/**
  * Delete a classroom file (teacher only). Chunks are cascade-deleted.
  */
 export const deleteClassroomFile = async (classroomId, fileId) => {
@@ -174,6 +194,12 @@ export const askClassroom = async (classroomId, question) => {
     },
     body: JSON.stringify({ question, mode: 'classroom' }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`❌ [ASK] HTTP ${res.status}: ${text.substring(0, 200)}`);
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  }
+  const data = await res.json();
+  console.log(`✅ [ASK] Response:`, data);
+  return data;
 };

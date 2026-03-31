@@ -49,16 +49,25 @@ async def ask_classroom_rag(
     )):
         raise HTTPException(403, "You are not enrolled in this classroom")
 
+    # Debug: Check chunk count in database
+    from db_models import ClassroomChunk
+    chunk_count = db.query(ClassroomChunk).filter(ClassroomChunk.classroom_id == classroom_id).count()
+    print(f"📊 Classroom {classroom_id}: {chunk_count} chunks in database")
+    
     docs = query_classroom_rag(classroom_id, request.question)
+    print(f"📊 Query returned {len(docs)} documents")
+    
     if not docs:
-        return {"answer": "No documents have been uploaded to this classroom yet."}
+        return {"answer": "No documents have been uploaded to this classroom yet.", "has_context": False, "sources_count": 0}
 
-    context = "\n\n".join(d.page_content for d in docs)
+    context = "\n\n".join(d.get("page_content", "") for d in docs)
     chain = await get_rag_chain()
     answer = chain(f"Context from classroom materials:\n{context}\n\nQuestion: {request.question}")
     return {
         "answer": answer,
-        "sources": list({d.metadata.get("source_file") for d in docs})
+        "has_context": True,
+        "sources_count": len(docs),
+        "sources": list({d.get("page_content") for d in docs})
     }
 
 
