@@ -111,11 +111,36 @@ export default function StudentClassroomDetail() {
     if (!question.trim()) return;
     setLoading(true);
     setAnswer(null);
+    
+    const userQuestion = question;
+    setQuestion(''); // Clear input immediately
+    
     try {
-      const result = await askClassroom(classroomId, question);
+      const result = await askClassroom(classroomId, userQuestion);
       setAnswer(result);
+      
+      // Save to conversation history with "classroom" context_type
+      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+      const conversationId = `classroom_${classroomId}_${Date.now()}`;
+      
+      await fetch(`${API_BASE}/conversation/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          user_message: userQuestion,
+          assistant_response: result.answer,
+          context_type: 'classroom',
+        }),
+      });
+      
+      console.log(`✅ Saved classroom conversation to history`);
     } catch (err) {
       setAnswer({ answer: 'Error: ' + err.message, has_context: false, sources_count: 0 });
+      console.error('❌ Error in handleAsk:', err);
     } finally {
       setLoading(false);
     }

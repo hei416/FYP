@@ -6,7 +6,7 @@ import { colors, radii, font, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 
 // Helper to get token from storage
-const getToken = () => localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -73,11 +73,11 @@ export default function ConversationHistoryPage() {
     // Fetch enrolled classrooms for multi-source selector
     useEffect(() => {
         if (!isAuthenticated || !token) return;
-        fetch(`/classrooms/enrolled`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API_BASE}/classrooms/enrolled`, { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.ok ? r.json() : [])
             .then(setEnrolledClassrooms)
             .catch(() => {});
-    }, [isAuthenticated, token]);
+    }, [isAuthenticated, token, API_BASE]);
 
     // Load sessions from DB
     const loadSessions = useCallback(async () => {
@@ -203,7 +203,7 @@ export default function ConversationHistoryPage() {
             let aiMsg;
 
             if (classroomIds.length > 0) {
-                const res = await fetch(`/classrooms/ask-multi`, {
+                const res = await fetch(`${API_BASE}/classrooms/ask-multi`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                     body: JSON.stringify({
@@ -212,6 +212,11 @@ export default function ConversationHistoryPage() {
                         include_general: useGeneral,
                     }),
                 });
+                if (!res.ok) {
+                    const text = await res.text();
+                    console.error(`❌ [ASK-MULTI] HTTP ${res.status}: ${text.substring(0, 200)}`);
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
                 const data = await res.json();
                 aiMsg = {
                     role: 'assistant',
