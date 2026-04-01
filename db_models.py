@@ -129,6 +129,7 @@ class ClassroomChunk(Base):
     classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
     chunk_text   = Column(Text, nullable=False)
     embedding    = Column(LargeBinary, nullable=False)   # np.float32.tobytes()
+    page_number  = Column(Integer, nullable=True, default=1)  # Page number for PDFs
 
 
 class QuizAttempt(Base):

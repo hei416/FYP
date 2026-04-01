@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import TextareaAutosize from "react-textarea-autosize";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import { useAuth } from './AuthContext';
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 
 const STORAGE_KEY = 'codetutor_chat_history';
+const SESSIONS_KEY = 'codetutor_active_sessions';
 const SESSION_KEY = 'codetutor_active_session';
 
 function generateId() {
@@ -42,14 +43,12 @@ const ExpandIcon = () => (
     </svg>
 );
 
-export default function AI({ showChat, setShowChat }) {
+export default function AI({ showChat, setShowChat, externalInputRef }) {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const navigate = useNavigate();
     const { user } = useAuth();
 
-    const [sessions, setSessions] = useState(() => {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-    });
+    const [sessions, setSessions] = useState([]);
     const [activeId, setActiveId] = useState(null);
     const [history, setHistory] = useState([]);
     const [userInput, setUserInput] = useState('');
@@ -59,17 +58,101 @@ export default function AI({ showChat, setShowChat }) {
     const [loadingContext, setLoadingContext] = useState(false);
     const [showHistoryPanel, setShowHistoryPanel] = useState(false);
     const messagesEndRef = useRef(null);
+    const activeIdRef = useRef(null);
     // Stable conversation_id for this chat session — reset on new chat
     const conversationIdRef = useRef(generateId());
 
-    useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }, [sessions]);
+    // Expose setUserInput and submitQuery via externalInputRef
+    useEffect(() => {
+        if (externalInputRef) {
+            externalInputRef.current = { setUserInput, setShowChat, submitQuery };
+        }
+    }, [externalInputRef, setShowChat, submitQuery]);
+
+    useEffect(() => {
+        const token = getToken();
+        if (!token) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+            localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+        }
+    }, [sessions]);
+
+    // Fetch and Sync logic depending on auth state
+    useEffect(() => {
+        const token = getToken();
+        if (token) {
+            // User is logged in: Sync local sessions, then fetch from DB
+            const syncAndFetch = async () => {
+                let localSessions = [];
+                try { localSessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch (e) { localSessions = []; }
+                
+                if (localSessions.length > 0) {
+                    for (const session of localSessions) {
+                        if (!session.messages || session.messages.length === 0) continue;
+                        
+                        let currentQuery = '';
+                        for (let i = 0; i < session.messages.length; i++) {
+                            const msg = session.messages[i];
+                            if (msg.role === 'user') {
+                                currentQuery = msg.content;
+                            } else if (msg.role === 'assistant' && currentQuery) {
+                                try {
+                                    await fetch(`${API_BASE}/conversation/save`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({
+                                            conversation_id: session.conversationId || session.id,
+                                            user_message: currentQuery,
+                                            assistant_response: msg.content,
+                                            context_type: 'general'
+                                        }),
+                                    });
+                                } catch (e) { console.warn('Failed to sync message:', e); }
+                                currentQuery = '';
+                            }
+                        }
+                    }
+                    localStorage.removeItem(SESSIONS_KEY);
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+
+                // Fetch sessions from DB
+                try {
+                    const res = await fetch(`${API_BASE}/conversation/sessions`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const mappedSessions = data.map(s => ({
+                            id: s.conversation_id, // in local it's arbitrary id, here we just use conversation_id
+                            title: s.first_message,
+                            createdAt: new Date(s.last_message_at).getTime(),
+                            conversationId: s.conversation_id,
+                            turnCount: s.turn_count,
+                            isDb: true
+                        }));
+                        setSessions(mappedSessions);
+                    }
+                } catch (e) { console.error('Failed to load DB sessions:', e); }
+            };
+            syncAndFetch();
+        } else {
+            // Not logged in: load from localStorage
+            try {
+                const localSessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]');
+                setSessions(localSessions.length ? localSessions : JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+            } catch (e) {
+                setSessions([]);
+            }
+        }
+    }, [user, API_BASE]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
 
     useEffect(() => {
         const handleCloseTour = () => setShowChat(false);
         window.addEventListener('close-ai-chat', handleCloseTour);
         return () => window.removeEventListener('close-ai-chat', handleCloseTour);
-    }, []);
+    }, [setShowChat]);
 
     const toggleChat = () => setShowChat(v => !v);
     const startNewChat = () => {
@@ -78,32 +161,93 @@ export default function AI({ showChat, setShowChat }) {
         setShowHistoryPanel(false);
         conversationIdRef.current = generateId();
     };
-    const loadSession = (session) => {
-        setActiveId(session.id);
-        setHistory(session.messages);
-        setShowHistoryPanel(false);
-        // Restore conversation_id stored on the session, or generate a new one
-        conversationIdRef.current = session.conversationId || generateId();
+    const loadSession = async (session) => {
+        const token = getToken();
+        if (token && session.isDb) {
+            setLoading(true);
+            setActiveId(session.id);
+            try {
+                const res = await fetch(`${API_BASE}/conversation/history/${session.conversationId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const turns = await res.json();
+                    const newHistory = [];
+                    turns.forEach(t => {
+                        newHistory.push({ role: 'user', content: t.user_message });
+                        newHistory.push({ role: 'assistant', content: t.assistant_response, pdf_matches: t.pdf_matches, debug_log: t.pdf_matches ? { pdf_matches: t.pdf_matches } : undefined });
+                    });
+                    setHistory(newHistory);
+                    conversationIdRef.current = session.conversationId;
+                }
+            } catch (e) {
+                console.error("Failed to load session history from DB", e);
+            } finally {
+                setLoading(false);
+                setShowHistoryPanel(false);
+            }
+        } else {
+            setActiveId(session.id);
+            setHistory(session.messages || []);
+            setShowHistoryPanel(false);
+            conversationIdRef.current = session.conversationId || generateId();
+        }
     };
 
-    const deleteSession = (id, e) => {
+    const deleteSession = async (id, e) => {
         e.stopPropagation();
+        const token = getToken();
+        if (token) {
+            try {
+                const session = sessions.find(s => s.id === id);
+                if (session && session.conversationId) {
+                    await fetch(`${API_BASE}/conversation/session/${session.conversationId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                }
+            } catch (err) { console.error("Failed to delete session", err); }
+        }
         setSessions(prev => prev.filter(s => s.id !== id));
         if (activeId === id) { setActiveId(null); setHistory([]); conversationIdRef.current = generateId(); }
     };
 
-    const saveCurrentSession = (msgs) => {
-        if (msgs.length === 0) return null;
-        const convId = conversationIdRef.current;
-        if (activeId) {
-            setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: msgs, conversationId: convId } : s));
+    const saveCurrentSession = (msgs, convId) => {
+        if (!msgs || msgs.length === 0) return;
+        const activeId = activeIdRef.current;
+        const token = getToken();
+        const title = msgs.find(m => m.role === 'user')?.content?.slice(0, 50) || 'New Chat';
+
+        if (token) {
+            setSessions(prev => {
+                const existing = prev.find(s => s.id === (activeId || convId));
+                if (existing) {
+                    return prev.map(s => s.id === (activeId || convId) ? { ...existing, updatedAt: Date.now(), messages: msgs } : s);
+                } else {
+                    activeIdRef.current = convId;
+                    return [{ id: convId, title, createdAt: Date.now(), messages: msgs, conversationId: convId, isDb: true }, ...prev];
+                }
+            });
+            return convId;
+        }
+        
+        let sessionsList = [];
+        try { sessionsList = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch (e) { sessionsList = []; }
+        const existing = sessionsList.find(s => s.id === activeId);
+
+        if (existing) {
+            const updated = { ...existing, messages: msgs, conversationId: convId, updatedAt: Date.now() };
+            const newSessions = sessionsList.map(s => s.id === activeId ? updated : s);
+            localStorage.setItem(SESSIONS_KEY, JSON.stringify(newSessions));
+            setSessions(newSessions);
             return activeId;
         } else {
             const newId = generateId();
-            const title = msgs.find(m => m.role === 'user')?.content?.slice(0, 50) || 'Chat';
             const session = { id: newId, title, createdAt: Date.now(), messages: msgs, conversationId: convId };
-            setSessions(prev => [session, ...prev]);
-            setActiveId(newId);
+            const newSessions = [session, ...sessionsList];
+            localStorage.setItem(SESSIONS_KEY, JSON.stringify(newSessions));
+            activeIdRef.current = newId;
+            setSessions(newSessions);
             return newId;
         }
     };
@@ -131,7 +275,12 @@ export default function AI({ showChat, setShowChat }) {
     const handleSubmit = async (e) => {
                 e.preventDefault();
                 if (!userInput.trim()) return;
-                const questionText = userInput; // capture before clearing
+                await submitQuery(userInput);
+        };
+
+    // Extracted submit logic for programmatic use
+    const submitQuery = useCallback(async (questionText) => {
+                if (!questionText.trim()) return;
                 const userMessage = { role: 'user', content: questionText };
                 const newHistory = [...history, userMessage];
                 setHistory(newHistory);
@@ -146,6 +295,7 @@ export default function AI({ showChat, setShowChat }) {
 
                     let finalAnswer = '';
                     let totalSources = 0;
+                    let pdfMatches = [];
 
                     if (classroomIds.length > 0) {
                         // Call multi-classroom RAG endpoint
@@ -160,6 +310,8 @@ export default function AI({ showChat, setShowChat }) {
                                 question: questionText,
                                 classroom_ids: classroomIds,
                                 include_general: useGeneral,
+                                user_id: user?.id || null,
+                                conversation_id: conversationIdRef.current,
                             }),
                         });
                         if (!res.ok) {
@@ -168,8 +320,11 @@ export default function AI({ showChat, setShowChat }) {
                             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
                         }
                         const data = await res.json();
+                        if (data.conversation_id) conversationIdRef.current = data.conversation_id;
                         finalAnswer = data.answer;
                         totalSources = data.sources_count || 0;
+                        pdfMatches = data.debug_log?.pdf_matches || [];
+                        console.log('[DEBUG] pdf_matches from response:', JSON.stringify(pdfMatches, null, 2));
                     } else {
                         // General RAG only
                         const res = await fetch(`${API_BASE}/ragAI`, {
@@ -188,7 +343,7 @@ export default function AI({ showChat, setShowChat }) {
                         const aiMsg = { role: 'assistant', content: finalAnswer, pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
                         const finalHistory = [...newHistory, aiMsg];
                         setHistory(finalHistory);
-                        saveCurrentSession(finalHistory);
+                        saveCurrentSession(finalHistory, conversationIdRef.current);
                         setLoading(false);
                         return;
                     }
@@ -196,15 +351,15 @@ export default function AI({ showChat, setShowChat }) {
                     const sourceBadge = totalSources > 0
                         ? `\n\n*✓ Based on ${totalSources} source(s)*`
                         : '';
-                    const aiMsg = { role: 'assistant', content: finalAnswer + sourceBadge };
+                    const aiMsg = { role: 'assistant', content: finalAnswer + sourceBadge, pdf_matches: pdfMatches, debug_log: { pdf_matches: pdfMatches } };
                     const finalHistory = [...newHistory, aiMsg];
                     setHistory(finalHistory);
-                    saveCurrentSession(finalHistory);
+                    saveCurrentSession(finalHistory, conversationIdRef.current);
                 } catch (err) {
                     setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
                 }
                 setLoading(false);
-        };
+        }, [history, selectedSources, user, API_BASE, saveCurrentSession]);
 
     const renderAIMessage = (msg, msgIndex) => (
         <div>
@@ -214,6 +369,12 @@ export default function AI({ showChat, setShowChat }) {
                     ⚡ {msg.debug_log.response_time_sec}s
                 </div>
             )}
+            {console.log(`📊 [AI] Message ${msgIndex}:`, { 
+                content: msg.content?.substring(0, 50), 
+                pdf_matches_count: msg.pdf_matches?.length,
+                pdf_matches: msg.pdf_matches,
+                debug_log: msg.debug_log 
+            })}
             {msg.pdf_matches && msg.pdf_matches.length > 0 && (
                 <div style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTop: `1px solid ${colors.border}` }}>
                     <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.textSecondary, marginBottom: spacing.sm }}>📚 Sources ({msg.pdf_matches.length}):</div>
@@ -221,25 +382,75 @@ export default function AI({ showChat, setShowChat }) {
                         const chunkKey = `${msgIndex}-${i}`;
                         const isExpanded = expandedChunk === chunkKey;
                         const hasContext = chunkContext && expandedChunk === chunkKey;
+                        const isPDF = m.iframeUrl && (m.file.toLowerCase().endsWith('.pdf') || m.file.includes('material'));
                         return (
                             <div key={i} style={{ marginBottom: 10 }}>
                                 <button style={{ backgroundColor: isExpanded ? colors.success : colors.primary, color: colors.surface, padding: '12px 16px', borderRadius: radii.md, border: 'none', cursor: 'pointer', fontSize: font.sizeMd, fontWeight: font.weightSemibold, width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition }}
                                     onClick={() => { if (isExpanded) { setExpandedChunk(null); setChunkContext(null); } else { setChunkContext(null); setExpandedChunk(chunkKey); } }}
                                 >
-                                    <span>{isExpanded ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()}</span>
+                                    <span>{isExpanded ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {m.page && m.page > 1 ? `(Page ${m.page})` : ''}</span>
                                     <span style={{ fontSize: font.sizeSm, opacity: 0.9 }}>{isExpanded ? '▼ Collapse' : '► Expand'}</span>
                                 </button>
                                 {isExpanded && (
-                                    <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.warningLight, borderRadius: radii.md, border: `2px solid ${colors.warningBorder}`, fontSize: font.sizeMd, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'Georgia, serif' }}>
-                                        <div style={{ fontSize: 14, color: '#92400e', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span>📄 Retrieved Paragraph:</span>
-                                            <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 5, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
-                                                onClick={() => { if (hasContext) setChunkContext(null); else fetchChunkContext(m.file, m.snippet); }}
-                                                disabled={loadingContext}
-                                            >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
+                                    <>
+                                        {isPDF && (
+                                            <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: '#f3f4f6', borderRadius: radii.md, border: `2px solid ${colors.border}` }}>
+                                                <div style={{ fontSize: 14, color: '#374151', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui' }}>
+                                                    📕 PDF Viewer: {m.file} {m.page && m.page > 1 ? `(Page ${m.page})` : ''}
+                                                </div>
+                                                <iframe
+                                                    src={(() => {
+                                                        // Insert token before hash fragment
+                                                        const url = m.iframeUrl;
+                                                        const token = getToken();
+                                                        const hashIndex = url.indexOf('#');
+                                                        let finalUrl;
+                                                        if (hashIndex > -1) {
+                                                            const base = url.substring(0, hashIndex);
+                                                            const hash = url.substring(hashIndex);
+                                                            finalUrl = `${base}?token=${token}${hash}`;
+                                                        } else {
+                                                            finalUrl = `${url}?token=${token}`;
+                                                        }
+                                                        console.log('[IFRAME] Final URL:', finalUrl);
+                                                        return finalUrl;
+                                                    })()}
+                                                    onLoad={(e) => {
+                                                        // Force page navigation after iframe loads
+                                                        if (m.page && m.page > 1) {
+                                                            setTimeout(() => {
+                                                                const iframe = e.target;
+                                                                if (iframe && iframe.contentWindow) {
+                                                                    try {
+                                                                        iframe.contentWindow.location.hash = `page=${m.page}`;
+                                                                    } catch (err) {
+                                                                        console.log('Cannot access iframe content for page navigation');
+                                                                    }
+                                                                }
+                                                            }, 1000);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: '100%',
+                                                        height: 600,
+                                                        borderRadius: radii.md,
+                                                        border: `1px solid ${colors.border}`,
+                                                    }}
+                                                    title={m.file}
+                                                />
+                                            </div>
+                                        )}
+                                        <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.warningLight, borderRadius: radii.md, border: `2px solid ${colors.warningBorder}`, fontSize: font.sizeMd, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'Georgia, serif' }}>
+                                            <div style={{ fontSize: 14, color: '#92400e', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span>📄 Retrieved Paragraph:</span>
+                                                <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 5, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                                                    onClick={() => { if (hasContext) setChunkContext(null); else fetchChunkContext(m.file, m.snippet); }}
+                                                    disabled={loadingContext}
+                                                >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
+                                            </div>
+                                            {cleanSnippet(m.display_snippet || m.snippet)}
                                         </div>
-                                        {cleanSnippet(m.display_snippet || m.snippet)}
-                                    </div>
+                                    </>
                                 )}
                                 {isExpanded && hasContext && (
                                     <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.primaryLight, borderRadius: radii.md, border: `2px solid ${colors.primaryBorder}`, maxHeight: 500, overflowY: 'auto' }}>
@@ -373,7 +584,7 @@ export default function AI({ showChat, setShowChat }) {
                                         >
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontSize: '11px', fontWeight: font.weightSemibold, color: activeId === s.id ? colors.primary : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title || 'Untitled'}</div>
-                                                <div style={{ fontSize: '10px', color: colors.textMuted, marginTop: 1 }}>{formatDate(s.createdAt)} · {s.messages.length} msgs</div>
+                                                <div style={{ fontSize: '10px', color: colors.textMuted, marginTop: 1 }}>{formatDate(s.createdAt)} · {s.messages ? s.messages.length : (s.turnCount * 2 || 0)} msgs</div>
                                             </div>
                                             <button onClick={(e) => deleteSession(s.id, e)}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: '12px', padding: '0 2px', opacity: 0.6, flexShrink: 0 }}

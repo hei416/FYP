@@ -52,12 +52,6 @@ export default function StudentClassroomDetail() {
         >
           📄 Materials
         </button>
-        <button
-          className={`tab-btn ${tab === "ask" ? "active" : ""}`}
-          onClick={() => setTab("ask")}
-        >
-          💬 Ask AI
-        </button>
       </div>
 
       {tab === "materials" && (
@@ -94,42 +88,6 @@ export default function StudentClassroomDetail() {
                   </button>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "ask" && (
-        <div className="ask-panel">
-          <p className="ask-hint">
-            Ask a question about the classroom materials. The AI will answer based
-            on what your teacher has uploaded.
-          </p>
-          <form onSubmit={handleAsk} className="ask-form">
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="e.g. What is the difference between an interface and an abstract class in Java?"
-              rows={4}
-              disabled={asking}
-            />
-            <button type="submit" className="btn-ask" disabled={asking || !question.trim()}>
-              {asking ? "Thinking..." : "Ask"}
-            </button>
-          </form>
-
-          {answer && (
-            <div className="answer-card">
-              <p className="answer-text">{answer.answer}</p>
-              {answer.has_context ? (
-                <small className="context-badge">
-                  ✓ Based on {answer.sources_count} classroom document excerpt(s)
-                </small>
-              ) : (
-                <small className="context-badge no-context">
-                  ℹ️ No classroom documents available — answered from general knowledge
-                </small>
-              )}
             </div>
           )}
         </div>

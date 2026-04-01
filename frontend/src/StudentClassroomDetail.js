@@ -4,6 +4,11 @@ import { listClassroomFiles, downloadClassroomFile, askClassroom } from './class
 
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
+// Helper function to generate unique IDs
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
 export default function StudentClassroomDetail() {
   const { classroomId } = useParams();
   const navigate = useNavigate();
@@ -18,6 +23,8 @@ export default function StudentClassroomDetail() {
   const [token, setToken] = useState(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [textContent, setTextContent] = useState(null);
+  const [selectedSourceIndex, setSelectedSourceIndex] = useState(0); // Which source PDF to view
+  const [classroomConversationId, setClassroomConversationId] = useState(null); // Track conversation ID for this classroom
 
   useEffect(() => {
     setFilesLoading(true);
@@ -29,6 +36,10 @@ export default function StudentClassroomDetail() {
         setFilesError(err.message);
       })
       .finally(() => setFilesLoading(false));
+    
+    // Reset conversation ID when classroom changes
+    setClassroomConversationId(null);
+    console.log(`🔄 Reset conversation ID for new classroom: ${classroomId}`);
   }, [classroomId]);
 
   // Get token on mount
@@ -106,6 +117,39 @@ export default function StudentClassroomDetail() {
     };
   }, [pdfBlobUrl]);
 
+  // Load source PDF from RAG results
+  const [sourceBlob, setSourceBlob] = useState(null);
+  useEffect(() => {
+    if (!answer?.sources?.[selectedSourceIndex] || !token) {
+      setSourceBlob(null);
+      return;
+    }
+    
+    const source = answer.sources[selectedSourceIndex];
+    if (source.mime_type?.includes('pdf')) {
+      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+      console.log(`📄 Loading source PDF: ${source.filename}`);
+      fetch(`${API_BASE}/classrooms/${classroomId}/files/${source.file_id}/view`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.blob();
+        })
+        .then((blob) => {
+          console.log(`✅ Source PDF loaded (${blob.size} bytes)`);
+          const url = URL.createObjectURL(blob);
+          setSourceBlob(url);
+        })
+        .catch((err) => {
+          console.error('❌ Error loading source PDF:', err);
+          setSourceBlob(null);
+        });
+    } else {
+      setSourceBlob(null);
+    }
+  }, [answer?.sources, selectedSourceIndex, token, classroomId]);
+
   const handleAsk = async (e) => {
     e.preventDefault();
     if (!question.trim()) return;
@@ -121,7 +165,18 @@ export default function StudentClassroomDetail() {
       
       // Save to conversation history with "classroom" context_type
       const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-      const conversationId = `classroom_${classroomId}_${Date.now()}`;
+      
+      // ✅ FIXED: Reuse conversation_id if it exists, create new one only on first message
+      const conversationId = classroomConversationId || 
+        `classroom_${classroomId}_${generateId()}`;
+      
+      // Store for future messages in this classroom view
+      if (!classroomConversationId) {
+        setClassroomConversationId(conversationId);
+        console.log(`📌 Created new classroom conversation: ${conversationId}`);
+      } else {
+        console.log(`♻️ Reusing existing conversation: ${conversationId}`);
+      }
       
       await fetch(`${API_BASE}/conversation/save`, {
         method: 'POST',
@@ -137,7 +192,7 @@ export default function StudentClassroomDetail() {
         }),
       });
       
-      console.log(`✅ Saved classroom conversation to history`);
+      console.log(`✅ Saved classroom conversation (${conversationId}) to history`);
     } catch (err) {
       setAnswer({ answer: 'Error: ' + err.message, has_context: false, sources_count: 0 });
       console.error('❌ Error in handleAsk:', err);
@@ -258,12 +313,6 @@ export default function StudentClassroomDetail() {
           onClick={() => setTab('materials')}
         >
           📄 Materials
-        </button>
-        <button
-          style={styles.tab(tab === 'ask')}
-          onClick={() => setTab('ask')}
-        >
-          💬 Ask AI
         </button>
       </div>
 
@@ -387,43 +436,7 @@ export default function StudentClassroomDetail() {
         </div>
       )}
 
-      {tab === 'ask' && (
-        <div>
-          {files.length === 0 && !filesLoading && (
-            <div style={{ padding: '12px 16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#92400E' }}>
-              ⚠️ No documents uploaded yet — the AI will answer from general Java knowledge.
-            </div>
-          )}
-          <form onSubmit={handleAsk} style={styles.form}>
-            <textarea
-              style={styles.textarea}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask a question about the classroom materials or Java programming…"
-              rows={4}
-            />
-            <button type="submit" disabled={loading} style={styles.askBtn}>
-              {loading ? 'Thinking…' : 'Ask AI'}
-            </button>
-          </form>
-
-          {answer && (
-            <div style={styles.answerCard}>
-              <p style={styles.answerText}>{answer.answer}</p>
-              {answer.has_context && (
-                <small style={styles.contextNote}>
-                  ✓ Answer based on {answer.sources_count} classroom document excerpt(s)
-                </small>
-              )}
-              {!answer.has_context && answer.answer && !answer.answer.startsWith('Error') && (
-                <small style={{ ...styles.contextNote, color: '#6B7280' }}>
-                  ℹ️ Answered from general Java knowledge (no matching documents found)
-                </small>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Ask AI tab and panel removed */}
 
     </div>
   );

@@ -279,17 +279,58 @@ export default function ConversationHistoryPage() {
                     {msg.pdf_matches && msg.pdf_matches.length > 0 && (
                         <div style={{ marginTop: 12 }}>
                             <div style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 6, paddingLeft: 4 }}>📚 Sources ({msg.pdf_matches.length})</div>
+                            {console.log(`📊 [ConvHistory] Message ${msgIndex}:`, { pdf_matches_length: msg.pdf_matches.length, pdf_matches: msg.pdf_matches })}
                             {msg.pdf_matches.map((m, i) => {
                                 const key = `${msgIndex}-${i}`;
                                 const isOpen = expandedChunk === key;
                                 const hasContext = chunkContext && expandedChunk === key;
+                                const isPDF = m.iframeUrl && (m.file.toLowerCase().endsWith('.pdf') || m.file.includes('material'));
                                 return (
                                     <div key={i} style={{ width: '100%', marginBottom: 6 }}>
                                         <button onClick={() => { if (isOpen) { setExpandedChunk(null); setChunkContext(null); } else { setChunkContext(null); setExpandedChunk(key); } }}
                                             style={{ padding: '6px 12px', border: `1px solid ${colors.primaryBorder}`, borderRadius: radii.xl, background: isOpen ? colors.primary : colors.primaryLight, color: isOpen ? colors.surface : colors.primary, cursor: 'pointer', fontSize: font.sizeXs, fontWeight: font.weightSemibold }}
                                         >
-                                            {isOpen ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {isOpen ? '▼' : '►'}
+                                            {isOpen ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {m.page && m.page > 1 ? `(Page ${m.page})` : ''} {isOpen ? '▼' : '►'}
                                         </button>
+                                        {isOpen && isPDF && (
+                                            <div style={{ marginTop: 8, padding: 12, background: '#f3f4f6', border: `2px solid ${colors.border}`, borderRadius: radii.md }}>
+                                                <div style={{ fontSize: 13, color: '#374151', marginBottom: 10, fontWeight: 'bold', fontFamily: 'system-ui' }}>
+                                                    📕 PDF Viewer: {m.file} {m.page && m.page > 1 ? `(Page ${m.page})` : ''}
+                                                </div>
+                                                <iframe
+                                                    src={(() => {
+                                                        // Append token for iframe auth (insert before hash fragment)
+                                                        const token = getToken();
+                                                        if (!token || !m.iframeUrl) return m.iframeUrl;
+                                                        const [base, hash] = m.iframeUrl.split('#');
+                                                        const sep = base.includes('?') ? '&' : '?';
+                                                        return hash ? `${base}${sep}token=${token}#${hash}` : `${base}${sep}token=${token}`;
+                                                    })()}
+                                                    onLoad={(e) => {
+                                                        // Force page navigation after iframe loads
+                                                        if (m.page && m.page > 1) {
+                                                            setTimeout(() => {
+                                                                const iframe = e.target;
+                                                                if (iframe && iframe.contentWindow) {
+                                                                    try {
+                                                                        iframe.contentWindow.location.hash = `page=${m.page}`;
+                                                                    } catch (err) {
+                                                                        console.log('Cannot access iframe content for page navigation');
+                                                                    }
+                                                                }
+                                                            }, 1000);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: '100%',
+                                                        height: 400,
+                                                        borderRadius: radii.md,
+                                                        border: `1px solid ${colors.border}`,
+                                                    }}
+                                                    title={m.file}
+                                                />
+                                            </div>
+                                        )}
                                         {isOpen && (
                                             <div style={{ marginTop: 8, padding: 16, background: colors.warningLight, border: `2px solid ${colors.warningBorder}`, borderRadius: radii.md, fontSize: font.sizeSm, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', maxHeight: 300, overflowY: 'auto' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>

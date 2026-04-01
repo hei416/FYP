@@ -23,6 +23,7 @@ class SaveTurnRequest(BaseModel):
     code_snippet: Optional[str] = None
     input_tokens: int = 0
     output_tokens: int = 0
+    pdf_matches: Optional[List[Any]] = None
 
 
 class ConversationTurnResponse(BaseModel):
@@ -74,12 +75,13 @@ def save_turn(
         code_snippet=payload.code_snippet,
         input_tokens=payload.input_tokens,
         output_tokens=payload.output_tokens,
+        summary_of_turns={"pdf_matches": payload.pdf_matches or []} if payload.pdf_matches else None,
     )
     db.add(turn)
     db.commit()
     db.refresh(turn)
-    # Attach empty pdf_matches for response schema
-    turn.pdf_matches = []
+    # Attach pdf_matches for response schema
+    turn.pdf_matches = payload.pdf_matches or []
     return turn
 
 

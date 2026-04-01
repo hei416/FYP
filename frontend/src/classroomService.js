@@ -90,11 +90,11 @@ export const deleteDocument = async (classroomId, docId, token) => {
   return res.json();
 };
 
-export const askClassroomRAG = async (classroomId, question, token) => {
+export const askClassroomRAG = async (classroomId, question, token, conversationId = null, userId = null) => {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, conversation_id: conversationId, user_id: userId }),
   });
   return res.json();
 };
@@ -185,14 +185,14 @@ export const deleteClassroomFile = async (classroomId, fileId) => {
 /**
  * Ask a question scoped to a classroom's uploaded documents.
  */
-export const askClassroom = async (classroomId, question) => {
+export const askClassroom = async (classroomId, question, conversationId = null, userId = null) => {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/ask`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getToken()}`,
     },
-    body: JSON.stringify({ question, mode: 'classroom' }),
+    body: JSON.stringify({ question, mode: 'classroom', conversation_id: conversationId, user_id: userId }),
   });
   if (!res.ok) {
     const text = await res.text();

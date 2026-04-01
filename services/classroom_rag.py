@@ -66,10 +66,41 @@ _index_cache: dict = {}
 
 
 # ---------------------------------------------------------------------------
-# Text extraction
+# Text extraction with page tracking
 # ---------------------------------------------------------------------------
 
+def _extract_text_with_pages(filename: str, data: bytes) -> list:
+    """
+    Extract text from file and return list of tuples: [(text, page_num), ...]
+    page_num is 1-indexed for PDFs, 0 for other file types.
+    """
+    fname = filename.lower()
+    if fname.endswith(".pdf"):
+        if _PYMUPDF_AVAILABLE:
+            doc = fitz.open(stream=data, filetype="pdf")
+            results = []
+            for page_num, page in enumerate(doc, start=1):
+                text = page.get_text()
+                if text.strip():
+                    results.append((text, page_num))
+            return results
+        # Fallback: try to decode as text
+        text = data.decode("utf-8", errors="ignore")
+        return [(text, 0)]
+    elif fname.endswith(".docx"):
+        if _DOCX_AVAILABLE:
+            document = docx.Document(io.BytesIO(data))
+            text = "\n".join(p.text for p in document.paragraphs if p.text.strip())
+            return [(text, 0)]
+        text = data.decode("utf-8", errors="ignore")
+        return [(text, 0)]
+    else:
+        text = data.decode("utf-8", errors="ignore")
+        return [(text, 0)]
+
+
 def _extract_text(filename: str, data: bytes) -> str:
+    """Legacy function for backwards compatibility."""
     fname = filename.lower()
     if fname.endswith(".pdf"):
         if _PYMUPDF_AVAILABLE:
@@ -116,8 +147,8 @@ def upload_and_index(
 ) -> int:
     """
     1. Persist raw file bytes → classroom_files
-    2. Extract text, chunk, embed
-    3. Persist chunks + embeddings → classroom_chunks
+    2. Extract text with page tracking, chunk, embed
+    3. Persist chunks + embeddings + page numbers → classroom_chunks
     4. Bust in-memory FAISS cache for this classroom
     Returns: file_id
     """
@@ -136,38 +167,54 @@ def upload_and_index(
     db.add(db_file)
     db.flush()  # populate db_file.id before inserting chunks
 
-    # Extract → chunk → embed
-    text = _extract_text(filename, raw_bytes)
-    if not text.strip():
+    # Extract text with page tracking → chunk → embed
+    pages_data = _extract_text_with_pages(filename, raw_bytes)
+    if not pages_data:
         db.commit()
         return db_file.id
 
-    chunks = _split_chunks(text)
+    # Flatten all text for chunking, but track original page numbers
+    all_chunks_with_pages = []
     embedder = _get_embedder()
+
+    # Process each page separately to maintain page numbers
+    for page_text, page_num in pages_data:
+        if not page_text.strip():
+            continue
+        chunks = _split_chunks(page_text)
+        for chunk in chunks:
+            all_chunks_with_pages.append((chunk, page_num))
+
+    if not all_chunks_with_pages:
+        db.commit()
+        return db_file.id
 
     # Batch embed (16 per call)
     all_embeddings = []
     batch_size = 16
+    chunk_texts = [c[0] for c in all_chunks_with_pages]
+    
     try:
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i: i + batch_size]
+        for i in range(0, len(chunk_texts), batch_size):
+            batch = chunk_texts[i: i + batch_size]
             embeddings = embedder.embed_documents(batch)
             all_embeddings.extend(embeddings)
-        print(f"✓ Successfully embedded {len(chunks)} chunks for file {filename}")
+        print(f"✓ Successfully embedded {len(chunk_texts)} chunks for file {filename}")
     except Exception as e:
         # Rollback file if embedding fails
         print(f"❌ Embedding failed: {str(e)}")
         db.rollback()
         raise ValueError(f"Failed to embed document chunks: {str(e)}")
 
-    # Persist chunks
-    for chunk_text, emb in zip(chunks, all_embeddings):
+    # Persist chunks with page numbers
+    for (chunk_text, page_num), emb in zip(all_chunks_with_pages, all_embeddings):
         emb_bytes = np.array(emb, dtype=np.float32).tobytes()
         db.add(ClassroomChunk(
             file_id=db_file.id,
             classroom_id=classroom_id,
             chunk_text=chunk_text,
             embedding=emb_bytes,
+            page_number=page_num,
         ))
 
     db.commit()
@@ -199,7 +246,7 @@ def delete_classroom_file(file_id: int, classroom_id: int, db: Session) -> None:
 
 def _get_or_build_index(classroom_id: int, db: Session):
     """
-    Returns (faiss.IndexFlatIP, [chunk_texts]) for the classroom.
+    Returns (faiss.IndexFlatIP, [(chunk_text, file_id, filename, mime_type, page_num), ...]) for the classroom.
     Builds from Postgres when not cached.
     Returns (None, []) when classroom has no documents.
     """
@@ -225,13 +272,28 @@ def _get_or_build_index(classroom_id: int, db: Session):
     index = faiss.IndexFlatIP(dim)
     index.add(embeddings)
 
-    chunk_texts = [r.chunk_text for r in rows]
-    _index_cache[classroom_id] = (index, chunk_texts)
-    return index, chunk_texts
+    # Return chunk metadata as tuples: (text, file_id, filename, mime_type, page_num)
+    chunk_metadata = []
+    for r in rows:
+        filename = "unknown"
+        mime_type = "text/plain"
+        if r.file_id:
+            file_obj = db.query(ClassroomFile).filter(ClassroomFile.id == r.file_id).first()
+            if file_obj:
+                filename = file_obj.filename
+                mime_type = file_obj.mime_type
+        
+        # Handle missing page_number column gracefully
+        page_num = getattr(r, 'page_number', None) or 1
+        
+        chunk_metadata.append((r.chunk_text, r.file_id, filename, mime_type, page_num))
+    
+    _index_cache[classroom_id] = (index, chunk_metadata)
+    return index, chunk_metadata
 
 
 # ---------------------------------------------------------------------------
-# Search (RAG query)
+# Search (RAG query) — returns chunks with file metadata
 # ---------------------------------------------------------------------------
 
 def search_classroom_context(
@@ -241,10 +303,10 @@ def search_classroom_context(
     top_k: int = 5,
 ) -> list:
     """
-    Returns top_k most relevant chunk texts for the query.
+    Returns list of dicts: [{"text": chunk_text, "file_id": id, "filename": name, "mime_type": type, "page_number": num}, ...]
     Returns [] when classroom has no uploaded documents or FAISS unavailable.
     """
-    index, chunk_texts = _get_or_build_index(classroom_id, db)
+    index, chunk_metadata = _get_or_build_index(classroom_id, db)
     if index is None:
         print(f"⚠️ No index found for classroom {classroom_id}")
         return []
@@ -258,7 +320,14 @@ def search_classroom_context(
     threshold = 0.1
     for score, idx in zip(scores[0], ids[0]):
         if idx != -1 and score > threshold:
-            results.append(chunk_texts[idx])
+            chunk_text, file_id, filename, mime_type, page_num = chunk_metadata[idx]
+            results.append({
+                "text": chunk_text,
+                "file_id": file_id,
+                "filename": filename,
+                "mime_type": mime_type,
+                "page_number": page_num,
+            })
     
     print(f"✓ RAG search for classroom {classroom_id}: query='{query}' → {len(results)} chunks found (threshold={threshold}, raw_scores={list(scores[0][:3])})")
     return results
@@ -294,12 +363,12 @@ def ingest_document(
 
 
 def query_classroom_rag(classroom_id: int, question: str, k: int = 5) -> list:
-    """Legacy shim — searches classroom context and returns simple dicts."""
+    """Legacy shim — searches classroom context and returns dicts with text and metadata."""
     from database import SessionLocal
     db = SessionLocal()
     try:
         chunks = search_classroom_context(classroom_id, question, db, top_k=k)
-        return [{"page_content": c} for c in chunks]
+        return [{"page_content": c["text"], "file_id": c.get("file_id"), "filename": c.get("filename"), "page_number": c.get("page_number", 1)} for c in chunks]
     finally:
         db.close()
 

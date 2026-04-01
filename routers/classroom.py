@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -604,11 +604,36 @@ def test_view_endpoint(
 def view_file(
     classroom_id: int,
     file_id: int,
+    token: str = None,
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    """Stream file bytes back to client for inline viewing."""
-    # For now, just require auth and return file (same as download)
+    """Stream file bytes back to client for inline viewing.
+    
+    Supports authentication via:
+    - Authorization header (Bearer token)
+    - Query parameter ?token=xxx (for iframe embedding)
+    """
+    from routers.auth import verify_token
+    
+    # Try to authenticate from header or query param
+    current_user = None
+    try:
+        if authorization:
+            auth_token = authorization.replace("Bearer ", "").replace("bearer ", "")
+            payload = verify_token(auth_token)
+            current_user = db.query(User).filter(User.id == payload["user_id"]).first()
+        elif token:
+            payload = verify_token(token)
+            current_user = db.query(User).filter(User.id == payload["user_id"]).first()
+    except Exception as e:
+        print(f"❌ [VIEW_FILE] Auth failed: {e}")
+        raise HTTPException(401, "Authentication required")
+    
+    if not current_user:
+        raise HTTPException(401, "Authentication required")
+    
+    # Get file
     f = (
         db.query(ClassroomFile)
         .filter(ClassroomFile.id == file_id, ClassroomFile.classroom_id == classroom_id)
@@ -768,77 +793,3 @@ async def ask_classroom(
         "sources_count": len(context_chunks),
     }
 
-# ---------------------------------------------------------------------------
-# Multi-source RAG endpoint
-# ---------------------------------------------------------------------------
-
-class MultiAskRequest(BaseModel):
-    question: str
-    classroom_ids: List[int]
-    include_general: bool = True
-
-@router.post("/ask-multi")
-async def ask_multi_classroom(
-    body: MultiAskRequest,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),
-):
-    """
-    Query multiple classroom RAGs and optionally the general KB,
-    merge all context, then answer once.
-    """
-    from services.classroom_rag import search_classroom_context
-    from models import HKBULLM
-    from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
-
-    all_chunks = []
-
-    for cid in body.classroom_ids:
-        chunks = search_classroom_context(
-            classroom_id=cid,
-            query=body.question,
-            db=db,
-            top_k=4,
-        )
-        all_chunks.extend(chunks)
-
-    if not all_chunks:
-        context_str = ""
-        system_note = "No classroom documents available."
-    else:
-        seen = set()
-        deduped = []
-        for c in all_chunks:
-            if c not in seen:
-                seen.add(c)
-                deduped.append(c)
-        all_chunks = deduped[:12]
-        context_str = "\n\n---\n\n".join(all_chunks)
-        system_note = f"Use the provided excerpts from {len(body.classroom_ids)} classroom(s)."
-
-    general_note = ""
-    if body.include_general:
-        general_note = "You may also draw on your general Java knowledge to supplement the answer."
-
-    prompt = (
-        f"You are a Java programming tutor. {system_note} {general_note}\n\n"
-        + (f"CLASSROOM CONTEXT:\n{context_str}\n\n" if context_str else "")
-        + f"STUDENT QUESTION: {body.question}\n\n"
-        "Provide a clear, educational answer."
-    )
-
-    llm = HKBULLM(
-        api_key=API_KEY,
-        base_url=BASE_URL,
-        model=FAISS_MODEL_NAME,
-        api_version=FAISS_API_VERSION,
-        max_tokens=1024,
-    )
-    answer = llm(prompt)
-
-    return {
-        "answer": answer,
-        "sources_count": len(all_chunks),
-        "classrooms_searched": body.classroom_ids,
-        "general_included": body.include_general,
-    }

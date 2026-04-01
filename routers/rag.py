@@ -25,17 +25,28 @@ from services.classroom_rag import query_classroom_rag
 from routers.auth import get_current_user
 from database import get_db
 from services.conversation_manager import ConversationManager
+from services.rag_helpers import (
+    build_pdf_matches_from_classroom_chunks,
+    build_pdf_matches_from_docs,
+    build_pdf_matches_from_langchain_docs,
+    deduplicate_chunks,
+    save_rag_conversation,
+    clean_chunk_for_display
+)
 
 router = APIRouter()
 # ==================== CLASSROOM-SCOPED RAG ENDPOINT ====================
 
 class ClassroomRAGRequest(BaseModel):
     question: str
+    conversation_id: Optional[str] = None
+    user_id: Optional[int] = None
 
 @router.post("/classroom/{classroom_id}/ask")
 async def ask_classroom_rag(
     classroom_id: int,
     request: ClassroomRAGRequest,
+    http_request: Request,
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -63,11 +74,46 @@ async def ask_classroom_rag(
     context = "\n\n".join(d.get("page_content", "") for d in docs)
     chain = await get_rag_chain()
     answer = chain(f"Context from classroom materials:\n{context}\n\nQuestion: {request.question}")
+    
+    # Get the base URL for absolute iframe URLs
+    base_url = str(http_request.base_url).rstrip('/')
+    
+    # Build PDF matches using helper
+    pdf_matches = build_pdf_matches_from_docs(
+        docs=docs,
+        base_url=base_url,
+        classroom_id=classroom_id,
+        clean_display=True,
+        max_matches=3
+    )
+    
+    # Save conversation if user_id is provided
+    if current_user and current_user.id:
+        conversation_manager = ConversationManager()
+        user_id = current_user.id
+        if not request.conversation_id:
+            request.conversation_id = conversation_manager.create_conversation_id(user_id)
+            print(f"📌 Created new classroom conversation: {request.conversation_id}")
+        
+        save_rag_conversation(
+            conversation_manager=conversation_manager,
+            user_id=user_id,
+            conversation_id=request.conversation_id,
+            user_message=request.question,
+            assistant_response=answer,
+            context_type="classroom_rag",
+            pdf_matches=pdf_matches,
+            code_snippet=None
+        )
+    
     return {
         "answer": answer,
+        "conversation_id": request.conversation_id,
         "has_context": True,
         "sources_count": len(docs),
-        "sources": list({d.get("page_content") for d in docs})
+        "debug_log": {
+            "pdf_matches": pdf_matches,
+        }
     }
 
 
@@ -820,83 +866,6 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
         return json.loads(result)
 
 
-def clean_chunk_for_display(text: str) -> str:
-    if not text:
-        return text
-
-    # Remove obvious UI/footer noise first
-    text = re.sub(
-        r'❮\s*Previous\s+Next\s*❯.*?$',
-        ' ',
-        text,
-        flags=re.IGNORECASE | re.DOTALL
-    )
-    text = re.sub(
-        r'\bSign in to track progress\b.*?$',
-        ' ',
-        text,
-        flags=re.IGNORECASE | re.DOTALL
-    )
-
-    # Remove W3Schools interactive elements
-    text = re.sub(r'Try it Yourself\s*[»›]?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'\bTry it\s+\w+\s*[»›]?', '', text, flags=re.IGNORECASE)
-
-    # Remove W3Schools navigation/UI noise
-    text = re.sub(r'\b(Try it Yourself|Try it Now|Run Example|Edit & Run|Exercise|Quiz Yourself)\s*[»›]?', '', text, flags=re.IGNORECASE)
-
-    # Fix hyphenated line breaks / wrapped words
-    text = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-
-    # Insert missing space after sentence period only for letter->Uppercase
-    text = re.sub(r'(?<=[A-Za-z])\.(?=[A-Z])', '. ', text)
-
-    # Remove figure/table/listing references, including Figure?? and inline captions
-    text = re.sub(
-        r'\b(Figure|Table|Listing)\s*(?:\?+|\d+(?:\.\d+)*)\s*[:.-]?\s*[A-Za-z][^.:\n]{0,120}',
-        ' ',
-        text,
-        flags=re.IGNORECASE
-    )
-
-    # Remove page/section bleed like "6.7 String Iteration 97"
-    text = re.sub(
-        r'\b\d+\.\d+\s+[A-Z][A-Za-z]+\s+[A-Z][A-Za-z]+\s+\d+\b',
-        ' ',
-        text
-    )
-
-    # Domain-specific loop repairs
-    replacements = {
-        r'\baforloop\b': 'a for loop',
-        r'\bawhileloop\b': 'a while loop',
-        r'\btheforloop\b': 'the for loop',
-        r'\bthewhileloop\b': 'the while loop',
-        r'\bforloops\b': 'for loops',
-        r'\bwhileloops\b': 'while loops',
-        r'\bbetweenforloops\b': 'between for loops',
-        r'\bandwhileloops\b': 'and while loops',
-        r'\bonlyinsidetheforloop\b': 'only inside the for loop',
-        r'\binsideforloops\b': 'inside for loops',
-        r'\billustratesforloops\b': 'illustrates for loops',
-    }
-    for pattern, repl in replacements.items():
-        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
-
-    # General glue fixes around common loop phrases
-    text = re.sub(r'\b([A-Za-z]+)(for loop)\b', r'\1 \2', text, flags=re.IGNORECASE)
-    text = re.sub(r'\b([A-Za-z]+)(while loop)\b', r'\1 \2', text, flags=re.IGNORECASE)
-    text = re.sub(r'\b(for loop)([A-Za-z]+)\b', r'\1 \2', text, flags=re.IGNORECASE)
-    text = re.sub(r'\b(while loop)([A-Za-z]+)\b', r'\1 \2', text, flags=re.IGNORECASE)
-
-    # Collapse repeated punctuation junk like Figure??
-    text = re.sub(r'\?{2,}', ' ', text)
-
-    # Normalize whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
-
-
 # ==================== RAG ====================
 
 @router.post("/ragAI")
@@ -932,35 +901,28 @@ async def rag_ai(req: ExplainRequest):
 
         final_answer = rag_chain(query)
         docs = retriever.invoke(query)
-        pdf_matches = [
-            {
-                "file": doc.metadata.get('source', 'Unknown').split('/')[-1],
-                # raw snippet for context lookup
-                "snippet": doc.page_content,
-                # cleaned snippet for UI display only
-                "display_snippet": clean_chunk_for_display(doc.page_content),
-                "page": 1
-            }
-            for doc in docs[:3]
-        ]
+        
+        # Build PDF matches using helper
+        pdf_matches = build_pdf_matches_from_langchain_docs(
+            docs=docs,
+            extract_url_from_content=True,
+            max_matches=3
+        )
         elapsed = (datetime.now() - start_time).total_seconds()
 
         if conversation_manager and req.user_id and req.conversation_id:
-            try:
-                conversation_manager.save_turn(
-                    user_id=req.user_id,
-                    conversation_id=req.conversation_id,
-                    user_message=req.user_input,
-                    assistant_response=final_answer,
-                    context_type="explain",
-                    code_snippet=req.code_snippet if req.code_snippet else None,
-                    input_tokens=len(query.split()),
-                    output_tokens=len(final_answer.split()),
-                    pdf_matches=pdf_matches,
-                )
-                print(f"✅ Saved conversation turn for user {req.user_id}")
-            except Exception as e:
-                print(f"⚠️ Failed to save conversation: {e}")
+            save_rag_conversation(
+                conversation_manager=conversation_manager,
+                user_id=req.user_id,
+                conversation_id=req.conversation_id,
+                user_message=req.user_input,
+                assistant_response=final_answer,
+                context_type="explain",
+                pdf_matches=pdf_matches,
+                code_snippet=req.code_snippet if req.code_snippet else None,
+                input_tokens=len(query.split()),
+                output_tokens=len(final_answer.split())
+            )
 
         return {
             "final_answer": final_answer,
@@ -1616,3 +1578,117 @@ async def list_conversations(user_id: int):
     except Exception as e:
         print(f"❌ Error listing conversations: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list conversations: {str(e)}")
+
+
+# ==================== MULTI-SOURCE RAG ====================
+
+class MultiAskRequest(BaseModel):
+    question: str
+    classroom_ids: List[int]
+    include_general: bool = True
+    conversation_id: Optional[str] = None
+    user_id: Optional[int] = None
+
+@router.post("/ask-multi")
+async def ask_multi_classroom(
+    body: MultiAskRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Query multiple classroom RAGs and optionally the general KB,
+    merge all context, then answer once.
+    """
+    from services.classroom_rag import search_classroom_context
+    from models import HKBULLM
+    from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
+
+    # Get the backend base URL from the request
+    api_base_url = f"{request.url.scheme}://{request.url.netloc}"
+
+    all_chunks = []
+    chunks_with_metadata = []  # Keep metadata for pdf_matches
+
+    for cid in body.classroom_ids:
+        chunks = search_classroom_context(
+            classroom_id=cid,
+            query=body.question,
+            db=db,
+            top_k=4,
+        )
+        all_chunks.extend(chunks)
+        chunks_with_metadata.extend([(cid, chunk) for chunk in chunks])
+
+    if not all_chunks:
+        context_str = ""
+        system_note = "No classroom documents available."
+        pdf_matches = []
+    else:
+        # Deduplicate chunks using helper
+        deduped_text, deduped_with_meta = deduplicate_chunks(chunks_with_metadata)
+        
+        # Build PDF matches using helper
+        pdf_matches = build_pdf_matches_from_classroom_chunks(
+            deduped_with_meta,
+            api_base_url,
+            max_matches=3
+        )
+        
+        print(f"🔍 [DEBUG] Generated {len(pdf_matches)} pdf_matches")
+        if pdf_matches:
+            print(f"🔍 [DEBUG] First iframeUrl: {pdf_matches[0].get('iframeUrl')}")
+        
+        all_chunks = deduped_text[:12]
+        context_str = "\n\n---\n\n".join(all_chunks)
+        system_note = f"Use the provided excerpts from {len(body.classroom_ids)} classroom(s)."
+
+    general_note = ""
+    if body.include_general:
+        general_note = "You may also draw on your general Java knowledge to supplement the answer."
+
+    prompt = (
+        f"You are a Java programming tutor. {system_note} {general_note}\n\n"
+        + (f"CLASSROOM CONTEXT:\n{context_str}\n\n" if context_str else "")
+        + f"STUDENT QUESTION: {body.question}\n\n"
+        "Provide a clear, educational answer."
+    )
+
+    llm = HKBULLM(
+        api_key=API_KEY,
+        base_url=BASE_URL,
+        model=FAISS_MODEL_NAME,
+        api_version=FAISS_API_VERSION,
+        max_tokens=1024,
+    )
+    answer = llm(prompt)
+    
+    # Save conversation if user_id is provided
+    if current_user and current_user.id:
+        conversation_manager = ConversationManager()
+        user_id = current_user.id
+        if not body.conversation_id:
+            body.conversation_id = conversation_manager.create_conversation_id(user_id)
+            print(f"📌 Created new multi-classroom conversation: {body.conversation_id}")
+        
+        save_rag_conversation(
+            conversation_manager=conversation_manager,
+            user_id=user_id,
+            conversation_id=body.conversation_id,
+            user_message=body.question,
+            assistant_response=answer,
+            context_type="multi_classroom_rag",
+            pdf_matches=pdf_matches,
+            code_snippet=None
+        )
+
+    return {
+        "answer": answer,
+        "conversation_id": body.conversation_id,
+        "sources_count": len(all_chunks),
+        "classrooms_searched": body.classroom_ids,
+        "general_included": body.include_general,
+        "debug_log": {
+            "pdf_matches": pdf_matches,
+        }
+    }

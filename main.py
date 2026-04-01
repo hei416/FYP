@@ -284,6 +284,17 @@ async def startup():
             except Exception as e:
                 print(f"⚠️ quiz_attempts migration: {e}")
 
+            # page_number column for classroom_chunks (PDF page tracking)
+            try:
+                conn.execute(text("""
+                    ALTER TABLE classroom_chunks
+                    ADD COLUMN IF NOT EXISTS page_number INTEGER DEFAULT 1
+                """))
+                conn.commit()
+                print("✅ Migration: page_number column ensured on classroom_chunks")
+            except Exception as e:
+                print(f"⚠️ page_number migration: {e}")
+
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")
 

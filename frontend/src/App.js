@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import AI from "./AI";
@@ -15,6 +15,7 @@ import AdminDashboard from "./AdminDashboard";
 import StudentClassrooms from "./StudentClassrooms";
 import StudentClassroomDetail from "./StudentClassroomDetail";
 import { DemoTour } from "./DemoTour";
+import TextHighlightButton from "./components/TextHighlightButton";
 import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
 import { useAuth } from './AuthContext';
 import Auth from './Auth';
@@ -34,8 +35,20 @@ function AppContent() {
     const [showDemoButtons, setShowDemoButtons] = useState(true);
     const navigate = useNavigate();
     const { isAuthenticated, isTeacher, user } = useAuth();
+    const aiInputRef = useRef(null);
 
     const toggleChat = () => setShowChat(prev => !prev);
+
+    const handleAskAI = (text) => {
+        if (aiInputRef.current) {
+            // Open chat and submit query automatically
+            aiInputRef.current.setShowChat(true);
+            // Small delay to ensure chat is open before submitting
+            setTimeout(() => {
+                aiInputRef.current.submitQuery(`Explain this: "${text}"`);
+            }, 100);
+        }
+    };
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -83,7 +96,8 @@ function AppContent() {
     return (
         <>
             <Navbar toggleChat={toggleChat} />
-            <AI showChat={showChat} setShowChat={setShowChat} />
+            <AI showChat={showChat} setShowChat={setShowChat} externalInputRef={aiInputRef} />
+            <TextHighlightButton onAskAI={handleAskAI} />
 
             {showDemoButtons && (
                 <div style={{ position: 'fixed', bottom: 20, left: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
