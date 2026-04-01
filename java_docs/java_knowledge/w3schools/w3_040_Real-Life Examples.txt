@@ -1,0 +1,104 @@
+Source: W3Schools Java Tutorial
+Title: Real-Life Examples
+URL: https://www.w3schools.com/java/java_conditions_reallife.asp
+
+Java
+If ... Else Examples
+❮ Previous
+Next ❯
+Real-Life Examples
+This example shows how you can use
+if..else
+to "open a door" if the user enters the correct code:
+Example
+int doorCode = 1337;if (doorCode == 1337) {
+  System.out.println("Correct code. The door is now open.");
+} else {
+  System.out.println("Wrong code. The door remains closed.");
+}
+Try it Yourself »
+This example shows how you can use
+if..else
+to find out if a number is positive or negative:
+Example
+int myNum = 10; // Is this a positive or negative number?if (myNum > 0) {
+  System.out.println("The value is a positive number.");
+} else if (myNum < 0) {
+  System.out.println("The value is a negative number.");
+} else {
+  System.out.println("The value is 0.");
+}
+Try it Yourself »
+Find out if a person is old enough to vote:
+Example
+int myAge = 25;
+int votingAge = 18;if (myAge >= votingAge) {
+  System.out.println("Old enough to vote!");
+} else {
+  System.out.println("Not old enough to vote.");
+}
+Try it Yourself »
+Find out if a person is old enough to vote,
+and
+if they are a citizen (using nested if statements):
+Example
+int age = 20;
+boolean isCitizen = true;if (age >= 18) {
+  System.out.println("Old enough to vote.");
+  
+  if (isCitizen) {
+    System.out.println("And you are a citizen, so you can vote!");
+  } else {
+    System.out.println("But you must be a citizen to vote.");
+  }
+} else {
+  System.out.println("Not old enough to vote.");
+}
+Try it Yourself »
+Find out if a number is even or odd:
+Example
+int myNum = 5;
+
+if (myNum % 2 == 0) {
+  System.out.println(myNum + " is even");
+} else {
+  System.out.println(myNum + " is odd");
+}
+Try it Yourself »
+Check temperature:
+Example
+int temperature = 30;if (temperature < 0) {
+  System.out.println("It's freezing!");
+} else if (temperature < 20) {
+  System.out.println("It's cool.");
+} else {
+  System.out.println("It's warm.");
+}
+Try it Yourself »
+System access control example - You must be logged in, and then you either need to be an admin, 
+or have a high security clearance (level 1 or 2) to get access:
+Example
+boolean isLoggedIn = true;
+boolean isAdmin = false;
+int securityLevel = 3; // 1 = highest
+
+if (isLoggedIn && (isAdmin || securityLevel <= 2)) {
+  System.out.println("Access granted");
+} else {
+  System.out.println("Access denied");
+}
+
+// Try changing securityLevel to test different outcomes:
+//
+// securityLevel 1 = Access granted
+// securityLevel 2 = Access granted
+// securityLevel 3 = Access denied
+// securityLevel 4 = Access denied
+//
+// If isAdmin = true, access is granted.
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

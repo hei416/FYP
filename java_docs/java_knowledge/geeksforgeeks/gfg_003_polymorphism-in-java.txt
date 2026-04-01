@@ -1,0 +1,360 @@
+Source: GeeksforGeeks
+Topic: polymorphism-in-java
+URL: https://www.geeksforgeeks.org/polymorphism-in-java/Polymorphism in Java
+is one of the core concepts in
+object-oriented programming (OOP)
+that allows objects to behave differently based on their specific class type. The word
+polymorphism
+means having
+many forms
+, and it comes from the Greek words
+poly (many)
+and
+morph (forms)
+, this means one entity can take many forms. In Java, polymorphism allows the same method or object to behave differently based on the context, specially on the project's actual runtime class.
+Features of polymorphism:
+Multiple Behaviors
+: The same method can behave differently depending on the object that calls this method.
+Method Overriding
+: A child class can redefine a method of its parent class.
+Method Overloading
+: We can define multiple methods with the same name but different parameters.
+Runtime Decision:
+At runtime, Java determines which method to call depending on the object's actual class.
+Real-Life Illustration of Polymorphism
+Consider a person who plays different roles in life, like a father, a husband, and an employee. Each of these roles defines different behaviors of the person depending on the object calling it.
+Example: Different Roles of a Person
+Java
+// Base class Person
+class
+Person
+{
+// Method that displays the
+// role of a person
+void
+role
+()
+{
+System
+.
+out
+.
+println
+(
+"I am a person."
+);
+}
+}
+// Derived class Father that
+// overrides the role method
+class
+Father
+extends
+Person
+{
+// Overridden method to show
+// the role of a father
+@Override
+void
+role
+()
+{
+System
+.
+out
+.
+println
+(
+"I am a father."
+);
+}
+}
+public
+class
+Main
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating a reference of type Person
+// but initializing it with Father class object
+Person
+p
+=
+new
+Father
+();
+// Calling the role method. It calls the
+// overridden version in Father class
+p
+.
+role
+();
+}
+}
+Output
+I am a father.
+Explanation
+: In the above example, the Person class has a method role() that prints a general message. The Father class overrides role() to print a specific message. The reference of type Person is used to point to an object of type Father, demonstrating polymorphism at runtime. The overridden method in Father is invoked when role() is called.
+Why Use Polymorphism In Java?
+Using polymorphism in Java has many benefits which are listed below:
+Code Reusability:
+Polymorphism allows the same method or class to be used with different types of objects, which makes the code more reusable.
+Flexibility
+: Polymorphism enables object of different classes to be treated as objects of a common superclass, which provides flexibility in method execution and object interaction.
+AbstractionAbstraction
+: It allows the use of abstract classes or interfaces, enabling you to work with general types (like a superclass or interface) instead of concrete types (like specific subclasses), thus simplifying the interaction with objects.
+Dynamic Behavior
+: With polymorphism, Java can select the appropriate method to call at runtime, giving the program dynamic behavior based on the actual object type rather than the reference type, which enhances flexibility.
+Types of Polymorphism in Java
+In Java Polymorphism is mainly divided into two types:
+Types of Polymorphism in Java
+1. Compile-Time Polymorphism
+Compile-Time Polymorphism
+in Java is also known as static polymorphism and also known as method overloading. This happens when multiple methods in the same class have the same name but different parameters.
+Note
+: But Java doesn't support the Operator Overloading.
+Overloading vs Overriding
+Method Overloading
+As we discussed above,
+Method overloading
+in Java means when there are multiple functions with the same name but different parameters then these functions are said to be overloaded. Functions can be overloaded by changes in the number of arguments or/and a change in the type of arguments.
+Example:
+Method overloading by changing the number of arguments
+Java
+// Class 1
+// Helper class
+class
+Helper
+{
+// Method with 2 integer parameters
+static
+int
+Multiply
+(
+int
+a
+,
+int
+b
+)
+{
+// Returns product of integer numbers
+return
+a
+*
+b
+;
+}
+// Method 2
+// With same name but with 2 double parameters
+static
+double
+Multiply
+(
+double
+a
+,
+double
+b
+)
+{
+// Returns product of double numbers
+return
+a
+*
+b
+;
+}
+}
+// Class 2
+// Main class
+class
+Geeks
+{
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Calling method by passing
+// input as in arguments
+System
+.
+out
+.
+println
+(
+Helper
+.
+Multiply
+(
+2
+,
+4
+));
+System
+.
+out
+.
+println
+(
+Helper
+.
+Multiply
+(
+5.5
+,
+6.3
+));
+}
+}
+Output
+8
+34.65
+Explanation
+: The
+Multiply
+method is overloaded with different parameter types. The compiler picks the correct method during compile time based on the arguments.
+2. Runtime Polymorphism
+Runtime Polymorphism
+in Java known as Dynamic Method Dispatch. It is a process in which a function call to the overridden method is resolved at Runtime. This type of polymorphism is achieved by Method Overriding. Method overriding, on the other hand, occurs when a derived class has a definition for one of the member functions of the base class. That base function is said to be overridden.
+Method Overriding
+Method overridingMethod Overriding
+Method overriding
+in Java means when a subclass provides a specific implementation of a method that is already defined in its superclass. The method in the subclass must have the same name, return type, and parameters as the method in the superclass. Method overriding allows a subclass to modify or extend the behavior of an existing method in the parent class. This enables dynamic method dispatch, where the method that gets executed is determined at runtime based on the object's actual type.
+Example:Example:
+This program demonstrates method overriding in Java, where the Print() method is redefined in the subclasses (subclass1 and subclass2) to provide specific implementations.
+Java
+// Class 1
+// Helper class
+class
+Parent
+{
+// Method of parent class
+void
+Print
+()
+{
+System
+.
+out
+.
+println
+(
+"parent class"
+);
+}
+}
+// Class 2
+// Helper class
+class
+subclass1
+extends
+Parent
+{
+// Method
+void
+Print
+()
+{
+System
+.
+out
+.
+println
+(
+"subclass1"
+);
+}
+}
+// Class 3
+// Helper class
+class
+subclass2
+extends
+Parent
+{
+// Method
+void
+Print
+()
+{
+System
+.
+out
+.
+println
+(
+"subclass2"
+);
+}
+}
+// Class 4
+// Main class
+class
+Geeks
+{
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating object of class 1
+Parent
+a
+;
+// Now we will be calling print methods
+// inside main() method
+a
+=
+new
+subclass1
+();
+a
+.
+Print
+();
+a
+=
+new
+subclass2
+();
+a
+.
+Print
+();
+}
+}
+Output
+subclass1
+subclass2
+Explanation:
+In the above example, when an object of a child class is created, then the method inside the child class is called. This is because the method in the parent class is overridden by the child class. This method has more priority than the parent method inside the child class. So, the body inside the child class is executed.
+Advantages of Polymorphism
+Encourages code reuse.
+Simplifies maintenance.
+Enables dynamic method dispatch.
+Helps in writing generic code that works with many types.
+Disadvantages of Polymorphism
+It can make more difficult to understand the behavior of an object.
+This may cause performance issues, as polymorphic behavior may require additional computations at runtime.

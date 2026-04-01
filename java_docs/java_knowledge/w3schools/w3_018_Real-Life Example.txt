@@ -1,0 +1,25 @@
+Source: W3Schools Java Tutorial
+Title: Real-Life Example
+URL: https://www.w3schools.com/java/java_data_types_reallife.asp
+
+Java
+Data Types Example
+❮ Previous
+Next ❯
+Real-Life Example
+Here's a real-life example of using different data types, to calculate and output the total cost of a number of items:
+Example
+// Create variables of different data types
+int items = 50;
+float costPerItem = 9.99f;
+float totalCost = items * costPerItem;
+char currency = '$';// Print variables
+System.out.println("Number of items: " + items);
+System.out.println("Cost per item: " + costPerItem + currency);
+System.out.println("Total cost = " + totalCost + currency);
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

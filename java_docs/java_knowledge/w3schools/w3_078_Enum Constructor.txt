@@ -1,0 +1,64 @@
+Source: W3Schools Java Tutorial
+Title: Enum Constructor
+URL: https://www.w3schools.com/java/java_enum_constructor.asp
+
+Java
+Enum Constructor
+❮ Previous
+Next ❯
+Enum Constructor
+An
+enum
+can also have a
+constructor
+just like a class.
+The constructor is called automatically when the constants are created. You cannot call it yourself.
+Here, each constant in the enum has a value (a string) that is set through the constructor:
+enum Level {
+  // Enum constants (each has its own description)
+  LOW("Low level"),
+  MEDIUM("Medium level"),
+  HIGH("High level");// Field (variable) to store the description text
+  private String description;
+
+  // Constructor (runs once for each constant above)
+  private Level(String description) {
+    this.description = description;
+  }
+
+  // Getter method to read the description
+  public String getDescription() {
+    return description;
+  }
+}public class Main {
+  public static void main(String[] args) {
+    Level myVar = Level.MEDIUM; // Pick one enum constant
+    System.out.println(myVar.getDescription()); // Prints "Medium level"
+  }
+}
+The output will be:
+Medium level
+Try it Yourself »
+Note:
+The constructor for an enum
+must be private
+. If you don't write
+private
+, Java adds it automatically.
+Loop Through Enum with Constructor
+You can also loop through the constants and print their values using the
+values()
+method:
+for (Level myVar : Level.values()) {
+  System.out.println(myVar + ": " + myVar.getDescription());
+}
+The output will be:
+LOW: Low level
+MEDIUM: Medium level
+HIGH: High level
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

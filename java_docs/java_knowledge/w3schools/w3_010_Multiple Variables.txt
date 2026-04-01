@@ -1,0 +1,37 @@
+Source: W3Schools Java Tutorial
+Title: Multiple Variables
+URL: https://www.w3schools.com/java/java_variables_multiple.aspJava
+Declare Multiple Variables
+❮ Previous
+Next ❯
+Declare Many Variables
+To declare more than one variable of the
+same type
+, you can 
+use a comma-separated list:
+Example
+Instead of writing:
+int x = 5;
+int y = 6;
+int z = 50;
+System.out.println(x + y + z); // 61
+You can write:
+int x = 5, y = 6, z = 50;
+System.out.println(x + y + z); // 61
+Try it Yourself »
+Note:
+Declaring many variables in one line is shorter, but writing one variable per line can sometimes make the code easier to read.
+One Value to Multiple Variables
+You can also assign the
+same value
+to multiple variables in one line:
+Example
+int x, y, z;
+x = y = z = 50;
+System.out.println(x + y + z); // 150
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { downloadClassroomFile, askClassroom, listSections } from './classroomService';
+import { downloadClassroomFile, askClassroom, listSections, listClassroomQuizzes } from './classroomService';
 
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
@@ -27,6 +27,14 @@ export default function StudentClassroomDetail() {
   const [sections, setSections] = useState([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
+  // Quizzes tab state
+  const [quizzes, setQuizzes] = useState([]);
+  const [quizzesLoading, setQuizzesLoading] = useState(false);
+  const [activeQuiz, setActiveQuiz] = useState(null);    // quiz being taken
+  const [quizCurrentQ, setQuizCurrentQ] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState({});    // questionId → selectedIndex
+  const [quizChecked, setQuizChecked] = useState({});    // questionId → true/false
+  const [quizDone, setQuizDone] = useState(false);
 
   useEffect(() => {
     // Reset conversation ID when classroom changes
@@ -46,6 +54,16 @@ export default function StudentClassroomDetail() {
         setFilesError(err.message || 'Failed to load sections');
       })
       .finally(() => setSectionsLoading(false));
+  }, [classroomId]);
+
+  // Load published quizzes
+  useEffect(() => {
+    if (!classroomId) return;
+    setQuizzesLoading(true);
+    listClassroomQuizzes(classroomId)
+      .then(data => setQuizzes(data))
+      .catch(() => setQuizzes([]))
+      .finally(() => setQuizzesLoading(false));
   }, [classroomId]);
 
   // Get token on mount
@@ -326,6 +344,12 @@ export default function StudentClassroomDetail() {
         >
           📚 Sections
         </button>
+        <button
+          style={styles.tab(tab === 'quizzes')}
+          onClick={() => setTab('quizzes')}
+        >
+          📝 Quizzes
+        </button>
       </div>
 
       {tab === 'materials' && (
@@ -547,6 +571,196 @@ export default function StudentClassroomDetail() {
                 )}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Quizzes tab ──────────────────────────────────────────────────── */}
+      {tab === 'quizzes' && (
+        <div>
+          {quizzesLoading ? (
+            <p style={styles.empty}>Loading quizzes…</p>
+          ) : !activeQuiz ? (
+            /* Quiz list */
+            quizzes.length === 0 ? (
+              <div style={styles.empty}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
+                <p>No quizzes published yet.</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>Your teacher will publish quizzes here for you to attempt.</p>
+              </div>
+            ) : (
+              quizzes.map(quiz => (
+                <div key={quiz.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                  border: '1px solid #E5E7EB', borderRadius: 10, marginBottom: 10, background: '#FAFAFA',
+                }}>
+                  <span style={{ fontSize: 26 }}>📝</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: '#1F2937' }}>{quiz.title}</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+                      {quiz.questions.length} question{quiz.questions.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveQuiz(quiz);
+                      setQuizCurrentQ(0);
+                      setQuizAnswers({});
+                      setQuizChecked({});
+                      setQuizDone(false);
+                    }}
+                    style={styles.downloadBtn}
+                  >
+                    Start Quiz →
+                  </button>
+                </div>
+              ))
+            )
+          ) : quizDone ? (
+            /* Results screen */
+            (() => {
+              const questions = activeQuiz.questions;
+              const correct = questions.filter(q => quizAnswers[q.id] === q.correct_index).length;
+              const pct = Math.round((correct / questions.length) * 100);
+              return (
+                <div style={{ maxWidth: 560, margin: '0 auto', padding: '24px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 56, marginBottom: 8 }}>
+                    {pct >= 80 ? '🏆' : pct >= 60 ? '😊' : '📚'}
+                  </div>
+                  <h3 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#1F2937' }}>
+                    {pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Well done!' : 'Keep practising!'}
+                  </h3>
+                  <p style={{ fontSize: 16, color: '#6B7280', marginBottom: 20 }}>
+                    You scored <strong style={{ color: pct >= 70 ? '#16a34a' : '#dc2626' }}>{correct}/{questions.length} ({pct}%)</strong>
+                  </p>
+                  {/* Review */}
+                  {questions.map((q, i) => {
+                    const selected = quizAnswers[q.id];
+                    const isCorrect = selected === q.correct_index;
+                    return (
+                      <div key={q.id} style={{
+                        textAlign: 'left', padding: '12px 14px', marginBottom: 10,
+                        border: `1px solid ${isCorrect ? '#bbf7d0' : '#fecaca'}`,
+                        borderRadius: 8, background: isCorrect ? '#f0fdf4' : '#fff1f2',
+                      }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Q{i + 1}: {q.question}</div>
+                        <div style={{ fontSize: 12, color: isCorrect ? '#16a34a' : '#dc2626', marginBottom: 4 }}>
+                          {isCorrect ? '✓ Correct' : `✗ Your answer: ${selected != null ? q.options[selected] : '(not answered)'}`}
+                        </div>
+                        {!isCorrect && (
+                          <div style={{ fontSize: 12, color: '#16a34a' }}>Correct: {q.options[q.correct_index]}</div>
+                        )}
+                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>💡 {q.explanation}</div>
+                      </div>
+                    );
+                  })}
+                  <button
+                    onClick={() => setActiveQuiz(null)}
+                    style={{ ...styles.downloadBtn, marginTop: 12 }}
+                  >← Back to Quizzes</button>
+                </div>
+              );
+            })()
+          ) : (
+            /* Quiz player — one question at a time */
+            (() => {
+              const questions = activeQuiz.questions;
+              const q = questions[quizCurrentQ];
+              const selectedIdx = quizAnswers[q.id];
+              const checked = quizChecked[q.id];
+              const isCorrect = checked && selectedIdx === q.correct_index;
+              return (
+                <div style={{ maxWidth: 560, margin: '0 auto', padding: '12px 0' }}>
+                  {/* Progress */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <span style={{ fontSize: 13, color: '#6B7280' }}>
+                      Question {quizCurrentQ + 1} of {questions.length}
+                    </span>
+                    <button
+                      onClick={() => setActiveQuiz(null)}
+                      style={{ background: 'none', border: 'none', fontSize: 12, color: '#9CA3AF', cursor: 'pointer' }}
+                    >✕ Exit</button>
+                  </div>
+                  <div style={{ height: 4, background: '#E5E7EB', borderRadius: 99, marginBottom: 20 }}>
+                    <div style={{ width: `${((quizCurrentQ + 1) / questions.length) * 100}%`, height: '100%', background: '#2563EB', borderRadius: 99, transition: 'width 0.3s' }} />
+                  </div>
+
+                  <div style={{ fontWeight: 600, fontSize: 16, color: '#1F2937', marginBottom: 16, lineHeight: 1.5 }}>
+                    {q.question}
+                  </div>
+
+                  {/* Options */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {q.options.map((opt, optIdx) => {
+                      let bg = '#F9FAFB', border = '1px solid #E5E7EB', color = '#1F2937';
+                      if (checked) {
+                        if (optIdx === q.correct_index) { bg = '#f0fdf4'; border = '1px solid #86efac'; color = '#166534'; }
+                        else if (optIdx === selectedIdx) { bg = '#fff1f2'; border = '1px solid #fca5a5'; color = '#991b1b'; }
+                      } else if (optIdx === selectedIdx) {
+                        bg = '#eff6ff'; border = '1px solid #93c5fd'; color = '#1d4ed8';
+                      }
+                      return (
+                        <button
+                          key={optIdx}
+                          disabled={checked}
+                          onClick={() => !checked && setQuizAnswers(a => ({ ...a, [q.id]: optIdx }))}
+                          style={{
+                            padding: '12px 16px', background: bg, border, borderRadius: 8,
+                            cursor: checked ? 'default' : 'pointer', textAlign: 'left',
+                            fontSize: 14, color, fontWeight: optIdx === selectedIdx ? 600 : 400,
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <span style={{ fontWeight: 700, marginRight: 8 }}>{String.fromCharCode(65 + optIdx)}.</span>
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Explanation (after checking) */}
+                  {checked && (
+                    <div style={{
+                      padding: '10px 14px', borderRadius: 8, marginBottom: 16,
+                      background: isCorrect ? '#f0fdf4' : '#fff7ed',
+                      border: `1px solid ${isCorrect ? '#bbf7d0' : '#fed7aa'}`,
+                    }}>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: isCorrect ? '#16a34a' : '#ea580c' }}>
+                        {isCorrect ? '✓ Correct!' : '✗ Incorrect'}
+                      </span>
+                      <p style={{ fontSize: 13, color: '#374151', margin: '6px 0 0', lineHeight: 1.5 }}>
+                        💡 {q.explanation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Check / Next buttons */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    {!checked ? (
+                      <button
+                        disabled={selectedIdx == null}
+                        onClick={() => setQuizChecked(c => ({ ...c, [q.id]: true }))}
+                        style={{
+                          ...styles.downloadBtn,
+                          opacity: selectedIdx == null ? 0.5 : 1,
+                          cursor: selectedIdx == null ? 'not-allowed' : 'pointer',
+                        }}
+                      >Check Answer</button>
+                    ) : quizCurrentQ < questions.length - 1 ? (
+                      <button
+                        onClick={() => setQuizCurrentQ(i => i + 1)}
+                        style={styles.downloadBtn}
+                      >Next →</button>
+                    ) : (
+                      <button
+                        onClick={() => setQuizDone(true)}
+                        style={{ ...styles.downloadBtn, background: '#16a34a' }}
+                      >Finish Quiz 🏆</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()
           )}
         </div>
       )}

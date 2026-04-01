@@ -1,0 +1,59 @@
+Source: W3Schools Java Tutorial
+Title: Concatenation
+URL: https://www.w3schools.com/java/java_strings_concat.aspJava
+String Concatenation
+❮ Previous
+Next ❯
+String Concatenation
+The
++
+operator can be used between strings to 
+combine them. This is called
+concatenation
+:
+Example
+String firstName = "John";
+String lastName = "Doe";
+System.out.println(firstName + " " + lastName);
+Try it Yourself »
+Note that we have added an empty text (" ") to create a space between firstName and lastName on print.
+Concatenation in Sentences
+You can use string concatenation to build sentences with both text and variables:
+Example
+String name = "John";
+int age = 25;
+System.out.println("My name is " + name + " and I am " + age + " years old.");
+Result:
+My name is John and I am 25 years old.
+Try it Yourself »
+The concat() Method
+You can also use the
+concat()
+method to concatenate strings:
+Example
+String firstName = "John ";
+String lastName = "Doe";
+System.out.println(firstName.concat(lastName));
+Try it Yourself »
+You can also join more than two strings by chaining
+concat()
+calls:
+Example
+String a = "Java ";
+String b = "is ";
+String c = "fun!";
+String result = a.concat(b).concat(c);
+System.out.println(result);
+Try it Yourself »
+Note:
+While you can use
+concat()
+to join multiple strings, 
+most developers prefer the
++
+operator because it is shorter and easier to read.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

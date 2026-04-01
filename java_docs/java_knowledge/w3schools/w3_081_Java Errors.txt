@@ -1,0 +1,113 @@
+Source: W3Schools Java Tutorial
+Title: Java Errors
+URL: https://www.w3schools.com/java/java_errors.aspJava
+Errors
+❮ Previous
+Next ❯
+Java Errors
+Even experienced Java developers make mistakes. The key is learning how to
+spot
+and
+fix
+them!
+These pages cover common errors and helpful debugging tips to help you understand what's going wrong and how to fix it.
+Types of Errors in Java
+Error Type
+Description
+Compile-Time Error
+Detected by the compiler. Prevents code from running.
+Runtime Error
+Occurs while the program is running. Often causes crashes.
+Logical Error
+Code runs but gives incorrect results. Hardest to find.
+Common Compile-Time Errors
+Compile-time errors occur when the program cannot compile due to syntax or type issues.
+Here are some examples:
+1) Missing Semicolon
+Example
+int x = 5
+System.out.println(x);
+Result:
+error: ';' expected
+Try it Yourself »
+Tip:
+Java requires a semicolon at the end of every statement (
+int x = 5
+;
+).
+2) Undeclared Variables
+Example
+System.out.println(myVar);
+Result:
+cannot find symbol
+symbol:   variable myVar
+Try it Yourself »
+Tip:
+You must declare a variable before using it (
+int myVar = 50;
+).
+3) Mismatched Types
+Example
+int x = "Hello";
+Result:
+incompatible types: String cannot be converted to int
+Try it Yourself »
+Tip:
+Make sure the value matches the variable type (
+String x = "Hello";
+).
+Common Runtime Errors
+Runtime errors
+occur when the program compiles but crashes or behaves unexpectedly.
+Here are some examples:
+1) Division by Zero
+Example
+int x = 10;
+int y = 0;
+int result = x / y;
+System.out.println(result);
+Result:
+Exception in thread "main" java.lang.ArithmeticException: / by zero
+Try it Yourself »
+2) Array Index Out of Bounds
+Example
+int[] numbers = {1, 2, 3};
+System.out.println(numbers[8]);
+Result:
+Exception in thread "main" java.lang.ArrayIndexOutOfBoundsException: Index 8 out of bounds for length 3
+Try it Yourself »
+Logical Errors
+Logical errors
+happen when the code runs, but the result is not what you thought:
+Example:
+int x = 10;
+int y = 2;
+int sum = x - y;
+System.out.println("x + y = " + sum);
+Result:
+x + y = 8
+Try it Yourself »
+Expected Result:
+12
+Logical Error:
+The code mistakenly subtracts instead of adds.
+Tip:
+Test your program with different inputs to catch logic flaws (try using
+x + y
+instead). 
+This is part of
+debugging
+, which you will learn more about in the next chapter.
+Good Habits to Avoid Errors
+Use meaningful variable names
+Read the error message carefully. What line does it mention?
+Check for missing semicolons or braces
+Look for typos in variable or method names
+In the next chapter, you will learn how to
+debug your code
+- how to find and fix bugs/errors in your program.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

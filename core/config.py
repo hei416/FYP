@@ -23,8 +23,21 @@ BASE_PATH = os.getenv("BASE_PATH", os.path.join(PROJECT_ROOT, "practical_tests",
 # ============================================
 # FAISS RAG System Configuration
 # ============================================
-VECTORSTORE_PATH = os.path.join(PROJECT_ROOT, "vectorstore")
-DOCS_DIR = os.path.join(PROJECT_ROOT, "java_docs")
+VECTORSTORE_ROOT = os.path.join(PROJECT_ROOT, "vectorstore")
+DOCS_ROOT = os.path.join(PROJECT_ROOT, "java_docs")
+
+# Legacy single-store layout retained for migration / recovery.
+LEGACY_VECTORSTORE_PATH = VECTORSTORE_ROOT
+DOCS_DIR = DOCS_ROOT
+
+# Split knowledge-base layout.
+VECTORSTORE_JAVA_PATH = os.path.join(VECTORSTORE_ROOT, "java_knowledge")
+VECTORSTORE_PLATFORM_PATH = os.path.join(VECTORSTORE_ROOT, "platform_guide")
+DOCS_JAVA_DIR = os.path.join(DOCS_ROOT, "java_knowledge")
+DOCS_PLATFORM_DIR = os.path.join(DOCS_ROOT, "platform_guide")
+
+# Backward-compatible alias for call sites still expecting the unified path.
+VECTORSTORE_PATH = LEGACY_VECTORSTORE_PATH
 
 # LLM Settings (MUST MATCH NOTEBOOK!)
 FAISS_MODEL_NAME = "qwen3-max"

@@ -1,0 +1,422 @@
+Source: https://www.geeksforgeeks.org/checked-vs-unchecked-exceptions-in-java/
+Topic: Exception HandlingJava Checked vs Unchecked Exceptions
+Last Updated :
+02 Oct, 2025
+Comments
+Improve
+Suggest changes
+274 Likes
+Like
+Report
+In Java, an exception is an unwanted or unexpected event that occurs during the execution of a program, i.e., at run time, that disrupts the normal flow of the program’s instructions. In Java, there are two types of exceptions:
+Checked Exception
+: These exceptions are checked at compile time, forcing the programmer to handle them explicitly.
+Unchecked Exception
+: These exceptions are checked at runtime and do not require explicit handling at compile time.
+Checked Exceptions in Java
+If a method throws a checked Exception, then the exception must be handled using a try-catch block and declared the exception in the method signature using the
+throws
+keyword.
+Types of Checked Exception
+Fully Checked Exception:
+A checked exception where all its child classes are also checked (e.g.,
+IOException
+,
+InterruptedException
+).
+Partially Checked Exception:
+A checked exception where some of its child classes are unchecked (e.g.,
+Exception
+).
+Checked exceptions represent invalid conditions in areas outside the immediate control of the program like memory, network, file system, etc. Any checked exception is a subclass of
+Exception
+.
+Java
+import
+java.io.*
+;
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Getting the current root directory
+String
+root
+=
+System
+.
+getProperty
+(
+"user.dir"
+);
+System
+.
+out
+.
+println
+(
+"Current root directory: "
++
+root
+);
+// Adding the file name to the root directory
+String
+path
+=
+root
++
+"\\message.txt"
+;
+System
+.
+out
+.
+println
+(
+"File path: "
++
+path
+);
+// Reading the file from the path in the local directory
+FileReader
+f
+=
+new
+FileReader
+(
+path
+);
+// Creating an object as one of the ways of taking input
+BufferedReader
+b
+=
+new
+BufferedReader
+(
+f
+);
+for
+(
+int
+counter
+=
+0
+;
+counter
+<
+3
+;
+counter
+++
+)
+System
+.
+out
+.
+println
+(
+b
+.
+readLine
+());
+f
+.
+close
+();
+}
+}
+Output:
+Checked Exceptions
+To fix the above program, we either need to specify a list of exceptions using throws or we need to use a try-catch block. We have used throws in the below program. Since FileNotFoundException is a subclass of IOException, we can just specify IOException in the throws list and make the above program compiler-error-free.
+Java
+import
+java.io.*
+;
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+throws
+IOException
+{
+// Getting the current root directory
+String
+root
+=
+System
+.
+getProperty
+(
+"user.dir"
+);
+System
+.
+out
+.
+println
+(
+"Current root directory: "
++
+root
+);
+// Adding the file name to the root directory
+String
+path
+=
+root
++
+"\\message.txt"
+;
+System
+.
+out
+.
+println
+(
+"File path: "
++
+path
+);
+// Reading the file from the path in the local directory
+try
+{
+FileReader
+f
+=
+new
+FileReader
+(
+path
+);
+// Creating an object as one of the ways of taking input
+BufferedReader
+b
+=
+new
+BufferedReader
+(
+f
+);
+// Printing the first 3 lines of the file
+for
+(
+int
+counter
+=
+0
+;
+counter
+<
+3
+;
+counter
+++
+)
+System
+.
+out
+.
+println
+(
+b
+.
+readLine
+());
+f
+.
+close
+();
+}
+catch
+(
+FileNotFoundException
+e
+)
+{
+System
+.
+out
+.
+println
+(
+"File not found: "
++
+e
+.
+getMessage
+());
+}
+catch
+(
+IOException
+e
+)
+{
+System
+.
+out
+.
+println
+(
+"An I/O error occurred: "
++
+e
+.
+getMessage
+());
+}
+}
+}
+Output:
+Checked Exceptions
+Note:
+If you are running this code on Linux/macOS, use the correct path format i.e
+.
+/home/user/test/a.txt
+Explanation:
+In the above program we create a Java program which reads a file from the same directory this program may throw exceptions like FileNotFoundException or IOException so we handle it using the try-catch block to handle the exceptions and execute the program without any interruption.
+Unchecked Exceptions in JavaUnchecked Exceptions in Java
+Unchecked exception are exceptions that are not checked at the compile time. In Java, exceptions under Error and RuntimeException classes are unchecked exceptions, everything else under throwable is checked.
+Consider the following Java program. It compiles fine, but it throws an ArithmeticException when run. The compiler allows it to compile because
+ArithmeticException is an unchecked exception.
+Java
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+args
+[]
+)
+{
+// Here we are dividing by 0 which will not be caught at compile time as there is no mistake but caught at runtime because it is mathematically incorrect
+int
+x
+=
+0
+;
+int
+y
+=
+10
+;
+int
+z
+=
+y
+/
+x
+;
+}
+}
+Output:
+Unchecked Exceptions
+Note:
+Unchecked exceptions are runtime exceptions that are not required to be caught or declared in a throws clause.
+These exceptions are caused by programming errors, such as attempting to access an index out of bounds in an array or attempting to divide by zero.
+Unchecked exceptions include all subclasses of the RuntimeException class, as well as the Error class and its subclasses.
+The separation into checked and unchecked exceptions sounded like a good idea at the time. Over the years, it has introduced more boilerplate and less aesthetically pleasing code patterns than it solved real problems. The typical pattern within the Java ecosystem is to hide the checked exception within an unchecked one.
+Example:
+try {
+// Some I/O operation here
+} catch( final IOException ex ) {
+throw new RuntimeException( "I/O operation failed", ex );
+}
+Difference Between Checked and Unchecked Exceptions
+Checked Exception
+Unchecked Exception
+Checked exceptions are checked at compile time.
+Unchecked exceptions are checked at run time.
+Derived from Exception.
+Derived from RuntimeException.
+Caused by external factors like file I/O and database connection cause the checked Exception.
+Caused by programming bugs like logical errors cause unchecked Exceptions.
+Checked exceptions must be handled using a try-catch block or must be declared using the throws keyword
+No handling is required.
+Examples: IOException, SQLException, FileNotFoundException.
+Examples: NullPointerException, ArrayIndexOutOfBoundsException.
+Suggested Quiz
+Edit Quiz
+3 Questions
+What is the main difference between checked and unchecked exceptions in Java?
+A
+Checked exceptions occur only at runtime
+B
+Unchecked exceptions must be declared using throws
+C
+Checked exceptions are checked at compile time
+D
+Unchecked exceptions cannot be caught
+Explanation:
+Checked exceptions must be handled or declared during compilation.
+Which of the following is a checked exception?
+A
+NullPointerException
+B
+IOException
+C
+ArithmeticException
+D
+ArrayIndexOutOfBoundsException
+Explanation:
+IOException belongs to the checked exception hierarchy and must be handled explicitly.
+What happens if a method throws a checked exception but does not handle or declare it?
+A
+It causes a runtime error
+B
+The program ignores it
+C
+The compiler throws an error
+D
+It automatically becomes unchecked
+Explanation:
+The compiler enforces handling or declaring checked exceptions.
+Quiz Completed Successfully
+Your Score :
+2
+/3
+Accuracy :
+0%
+Login to View Explanation
+1
+/3
+1
+/3
+< Previous
+Next >
+Comment
+K
+kartik
+Follow
+274
+Improve
+K
+kartik
+Follow
+274
+Improve
+Article Tags :
+Java
+Difference Between
+Java-Exceptions

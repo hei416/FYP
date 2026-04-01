@@ -129,6 +129,44 @@ async def rag_status():
     return {"ready": RAG_INITIALIZED}
 
 
+def require_rag_rebuild_access(current_user):
+    if current_user.role not in {"teacher", "admin"}:
+        raise HTTPException(status_code=403, detail="Only teachers or admins can rebuild the knowledge base")
+
+
+@router.post("/api/rag/rebuild/platform-guide")
+async def rebuild_platform_guide_rag(current_user=Depends(get_current_user)):
+    require_rag_rebuild_access(current_user)
+    from main import ensure_rag_initialized
+    import routers.lessons as lessons_router
+
+    await ensure_rag_initialized(rebuild_platform=True)
+    lessons_router.load_vectorstore.cache_clear()
+    return {"success": True, "rebuilt": "platform_guide"}
+
+
+@router.post("/api/rag/rebuild/java-knowledge")
+async def rebuild_java_knowledge_rag(current_user=Depends(get_current_user)):
+    require_rag_rebuild_access(current_user)
+    from main import ensure_rag_initialized
+    import routers.lessons as lessons_router
+
+    await ensure_rag_initialized(rebuild_java=True)
+    lessons_router.load_vectorstore.cache_clear()
+    return {"success": True, "rebuilt": "java_knowledge"}
+
+
+@router.post("/api/rag/rebuild/all")
+async def rebuild_all_rag(current_user=Depends(get_current_user)):
+    require_rag_rebuild_access(current_user)
+    from main import ensure_rag_initialized
+    import routers.lessons as lessons_router
+
+    await ensure_rag_initialized(rebuild_java=True, rebuild_platform=True)
+    lessons_router.load_vectorstore.cache_clear()
+    return {"success": True, "rebuilt": "all"}
+
+
 async def get_retriever():
     """Single source of truth for retriever access across all endpoints."""
     global retriever

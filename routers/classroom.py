@@ -6,14 +6,15 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 import random
 import string
-import shutil, uuid, os
+import shutil, uuid, os, time, json
+import httpx
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz
 from routers.auth import get_current_user, require_role
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
-    search_classroom_context,
+    search_classroom_context, get_chunks_for_files,
 )
 
 router = APIRouter(prefix="/classrooms", tags=["Classroom"])
@@ -139,6 +140,56 @@ class MoveFileRequest(BaseModel):
 class ClassroomAskRequest(BaseModel):
     question: str
     mode: str = "classroom"  # "classroom" | "general"
+
+
+# ---------------------------------------------------------------------------
+# Quiz Pydantic schemas
+# ---------------------------------------------------------------------------
+
+class QuizMCQ(BaseModel):
+    id: str
+    question: str
+    options: List[str]
+    correct_index: int
+    explanation: str
+
+
+class GenerateClassroomQuizRequest(BaseModel):
+    topic_prompt: str
+    num_questions: int = 5
+    section_id: Optional[int] = None
+    file_ids: Optional[List[int]] = None  # if set, restrict context to these files
+
+
+class SaveClassroomQuizRequest(BaseModel):
+    title: str
+    topic_prompt: Optional[str] = None
+    questions: List[dict]
+    section_id: Optional[int] = None
+    status: str = "draft"  # "draft" | "published"
+
+
+class UpdateClassroomQuizRequest(BaseModel):
+    title: Optional[str] = None
+    questions: Optional[List[dict]] = None
+    section_id: Optional[int] = None
+    status: Optional[str] = None
+
+
+class ClassroomQuizResponse(BaseModel):
+    id: int
+    classroom_id: int
+    section_id: Optional[int]
+    title: str
+    topic_prompt: Optional[str]
+    questions: List[dict]
+    status: str
+    created_by: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # ---------------------------------------------------------------------------
@@ -1019,4 +1070,251 @@ async def ask_classroom(
         "has_context": len(context_chunks) > 0,
         "sources_count": len(context_chunks),
     }
+
+
+# ---------------------------------------------------------------------------
+# LLM helper (no circular import — lives here, mirrors call_llm_json in rag.py)
+# ---------------------------------------------------------------------------
+
+async def _call_llm_json_for_classroom(messages: List[Dict], temperature: float = 0.4, max_tokens: int = 3000, timeout: int = 120) -> dict:
+    from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
+    api_url = f"{BASE_URL}/deployments/{FAISS_MODEL_NAME}/chat/completions?api-version={FAISS_API_VERSION}"
+    headers_map = {"Content-Type": "application/json", "api-key": API_KEY}
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            api_url,
+            headers=headers_map,
+            json={
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "response_format": {"type": "json_object"},
+            },
+        )
+        response.raise_for_status()
+        raw = response.json()["choices"][0]["message"]["content"]
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        return json.loads(raw)
+
+
+# ---------------------------------------------------------------------------
+# Quiz endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/{classroom_id}/quizzes/generate")
+async def generate_classroom_quiz_questions(
+    classroom_id: int,
+    data: GenerateClassroomQuizRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate MCQ draft questions using classroom RAG context. Returns questions for teacher preview — nothing is saved yet."""
+    _verify_teacher_access(classroom_id, current_user, db)
+
+    if not data.topic_prompt.strip():
+        raise HTTPException(400, "topic_prompt cannot be empty")
+
+    num_q = max(1, min(data.num_questions, 20))
+
+    # Choose context source: specific files (direct chunk fetch) or global RAG search
+    if data.file_ids:
+        # Validate all file_ids belong to this classroom
+        valid_ids = [
+            f.id for f in db.query(ClassroomFile)
+                           .filter(ClassroomFile.classroom_id == classroom_id,
+                                   ClassroomFile.id.in_(data.file_ids))
+                           .all()
+        ]
+        if not valid_ids:
+            raise HTTPException(404, "None of the selected files were found in this classroom.")
+        context_chunks_raw = get_chunks_for_files(classroom_id, valid_ids, db)
+    else:
+        context_chunks_raw = search_classroom_context(
+            classroom_id=classroom_id,
+            query=data.topic_prompt,
+            db=db,
+            top_k=10,
+        )
+
+    if not context_chunks_raw:
+        raise HTTPException(400, "No classroom documents found. Upload documents first, then generate a quiz.")
+
+    # context chunks are dicts with "text" key
+    texts = [c["text"] if isinstance(c, dict) else str(c) for c in context_chunks_raw]
+    context_str = "\n\n---\n\n".join(texts)
+    if len(context_str) > 7000:
+        context_str = context_str[:7000] + "\n...[context truncated]"
+
+    id_prefix = f"cq{classroom_id}_{int(time.time())}_"
+
+    prompt = (
+        f"You are an educational quiz generator. A teacher wants to create a quiz based on classroom materials.\n\n"
+        f"CLASSROOM MATERIAL:\n{context_str}\n\n"
+        f"QUIZ TOPIC: {data.topic_prompt}\n\n"
+        f"Generate exactly {num_q} multiple-choice questions based strictly on the classroom material above.\n"
+        f"Each question MUST:\n"
+        f"- Test understanding of the topic: \"{data.topic_prompt}\"\n"
+        f"- Be answerable from the classroom material above\n"
+        f"- Have exactly 4 answer options (A, B, C, D)\n"
+        f"- Have EXACTLY ONE correct answer (correct_index is 0-based)\n"
+        f"- Include a brief explanation for the correct answer\n\n"
+        f"Respond ONLY with a JSON object in this exact format:\n"
+        f'{{"questions": [{{"id": "{id_prefix}1", "question": "...", "options": ["A", "B", "C", "D"], "correct_index": 0, "explanation": "..."}}]}}'
+    )
+
+    try:
+        result = await _call_llm_json_for_classroom(
+            messages=[
+                {"role": "system", "content": "You are an expert quiz generator. Respond with valid JSON only."},
+                {"role": "user", "content": prompt},
+            ]
+        )
+    except Exception as exc:
+        raise HTTPException(502, f"LLM request failed: {str(exc)}")
+
+    questions = result.get("questions", [])
+    if not questions:
+        raise HTTPException(500, "LLM returned no questions. Please try again with a different prompt.")
+
+    print(f"✅ Generated {len(questions)} questions for classroom {classroom_id}, topic: {data.topic_prompt}")
+    return {"questions": questions, "context_chunks_used": len(context_chunks_raw)}
+
+
+@router.post("/{classroom_id}/quizzes", response_model=ClassroomQuizResponse, status_code=status.HTTP_201_CREATED)
+def save_classroom_quiz(
+    classroom_id: int,
+    data: SaveClassroomQuizRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save a quiz (draft or published) for a classroom."""
+    _verify_teacher_access(classroom_id, current_user, db)
+
+    if not data.title.strip():
+        raise HTTPException(400, "Quiz title cannot be empty")
+    if not data.questions:
+        raise HTTPException(400, "Quiz must have at least one question")
+    if data.status not in ("draft", "published"):
+        raise HTTPException(400, "status must be 'draft' or 'published'")
+
+    if data.section_id is not None:
+        section = db.query(ClassroomSection).filter(
+            ClassroomSection.id == data.section_id,
+            ClassroomSection.classroom_id == classroom_id,
+        ).first()
+        if not section:
+            raise HTTPException(404, "Section not found")
+
+    quiz = ClassroomQuiz(
+        classroom_id=classroom_id,
+        section_id=data.section_id,
+        title=data.title.strip(),
+        topic_prompt=data.topic_prompt,
+        questions=data.questions,
+        status=data.status,
+        created_by=current_user.id,
+    )
+    db.add(quiz)
+    db.commit()
+    db.refresh(quiz)
+    return quiz
+
+
+@router.get("/{classroom_id}/quizzes", response_model=List[ClassroomQuizResponse])
+def list_classroom_quizzes(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List quizzes. Teachers see all (draft + published); students see published only."""
+    classroom = _verify_classroom_access(classroom_id, current_user, db)
+
+    query = db.query(ClassroomQuiz).filter(ClassroomQuiz.classroom_id == classroom_id)
+    if current_user.role == "student":
+        query = query.filter(ClassroomQuiz.status == "published")
+
+    return query.order_by(ClassroomQuiz.created_at.desc()).all()
+
+
+@router.get("/{classroom_id}/quizzes/{quiz_id}", response_model=ClassroomQuizResponse)
+def get_classroom_quiz(
+    classroom_id: int,
+    quiz_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verify_classroom_access(classroom_id, current_user, db)
+    quiz = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.id == quiz_id,
+        ClassroomQuiz.classroom_id == classroom_id,
+    ).first()
+    if not quiz:
+        raise HTTPException(404, "Quiz not found")
+    if current_user.role == "student" and quiz.status != "published":
+        raise HTTPException(403, "This quiz is not published yet")
+    return quiz
+
+
+@router.patch("/{classroom_id}/quizzes/{quiz_id}", response_model=ClassroomQuizResponse)
+def update_classroom_quiz(
+    classroom_id: int,
+    quiz_id: int,
+    data: UpdateClassroomQuizRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Edit quiz title, questions, section, or status (publish/unpublish)."""
+    _verify_teacher_access(classroom_id, current_user, db)
+    quiz = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.id == quiz_id,
+        ClassroomQuiz.classroom_id == classroom_id,
+    ).first()
+    if not quiz:
+        raise HTTPException(404, "Quiz not found")
+
+    if data.title is not None:
+        if not data.title.strip():
+            raise HTTPException(400, "Title cannot be empty")
+        quiz.title = data.title.strip()
+    if data.questions is not None:
+        if not data.questions:
+            raise HTTPException(400, "Quiz must have at least one question")
+        quiz.questions = data.questions
+    if data.status is not None:
+        if data.status not in ("draft", "published"):
+            raise HTTPException(400, "status must be 'draft' or 'published'")
+        quiz.status = data.status
+    if "section_id" in data.model_fields_set:
+        if data.section_id is not None:
+            section = db.query(ClassroomSection).filter(
+                ClassroomSection.id == data.section_id,
+                ClassroomSection.classroom_id == classroom_id,
+            ).first()
+            if not section:
+                raise HTTPException(404, "Section not found")
+        quiz.section_id = data.section_id
+
+    quiz.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(quiz)
+    return quiz
+
+
+@router.delete("/{classroom_id}/quizzes/{quiz_id}", status_code=status.HTTP_200_OK)
+def delete_classroom_quiz(
+    classroom_id: int,
+    quiz_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verify_teacher_access(classroom_id, current_user, db)
+    quiz = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.id == quiz_id,
+        ClassroomQuiz.classroom_id == classroom_id,
+    ).first()
+    if not quiz:
+        raise HTTPException(404, "Quiz not found")
+    db.delete(quiz)
+    db.commit()
+    return {"status": "deleted", "quiz_id": quiz_id}
 

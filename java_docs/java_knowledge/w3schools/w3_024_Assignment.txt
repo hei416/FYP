@@ -1,0 +1,101 @@
+Source: W3Schools Java Tutorial
+Title: Assignment
+URL: https://www.w3schools.com/java/java_operators_assign.aspJava
+Assignment Operators
+❮ Previous
+Next ❯
+Assignment Operators
+Assignment operators are used to assign values to variables.
+In the example below, we use the
+assignment
+operator (
+=
+) 
+to assign the value
+10
+to a variable called
+x
+:
+Example
+int x = 10;
+Try it Yourself »
+The
+addition assignment
+operator (
++=
+) adds a value to a variable:
+Example
+int x = 10;
+x += 5;
+Try it Yourself »
+A list of all assignment operators:
+Operator
+Example
+Same As
+Try it
+=
+x = 5
+x = 5
+Try it »
++=
+x += 3
+x = x + 3
+Try it »
+-=
+x -= 3
+x = x - 3
+Try it »
+*=
+x *= 3
+x = x * 3
+Try it »
+/=
+x /= 3
+x = x / 3
+Try it »
+%=
+x %= 3
+x = x % 3
+Try it »
+&=
+x &= 3
+x = x & 3
+Try it »
+|=
+x |= 3
+x = x | 3
+Try it »
+^=
+x ^= 3
+x = x ^ 3
+Try it »
+>>=
+x >>= 3
+x = x >> 3
+Try it »
+<<=
+x <<= 3
+x = x << 3
+Try it »
+Note:
+Most assignment operators are just shorter ways of writing code.  
+For example,
+x += 5
+is the same as
+x = x + 5
+, but shorter and often easier to read.
+Real-Life Example: Tracking Savings
+Assignment operators can also be used in real-life scenarios.  
+For example, you can use the
++=
+operator to keep track of savings when you add money to an account:
+Example
+int savings = 100; 
+savings += 50; // add 50 to savings
+System.out.println("Total savings: " + savings);
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

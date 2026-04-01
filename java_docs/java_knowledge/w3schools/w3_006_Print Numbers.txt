@@ -1,0 +1,32 @@
+Source: W3Schools Java Tutorial
+Title: Print Numbers
+URL: https://www.w3schools.com/java/java_output_numbers.aspJava
+Output Numbers
+❮ Previous
+Next ❯
+Print Numbers
+You can also use the
+println()
+method to 
+print numbers.
+However, unlike text, we don't put numbers inside double 
+quotes:
+Example
+System.out.println(3);
+System.out.println(358);
+System.out.println(50000);
+Try it Yourself »
+You can also perform mathematical calculations inside the
+println()
+method:
+Example
+System.out.println(3 + 3);
+Try it Yourself »
+Example
+System.out.println(2 * 5);
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

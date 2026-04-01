@@ -1,0 +1,104 @@
+Source: W3Schools Java Tutorial
+Title: Java Strings
+URL: https://www.w3schools.com/java/java_strings.aspJava
+Strings
+❮ Previous
+Next ❯
+Java Strings
+Strings are used for storing text.
+A
+String
+variable contains a collection of characters surrounded by double quotes (
+""
+):
+Example
+Create a variable of type
+String
+and assign it a value:
+String greeting = "Hello";
+Try it Yourself »
+String Length
+A String in Java is actually an object, which means it contains
+methods
+that can perform certain operations on strings.
+For example, you can find the length of a string with the
+length()
+method:
+Example
+String txt = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+System.out.println("The length of the txt string is: " + txt.length());
+Try it Yourself »
+More String Methods
+There are many string methods available in Java.
+For example:
+The
+toUpperCase()
+method converts a string to
+upper case
+letters.
+The
+toLowerCase()
+method converts a string to
+lower case
+letters.
+Example
+String txt = "Hello World";
+System.out.println(txt.toUpperCase());   // Outputs "HELLO WORLD"
+System.out.println(txt.toLowerCase());   // Outputs "hello world"
+Try it Yourself »
+Finding a Character in a String
+The
+indexOf()
+method returns the
+index
+(the position) 
+of the first occurrence of a specified text in a string 
+(including whitespace):
+Example
+String txt = "Please locate where 'locate' occurs!";
+System.out.println(txt.indexOf("locate")); // Outputs 7
+Try it Yourself »
+Java counts positions from zero.
+0 is the first position in a 
+string, 1 is the second, 2 is the third ...
+You can use the
+charAt()
+method to access a character at a specific position in a string:
+Example
+String txt = "Hello";
+System.out.println(txt.charAt(0));  // H
+System.out.println(txt.charAt(4));  // o
+Try it Yourself »
+Comparing Strings
+To compare two strings, you can use the
+equals()
+method:
+Example
+String txt1 = "Hello";
+String txt2 = "Hello";String txt3 = "Greetings";
+String txt4 = "Great things";System.out.println(txt1.equals(txt2));  // true
+System.out.println(txt3.equals(txt4));  // false
+Try it Yourself »
+Removing Whitespace
+The
+trim()
+method removes whitespace from the beginning and the end of a string:
+Example
+String txt = "   Hello World   ";
+System.out.println("Before: [" + txt + "]");
+System.out.println("After:  [" + txt.trim() + "]");
+Result:
+Before: [   Hello World   ]
+After:  [Hello World]
+Try it Yourself »
+Complete String Reference
+For a complete reference of String methods, go to our
+Java String Methods Reference
+.
+The reference contains descriptions and examples of all string methods.
+Video: Java Strings
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

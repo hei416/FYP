@@ -1,0 +1,289 @@
+Source: https://www.geeksforgeeks.org/exceptions-in-java/
+Topic: Exception HandlingJava Exception Handling
+Last Updated :
+15 Nov, 2025
+Comments
+Improve
+Suggest changes
+345 Likes
+Like
+Report
+Try it on GfG Practice
+In Java, exception handling is a mechanism to handle runtime errors, allowing the normal flow of a program to continue. Exceptions are events that occur during program execution that disrupt the normal flow of instructions.
+Basic try-catch Example
+The try block contains code that might throw an exception,
+The catch block handles the exception if it occurs.
+Java
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+int
+n
+=
+10
+;
+int
+m
+=
+0
+;
+try
+{
+int
+ans
+=
+n
+/
+m
+;
+System
+.
+out
+.
+println
+(
+"Answer: "
++
+ans
+);
+}
+catch
+(
+ArithmeticException
+e
+){
+System
+.
+out
+.
+println
+(
+"Error: Division by 0!"
+);
+}
+}
+}
+Output
+Error: Division by 0!
+Finally Block
+The finally block always executed whether an  exception is thrown or not. The
+finally
+is used for closing resources like db connections, open files and network connections, It is used after a try-catch block to execute code that must run.
+Java
+class
+FinallyExample
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+int
+[]
+numbers
+=
+{
+1
+,
+2
+,
+3
+};
+try
+{
+// This will throw ArrayIndexOutOfBoundsException
+System
+.
+out
+.
+println
+(
+numbers
+[
+5
+]
+);
+}
+catch
+(
+ArrayIndexOutOfBoundsException
+e
+){
+System
+.
+out
+.
+println
+(
+"Exception caught: "
++
+e
+);
+}
+finally
+{
+System
+.
+out
+.
+println
+(
+"This block always executes."
+);
+}
+System
+.
+out
+.
+println
+(
+"Program continues..."
+);
+}
+}
+Output
+Exception caught: java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 3
+This block always executes.
+Program continues...
+throw and throws Keywords
+1. throw:
+Used to explicitly throw a single exception. We use
+throw
+when something goes wrong (or “shouldn’t happen”) and we want to stop normal flow and hand control to exception handling.
+Java
+class
+Demo
+{
+static
+void
+checkAge
+(
+int
+age
+)
+{
+if
+(
+age
+<
+18
+)
+{
+throw
+new
+ArithmeticException
+(
+"Age must be 18 or above"
+);
+}
+}
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+checkAge
+(
+15
+);
+}
+}
+Output:The run-time system searches the call stack for an exception handler
+It starts searching from the method where the exception occurred and proceeds backward through the call stack.
+If a handler is found, the exception is passed to it.
+If no handler is found, the default exception handler terminates the program and prints the stack trace.
+Exception in thread "abc" Name of Exception : Description
+// Call Stack
+Look at the below diagram to understand the flow of the call stack:
+Illustration
+:
+Java
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+args
+[]
+)
+{
+// Taking an empty string
+String
+s
+=
+null
+;
+// Getting length of a string
+System
+.
+out
+.
+println
+(
+s
+.
+length
+());
+}
+}
+Output:
+output
+Difference Between Exception and Error
+Feature
+Exception
+Error
+Definition
+An event that occurs during program execution, disrupting normal flow, which can be handled using try-catch.
+A serious problem that occurs in the JVM, generally cannot be handled by the application.
+Package
+java.lang.Exception
+java.lang.Error
+Recoverable
+Yes, can be caught and handled.
+No, usually not recoverable.
+Examples
+IOException, SQLException, ArithmeticException
+OutOfMemoryError, StackOverflowError
+Create Quiz
+Exception Handling (introduction)
+Visit Course
+Exception Handling (introduction)
+Overview of Exception Handling In Java
+Exception Hierarchy  in Java
+Comment
+K
+kartik
+Follow
+345
+Improve
+K
+kartik
+Follow
+345
+Improve
+Article Tags :
+Java
+Java-Exceptions

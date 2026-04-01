@@ -1,0 +1,627 @@
+Source: GeeksforGeeks
+Topic: stream-in-java
+URL: https://www.geeksforgeeks.org/stream-in-java/Stream was introduced in
+Java 8
+, the Stream API is used to process collections of objects. A stream in Java is a sequence of objects that supports various methods that can be pipelined to produce the desired result.
+Use of Stream in Java
+The uses of Stream in Java are mentioned below:
+Stream API is a way to express and process collections of objects.
+Enable us to perform operations like filtering, mapping, reducing and sorting.
+How to Create a Java Stream
+Java Stream Creation is one of the most basic steps before considering the functionalities of the Java Stream. Below is the syntax given for declaring a Java Stream.
+Syntax
+Stream<T> stream;
+Here, T is either a class, object or data type depending upon the declaration.
+Java Stream Features
+The features of Java streams are mentioned below:
+A Stream is not a data structure; it just takes input from Collections, Arrays or I/O channels.
+Streams do not modify the original data; they only produce results using their methods.
+Intermediate operations (like filter, map, etc.) are lazy and return another Stream, so you can chain them together.
+A terminal operation (like collect, forEach, count) ends the stream and gives the final result.
+Different Operations On Streams
+There are two types of Operations in Streams:
+Intermediate Operations
+Terminal Operations
+Intermediate Operations
+Intermediate Operations are the types of operations in which multiple methods are chained in a row.
+Characteristics of Intermediate Operations
+Methods are chained together.
+Intermediate operations transform a stream into another stream.
+It enables the concept of filtering where one method filters data and passes it to another method after processing.
+Important Intermediate Operations
+There are a few Intermediate Operations mentioned below:
+1. map()
+: The map method is used to return a stream consisting of the results of applying the given function to the elements of this stream.
+Syntax:
+<R> Stream<R> map(Function<? super T, ? extends R> mapper)
+2. filter()
+: The filter method is used to select elements as per the Predicate passed as an argument.
+Syntax:
+Stream<T> filter(Predicate<? super T> predicate)
+3. sorted()
+: The sorted method is used to sort the stream.
+Syntax:
+Stream<T> sorted()
+Stream<T> sorted(Comparator<? super T> comparator)
+4. flatMap():
+The flatMap operation in Java Streams is used to flatten a stream of collections into a single stream of elements.
+Syntax:
+<R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper)
+5. distinct()
+: Removes duplicate elements. It returns a stream consisting of the distinct elements (according to Object.equals(Object)).
+Syntax:
+Stream<T> distinct()
+6. peek()Syntax:
+Stream<T> distinct()
+6. peek()
+: Performs an action on each element without modifying the stream. It returns a stream consisting of the elements of this stream, additionally performing the provided action on each element as elements are consumed from the resulting stream.
+Syntax:
+Stream<T> peek(Consumer<? super T> action)
+Java program that demonstrates the use of all the intermediate operations:
+Java
+import
+java.util.Arrays
+;
+import
+java.util.HashSet
+;
+import
+java.util.List
+;
+import
+java.util.Set
+;
+import
+java.util.stream.Collectors
+;
+public
+class
+StreamIntermediateOperationsExample
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// List of lists of names
+List
+<
+List
+<
+String
+>>
+listOfLists
+=
+Arrays
+.
+asList
+(
+Arrays
+.
+asList
+(
+"Reflection"
+,
+"Collection"
+,
+"Stream"
+),
+Arrays
+.
+asList
+(
+"Structure"
+,
+"State"
+,
+"Flow"
+),
+Arrays
+.
+asList
+(
+"Sorting"
+,
+"Mapping"
+,
+"Reduction"
+,
+"Stream"
+)
+);
+// Create a set to hold intermediate results
+Set
+<
+String
+>
+intermediateResults
+=
+new
+HashSet
+<>
+();
+// Stream pipeline demonstrating various intermediate operations
+List
+<
+String
+>
+result
+=
+listOfLists
+.
+stream
+()
+.
+flatMap
+(
+List
+::
+stream
+)
+.
+filter
+(
+s
+->
+s
+.
+startsWith
+(
+"S"
+))
+.
+map
+(
+String
+::
+toUpperCase
+)
+.
+distinct
+()
+.
+sorted
+()
+.
+peek
+(
+s
+->
+intermediateResults
+.
+add
+(
+s
+))
+.
+collect
+(
+Collectors
+.
+toList
+());
+// Print the intermediate results
+System
+.
+out
+.
+println
+(
+"Intermediate Results:"
+);
+intermediateResults
+.
+forEach
+(
+System
+.
+out
+::
+println
+);
+// Print the final result
+System
+.
+out
+.
+println
+(
+"Final Result:"
+);
+result
+.
+forEach
+(
+System
+.
+out
+::
+println
+);
+}
+}
+Output
+Intermediate Results:
+STRUCTURE
+STREAM
+STATE
+SORTING
+Final Result:
+SORTING
+STATE
+STREAM
+STRUCTURE
+Explanation:
+The listOfLists is created as a list containing other lists of strings.
+flatMap(List::stream):
+Flattens the nested lists into a single stream of strings.
+filter(s -> s.startsWith("S"))
+: Filters the strings to only include those that start with "S".
+map(String::toUpperCase)
+: Converts each string in the stream to uppercase.
+distinct()
+: Removes any duplicate strings.
+sorted()
+: Sorts the resulting strings alphabetically.
+peek(...):
+Adds each processed element to the intermediateResults set for intermediate inspection.
+collect(Collectors.toList()):
+Collects the final processed strings into a list called result.
+The program prints the intermediate results stored in the intermediateResults set. Finally, it prints the result list, which contains the fully processed strings after all stream operations.
+Terminal Operations
+Terminal Operations are the type of Operations that return the result. These Operations are not processed further just return a final result value.
+Important Terminal Operations
+1. collect()
+: The collect method is used to return the result of the intermediate operations performed on the stream.
+Syntax:
+<R, A> R collect(Collector<? super T, A, R> collector)
+2. forEach()
+: The forEach method is used to iterate through every element of the stream.
+Syntax:
+void forEach(Consumer<? super T> action)
+3. reduce():
+The reduce method is used to reduce the elements of a stream to a single value. The reduce method takes a BinaryOperator as a parameter.
+Syntax:
+T reduce(T identity, BinaryOperator<T> accumulator)
+Optional<T> reduce(BinaryOperator<T> accumulator)
+4. count()
+: Returns the count of elements in the stream.
+Syntax:
+long count()
+5. findFirst()
+: Returns the first element of the stream, if present.
+Syntax:
+Optional<T> findFirst()
+6. allMatch()
+: Checks if all elements of the stream match a given predicate.
+Syntax:
+boolean allMatch(Predicate<? super T> predicate)
+7. anyMatch()
+: Checks if any element of the stream matches a given predicate.
+Syntax:
+boolean anyMatch(Predicate<? super T> predicate)
+Here ans variable is assigned 0 as the initial value and i is added to it.
+Note:
+Intermediate Operations are running based on the concept of Lazy Evaluation, which ensures that every method returns a fixed value(Terminal operation) before moving to the next method.
+Java Program Using all Terminal Operations:
+Java
+import
+java.util.*
+;
+import
+java.util.stream.Collectors
+;
+public
+class
+StreamTerminalOperationsExample
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Sample data
+List
+<
+String
+>
+names
+=
+Arrays
+.
+asList
+(
+"Reflection"
+,
+"Collection"
+,
+"Stream"
+,
+"Structure"
+,
+"Sorting"
+,
+"State"
+);
+// forEach: Print each name
+System
+.
+out
+.
+println
+(
+"forEach:"
+);
+names
+.
+stream
+().
+forEach
+(
+System
+.
+out
+::
+println
+);
+// collect: Collect names starting with 'S' into a list
+List
+<
+String
+>
+sNames
+=
+names
+.
+stream
+()
+.
+filter
+(
+name
+->
+name
+.
+startsWith
+(
+"S"
+))
+.
+collect
+(
+Collectors
+.
+toList
+());
+System
+.
+out
+.
+println
+(
+"\ncollect (names starting with 'S'):"
+);
+sNames
+.
+forEach
+(
+System
+.
+out
+::
+println
+);
+// reduce: Concatenate all names into a single string
+String
+concatenatedNames
+=
+names
+.
+stream
+().
+reduce
+(
+""
+,
+(
+partialString
+,
+element
+)
+->
+partialString
++
+" "
++
+element
+);
+System
+.
+out
+.
+println
+(
+"\nreduce (concatenated names):"
+);
+System
+.
+out
+.
+println
+(
+concatenatedNames
+.
+trim
+());
+// count: Count the number of names
+long
+count
+=
+names
+.
+stream
+().
+count
+();
+System
+.
+out
+.
+println
+(
+"\ncount:"
+);
+System
+.
+out
+.
+println
+(
+count
+);
+// findFirst: Find the first name
+Optional
+<
+String
+>
+firstName
+=
+names
+.
+stream
+().
+findFirst
+();
+System
+.
+out
+.
+println
+(
+"\nfindFirst:"
+);
+firstName
+.
+ifPresent
+(
+System
+.
+out
+::
+println
+);
+// allMatch: Check if all names start with 'S'
+boolean
+allStartWithS
+=
+names
+.
+stream
+().
+allMatch
+(
+name
+->
+name
+.
+startsWith
+(
+"S"
+)
+);
+System
+.
+out
+.
+println
+(
+"\nallMatch (all start with 'S'):"
+);
+System
+.
+out
+.
+println
+(
+allStartWithS
+);
+// anyMatch: Check if any name starts with 'S'
+boolean
+anyStartWithS
+=
+names
+.
+stream
+().
+anyMatch
+(
+name
+->
+name
+.
+startsWith
+(
+"S"
+)
+);
+System
+.
+out
+.
+println
+(
+"\nanyMatch (any start with 'S'):"
+);
+System
+.
+out
+.
+println
+(
+anyStartWithS
+);
+}
+}
+Output:
+Output
+Explanation:
+The names list is created with sample strings.
+forEach:
+Prints each name in the list.
+collect
+: Filters names starting with 'S' and collects them into a new list.
+reduce
+: Concatenates all names into a single string.
+count
+: Counts the total number of names.
+findFirst
+: Finds and prints the first name in the list.
+allMatch
+: Checks if all names start with 'S'.
+anyMatch
+: Checks if any name starts with 'S'.
+The program prints each name, names starting with 'S', concatenated names, the count of names, the first name, whether all names start with 'S' and whether any name starts with 'S'.
+Benefit of Java Stream
+There are some benefits because of which we use Stream in Java as mentioned below:
+No Storage
+Pipeline of Functions
+Laziness
+Can be infinite
+Can be parallelized
+Can be created from collections, arrays, Files Lines, Methods in Stream, IntStream etc.
+Real-World Use Cases of Java Streams
+Streams are widely used in modern Java applications for:
+Data Processing
+For processing JSON/XML responses
+For database Operations
+Concurrent Processing

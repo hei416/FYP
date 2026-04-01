@@ -1,0 +1,139 @@
+Source: W3Schools Java Tutorial
+Title: Arithmetic
+URL: https://www.w3schools.com/java/java_operators_arithmetic.aspJava
+Arithmetic Operators
+❮ Previous
+Next ❯
+Arithmetic Operators
+Arithmetic operators are used to perform common mathematical operations.
+Operator
+Name
+Description
+Example
+Try it
++
+Addition
+Adds together two values
+x + y
+Try it »
+-
+Subtraction
+Subtracts one value from another
+x - y
+Try it »
+*
+Multiplication
+Multiplies two values
+x * y
+Try it »
+/
+Division
+Divides one value by another
+x / y
+Try it »
+%
+Modulus
+Returns the division remainder
+x % y
+Try it »
+++
+Increment
+Increases the value of a variable by 1
+++x
+Try it »
+--
+Decrement
+Decreases the value of a variable by 1
+--x
+Try it »
+Here is an example using different arithmetic operators in one example:
+Example
+int x = 10;
+int y = 3;System.out.println(x + y); // 13
+System.out.println(x - y); // 7
+System.out.println(x * y); // 30
+System.out.println(x / y); // 3
+System.out.println(x % y); // 1
+
+int z = 5;
+++z;
+System.out.println(z); // 6
+--z;
+System.out.println(z); // 5
+Try it Yourself »
+Note:
+When dividing two integers in Java, the result will also be an integer. 
+For example,
+10 / 3
+gives
+3
+.  
+If you want a decimal result, use
+double
+values, like
+10.0 / 3
+.
+Example
+int a = 10;
+int b = 3;
+System.out.println(a / b);   // Integer division, result is 3double c = 10.0d;
+double d = 3.0d;
+System.out.println(c / d);   // Decimal division, result is 3.333...
+Try it Yourself »
+Incrementing and Decrementing
+Incrementing and decrementing are very common in programming, especially when working with counters, loops, and arrays (which you will learn more about in later chapters).
+The
+++
+operator increases a value by 1, while the
+--
+operator decreases a value by 1:
+Example
+int x = 5;
+
+++x; // Increment x by 1
+System.out.println(x); // 6
+Try it Yourself »
+Example
+int x = 5;
+
+--x; // Decrement x by 1
+System.out.println(x); // 4
+Try it Yourself »
+Sometimes, you might both increment and decrement the same variable. Remember that if you increase a value and later decrease it, it will go up by one and then back down by one 
+- ending up where it started:
+Example
+int x = 5;
+
+++x; // Increment x by 1 (x becomes 6)
+--x; // Decrement x by 1 (x becomes 5 again)
+
+System.out.println(x); // 5
+Try it Yourself »
+Real Life Example: Counting People
+Imagine you are building a program to count how many people enter and leave a room.  
+You can use
+++
+to increase the counter when someone enters,  
+and
+--
+to decrease it when someone leaves:
+Example
+int peopleInRoom = 0;
+
+// 3 people enter
+peopleInRoom++;
+peopleInRoom++;
+peopleInRoom++;
+
+System.out.println(peopleInRoom); // 3
+
+// 1 person leaves
+peopleInRoom--;
+
+System.out.println(peopleInRoom); // 2
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

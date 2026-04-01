@@ -6,6 +6,10 @@ import time
 import asyncio
 import os
 import sys
+import logging
+
+# Suppress verbose Uvicorn access logs (keep only WARNING+)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,34 +30,12 @@ async def test_alive():
     """Simple endpoint to verify backend reachability."""
     return {"status": "alive", "message": "Backend is reachable and custom endpoint is working."}
 
-print("\n🔧 IMPORTING ROUTERS...")
+print("\n🔧 Importing routers...")
 try:
-    from routers import code_execution
-    print("  ✓ code_execution")
-    from routers import lessons
-    print("  ✓ lessons")
-    from routers import pdfs
-    print("  ✓ pdfs")
-    from routers import practical_tests
-    print("  ✓ practical_tests")
-    from routers import rag
-    print("  ✓ rag")
-    from routers import auth
-    print("  ✓ auth")
-    from routers import progress
-    print("  ✓ progress")
-    from routers import my_work
-    print("  ✓ my_work")
-    from routers import conversation
-    print("  ✓ conversation")
-    from routers import classroom
-    print("  ✓ classroom")
-    from routers import admin
-    print("  ✓ admin")
+    from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress, my_work, conversation, classroom, admin
     import routers.rag as rag_router
-    print("  ✓ rag_router\n")
     ROUTERS_IMPORTED = True
-    print("✅ ALL ROUTERS IMPORTED SUCCESSFULLY\n")
+    print("✅ All routers imported\n")
 except Exception as e:
     print(f"\n❌ ERROR importing routers: {e}", file=sys.stderr)
     traceback.print_exc(file=sys.stderr)
@@ -62,18 +44,29 @@ except Exception as e:
 RAG_INITIALIZED = False
 RAG_INIT_LOCK = asyncio.Lock()
 
-async def ensure_rag_initialized():
+async def ensure_rag_initialized(rebuild_java=False, rebuild_platform=False):
     global RAG_INITIALIZED
-    if RAG_INITIALIZED:
+    if RAG_INITIALIZED and not rebuild_java and not rebuild_platform:
         return
     async with RAG_INIT_LOCK:
-        if RAG_INITIALIZED:
+        if RAG_INITIALIZED and not rebuild_java and not rebuild_platform:
             return
-        print("\n🔄 Loading FAISS RAG System (lazy init on first request)...")
+        if rebuild_java or rebuild_platform:
+            rebuild_targets = []
+            if rebuild_java:
+                rebuild_targets.append("java knowledge")
+            if rebuild_platform:
+                rebuild_targets.append("platform guide")
+            print(f"\n🔄 Rebuilding FAISS RAG System ({', '.join(rebuild_targets)})...")
+        else:
+            print("\n🔄 Loading FAISS RAG System (lazy init on first request)...")
         try:
             rag_start = time.time()
             from rag_system import setup_rag_system
-            rag_chain, retriever = setup_rag_system(rebuild_vectorstore=False)
+            rag_chain, retriever = setup_rag_system(
+                rebuild_java=rebuild_java,
+                rebuild_platform=rebuild_platform,
+            )
             rag_router.rag_chain = rag_chain
             rag_router.retriever = retriever
             rag_elapsed = time.time() - rag_start

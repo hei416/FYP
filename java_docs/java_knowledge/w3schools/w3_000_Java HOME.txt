@@ -1,0 +1,101 @@
+Source: W3Schools Java Tutorial
+Title: Java HOME
+URL: https://www.w3schools.com/java/default.aspJava
+Tutorial
+❮ Home
+Next ❯
+Learn Java
+Java is a popular programming language.
+Java is used to develop mobile apps, web apps, desktop apps, games and much 
+more.
+Start learning Java now »
+🏁
+Tip:
+Sign in
+to track your progress.
+Examples in Each Chapter
+Our "Try it Yourself" editor makes it easy to learn Java. You can edit Java code and view the result 
+in your browser.
+Example
+public class Main {
+  public static void main(String[] args) {
+    System.out.println("Hello World");
+  }
+}
+Try it Yourself »
+We recommend reading this tutorial, in the sequence listed in the left menu.
+Java is an object oriented language and some concepts may be new. Take breaks when needed, and go
+over the examples as many times as needed.
+Java Exercises
+Many chapters in this tutorial end with an exercise where you can check your level of knowledge.
+See all Java Exercises
+Java Quiz
+Test your Java skills with a quiz.
+Start Java Quiz
+Learn by Examples
+Learn by examples! This tutorial supplements all explanations with clarifying examples.
+See All Java Examples
+Track Your Progress
+Create a W3Schools account and get access to more features and learning materials:
+View your completed tutorials, exercises, and quizzes
+Keep an eye on your progress and daily streaks
+Join the leaderboard and compete with others
+Get your own avatar and unlock new skins
+Create your own personal website
+Sign Up »
+Note:
+This is an optional feature. You can study at W3Schools without creating an account.
+Java Reference
+You will also find complete keyword and method references:
+Reference Overview
+Java Keywords
+String Methods
+Math Methods
+Output Methods
+Arrays Methods
+ArrayList Methods
+LinkedList Methods
+HashMap Methods
+Scanner Methods
+File Methods
+FileInputStream
+FileOutputStream
+BufferedReader
+BufferedWriter
+Iterator Methods
+Collections Methods
+System Methods
+Errors & Exceptions
+Kickstart your career
+Get certified by completing
+the
+course
+Get certified
+w
+3
+s
+c
+h
+o
+o
+l
+s
+C
+E
+R
+T
+I
+F
+I
+E
+D
+.
+2
+0
+2
+5
+❮ Home
+Next ❯
+★
++1
+Sign in to track progress

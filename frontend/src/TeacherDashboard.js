@@ -8,8 +8,8 @@ import {
 } from './classroomService';
 import { radii, font, card, shadows } from './theme';
 import { btn, colors } from './theme';
-// Section-based document management
-function ClassroomSections({ classroomId }) {
+// Section-based document management — also used by TeacherClassroomDetail (imported from here)
+export function ClassroomSections({ classroomId }) {
   const [sections, setSections] = useState([]);      // sections from API (id > 0)
   const [unsectioned, setUnsectioned] = useState([]); // files where section_id === null
   const [loading, setLoading] = useState(false);
@@ -132,7 +132,7 @@ function ClassroomSections({ classroomId }) {
     const key = sectionId != null ? String(sectionId) : 'unsectioned';
     const us = uploadState[key] || {};
     const isClosed = collapsed[key];
-    const isRenaming = renamingId === sectionId;
+    const isRenaming = renamingId != null && renamingId === sectionId;
     const fileIcon = (mime) => mime?.includes('pdf') ? '📄' : mime?.includes('word') ? '📝' : '📋';
     const inputId = `file-input-${classroomId}-${key}`;
 
@@ -435,12 +435,12 @@ export default function TeacherDashboard() {
                     <h4 style={{ margin: 0, color: colors.primary, fontSize: font.sizeLg, fontWeight: font.weightBold, lineHeight: 1.3 }}>{cls.name}</h4>
                     {cls.description && <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary, lineHeight: 1.4 }}>{cls.description}</p>}
                   </div>
-                  {/* View analytics button */}
+                  {/* Open classroom button */}
                   <button
                     onClick={() => navigate(`/teacher-classroom/${cls.id}`, { state: { name: cls.name, description: cls.description, class_code: cls.class_code } })}
                     style={{ ...btn.primary, ...btn.small, whiteSpace: 'nowrap', flexShrink: 0 }}
                   >
-                    📊 Analytics
+                    Open →
                   </button>
                 </div>
 
@@ -467,8 +467,6 @@ export default function TeacherDashboard() {
                   </button>
                 </div>
 
-                {/* Learning sections */}
-                <ClassroomSections classroomId={cls.id} />
               </div>
             ))}
           </div>

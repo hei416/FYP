@@ -1,0 +1,94 @@
+Source: W3Schools Java Tutorial
+Title: Java Multiple Exceptions
+URL: https://www.w3schools.com/java/java_exceptions_multiple.aspJava
+Multiple Exceptions
+❮ Previous
+Next ❯
+Multiple Exceptions
+Sometimes, different errors (exceptions) can happen in the same
+try
+block. 
+You can handle them with
+multiple catch blocks
+.
+One try, Many catch
+You can add more than one
+catch
+block, and Java will run the first one that matches the thrown exception type:
+Example
+public class Main {
+  public static void main(String[] args) {
+    try {
+      int[] numbers = {1, 2, 3};
+      System.out.println(numbers[10]);  // ArrayIndexOutOfBoundsException
+      int result = 10 / 0;              // ArithmeticException
+    } 
+    catch (ArrayIndexOutOfBoundsException e) {
+      System.out.println("Array index does not exist.");
+    } 
+    catch (ArithmeticException e) {
+      System.out.println("Cannot divide by zero.");
+    } 
+    catch (Exception e) {
+      System.out.println("Something else went wrong.");
+    }
+  }
+}
+Result:
+Array index does not exist.
+Try it Yourself »
+Explanation:
+Only the first exception (
+ArrayIndexOutOfBoundsException
+) is thrown, so only the first matching
+catch
+runs.
+Order Matters
+You should always put
+more specific exceptions first
+, and
+general ones later
+. 
+Otherwise, the general catch will grab the error and the specific ones will never run:
+Example (bad order)
+try {
+  int result = 10 / 0;
+} 
+catch (Exception e) {
+  System.out.println("General error.");
+} 
+catch (ArithmeticException e) {
+  // This will never be reached
+  System.out.println("Divide by zero.");
+}
+Tip:
+Always put
+Exception
+(the general one) 
+at the
+end
+.
+Multi-Catch
+Since Java 7, you can catch
+multiple exceptions in one catch block
+using the
+|
+symbol. 
+This is useful when different exceptions should be handled in the
+same way
+, so you don't have to repeat code:
+Example
+try {
+  int result = 10 / 0;
+  int[] numbers = {1, 2, 3};
+  System.out.println(numbers[10]);
+} 
+catch (ArithmeticException | ArrayIndexOutOfBoundsException e) {
+  System.out.println("Math error or array error occurred.");
+}
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

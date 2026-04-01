@@ -1,0 +1,64 @@
+Source: W3Schools Java Tutorial
+Title: Java Anonymous
+URL: https://www.w3schools.com/java/java_anonymous.asp
+
+Java
+Anonymous Class
+❮ Previous
+Next ❯
+Anonymous Class
+An
+anonymous class
+is a class without a name. It is created and used at the same time.
+You often use anonymous classes to
+override methods
+of an existing class or interface, without writing a separate class file.
+Here, we create an anonymous class that extends another class and overrides its method:
+// Normal class
+class Animal {
+  public void makeSound() {
+    System.out.println("Animal sound");
+  }
+}public class Main {
+  public static void main(String[] args) {
+    // Anonymous class that overrides makeSound()
+    Animal myAnimal = new Animal() {
+      public void makeSound() {
+        System.out.println("Woof woof");
+      }
+    }; // semicolon is required to end the line of code that creates the object
+
+    myAnimal.makeSound();
+  }
+}
+The output will be:
+Woof woof
+Try it Yourself »
+Anonymous Class from an Interface
+You can also use an anonymous class to implement an interface on the fly:
+// Interface
+interface Greeting {
+  void sayHello();
+}public class Main {
+  public static void main(String[] args) {
+    // Anonymous class that implements Greeting
+    Greeting greet = new Greeting() {
+      public void sayHello() {
+        System.out.println("Hello, World!");
+      }
+    };greet.sayHello();
+  }
+}
+The output will be:
+Hello, World!
+Try it Yourself »
+When to Use Anonymous Classes?
+Use anonymous classes when you need to create a short class for one-time use. For example:
+Overriding a method without creating a new subclass
+Implementing an interface quickly
+Passing small pieces of behavior as objects
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

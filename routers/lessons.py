@@ -18,14 +18,16 @@ class DocumentRequest(BaseModel):
 # Cache the vectorstore loading
 @lru_cache(maxsize=1)
 def load_vectorstore():
-    """Load and cache vectorstore via LangChain FAISS load_local."""
+    """Load and cache split vectorstores, falling back to the legacy unified store."""
     try:
         from langchain_community.vectorstores import FAISS
         from langchain_community.embeddings import AzureOpenAIEmbeddings
         from core.config import (
             API_KEY, BASE_URL,
             FAISS_EMBEDDING_MODEL, FAISS_EMBEDDING_API_VERSION,
-            VECTORSTORE_PATH,
+            LEGACY_VECTORSTORE_PATH,
+            VECTORSTORE_JAVA_PATH,
+            VECTORSTORE_PLATFORM_PATH,
         )
 
         embeddings = AzureOpenAIEmbeddings(
@@ -34,10 +36,24 @@ def load_vectorstore():
             api_key=API_KEY,
             api_version=FAISS_EMBEDDING_API_VERSION,
         )
-        vs = FAISS.load_local(
-            VECTORSTORE_PATH, embeddings, allow_dangerous_deserialization=True
-        )
-        return vs.docstore._dict
+        docstore = {}
+        for vectorstore_path in (VECTORSTORE_JAVA_PATH, VECTORSTORE_PLATFORM_PATH):
+            if os.path.exists(os.path.join(vectorstore_path, 'index.faiss')) and os.path.exists(os.path.join(vectorstore_path, 'index.pkl')):
+                vs = FAISS.load_local(
+                    vectorstore_path, embeddings, allow_dangerous_deserialization=True
+                )
+                docstore.update(vs.docstore._dict)
+
+        if docstore:
+            return docstore
+
+        if os.path.exists(os.path.join(LEGACY_VECTORSTORE_PATH, 'index.faiss')) and os.path.exists(os.path.join(LEGACY_VECTORSTORE_PATH, 'index.pkl')):
+            vs = FAISS.load_local(
+                LEGACY_VECTORSTORE_PATH, embeddings, allow_dangerous_deserialization=True
+            )
+            return vs.docstore._dict
+
+        raise HTTPException(status_code=500, detail="No vectorstore available")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load vectorstore: {str(e)}")
 def parse_document_metadata(content: str):

@@ -270,3 +270,71 @@ export const moveFileToSection = async (classroomId, fileId, sectionId) => {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
+
+// ---------------------------------------------------------------------------
+// Quiz endpoints
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate MCQ draft questions using classroom RAG context.
+ * Returns { questions: [...], context_chunks_used: n } — nothing is saved.
+ */
+export const generateClassroomQuiz = async (classroomId, { topic_prompt, num_questions = 5, section_id = null, file_ids = null }) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ topic_prompt, num_questions, section_id, file_ids: file_ids && file_ids.length > 0 ? file_ids : null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to generate quiz');
+  }
+  return res.json();
+};
+
+/** Save a quiz (draft or published). */
+export const saveClassroomQuiz = async (classroomId, { title, topic_prompt, questions, section_id, status }) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ title, topic_prompt, questions, section_id, status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to save quiz');
+  }
+  return res.json();
+};
+
+/** List quizzes for a classroom (teachers: all; students: published only). */
+export const listClassroomQuizzes = async (classroomId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/** Update title, questions, section, or status of an existing quiz. */
+export const updateClassroomQuiz = async (classroomId, quizId, updates) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/${quizId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to update quiz');
+  }
+  return res.json();
+};
+
+/** Delete a quiz. */
+export const deleteClassroomQuiz = async (classroomId, quizId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/${quizId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};

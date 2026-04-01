@@ -1,0 +1,77 @@
+Source: W3Schools Java Tutorial
+Title: Special Characters
+URL: https://www.w3schools.com/java/java_strings_specchars.aspJava
+Special Characters
+❮ Previous
+Next ❯
+Strings - Special Characters
+Because strings must be written within quotes, Java will misunderstand this string, 
+and generate an error:
+String txt = "We are the so-called "Vikings" from the north.";
+The solution to avoid this problem, is to use the
+backslash escape character
+.
+The backslash (
+\
+) escape character turns special characters into string characters:
+Escape character
+Result
+Description
+\'
+'
+Single quote
+\"
+"
+Double quote
+\\
+\
+Backslash
+The sequence
+\"
+inserts a double quote in a string:
+Example
+String txt = "We are the so-called \"Vikings\" from the north.";
+Try it Yourself »
+The sequence
+\'
+inserts a single quote in a string:
+Example
+String txt = "It\'s alright.";
+Try it Yourself »
+The sequence
+\\
+inserts a single backslash in a string:
+Example
+String txt = "The character \\ is called backslash.";
+Try it Yourself »
+Other common escape sequences that are valid in Java are:
+Code
+Result
+Try it
+\n
+New Line
+Try it »
+\t
+Tab
+Try it »
+\b
+Backspace
+Try it »
+\r
+Carriage Return
+\f
+Form Feed
+Note:
+Most of these escape codes are rarely used in modern programming. 
+The most common ones are
+\n
+(new line),
+\"
+(double quote), and
+\\
+(backslash).
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

@@ -1,0 +1,905 @@
+Source: GeeksforGeeks
+Topic: Interfaces In Java
+URL: https://www.geeksforgeeks.org/interfaces-in-java/Try it on GfG Practice
+An Interface in Java is an abstract type that defines a set of methods a class must implement.
+An interface acts as a contract that specifies what a class should do, but not how it should do it. It is used to achieve abstraction and
+multiple inheritance
+in Java.  We define interfaces for capabilities (e.g., Comparable,
+Serializable
+,
+Drawable
+).
+A class that implements an interface must implement all the methods of the interface. Only variables are public static final by default.
+Before Java 8, interfaces could only have abstract methods (no bodies). Since Java 8, they can also include
+default
+and
+static
+methods (with implementation) and since Java 9,
+private
+methods
+are allowed.
+This example demonstrates how an interface in Java defines constants and abstract methods, which are implemented by a class.
+Java
+import
+java.io.*
+;
+// Interface Declared
+interface
+testInterface
+{
+// public, static and final
+final
+int
+a
+=
+10
+;
+// public and abstract
+void
+display
+();
+}
+// Class implementing interface
+class
+TestClass
+implements
+testInterface
+{
+// Implementing the capabilities of Interface
+public
+void
+display
+(){
+System
+.
+out
+.
+println
+(
+"Geek"
+);
+}
+}
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+TestClass
+t
+=
+new
+TestClass
+();
+t
+.
+display
+();
+System
+.
+out
+.
+println
+(
+t
+.
+a
+);
+}
+}
+Output
+Geek
+10
+Notes:
+Private methods can only be called inside default or static methods.
+Static methods are accessed using the interface name, not via objects.
+To implement an interface, use the implements keyword.
+Relationship Between Class and Interface
+A class can extend another class and similarly, an interface can extend another interface. However, only a class can implement an interface and the reverse (an interface implementing a class) is not allowed.
+When to Use Class and Interface?
+Use a Class when
+:
+Use a class when you need to represent a real-world entity with attributes (fields) and behaviors (methods).
+Use a class when you need  to create objects that hold state and perform actions
+Classes are used for defining templates for objects with specific functionality and properties.
+Use an Interface when:
+Use an interface when you need to define a contract for behavior that multiple classes can implement.
+Interface is ideal for achieving abstraction and multiple inheritance.
+Implementation:
+To implement an interface, we use the keyword
+implements
+Let’s consider the example of Vehicles like bicycles, cars and bikes share common functionalities, which can be defined in an interface, allowing each class (e.g., Bicycle, Car, Bike) to implement them in its own way. This approach ensures code reusability, scalability and consistency across different vehicle types.
+Java
+import
+java.io.*
+;
+interface
+Vehicle
+{
+// Abstract methods defined
+void
+changeGear
+(
+int
+a
+);
+void
+speedUp
+(
+int
+a
+);
+void
+applyBrakes
+(
+int
+a
+);
+}
+// Class implementing vehicle interface
+class
+Bicycle
+implements
+Vehicle
+{
+int
+speed
+;
+int
+gear
+;
+// Change gear
+@Override
+public
+void
+changeGear
+(
+int
+newGear
+){
+gear
+=
+newGear
+;
+}
+// Increase speed
+@Override
+public
+void
+speedUp
+(
+int
+increment
+){
+speed
+=
+speed
++
+increment
+;
+}
+// Decrease speed
+@Override
+public
+void
+applyBrakes
+(
+int
+decrement
+){
+speed
+=
+speed
+-
+decrement
+;
+}
+public
+void
+printStates
+()
+{
+System
+.
+out
+.
+println
+(
+"speed: "
++
+speed
++
+" gear: "
++
+gear
+);
+}
+}
+// Class implementing vehicle interface
+class
+Bike
+implements
+Vehicle
+{
+int
+speed
+;
+int
+gear
+;
+// Change gear
+@Override
+public
+void
+changeGear
+(
+int
+newGear
+){
+gear
+=
+newGear
+;
+}
+// Increase speed
+@Override
+public
+void
+speedUp
+(
+int
+increment
+){
+speed
+=
+speed
++
+increment
+;
+}
+// Decrease speed
+@Override
+public
+void
+applyBrakes
+(
+int
+decrement
+){
+speed
+=
+speed
+-
+decrement
+;
+}
+public
+void
+printStates
+()
+{
+System
+.
+out
+.
+println
+(
+"speed: "
++
+speed
++
+" gear: "
++
+gear
+);
+}
+}
+class
+Main
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Instance of Bicycle(Object)
+Bicycle
+bicycle
+=
+new
+Bicycle
+();
+bicycle
+.
+changeGear
+(
+2
+);
+bicycle
+.
+speedUp
+(
+3
+);
+bicycle
+.
+applyBrakes
+(
+1
+);
+System
+.
+out
+.
+print
+(
+"Bicycle present state : "
+);
+bicycle
+.
+printStates
+();
+// Instance of Bike (Object)
+Bike
+bike
+=
+new
+Bike
+();
+bike
+.
+changeGear
+(
+1
+);
+bike
+.
+speedUp
+(
+4
+);
+bike
+.
+applyBrakes
+(
+3
+);
+System
+.
+out
+.
+print
+(
+"Bike present state : "
+);
+bike
+.
+printStates
+();
+}
+}
+Output
+Bicycle present state : speed: 2 gear: 2
+Bike present state : speed: 1 gear: 1
+Multiple Inheritance in Java Using Interface
+Java does not support multiple inheritance with classes to avoid ambiguity, but it supports multiple inheritance using interfaces.
+Java
+import
+java.io.*
+;
+// Add interface
+interface
+Add
+{
+int
+add
+(
+int
+a
+,
+int
+b
+);
+}
+// Sub interface
+interface
+Sub
+{
+int
+sub
+(
+int
+a
+,
+int
+b
+);
+}
+// Calculator class implementing Add and Sub
+class
+Cal
+implements
+Add
+,
+Sub
+{
+// Method to add two numbers
+public
+int
+add
+(
+int
+a
+,
+int
+b
+){
+return
+a
++
+b
+;
+}
+// Method to sub two numbers
+public
+int
+sub
+(
+int
+a
+,
+int
+b
+){
+return
+a
+-
+b
+;
+}
+}
+class
+GFG
+{
+// Main Method
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+// instance of Cal class
+Cal
+x
+=
+new
+Cal
+();
+System
+.
+out
+.
+println
+(
+"Addition : "
++
+x
+.
+add
+(
+2
+,
+1
+));
+System
+.
+out
+.
+println
+(
+"Substraction : "
++
+x
+.
+sub
+(
+2
+,
+1
+));
+}
+}
+Output
+Addition : 3
+Substraction : 1
+New Features Added in Interfaces in JDK 8
+There are certain features added to Interfaces in JDK 8 update mentioned below:
+1. Default Methods
+Interfaces can define methods with default implementations.
+Useful for adding new methods to interfaces without breaking existing implementations.
+Java
+interface
+TestInterface
+{
+final
+int
+a
+=
+10
+;
+default
+void
+display
+()
+{
+System
+.
+out
+.
+println
+(
+"hello"
+);
+}
+}
+// A class that implements the interface.
+class
+TestClass
+implements
+TestInterface
+{
+// Driver Code
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+TestClass
+t
+=
+new
+TestClass
+();
+t
+.
+display
+();
+}
+}
+Output
+hello
+2.
+Static Methods
+Interfaces can now include static methods.
+These methods are called directly using the interface name and are not inherited by implementing classes.
+Another feature that was added in JDK 8 is that we can now define static methods in interfaces that can be called independently without an object. These methods are not inherited.
+Java
+interface
+TestInterface
+{
+final
+int
+a
+=
+10
+;
+static
+void
+display
+()
+{
+System
+.
+out
+.
+println
+(
+"hello"
+);
+}
+}
+// A class that implements the interface.
+class
+TestClass
+implements
+TestInterface
+{
+// Driver Code
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+TestInterface
+.
+display
+();
+}
+}
+Output
+hello
+3. Functional Interface
+Functional interfaces can be used with lambda expressions or method references.
+The @FunctionalInterface annotation can be used to indicate that an interface is a functional interface, although it’s optional.
+Java
+@FunctionalInterface
+public
+interface
+Calculator
+{
+int
+compute
+(
+int
+x
+,
+int
+y
+);
+// single abstract method
+}
+New Features Added in Interfaces in JDK 9
+From Java 9 onwards, interfaces can contain the following also:
+1. Private Methods
+Interface can now include private methods.
+Private methods are defined within the interface but it cannot be accessed by the implementing classes.
+Private methods cannot be overridden by implementing classes as they are not inherited.
+Java
+interface
+Vehicle
+{
+// Private method for internal use
+private
+void
+startEngine
+()
+{
+System
+.
+out
+.
+println
+(
+"Engine started."
+);
+}
+// Default method that uses the private method
+default
+void
+drive
+()
+{
+// Calls the private method
+startEngine
+();
+System
+.
+out
+.
+println
+(
+"Vehicle is now driving."
+);
+}
+}
+class
+Car
+implements
+Vehicle
+{
+// Car class implements Vehicle interface and inherits the default method 'drive'
+}
+public
+class
+Main
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+Car
+car
+=
+new
+Car
+();
+// This will call the default method, which in turn calls the private method
+car
+.
+drive
+();
+}
+}
+Output
+Engine started.
+Vehicle is now driving.
+Extending Interfaces
+One interface can inherit another by the use of keyword extends. When a class implements an interface that inherits another interface, it must provide an implementation for all methods required by the interface inheritance chain.
+Java
+interface
+A
+{
+void
+method1
+();
+void
+method2
+();
+}
+// B now includes method1 and method2
+interface
+B
+extends
+A
+{
+void
+method3
+();
+}
+// the class must implement all method of A and B.
+class
+GFG
+implements
+B
+{
+public
+void
+method1
+()
+{
+System
+.
+out
+.
+println
+(
+"Method 1"
+);
+}
+public
+void
+method2
+()
+{
+System
+.
+out
+.
+println
+(
+"Method 2"
+);
+}
+public
+void
+method3
+()
+{
+System
+.
+out
+.
+println
+(
+"Method 3"
+);
+}
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+// Instance of GFG class created
+GFG
+x
+=
+new
+GFG
+();
+// All Methods Called
+x
+.
+method1
+();
+x
+.
+method2
+();
+x
+.
+method3
+();
+}
+}
+Output
+Method 1
+Method 2
+Method 3
+Difference Between Class and Interface
+Although Class and Interface seem the same there are certain differences between Classes and Interface. The major differences between a class and an interface are mentioned below:
+Features
+Class
+Interface
+Instantiation
+In class, you can create an object.
+In an interface, you can't create an object
+Variables
+Class can have instance variables
+Variables are public static final (constants only).
+Methods
+Class can have concrete methods
+In an interface, methods are abstract by default
+Inheritance
+It supports single inheritance
+Supports multiple inheritance
+Constructors
+Can have constructors.
+No constructors allowed.
+Access Modifiers
+Supports private, protected, public, default.
+In an interface, all members are public by default
+Keyword
+Defined using class.
+Defined using interface.
+Default Methods
+It does not support default methods
+It supports default methods(JDK 8+)
+Static Methods
+Can have static methods.
+Supports static methods (JDK 8+)
+Private Methods
+Can have private methods.
+Supports private methods (JDK 9+).
+Main Method
+Can have main() for execution.
+Can have main() (since JDK 8, as static methods are allowed).
+Create Quiz
+Interface in Java(Real)
+Visit Course
+Comment
+K
+kartik
+468
+Improve
+K
+kartik
+468
+Improve
+Article Tags :
+Java
+java-interfaces

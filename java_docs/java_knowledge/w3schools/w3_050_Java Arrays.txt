@@ -1,0 +1,111 @@
+Source: W3Schools Java Tutorial
+Title: Java Arrays
+URL: https://www.w3schools.com/java/java_arrays.aspJava
+Arrays
+❮ Previous
+Next ❯
+Java Arrays
+Arrays are used to store multiple values in a single variable, instead of declaring separate variables for each 
+value.
+To declare an array, define the variable type with
+square brackets
+[ ]
+:
+String[] cars;
+We have now declared a variable that holds an array of strings. To insert 
+values to it, you can place the values in a 
+comma-separated list, inside
+curly braces
+{ }
+:
+String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};
+To create an array of integers, you could write:
+int[] myNum = {10, 20, 30, 40};
+Access the Elements of an Array
+You can access an array element by referring to the index number.
+This statement accesses the value of the first element in cars:
+Example
+String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};
+System.out.println(cars[0]);
+// Outputs Volvo
+Try it Yourself »
+Note:
+Array indexes start with 0: [0] is the first element. [1] is the second 
+element, etc.
+Think of an array as numbered boxes, where each box stores an element:
+Index
+Element
+0
+Volvo
+1
+BMW
+2
+Ford
+3
+Mazda
+Change an Array Element
+To change the value of a specific element, refer to the index number:
+cars[0] = "Opel";
+Example
+String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};
+cars[0] = "Opel";
+System.out.println(cars[0]);
+// Now outputs Opel instead of Volvo
+Try it Yourself »
+Array Length
+To find out how many elements an array has, use the
+length
+property:
+Example
+String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};
+System.out.println(cars.length);
+// Outputs 4
+Try it Yourself »
+The
+new
+Keyword
+You can also create an array by specifying its size with
+new
+.  
+This makes an empty array with space for a fixed number of elements, which you can fill later:
+Example
+String[] cars = new String[4]; // size is 4cars[0] = "Volvo";
+cars[1] = "BMW";
+cars[2] = "Ford";
+cars[3] = "Mazda";
+
+System.out.println(cars[0]); // Outputs Volvo
+Try it Yourself »
+However, if you already know the values, you don't need to write
+new
+.  
+Both of these create the same array:
+Example
+// With new
+String[] cars = new String[] {"Volvo", "BMW", "Ford", "Mazda"};// Shortcut (most common)
+String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};
+Note:
+You cannot write
+new String[
+4
+] {"Volvo", "BMW", "Ford", "Mazda"}
+.
+In Java, when using
+new
+, you either:
+Use
+new String[4]
+to create an empty array with 4 slots, and then fill them later
+Or use
+new String[] {"Volvo", "BMW", "Ford", "Mazda"}
+(without specifying the number of elements) to create the array and assign values at the same time
+Tip:
+The shortcut syntax is most often used when the values are known at the start.  
+Use
+new
+with a size when you want to create an empty array and fill it later.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

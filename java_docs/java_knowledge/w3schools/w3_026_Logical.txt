@@ -1,0 +1,56 @@
+Source: W3Schools Java Tutorial
+Title: Logical
+URL: https://www.w3schools.com/java/java_operators_logical.aspJava
+Logical Operators
+❮ Previous
+Next ❯
+Logical Operators
+As with
+comparison operators
+, you can also test for
+true
+or
+false
+values with logical operators.
+Logical operators are used to determine the logic between variables or 
+values, by combining multiple conditions::
+Operator
+Name
+Description
+Example
+Try it
+&&
+Logical and
+Returns true if both statements are true
+x < 5 &&  x < 10
+Try it »
+||
+Logical or
+Returns true if one of the statements is true
+x < 5 || x < 4
+Try it »
+!
+Logical not
+Reverse the result, returns false if the result is true
+!(x < 5 && x < 10)
+Try it »
+Real-Life Example: Login Check
+The example below shows how logical operators can be used in a real situation, e.g. when checking login status and access rights:
+Example
+boolean isLoggedIn = true;
+boolean isAdmin = false;System.out.println("Regular user: " + (isLoggedIn && !isAdmin));
+System.out.println("Has access: " + (isLoggedIn || isAdmin));
+System.out.println("Not logged in: " + (!isLoggedIn));
+Result:
+Is regular user: true
+Has access: true
+Not logged in: false
+Try it Yourself »
+Logical operators often become easier to understand once you start using them inside
+if
+statements, which you will learn about in the upcoming chapters.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

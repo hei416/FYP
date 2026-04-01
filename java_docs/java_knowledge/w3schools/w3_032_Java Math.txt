@@ -1,0 +1,143 @@
+Source: W3Schools Java Tutorial
+Title: Java Math
+URL: https://www.w3schools.com/java/java_math.aspJava
+Math
+❮ Previous
+Next ❯
+The Java Math class has many methods that allows you to perform mathematical tasks on numbers.
+Math.max(
+x,y
+)
+The
+Math.max(
+x
+,
+y
+)
+method can be used to find the highest value of
+x
+and
+y
+:
+Example
+Math.max(5, 10);
+Try it Yourself »
+Math.min(
+x,y
+)
+The
+Math.min(
+x
+,
+y
+)
+method can be used to find the lowest value of
+x
+and
+y
+:
+Example
+Math.min(5, 10);
+Try it Yourself »
+Math.sqrt(
+x
+)
+The
+Math.sqrt(
+x
+)
+method returns the square root of
+x
+:
+Example
+Math.sqrt(64);
+Try it Yourself »
+Math.abs(
+x
+)
+The
+Math.abs(
+x
+)
+method returns the absolute (positive) value of
+x
+:
+Example
+Math.abs(-4.7);
+Try it Yourself »
+Math.pow(
+x, y
+)
+The
+Math.pow(
+x, y
+)
+method returns the value of
+x
+raised to the power of
+y
+:
+Example
+Math.pow(2, 8);  // 256.0
+Try it Yourself »
+Note:
+Math.pow(2, 8)
+means
+2
+multiplied by itself 8 times:
+2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 = 256
+Note:
+The
+Math.pow()
+method always returns a
+double
+, even if the result is a whole number.  
+For example,
+Math.pow(2, 8)
+returns
+256.0
+(not
+256
+).
+Rounding Methods
+Java has several methods for rounding numbers:
+Math.round(x)
+- rounds to the nearest integer
+Math.ceil(x)
+- rounds up (returns the smallest integer greater than or equal to x)
+Math.floor(x)
+- rounds down (returns the largest integer less than or equal to x)
+Example
+Math.round(4.6);  // 5
+Math.ceil(4.1);   // 5.0
+Math.floor(4.9);  // 4.0
+Try it Yourself »
+Random Numbers
+Math.random()
+returns a random number between 0.0 (inclusive), and 1.0 (exclusive):
+Example
+Math.random();
+Try it Yourself »
+To get more control over the random number, for example, if you only want a random 
+number between 0 and 100, you can use the following formula:
+Example
+int randomNum = (int)(Math.random() * 101);  // 0 to 100
+Try it Yourself »
+Note:
+Math.random()
+returns a
+double
+. To get an integer, you need to
+cast
+it with
+(int)
+.
+Complete Math Reference
+For a complete reference of Math methods, go to our
+Java Math Methods Reference
+.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

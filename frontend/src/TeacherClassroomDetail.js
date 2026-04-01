@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { getClassroomAnalytics } from './classroomService';
+import {
+  generateClassroomQuiz,
+  saveClassroomQuiz,
+  listClassroomQuizzes,
+  updateClassroomQuiz,
+  deleteClassroomQuiz,
+  listSections,
+  listClassroomFiles,
+} from './classroomService';
+import { ClassroomSections } from './TeacherDashboard';
 import { radii, font, card, shadows } from './theme';
 import { btn, colors } from './theme';
 
@@ -186,6 +196,587 @@ function TopicBreakdown({ student }) {
   );
 }
 
+// ─── Classroom Quiz Manager ───────────────────────────────────────────────────
+function ClassroomQuizManager({ classroomId }) {
+  const [sections, setSections] = useState([]);
+  const [allFiles, setAllFiles] = useState([]);   // all classroom files for file picker
+  const [quizzes, setQuizzes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Generate form
+  const [showGenForm, setShowGenForm] = useState(false);
+  const [genTitle, setGenTitle] = useState('');
+  const [genPrompt, setGenPrompt] = useState('Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms');
+  const [genNumQ, setGenNumQ] = useState(5);
+  const [genSectionId, setGenSectionId] = useState('');
+  const [genFileIds, setGenFileIds] = useState([]);   // selected file IDs for context
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState(null);
+  const DEFAULT_PROMPT = 'Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms';
+
+  // Draft preview / editor
+  const [draftQuestions, setDraftQuestions] = useState(null); // generated but unsaved
+  const [editingQuizId, setEditingQuizId] = useState(null);   // null=new, number=existing
+  const [editTitle, setEditTitle] = useState('');
+  const [editQuestions, setEditQuestions] = useState([]);
+  const [editSectionId, setEditSectionId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Collapsed sections
+  const [collapsedSections, setCollapsedSections] = useState({});
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [quizData, secData, fileData] = await Promise.all([
+        listClassroomQuizzes(classroomId),
+        listSections(classroomId),
+        listClassroomFiles(classroomId),
+      ]);
+      setQuizzes(quizData);
+      setSections(secData.filter(s => s.id !== 0)); // exclude virtual "Unsectioned"
+      setAllFiles(fileData);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGenerate = async () => {
+    if (!genPrompt.trim()) { setGenError('Please enter a topic or prompt.'); return; }
+    if (!genTitle.trim()) { setGenError('Please enter a quiz title.'); return; }
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res = await generateClassroomQuiz(classroomId, {
+        topic_prompt: genPrompt.trim(),
+        num_questions: genNumQ,
+        section_id: genSectionId !== '' ? Number(genSectionId) : null,
+        file_ids: genFileIds.length > 0 ? genFileIds : null,
+      });
+      setDraftQuestions(res.questions);
+      setEditQuestions(res.questions.map(q => ({ ...q })));
+      setEditTitle(genTitle.trim());
+      setEditSectionId(genSectionId);
+      setEditingQuizId(null); // new quiz
+    } catch (e) {
+      setGenError(e.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleEditExisting = (quiz) => {
+    setEditingQuizId(quiz.id);
+    setEditTitle(quiz.title);
+    setEditQuestions(JSON.parse(JSON.stringify(quiz.questions))); // deep copy
+    setEditSectionId(quiz.section_id != null ? String(quiz.section_id) : '');
+    setDraftQuestions(quiz.questions);
+    setShowGenForm(false);
+  };
+
+  const handleSaveQuiz = async (publishStatus) => {
+    setSaving(true);
+    try {
+      const payload = {
+        title: editTitle,
+        topic_prompt: genPrompt.trim() || null,
+        questions: editQuestions,
+        section_id: editSectionId !== '' ? Number(editSectionId) : null,
+        status: publishStatus,
+      };
+      if (editingQuizId != null) {
+        await updateClassroomQuiz(classroomId, editingQuizId, payload);
+      } else {
+        await saveClassroomQuiz(classroomId, payload);
+      }
+      setDraftQuestions(null);
+      setEditQuestions([]);
+      setEditTitle('');
+      setGenPrompt('Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms');
+      setGenTitle('');
+      setGenSectionId('');
+      setGenFileIds([]);
+      setEditingQuizId(null);
+      setShowGenForm(false);
+      await load();
+    } catch (e) {
+      alert('Save failed: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTogglePublish = async (quiz) => {
+    const newStatus = quiz.status === 'published' ? 'draft' : 'published';
+    try {
+      await updateClassroomQuiz(classroomId, quiz.id, { status: newStatus });
+      await load();
+    } catch (e) {
+      alert('Failed to update status: ' + e.message);
+    }
+  };
+
+  const handleDelete = async (quiz) => {
+    if (!window.confirm(`Delete quiz "${quiz.title}"? This cannot be undone.`)) return;
+    try {
+      await deleteClassroomQuiz(classroomId, quiz.id);
+      await load();
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  };
+
+  const updateQField = (idx, field, value) => {
+    setEditQuestions(qs => qs.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+  };
+
+  const updateOption = (qIdx, optIdx, value) => {
+    setEditQuestions(qs => qs.map((q, i) => {
+      if (i !== qIdx) return q;
+      const opts = [...q.options];
+      opts[optIdx] = value;
+      return { ...q, options: opts };
+    }));
+  };
+
+  const deleteQuestion = (idx) => {
+    setEditQuestions(qs => qs.filter((_, i) => i !== idx));
+  };
+
+  const addQuestion = () => {
+    setEditQuestions(qs => [...qs, {
+      id: `cq_${Date.now()}`,
+      question: '',
+      options: ['', '', '', ''],
+      correct_index: 0,
+      explanation: '',
+    }]);
+  };
+
+  // Group quizzes by section
+  const quizzesBySection = {};
+  const unsectionedQuizzes = [];
+  quizzes.forEach(q => {
+    if (q.section_id != null) {
+      (quizzesBySection[q.section_id] = quizzesBySection[q.section_id] || []).push(q);
+    } else {
+      unsectionedQuizzes.push(q);
+    }
+  });
+
+  const renderQuizCard = (quiz) => (
+    <div key={quiz.id} style={{
+      border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '14px 16px',
+      marginBottom: 10, background: colors.surface, display: 'flex', alignItems: 'flex-start',
+      gap: 12, flexWrap: 'wrap',
+    }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, color: colors.text }}>
+            📝 {quiz.title}
+          </span>
+          <span style={{
+            padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600,
+            background: quiz.status === 'published' ? '#dcfce7' : '#f3f4f6',
+            color: quiz.status === 'published' ? '#16a34a' : colors.textMuted,
+          }}>
+            {quiz.status === 'published' ? '✓ Published' : 'Draft'}
+          </span>
+        </div>
+        <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+          {quiz.questions.length} question{quiz.questions.length !== 1 ? 's' : ''}
+          {quiz.topic_prompt && <span> · <em>{quiz.topic_prompt.slice(0, 60)}{quiz.topic_prompt.length > 60 ? '…' : ''}</em></span>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <button onClick={() => handleEditExisting(quiz)} style={{
+          padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
+          borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
+        }}>✏️ Edit</button>
+        <button onClick={() => handleTogglePublish(quiz)} style={{
+          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+          background: quiz.status === 'published' ? '#fef9c3' : '#dcfce7',
+          color: quiz.status === 'published' ? '#ca8a04' : '#16a34a',
+        }}>
+          {quiz.status === 'published' ? '↩ Unpublish' : '📤 Publish'}
+        </button>
+        <button onClick={() => handleDelete(quiz)} style={{
+          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+          background: '#fee2e2', color: '#dc2626',
+        }}>🗑️ Delete</button>
+      </div>
+    </div>
+  );
+
+  const renderSectionGroup = (title, sectionKey, quizList) => {
+    const isOpen = !collapsedSections[sectionKey];
+    return (
+      <div key={sectionKey} style={{ border: `1px solid ${colors.border}`, borderRadius: radii.md, marginBottom: 12, overflow: 'hidden' }}>
+        <button
+          onClick={() => setCollapsedSections(c => ({ ...c, [sectionKey]: !c[sectionKey] }))}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '11px 16px', background: colors.bg, border: 'none',
+            cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <span style={{ fontSize: 12, color: colors.textMuted }}>{isOpen ? '▼' : '▶'}</span>
+          <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, flex: 1, color: colors.text }}>{title}</span>
+          <span style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+            {quizList.length} quiz{quizList.length !== 1 ? 'zes' : ''}
+          </span>
+        </button>
+        {isOpen && (
+          <div style={{ padding: '8px 12px 12px' }}>
+            {quizList.length === 0
+              ? <p style={{ color: colors.textMuted, fontSize: font.sizeSm, margin: '8px 4px' }}>No quizzes in this section.</p>
+              : quizList.map(renderQuizCard)
+            }
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted }}>Loading quizzes…</div>;
+  if (error) return <div style={{ padding: 20, color: '#dc2626' }}>Error: {error}</div>;
+
+  return (
+    <div>
+      {/* Header + generate button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h3 style={{ margin: 0, fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>
+          Classroom Quizzes
+        </h3>
+        {!draftQuestions && (
+          <button
+            onClick={() => { setShowGenForm(v => !v); setGenError(null); }}
+            style={{
+              padding: '8px 18px', background: colors.primary, color: '#fff',
+              border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+              fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+            }}
+          >
+            ✨ Generate New Quiz
+          </button>
+        )}
+      </div>
+
+      {/* Generate form */}
+      {showGenForm && !draftQuestions && (
+        <div style={{
+          ...card.base, padding: 20, marginBottom: 24,
+          border: `1px solid ${colors.primary}`, background: '#f0f7ff',
+        }}>
+          <h4 style={{ margin: '0 0 16px', fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.primary }}>
+            ✨ Generate Quiz from Classroom Documents
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+                Quiz Title *
+              </label>
+              <input
+                value={genTitle}
+                onChange={e => setGenTitle(e.target.value)}
+                placeholder="e.g. Week 3 Quiz"
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+                Number of Questions
+              </label>
+              <input
+                type="number" min={1} max={20}
+                value={genNumQ}
+                onChange={e => setGenNumQ(Number(e.target.value))}
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+              Topic / Prompt * <span style={{ fontWeight: 400, color: colors.textMuted }}>(what should the quiz cover?)</span>
+            </label>
+            <textarea
+              value={genPrompt}
+              onChange={e => setGenPrompt(e.target.value)}
+              placeholder="e.g. Java inheritance and polymorphism, OOP design patterns, Exception handling..."
+              rows={2}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+              Section (optional)
+            </label>
+            <select
+              value={genSectionId}
+              onChange={e => setGenSectionId(e.target.value)}
+              style={{ padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, minWidth: 200 }}
+            >
+              <option value="">— No section —</option>
+              {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+
+          {/* File picker */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <label style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>
+                Source Files (optional)
+              </label>
+              <span style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+                — leave all unchecked to search all documents
+              </span>
+              {allFiles.length > 0 && (
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setGenFileIds(allFiles.map(f => f.id))}
+                    style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}
+                  >Select All</button>
+                  <button
+                    type="button"
+                    onClick={() => setGenFileIds([])}
+                    style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}
+                  >Clear</button>
+                </div>
+              )}
+            </div>
+            <div style={{
+              maxHeight: 160, overflowY: 'auto',
+              border: `1px solid ${colors.border}`, borderRadius: radii.sm,
+              background: colors.bg, padding: '6px 8px',
+            }}>
+              {allFiles.length === 0 ? (
+                <div style={{ padding: '10px 8px', fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>
+                  No files uploaded to this classroom yet. Upload files in the Learning Materials tab first.
+                </div>
+              ) : allFiles.map(f => {
+                const checked = genFileIds.includes(f.id);
+                return (
+                  <label key={f.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '5px 6px', borderRadius: radii.sm, cursor: 'pointer',
+                    background: checked ? '#eff6ff' : 'transparent',
+                    marginBottom: 2,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setGenFileIds(ids =>
+                        ids.includes(f.id) ? ids.filter(id => id !== f.id) : [...ids, f.id]
+                      )}
+                      style={{ accentColor: colors.primary, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: font.sizeXs, color: checked ? colors.primary : colors.text, fontWeight: checked ? font.weightSemibold : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      📄 {f.filename}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {genFileIds.length > 0 && (
+              <div style={{ marginTop: 5, fontSize: font.sizeXs, color: colors.primary, fontWeight: font.weightSemibold }}>
+                ✓ Using {genFileIds.length} of {allFiles.length} file{allFiles.length !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+
+          {genError && (
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: radii.sm, fontSize: font.sizeSm, color: '#dc2626' }}>
+              ❌ {genError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              style={{
+                padding: '9px 20px', background: generating ? '#93c5fd' : colors.primary,
+                color: '#fff', border: 'none', borderRadius: radii.sm, cursor: generating ? 'not-allowed' : 'pointer',
+                fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+              }}
+            >
+              {generating ? '⏳ Generating…' : '✨ Generate Questions'}
+            </button>
+            <button
+              onClick={() => setShowGenForm(false)}
+              style={{ padding: '9px 16px', background: 'transparent', color: colors.textMuted, border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', fontSize: font.sizeSm }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Preview panel (for both new draft and editing existing) */}
+      {draftQuestions && (
+        <div style={{ ...card.base, padding: 20, marginBottom: 28, border: `2px solid ${colors.primary}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h4 style={{ margin: 0, fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.primary }}>
+              {editingQuizId != null ? '✏️ Edit Quiz' : '🔍 Preview & Edit Generated Questions'}
+            </h4>
+            <button
+              onClick={() => { setDraftQuestions(null); setEditQuestions([]); setEditingQuizId(null); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: colors.textMuted }}
+            >✕</button>
+          </div>
+
+          {/* Title & section row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 20 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Quiz Title *</label>
+              <input
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Section</label>
+              <select
+                value={editSectionId}
+                onChange={e => setEditSectionId(e.target.value)}
+                style={{ padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm }}
+              >
+                <option value="">— None —</option>
+                {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Questions */}
+          {editQuestions.map((q, qIdx) => (
+            <div key={q.id || qIdx} style={{
+              border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '14px 16px',
+              marginBottom: 12, background: colors.bg, position: 'relative',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <span style={{ fontSize: font.sizeXs, fontWeight: font.weightBold, color: colors.textMuted }}>Q{qIdx + 1}</span>
+                <button
+                  onClick={() => deleteQuestion(qIdx)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#dc2626' }}
+                  title="Delete this question"
+                >🗑️</button>
+              </div>
+
+              {/* Question text */}
+              <textarea
+                value={q.question}
+                onChange={e => updateQField(qIdx, 'question', e.target.value)}
+                placeholder="Question text…"
+                rows={2}
+                style={{ width: '100%', padding: '7px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, resize: 'vertical', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box' }}
+              />
+
+              {/* Options */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                {q.options.map((opt, optIdx) => (
+                  <div key={optIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="radio"
+                      name={`correct_${qIdx}`}
+                      checked={q.correct_index === optIdx}
+                      onChange={() => updateQField(qIdx, 'correct_index', optIdx)}
+                      title="Mark as correct answer"
+                    />
+                    <input
+                      value={opt}
+                      onChange={e => updateOption(qIdx, optIdx, e.target.value)}
+                      placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                      style={{
+                        flex: 1, padding: '6px 8px', border: `1px solid ${q.correct_index === optIdx ? '#16a34a' : colors.border}`,
+                        borderRadius: radii.sm, fontSize: font.sizeSm,
+                        background: q.correct_index === optIdx ? '#f0fdf4' : 'transparent',
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Explanation */}
+              <input
+                value={q.explanation}
+                onChange={e => updateQField(qIdx, 'explanation', e.target.value)}
+                placeholder="Explanation (shown to students after answering)…"
+                style={{ width: '100%', padding: '6px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeXs, color: colors.textSecondary, boxSizing: 'border-box' }}
+              />
+            </div>
+          ))}
+
+          {/* Add question button */}
+          <button
+            onClick={addQuestion}
+            style={{
+              width: '100%', padding: '10px', marginBottom: 16,
+              border: `1px dashed ${colors.border}`, borderRadius: radii.md,
+              background: 'transparent', cursor: 'pointer', fontSize: font.sizeSm, color: colors.textMuted,
+            }}
+          >
+            + Add Question
+          </button>
+
+          {/* Save actions */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => handleSaveQuiz('draft')}
+              disabled={saving}
+              style={{
+                padding: '9px 20px', background: '#f3f4f6', color: colors.text,
+                border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+              }}
+            >
+              {saving ? '…' : '💾 Save Draft'}
+            </button>
+            <button
+              onClick={() => handleSaveQuiz('published')}
+              disabled={saving}
+              style={{
+                padding: '9px 20px', background: saving ? '#86efac' : '#16a34a', color: '#fff',
+                border: 'none', borderRadius: radii.sm, cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+              }}
+            >
+              {saving ? '…' : '📤 Publish to Students'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quiz list by section */}
+      {quizzes.length === 0 && !showGenForm && !draftQuestions ? (
+        <div style={{ ...card.base, textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
+          <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>
+            No quizzes yet
+          </div>
+          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+            Generate a quiz from your uploaded classroom documents and publish it for students.
+          </div>
+        </div>
+      ) : (
+        <>
+          {sections.map(sec => {
+            const secQuizzes = quizzesBySection[sec.id] || [];
+            return renderSectionGroup(`📂 ${sec.name}`, String(sec.id), secQuizzes);
+          })}
+          {unsectionedQuizzes.length > 0 && renderSectionGroup('📎 Unsectioned', '__unsectioned', unsectionedQuizzes)}
+        </>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function TeacherClassroomDetail() {
   const { classroomId } = useParams();
@@ -201,6 +792,7 @@ export default function TeacherClassroomDetail() {
   const [expandedStudent,  setExpandedStudent]  = useState(null);
   const [sortKey,          setSortKey]          = useState('full_name');
   const [sortAsc,          setSortAsc]          = useState(true);
+  const [activeTab,        setActiveTab]        = useState('materials');
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isTeacher)) navigate('/home');
@@ -275,7 +867,7 @@ export default function TeacherClassroomDetail() {
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: 26, fontWeight: font.weightBold, color: colors.primary }}>
-            📊 {classroomName}
+            🏫 {classroomName}
           </h2>
           {classCode && (
             <code style={{ background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: radii.sm, padding: '4px 12px', fontSize: font.sizeSm, fontWeight: font.weightBold, letterSpacing: 2, color: colors.text }}>
@@ -290,15 +882,50 @@ export default function TeacherClassroomDetail() {
         </div>
       </div>
 
-      {/* Body */}
-      {analyticsLoading && (
+      {/* Tab bar */}
+      <div style={{ display: 'flex', borderBottom: `2px solid ${colors.border}`, marginBottom: 24 }}>
+        {[
+          { key: 'materials', label: '📁 Learning Materials' },
+          { key: 'quizzes',   label: '📝 Quizzes & Tests' },
+          { key: 'analytics', label: '📊 Analytics' },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '10px 24px',
+              fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: activeTab === tab.key ? colors.primary : colors.textMuted,
+              borderBottom: activeTab === tab.key ? `2px solid ${colors.primary}` : '2px solid transparent',
+              marginBottom: -2,
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Materials tab */}
+      {activeTab === 'materials' && (
+        <ClassroomSections classroomId={classroomId} />
+      )}
+
+      {/* Quizzes & Tests tab */}
+      {activeTab === 'quizzes' && (
+        <ClassroomQuizManager classroomId={classroomId} />
+      )}
+
+      {/* Analytics tab */}
+      {activeTab === 'analytics' && analyticsLoading && (
         <div style={{ textAlign: 'center', padding: '64px 0', color: colors.textMuted }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
           <div style={{ fontSize: font.sizeMd }}>Loading student data…</div>
         </div>
       )}
 
-      {!analyticsLoading && analytics && analytics.students.length === 0 && (
+      {activeTab === 'analytics' && !analyticsLoading && analytics && analytics.students.length === 0 && (
         <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>👩‍🎓</div>
           <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No students yet</div>
@@ -310,7 +937,7 @@ export default function TeacherClassroomDetail() {
         </div>
       )}
 
-      {!analyticsLoading && analytics && analytics.students.length > 0 && (
+      {activeTab === 'analytics' && !analyticsLoading && analytics && analytics.students.length > 0 && (
         <div style={{ ...card.base, padding: 28 }}>
           <ClassSummaryBar summary={analytics.class_summary} />
 

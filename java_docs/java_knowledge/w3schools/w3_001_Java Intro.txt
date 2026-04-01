@@ -1,0 +1,55 @@
+Source: W3Schools Java Tutorial
+Title: Java Intro
+URL: https://www.w3schools.com/java/java_intro.aspJava
+Introduction
+❮ Previous
+Next ❯
+What is Java?
+Java is a popular and powerful programming language, created in 1995.
+It is owned by Oracle, and more than
+3 billion
+devices run Java.
+It is used for:
+Mobile applications (specially Android apps)
+Desktop applications
+Web applications
+Web servers and application servers
+Games
+Database connection
+And much, much more!
+Why Use Java?
+Java works on different platforms (Windows, Mac, Linux, Raspberry Pi, etc.)
+It is one of the most popular programming languages in the world
+It has a large demand in the current job market
+It is easy to learn and simple to use
+It is open-source and free
+It is secure, fast and powerful
+It has huge community support (tens of millions of developers)
+Java is an object oriented language which gives a clear structure to programs and allows code to be reused, lowering development costs
+As Java is close to
+C++
+and
+C#
+, it makes it easy for programmers to switch to Java or vice versa
+Java Example
+Java is often used in everyday programming tasks, like saying hello to a user:
+Example
+public class Main {
+  public static void main(String[] args) {
+    String name = "John";
+    System.out.println("Hello " + name);
+  }
+}
+Result:
+Hello John
+Try it Yourself »
+Get Started
+By the end of this tutorial, you will know how to write basic Java programs and apply your skills to real-life examples.
+You don't need any prior programming experience - just curiosity and practice!
+Get Started »
+Video: Java Introduction
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

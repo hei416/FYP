@@ -1,0 +1,35 @@
+Source: W3Schools Java Tutorial
+Title: Numbers and Strings
+URL: https://www.w3schools.com/java/java_strings_numbers.aspJava
+Numbers and Strings
+❮ Previous
+Next ❯
+Adding Numbers and Strings
+WARNING!
+Java uses the
++
+operator for both addition and concatenation.
+Numbers are added. Strings are concatenated.
+If you add two numbers, the result will be a number:
+Example
+int x = 10;
+int y = 20;
+int z = x + y;  // z will be 30 (an integer/number)
+Try it Yourself »
+If you add two strings, the result will be a string concatenation:
+Example
+String x = "10";
+String y = "20";
+String z = x + y;  // z will be 1020 (a String)
+Try it Yourself »
+If you add a number and a string, the result will be a string concatenation:
+Example
+String x = "10";
+int y = 20;
+String z = x + y;  // z will be 1020 (a String)
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

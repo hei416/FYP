@@ -1,0 +1,131 @@
+Source: GeeksforGeeks
+Topic: Encapsulation In Java
+URL: https://www.geeksforgeeks.org/encapsulation-in-java/Encapsulation means combining data and the functions that work on that data into a single unit, like a class. In
+Object-Oriented Programming
+, it helps keep things organized and secure.
+A class can hide the implementation part and discloses only the functionalities required by other classes. By making class data and methods private, representations or implementations can later be changed without impacting the codes that uses this class.It helps in better maintainability, readability and usability. It also helps maintain data integrity by allowing validation and control over the values assigned to variables.
+Encapsulation
+Implementation of Encapsulation in Java
+Declare data as private:
+Hide the class data so it cannot be accessed directly from outside the class.
+Use getters and setters:
+Keep variables private and provide public getter and setter methods for controlled access and safe modification, often with validation.
+Apply proper access modifiers:
+Use private for data hiding and public for methods that provide access.
+Java
+class
+Programmer
+{
+private
+String
+name
+;
+// Getter method used to get the data
+public
+String
+getName
+()
+{
+return
+name
+;
+}
+// Setter method is used to set or modify the data
+public
+void
+setName
+(
+String
+name
+)
+{
+this
+.
+name
+=
+name
+;
+}
+}
+public
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+Programmer
+p
+=
+new
+Programmer
+();
+p
+.
+setName
+(
+"Geek"
+);
+System
+.
+out
+.
+println
+(
+"Name=> "
++
+p
+.
+getName
+());
+}
+}
+Output
+Name=> Geek
+Explanation:
+In the above example, we use the encapsulation and use getter (
+getName)
+and setter (
+setName)
+method which are used to show and modify the private data. This encapsulation mechanism protects the internal state of the Programmer object and allows for better control and flexibility in how the name attribute is accessed and modified.
+Advantages of Encapsulation
+The advantages of encapsulation are listed below:
+Data Hiding:
+Encapsulation restricts direct access to class variables, protecting sensitive data from unauthorized access.
+Improved Maintainability:
+Changes to internal implementation can be made without affecting external code that uses the class.
+Enhanced Security:
+Encapsulation allows validation and control over data, preventing invalid or harmful values from being set.
+Code Reusability:
+Encapsulated classes can be reused in different programs without exposing internal logic.
+Better Modularity:
+Encapsulation promotes organized, modular code by keeping data and methods together within a class.
+Disadvantages of Encapsulation
+The disadvantages of encapsulation are listed below:
+Increased Code Complexity:
+Writing getter and setter methods for every variable can make the code longer and slightly more complex.
+Performance Overhead:
+Accessing data through methods instead of directly can introduce a minor performance cost, especially in performance-critical applications.
+Less Flexibility in Some Cases:
+Over-restricting access to class members may limit the ability of other classes to extend or use the class efficiently.
+Create Quiz
+Encapsulation with Java
+Visit Course
+Comment
+H
+Harsh Agarwal
+459
+Improve
+H
+Harsh Agarwal
+459
+Improve
+Article Tags :
+Java
+Java-Object Oriented

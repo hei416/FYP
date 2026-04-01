@@ -1,0 +1,106 @@
+Source: W3Schools Java Tutorial
+Title: else if
+URL: https://www.w3schools.com/java/java_conditions_elseif.aspJava
+Else If
+❮ Previous
+Next ❯
+The else if Statement
+Use the
+else if
+statement to specify a new condition if the first condition is
+false
+.
+Syntax
+if (
+condition1
+) {
+// block of code to be executed if condition1 is true
+} else if (
+condition2
+) {
+// block of code to be executed if the condition1 is false and condition2 is true
+} else {
+// block of code to be executed if the condition1 is false and condition2 is false
+}
+Think of it like real life:
+If it rains, bring an umbrella.
+Else if
+it's sunny, wear sunglasses. Else, just go outside normally.
+Example
+int weather = 2; // 1 = raining, 2 = sunny, 3 = cloudyif (weather == 1) {
+  System.out.println("Bring an umbrella.");
+} else if (weather == 2) {
+  System.out.println("Wear sunglasses.");
+} else {
+  System.out.println("Just go outside normally.");
+}
+// Outputs "Wear sunglasses."
+Try it Yourself »
+Since
+weather
+is
+2
+, the first condition (
+weather == 1
+) is not met, so the
+if
+block is skipped.  
+The program then checks the
+else if
+condition (
+weather == 2
+), which is
+true
+.  
+That means the
+else if
+block runs and prints "Wear sunglasses.".
+Another Example
+This example chooses between three different messages depending on the time of day:
+Example
+int time = 22;
+if (time < 10) {
+  System.out.println("Good morning.");
+} else if (time < 18) {
+  System.out.println("Good day.");
+} else {
+  System.out.println("Good evening.");
+}
+// Outputs "Good evening."
+Try it Yourself »
+Example explained
+In the example above, time (22) is greater than 10, so the
+first condition
+is
+false
+. The next condition, in the
+else if
+statement, is also
+false
+, so we move on to the
+else
+condition since
+condition1
+and
+condition2
+is both
+false
+- and print to the screen "Good 
+evening".
+However, if the time was 14, our program would print "Good day.":
+Example
+int time = 14;
+if (time < 10) {
+  System.out.println("Good morning.");
+} else if (time < 18) {
+  System.out.println("Good day.");
+} else {
+  System.out.println("Good evening.");
+}
+// Outputs "Good day."
+Try it Yourself »
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

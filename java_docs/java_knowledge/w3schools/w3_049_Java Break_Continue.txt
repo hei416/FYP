@@ -1,0 +1,119 @@
+Source: W3Schools Java Tutorial
+Title: Java Break/Continue
+URL: https://www.w3schools.com/java/java_break.aspJava
+Break and Continue
+❮ Previous
+Next ❯
+Break
+You have already seen the
+break
+statement used in an earlier chapter of this tutorial. It was used to "jump out" of a
+switch
+statement.
+The
+break
+statement can also be used to jump out of a
+loop
+.
+This example stops the loop when
+i
+is equal to 4:
+Example
+for (int i = 0; i < 10; i++) {
+  if (i == 4) {
+    break;
+  }
+  System.out.println(i);
+}
+Try it Yourself »
+Continue
+The
+continue
+statement breaks one iteration (in the loop), if a specified condition occurs, and continues with the next iteration in the loop.
+This example skips the value of 4:This example skips the value of 4:
+Example
+for (int i = 0; i < 10; i++) {
+  if (i == 4) {
+    continue;
+  }
+  System.out.println(i);
+}
+Try it Yourself »
+Good to Remember:
+break
+= stop the loop completely.
+continue
+= skip this round, but keep looping.
+Combining Break and Continue
+You can also combine
+break
+and
+continue
+.
+This example skips printing 2 and stops the loop at 4:
+Example
+for (int i = 0; i < 6; i++) {
+  if (i == 2) {
+    continue;
+  }
+  if (i == 4) {
+    break;
+  }
+  System.out.println(i);
+}
+Try it Yourself »
+Break and Continue in While Loop
+You can also use
+break
+and
+continue
+in while loops:
+Break Example
+int i = 0;
+while (i < 10) {
+  System.out.println(i);
+  i++;
+  if (i == 4) {
+    break;
+  }
+}
+Try it Yourself »
+Continue Example
+int i = 0;
+while (i < 10) {
+  if (i == 4) {
+    i++;
+    continue;
+  }
+  System.out.println(i);
+  i++;
+}
+Try it Yourself »
+Real-Life Example
+Imagine processing a list of numbers where you want to skip negative values, but stop completely if you find a zero:
+Example
+int[] numbers = {3, -1, 7, 0, 9};for (int n : numbers) {
+  if (n < 0) {
+    continue; // skip negative numbers
+  }
+  if (n == 0) {
+    break; // stop loop when zero is found
+  }
+  System.out.println(n);
+}
+Try it Yourself »
+Note:
+Don't worry if you don't fully understand the example above.  
+It uses an
+array
+(
+int[] numbers = {3, -1, 7, 0, 9};
+) to store the numbers,  
+and you will learn more about
+arrays
+in the next chapter.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

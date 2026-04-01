@@ -1,0 +1,87 @@
+Source: W3Schools Java Tutorial
+Title: Java try-with-resources
+URL: https://www.w3schools.com/java/java_try_catch_resources.aspJava
+try-with-resources
+❮ Previous
+Next ❯
+Java Close Resources
+When working with files, streams, or other resources, it is important to
+close
+them after use. 
+If you forget to close a resource, it may keep using memory or even prevent you from opening the file again until the program ends.
+Note:
+You have not yet learned about
+files
+and
+streams
+in detail.  
+These topics will come in the next chapters. For now, just focus on how
+try-with-resources
+works.
+In older code, you had to close "resources" manually by calling their
+close()
+method:
+Example
+import java.io.FileOutputStream;
+import java.io.IOException;public class Main {
+  public static void main(String[] args) {
+    try {
+      FileOutputStream output = new FileOutputStream("filename.txt");
+      output.write("Hello".getBytes());
+      output.close();  // must close manually
+      System.out.println("Successfully wrote to the file.");
+    } catch (IOException e) {
+      System.out.println("Error writing file.");
+    }
+  }
+}
+Run Example »
+Java try-with-resources
+Since Java 7, you can use
+try-with-resources
+.  
+It is a special form of
+try
+that works with resources (like
+files
+and
+streams
+).  
+The resource is declared inside parentheses
+try(...)
+, and Java will close it automatically when the block finishes - even if an error occurs.
+Example (try-with-resources)
+import java.io.FileOutputStream;
+import java.io.IOException;public class Main {
+  public static void main(String[] args) {
+    // resource is opened inside try()
+    try (FileOutputStream output = new FileOutputStream("filename.txt")) {
+      output.write("Hello".getBytes());
+      // no need to call close() here
+      System.out.println("Successfully wrote to the file.");
+    } catch (IOException e) {
+      System.out.println("Error writing file.");
+    }
+  }
+}
+Run Example »
+Why use try-with-resources?
+Safer
+- resources are always closed, even if an exception occurs.
+Cleaner
+- no need to write
+close()
+calls.
+Shorter code
+- less boilerplate, easier to read.
+Rule of thumb:
+Whenever you work with files, streams, or database connections, use try-with-resources to make sure they are closed properly.
+Next:
+Learn about how to
+handle files in Java
+.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

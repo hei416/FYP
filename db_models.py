@@ -287,3 +287,19 @@ class ErrorExplanationCache(Base):
     hit_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClassroomQuiz(Base):
+    """A teacher-created quiz for a classroom, optionally scoped to a section."""
+    __tablename__ = "classroom_quizzes"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id   = Column(Integer, ForeignKey("classroom_sections.id", ondelete="SET NULL"), nullable=True, index=True)
+    title        = Column(String(500), nullable=False)
+    topic_prompt = Column(Text, nullable=True)       # prompt used to generate questions
+    questions    = Column(JSON, nullable=False)       # list of MCQ dicts
+    status       = Column(String(20), default="draft")  # "draft" | "published"
+    created_by   = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+    updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

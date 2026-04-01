@@ -1,0 +1,52 @@
+Source: W3Schools Java Tutorial
+Title: Real-Life Examples
+URL: https://www.w3schools.com/java/java_for_loop_reallife.aspJava
+For Loop Examples
+❮ Previous
+Next ❯
+Real-Life Examples
+To demonstrate a practical example of the
+for loop
+, let's create a program that counts to 100 by tens:
+Example
+for (int i = 0; i <= 100; i += 10) {
+  System.out.println(i);
+}
+Try it Yourself »
+In this example, we create a program that only print even values between 0 and 10:
+Example
+for (int i = 0; i <= 10; i = i + 2) {
+  System.out.println(i);
+}
+Try it Yourself »
+And in this example, we create a program that prints the multiplication table for a specified number:
+Example
+int number = 2;// Print the multiplication table for the number 2
+for (int i = 1; i <= 10; i++) {
+  System.out.println(number + " x " + i + " = " + (number * i));
+}
+Try it Yourself »
+Here is a simple program that prints the seat numbers in a theater row:
+Example
+for (int seat = 1; seat <= 5; seat++) {
+  System.out.println("Seat number: " + seat);
+}
+Try it Yourself »
+Use a loop to calculate the factorial of a given number:
+Example
+int n = 5;
+int fact = 1;
+
+for (int i = 1; i <= n; i++) {
+  fact *= i;
+}
+
+System.out.println("Factorial of " + n + " is " + fact);
+// Output: Factorial of 5 is 120
+Try it Yourself »
+Factorial means multiplying a number by every number below it, down to 1. For example, the factorial of 5 is: 5 * 4 * 3 * 2 * 1 = 120
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

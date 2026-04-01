@@ -298,6 +298,45 @@ def _get_or_build_index(classroom_id: int, db: Session):
 # Search (RAG query) — returns chunks with file metadata
 # ---------------------------------------------------------------------------
 
+def get_chunks_for_files(
+    classroom_id: int,
+    file_ids: list,
+    db: Session,
+    max_chars: int = 8000,
+) -> list:
+    """
+    Return all chunks belonging to the given file_ids (no embedding search).
+    Used when the teacher explicitly selects which files to base the quiz on.
+    Returns list of dicts with same shape as search_classroom_context.
+    """
+    rows = (
+        db.query(ClassroomChunk)
+        .filter(
+            ClassroomChunk.classroom_id == classroom_id,
+            ClassroomChunk.file_id.in_(file_ids),
+        )
+        .all()
+    )
+    results = []
+    total_chars = 0
+    for r in rows:
+        if total_chars >= max_chars:
+            break
+        file_obj = db.query(ClassroomFile).filter(ClassroomFile.id == r.file_id).first()
+        filename = file_obj.filename if file_obj else "unknown"
+        mime_type = file_obj.mime_type if file_obj else "text/plain"
+        page_num = getattr(r, "page_number", None) or 1
+        results.append({
+            "text": r.chunk_text,
+            "file_id": r.file_id,
+            "filename": filename,
+            "mime_type": mime_type,
+            "page_number": page_num,
+        })
+        total_chars += len(r.chunk_text)
+    return results
+
+
 def search_classroom_context(
     classroom_id: int,
     query: str,

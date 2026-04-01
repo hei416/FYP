@@ -1,0 +1,80 @@
+Source: W3Schools Java Tutorial
+Title: Precedence
+URL: https://www.w3schools.com/java/java_operators_precedence.asp
+
+Java
+Operator Precedence
+❮ Previous
+Next ❯
+Java Operator Precedence
+When a calculation contains more than one operator, Java follows
+order of operations
+rules to decide which part to calculate first.
+For example, multiplication happens before addition:
+Example
+int result1 = 2 + 3 * 4;     // 2 + 12 = 14
+int result2 = (2 + 3) * 4;   // 5 * 4 = 20System.out.println(result1);
+System.out.println(result2);
+Try it Yourself »
+Why Does This Happen?
+In
+2 + 3 * 4
+, the multiplication is done first, so the answer is
+14
+.
+If you want the addition to happen first, you must use parentheses:
+(2 + 3) * 4
+, which gives
+20
+.
+Tip:
+Always use parentheses
+( )
+if you want to make sure the calculation is done in the order you expect. It also makes your code easier to read.
+Order of Operations
+Here are some common operators, from highest to lowest priority:
+()
+- Parentheses
+*
+,
+/
+,
+%
+- Multiplication, Division, Modulus
++
+,
+-
+- Addition, Subtraction
+>
+,
+<
+,
+>=
+,
+<=
+- Comparison
+==
+,
+!=
+- Equality
+&&
+- Logical AND
+||
+- Logical OR
+=
+- Assignment
+Another Example
+Subtraction and addition are done from left to right, unless you add parentheses:
+Example
+int result1 = 10 - 2 + 5;    // (10 - 2) + 5 = 13
+int result2 = 10 - (2 + 5);  // 10 - 7 = 3System.out.println(result1);
+System.out.println(result2);
+Try it Yourself »
+Remember:
+Parentheses always come first. Use them to control the order of your calculations.
+Video: Java Operators
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress

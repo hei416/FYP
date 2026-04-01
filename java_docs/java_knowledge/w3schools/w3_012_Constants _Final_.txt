@@ -1,0 +1,41 @@
+Source: W3Schools Java Tutorial
+Title: Constants (Final)
+URL: https://www.w3schools.com/java/java_variables_final.aspJava
+Constants (final)
+❮ Previous
+Next ❯
+Constants (final keyword)
+When you do not want a variable's value to change, use the
+final
+keyword.
+A variable declared with
+final
+becomes a
+constant
+, which means unchangeable and read-only:
+Example
+final int myNum = 15;
+myNum = 20;  // Error: cannot assign a value to final variable 'myNum'
+Try it Yourself »
+When to Use final?
+You should declare variables as
+final
+when their values 
+should never change.  
+For example, the number of minutes in an hour, or your birth 
+year:
+Example
+final int MINUTES_PER_HOUR = 60;
+final int BIRTHYEAR = 1980;
+Try it Yourself »
+Note:
+By convention, final variables in Java are usually 
+written in upper case (e.g.
+BIRTHYEAR
+). It is not required, but useful 
+for code readability and common for many programmers.
+❮ Previous
+Next ❯
+★
++1
+Sign in to track progress
