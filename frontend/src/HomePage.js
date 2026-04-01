@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
-import topicContent from './topicContent.json';
+// topicContent.json is lazy-loaded in TopicDetailPage — not needed here
 import ReactFlow, {
   Controls,
   Background,

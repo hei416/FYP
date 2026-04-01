@@ -1,0 +1,174 @@
+Title: CodeTutor Platform Guide and Introduction
+Source: platform_guide
+URL: http://localhost:3000
+
+=== WHAT IS CODETUTOR? ===
+
+CodeTutor is an AI-powered Java learning platform designed for university students. It combines a structured learning roadmap, an AI tutor powered by a Java knowledge base, an interactive code editor, quizzes, coding challenges, and classroom management tools. The platform guides students step-by-step through Java programming from beginner to advanced level.
+
+=== LEARNING ROADMAP ===
+
+The homepage shows the Java Learning Roadmap — a visual interactive map of 52 subtopics organised into 12 topic groups. Students must complete each group before unlocking the next, ensuring prerequisite knowledge is built up progressively.
+
+The 12 topic groups (in order) are:
+1. Bridging from Python — syntax differences, type system, compilation, program structure
+2. Problem Solving with Java — algorithm thinking, code optimisation, pseudocode, debugging
+3. String — string operations, formatting, parsing, StringBuffer/StringBuilder
+4. Array — declaration, traversal, multi-dimensional, utility methods
+5. Methods — defining, calling, parameters, return values, overloading, recursion
+6. Exception Handling and File IO — try/catch/finally, custom exceptions, file read/write
+7. Class (constructor, attributes, methods) — OOP fundamentals, constructors, encapsulation
+8. Class (access modifier, static) — public/private/protected, static variables and methods
+9. Inheritance — extends keyword, method overriding, super keyword, class hierarchy
+10. Polymorphism — runtime polymorphism, upcasting, downcasting, instanceof
+11. Interface and Lambda Expression — interface definition, implementing interfaces, lambda syntax, functional interfaces
+12. Recursion and Revision — recursive algorithms, base cases, comprehensive review
+
+To mark a topic as complete, open the topic page and click the "Mark as Complete" button. A green tick will appear on the roadmap node.
+
+=== HOW TO NAVIGATE TOPICS ===
+
+Click any unlocked node on the roadmap to open its topic page. Each topic page shows:
+- A description of the topic
+- Learning resources (links to W3Schools, GeeksForGeeks, Oracle, and textbook chapters)
+- Reference documents from the knowledge base
+- Previous / Next navigation buttons to move sequentially through subtopics
+- A "Mark as Complete" button to record your progress
+
+=== AI TUTOR (ASK AI BUTTON) ===
+
+Click the "☕ Ask AI" button at the bottom-right of any page to open the AI tutor chat panel. The AI is powered by a RAG (Retrieval-Augmented Generation) system backed by over 2000 Java knowledge chunks from W3Schools, Oracle documentation, GeeksForGeeks, and textbooks including Think Java and Java Notes.
+
+How to use the AI Tutor:
+- Type any Java programming question into the text box and press Enter or click Send.
+- The AI searches the knowledge base for relevant passages and generates a grounded answer.
+- Use Shift+Enter for multi-line questions.
+- Sources (📚 Sources) are shown below each answer — click to expand a source and see the retrieved paragraph.
+- Click "🔍 Show Context" on a source to see the surrounding chunks for deeper context.
+- Click "Expand" (top-right of the panel) to open the full Conversation History page.
+- Click "History" (top-left of panel) to see and reload previous chat sessions.
+- Click "New Chat" to start a fresh conversation.
+
+Knowledge source selection:
+At the bottom of the chat panel, you can choose which knowledge sources the AI should search. "General Java KB" uses the main Java knowledge base. If you are enrolled in a classroom, you can also toggle classroom-specific documents uploaded by your teacher.
+
+The AI tutor initialises lazily on first use — if you see "Initializing AI tutor… first load may take 30s", please wait for it to warm up before sending questions.
+
+=== CODE PLAYGROUND ===
+
+The Code Playground (accessible from the left sidebar navigation) provides a Monaco-based code editor with Java syntax highlighting. You can write, edit, and run Java code directly in the browser.
+
+Features:
+- Write Java code and click "Run" to execute it.
+- Code execution is powered by an external code execution API (Paiza).
+- Standard input/output is supported.
+- Your code is auto-saved per topic and persists across page reloads.
+- Click "Save to My Work" to permanently save a code snippet with a custom name.
+- The compiler tab shows any compilation errors or runtime output.
+- An "Explain Error" AI button appears when errors occur, explaining the error in plain English.
+
+=== QUIZZES (EXERCISES) ===
+
+Quizzes test your understanding of Java topics. To take a quiz:
+1. Navigate to a topic page and click "Take Quiz" or go to the Quiz page from the sidebar.
+2. Select the Java topics you want to be tested on.
+3. Choose the number of questions (5, 10, or 15).
+4. Answer each multiple-choice question.
+5. After submission, your score is shown with correct/incorrect answers and explanations.
+
+Pass criteria: A score of 70% or above counts as a passing session.
+Progress: Passed quiz topics count toward your overall progress score.
+Results are saved to "My Work" automatically.
+
+=== CODING CHALLENGES (PRACTICAL TESTS) ===
+
+Coding Challenges test your ability to write complete Java programs. To take a challenge:
+1. Navigate to the Practical Tests page from the sidebar.
+2. A problem specification is shown — read it carefully.
+3. Write your Java solution in the built-in editor.
+4. Click "Submit" to run automated test cases against your solution.
+5. You receive a score based on how many test cases pass.
+
+Pass criteria: A score of 60% or above counts as passing.
+Hints are available if you get stuck — a limited number of hints are provided per challenge.
+Results are saved to "My Work" automatically.
+
+=== PROGRESS TRACKING ===
+
+Click the circular progress indicator in the top navigation bar (shows a percentage like "39%") to open the Learning Progress modal.
+
+The modal shows:
+- Weak Areas: Topics where your average quiz/test score is below 70% — shown at the top to highlight what needs attention.
+- Overall Progress: Combined score out of total (roadmap completions + quiz passes + test passes).
+- Learning Roadmap: How many of the 52 subtopics you have marked complete.
+- Exercises: How many quiz topic groups you have passed (pass score ≥70%).
+- Coding Challenges: How many coding challenge topic groups you have passed (pass score ≥60%).
+- Code Playground: Number of code executions completed.
+- AI Tutor Interactions: Number of questions asked to the AI.
+
+Progress is tracked locally (localStorage) and synced to the server when logged in.
+
+=== MY WORK PAGE ===
+
+The My Work page (accessible from the sidebar) stores all your saved work:
+- 💻 Code — playground code snippets you saved
+- 📝 Quiz — quiz results with scores and answers
+- 🧪 Test — coding challenge submissions with scores
+
+You can filter by type using the buttons at the top. Click on any item to expand and see your full answers and score. You can also delete individual work records.
+
+=== CONVERSATION HISTORY ===
+
+The full Conversation History page (accessible by clicking "Expand" in the AI chat panel, or from the sidebar) shows all previous AI tutor conversations.
+
+Each conversation entry shows the first message title and can be re-opened to continue a session. You can also delete old conversations.
+
+=== CLASSROOMS (FOR ENROLLED STUDENTS) ===
+
+If your teacher has created a classroom and given you a class code, you can join from the Classrooms page (sidebar). Once enrolled:
+- Your teacher can upload course-specific documents (PDFs, notes) to the classroom.
+- In the AI Tutor, you can toggle your classroom as a knowledge source — the AI will then answer questions using your teacher's uploaded materials.
+- The classroom page shows a list of uploaded documents you can browse.
+
+=== GETTING STARTED (NEW USERS) ===
+
+Recommended first steps:
+1. Register for an account (or use guest mode to explore).
+2. Click "Start Tour" to take the guided onboarding walkthrough.
+3. Start from the first roadmap node: "Syntax Comparison" in the Bridging from Python group.
+4. Read the topic content and reference materials.
+5. When ready, mark the topic complete and move to the next.
+6. After finishing a group of 2 chapters, you will be prompted to take a quiz to consolidate your learning.
+7. Use the AI Tutor (☕ Ask AI) whenever you have questions.
+
+=== NAVIGATION ===
+
+The left sidebar contains:
+- 🏠 Home — the main Java Learning Roadmap
+- 💻 Playground — the code editor and compiler
+- 📁 My Work — saved quizzes, tests, and code
+- 🏫 Classrooms — enrolled classrooms
+- 👑 Admin / Teacher Dashboard — only visible to admin and teacher accounts
+
+The top navigation bar shows:
+- CodeTutor logo (click to go home)
+- Progress indicator (click to see detailed progress)
+- ☕ Ask AI button (click to open AI tutor)
+- Logged-in email / Logout
+
+=== TIPS FOR LEARNING ===
+
+- Complete topics in order — the roadmap enforces prerequisites so you always have the foundation needed for the next topic.
+- Use the AI Tutor to clarify any concept right when you encounter it — the AI knows the same materials you are studying.
+- Re-do quizzes on topics where your score is below 70% to improve your weak areas score.
+- Check your Weak Areas in the Progress panel regularly to know where to focus.
+- Save your playground code so you can refer back to your own examples later.
+- In classrooms, toggle your classroom knowledge source in the AI Tutor for teacher-specific explanations.
+
+=== TECHNICAL NOTES ===
+
+- Backend: FastAPI (Python) with PostgreSQL database
+- AI: Retrieval-Augmented Generation (RAG) using FAISS vectorstore and LLM (qwen3-max)
+- Code execution: Paiza API (Java)
+- Frontend: React with Tailwind CSS
+- Authentication: JWT tokens stored in localStorage/sessionStorage

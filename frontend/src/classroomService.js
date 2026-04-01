@@ -121,6 +121,22 @@ export const uploadClassroomFile = async (classroomId, file) => {
 };
 
 /**
+ * Upload a file to a classroom, optionally into a section.
+ */
+export const uploadClassroomFileToSection = async (classroomId, file, sectionId = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (sectionId != null) formData.append('section_id', String(sectionId));
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/files/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/**
  * List file metadata for a classroom (no binary data returned).
  */
 export const listClassroomFiles = async (classroomId) => {
@@ -202,4 +218,55 @@ export const askClassroom = async (classroomId, question, conversationId = null,
   const data = await res.json();
   console.log(`✅ [ASK] Response:`, data);
   return data;
+};
+
+// ---------------------------------------------------------------------------
+// Section endpoints
+// ---------------------------------------------------------------------------
+
+export const createSection = async (classroomId, { name, description = null, order = 0 }) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/sections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ name, description, order }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const listSections = async (classroomId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/sections`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const renameSection = async (classroomId, sectionId, name) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/sections/${sectionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const deleteSection = async (classroomId, sectionId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/sections/${sectionId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const moveFileToSection = async (classroomId, fileId, sectionId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/files/${fileId}/section`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ section_id: sectionId }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 };

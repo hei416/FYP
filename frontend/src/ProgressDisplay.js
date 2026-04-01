@@ -3,11 +3,16 @@ import { ProgressTracker, QUIZ_TARGET, TEST_TARGET } from './ProgressTracker';
 import { listWork } from './myWorkService';
 import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './HomePage';
 import { colors, radii, shadows, spacing, font, transition } from './theme';
+import { useAuth } from './AuthContext';
+
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
 export default function ProgressDisplay() {
     const [progress, setProgress] = useState({ completed: 0, total: 1 });
     const [showModal, setShowModal] = useState(false);
     const [detailedProgress, setDetailedProgress] = useState(null);
+    const [weakTopics, setWeakTopics] = useState([]);
+    const { user } = useAuth();
 
     const tracker = useMemo(() => new ProgressTracker(), []);
 
@@ -183,6 +188,16 @@ export default function ProgressDisplay() {
             }
             updateProgress();
             setShowModal(true);
+            // Fetch weak topics from backend
+            const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || '';
+            if (token) {
+                fetch(`${API_BASE}/progress/weak-topics`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                })
+                    .then(r => r.ok ? r.json() : { weak_topics: [] })
+                    .then(data => setWeakTopics(data.weak_topics || []))
+                    .catch(() => setWeakTopics([]));
+            }
         } catch (error) {
             console.error('Error syncing:', error);
             updateProgress();
@@ -275,6 +290,36 @@ export default function ProgressDisplay() {
                                 cursor: 'pointer', color: colors.textMuted, padding: '0', lineHeight: 1
                             }}>×</button>
                         </div>
+
+                        {/* Weak Areas — shown above Overall Progress when data is available */}
+                        {weakTopics.length > 0 && (
+                            <div style={{
+                                padding: spacing.lg, background: '#fff7ed',
+                                borderRadius: radii.md, border: '1px solid #fed7aa',
+                                marginBottom: spacing.xl
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: spacing.sm }}>
+                                    <span style={{ fontSize: '24px' }}>⚠️</span>
+                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: '#c2410c' }}>
+                                        Your Weak Areas
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: font.sizeXs, color: '#9a3412', marginBottom: spacing.sm }}>
+                                    Topics where your average score is below 70% — focus here for improvement!
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                    {weakTopics.map(wt => (
+                                        <span key={wt.topic} style={{
+                                            fontSize: font.sizeXs, color: '#9a3412',
+                                            background: '#ffedd5', borderRadius: 9999,
+                                            padding: '2px 10px', fontWeight: font.weightSemibold
+                                        }}>
+                                            {wt.topic} ({wt.avg_score}%)
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Overall Progress */}
                         <div style={{

@@ -11,6 +11,7 @@ import Playground from "./Playground";
 import MyWorkPage from './MyWorkPage';
 import ConversationHistoryPage from "./ConversationHistoryPage";
 import TeacherDashboard from "./TeacherDashboard";
+import TeacherClassroomDetail from "./TeacherClassroomDetail";
 import AdminDashboard from "./AdminDashboard";
 import StudentClassrooms from "./StudentClassrooms";
 import StudentClassroomDetail from "./StudentClassroomDetail";
@@ -135,6 +136,7 @@ function AppContent() {
                     <Route path="/my-work"            element={<MyWorkPage />} />
                     <Route path="/history"            element={<ConversationHistoryPage />} />
                     <Route path="/teacher-dashboard"  element={<TeacherDashboard />} />
+                    <Route path="/teacher-classroom/:classroomId" element={<TeacherClassroomDetail />} />
                     <Route path="/my-classrooms"      element={<StudentClassrooms />} />
                     <Route path="/classrooms/:classroomId" element={<StudentClassroomDetail />} />
                     <Route path="/admin"              element={<AdminDashboard />} />

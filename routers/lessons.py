@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import os
-import pickle
 from functools import lru_cache
 import re
 from fastapi.responses import HTMLResponse
@@ -19,18 +18,26 @@ class DocumentRequest(BaseModel):
 # Cache the vectorstore loading
 @lru_cache(maxsize=1)
 def load_vectorstore():
-    """Load and cache vectorstore"""
+    """Load and cache vectorstore via LangChain FAISS load_local."""
     try:
-        with open('./vectorstore/index.pkl', 'rb') as f:
-            store_data = pickle.load(f)
-        
-        if isinstance(store_data, tuple) and len(store_data) >= 1:
-            docstore = store_data[0]
-            
-            if hasattr(docstore, '_dict'):
-                return docstore._dict
-        
-        raise ValueError("Invalid vectorstore structure")
+        from langchain_community.vectorstores import FAISS
+        from langchain_community.embeddings import AzureOpenAIEmbeddings
+        from core.config import (
+            API_KEY, BASE_URL,
+            FAISS_EMBEDDING_MODEL, FAISS_EMBEDDING_API_VERSION,
+            VECTORSTORE_PATH,
+        )
+
+        embeddings = AzureOpenAIEmbeddings(
+            model=FAISS_EMBEDDING_MODEL,
+            azure_endpoint=BASE_URL,
+            api_key=API_KEY,
+            api_version=FAISS_EMBEDDING_API_VERSION,
+        )
+        vs = FAISS.load_local(
+            VECTORSTORE_PATH, embeddings, allow_dangerous_deserialization=True
+        )
+        return vs.docstore._dict
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load vectorstore: {str(e)}")
 def parse_document_metadata(content: str):

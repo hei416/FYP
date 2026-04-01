@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { listClassroomFiles, downloadClassroomFile, askClassroom } from './classroomService';
+import { downloadClassroomFile, askClassroom, listSections } from './classroomService';
 
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
@@ -12,34 +12,40 @@ function generateId() {
 export default function StudentClassroomDetail() {
   const { classroomId } = useParams();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('materials'); // 'materials' | 'ask'
-  const [files, setFiles] = useState([]);
+  const [tab, setTab] = useState('materials'); // 'materials' | 'sections'
   const [filesError, setFilesError] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [filesLoading, setFilesLoading] = useState(true);
-  const [viewerFile, setViewerFile] = useState(null); // For modal viewer
+  const [viewerFile, setViewerFile] = useState(null); // For inline viewer
   const [token, setToken] = useState(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [textContent, setTextContent] = useState(null);
-  const [selectedSourceIndex, setSelectedSourceIndex] = useState(0); // Which source PDF to view
-  const [classroomConversationId, setClassroomConversationId] = useState(null); // Track conversation ID for this classroom
+  const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
+  const [classroomConversationId, setClassroomConversationId] = useState(null);
+  // Sections tab state
+  const [sections, setSections] = useState([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
 
   useEffect(() => {
-    setFilesLoading(true);
-    setFilesError(null);
-    listClassroomFiles(classroomId)
-      .then(setFiles)
-      .catch((err) => {
-        console.error("Error loading classroom files:", err);
-        setFilesError(err.message);
-      })
-      .finally(() => setFilesLoading(false));
-    
     // Reset conversation ID when classroom changes
     setClassroomConversationId(null);
     console.log(`🔄 Reset conversation ID for new classroom: ${classroomId}`);
+  }, [classroomId]);
+
+  // Refresh sections when classroom changes
+  useEffect(() => {
+    if (!classroomId) return;
+    setSectionsLoading(true);
+    setFilesError(null);
+    listSections(classroomId)
+      .then(data => setSections(data))
+      .catch((err) => {
+        setSections([]);
+        setFilesError(err.message || 'Failed to load sections');
+      })
+      .finally(() => setSectionsLoading(false));
   }, [classroomId]);
 
   // Get token on mount
@@ -314,6 +320,12 @@ export default function StudentClassroomDetail() {
         >
           📄 Materials
         </button>
+        <button
+          style={styles.tab(tab === 'sections')}
+          onClick={() => setTab('sections')}
+        >
+          📚 Sections
+        </button>
       </div>
 
       {tab === 'materials' && (
@@ -323,16 +335,16 @@ export default function StudentClassroomDetail() {
               ❌ Error loading materials: {filesError}
             </div>
           )}
-          {filesLoading ? (
+          {sectionsLoading ? (
             <p style={styles.empty}>Loading materials…</p>
-          ) : files.length === 0 ? (
+          ) : sections.length === 0 || sections.every((s) => (s.files || []).length === 0) ? (
             <div style={styles.empty}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
               <p>No materials uploaded yet.</p>
               <p style={{ fontSize: 13, marginTop: 6 }}>Your teacher will upload documents here for you to study.</p>
             </div>
           ) : (
-            files.map((f) => (
+            sections.flatMap((s) => s.files || []).map((f) => (
               <div key={f.id} style={styles.fileCard}>
                 <span style={{ fontSize: 22 }}>{getFileIcon(f.mime_type)}</span>
                 <span style={styles.fileName}>{f.filename}</span>
@@ -437,6 +449,107 @@ export default function StudentClassroomDetail() {
       )}
 
       {/* Ask AI tab and panel removed */}
+
+      {tab === 'sections' && (
+        <div>
+          {sectionsLoading ? (
+            <p style={styles.empty}>Loading sections…</p>
+          ) : sections.length === 0 ? (
+            <div style={styles.empty}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+              <p>No sections yet.</p>
+              <p style={{ fontSize: 13, marginTop: 6 }}>Your teacher will organise materials into sections here.</p>
+            </div>
+          ) : (
+            sections.map((section) => {
+              const key = String(section.id);
+              const isOpen = !collapsedSections[key];
+              return (
+                <div key={key} style={{ border: '1px solid #E5E7EB', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
+                  {/* Section header */}
+                  <button
+                    onClick={() => setCollapsedSections(c => ({ ...c, [key]: !c[key] }))}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '12px 16px', background: '#F9FAFB', border: 'none',
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ fontSize: 13, color: '#6B7280' }}>{isOpen ? '▼' : '▶'}</span>
+                    <span style={{ fontWeight: 600, fontSize: 15, flex: 1, color: '#1F2937' }}>
+                      {section.id === 0 ? '📎 Unsectioned' : `📂 ${section.name}`}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                      {section.files.length} file{section.files.length !== 1 ? 's' : ''}
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div style={{ padding: '8px 12px 12px 12px' }}>
+                      {section.files.length === 0 ? (
+                        <p style={{ color: '#9CA3AF', fontSize: 13, margin: '8px 4px' }}>No files in this section yet.</p>
+                      ) : (
+                        section.files.map((f) => (
+                          <div key={f.id} style={styles.fileCard}>
+                            <span style={{ fontSize: 22 }}>{getFileIcon(f.mime_type)}</span>
+                            <span style={styles.fileName}>{f.filename}</span>
+                            <span style={styles.fileDate}>
+                              {f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString() : ''}
+                            </span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                style={{ ...styles.downloadBtn, background: '#16A34A' }}
+                                onClick={() => setViewerFile(f)}
+                                title="View file in browser"
+                              >
+                                👁️ View
+                              </button>
+                              <button
+                                style={styles.downloadBtn}
+                                onClick={() => downloadClassroomFile(classroomId, f.id, f.filename)}
+                                title="Download file"
+                              >
+                                ⬇️ Download
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          {/* Inline viewer shared with Materials tab */}
+          {viewerFile && tab === 'sections' && (
+            <div style={{ marginTop: 24, padding: 16, background: '#F3F4F6', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>📄 {viewerFile.filename}</h3>
+                <button
+                  onClick={() => { setViewerFile(null); setPdfBlobUrl(null); setTextContent(null); }}
+                  style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6B7280' }}
+                >✕</button>
+              </div>
+              <div style={{ width: '100%', height: 600, border: '1px solid #D1D5DB', borderRadius: 8, background: '#fff', overflow: 'auto' }}>
+                {viewerFile.mime_type?.includes('pdf') ? (
+                  <iframe key={pdfBlobUrl} src={pdfBlobUrl || 'about:blank'}
+                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: 8 }}
+                    title={viewerFile.filename} />
+                ) : viewerFile.mime_type?.includes('text') || viewerFile.mime_type?.includes('markdown') ? (
+                  <textarea readOnly value={textContent || 'Loading...'}
+                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: 8, padding: 12, fontFamily: 'monospace', fontSize: 13, resize: 'none', boxSizing: 'border-box' }} />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6B7280' }}>
+                    <p>Preview not available for this file type.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );

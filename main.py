@@ -61,9 +61,6 @@ except Exception as e:
 
 RAG_INITIALIZED = False
 RAG_INIT_LOCK = asyncio.Lock()
-PDF_INITIALIZED = False
-PDF_INIT_LOCK = asyncio.Lock()
-PDF_CHUNKS = None
 
 async def ensure_rag_initialized():
     global RAG_INITIALIZED
@@ -86,26 +83,7 @@ async def ensure_rag_initialized():
             print(f"❌ FAISS RAG initialization failed: {e}")
             traceback.print_exc()
 
-async def ensure_pdf_chunks_loaded():
-    global PDF_CHUNKS, PDF_INITIALIZED, HAS_PDF_SERVICE
-    if PDF_INITIALIZED:
-        return
-    async with PDF_INIT_LOCK:
-        if PDF_INITIALIZED:
-            return
-        print("\n🔄 Loading PDF chunks (lazy init on first request)...")
-        try:
-            from services.pdf_service import extract_pdf_chunks
-            pdf_start = time.time()
-            PDF_CHUNKS = extract_pdf_chunks()
-            pdf_elapsed = time.time() - pdf_start
-            print(f"✅ Loaded {len(PDF_CHUNKS)} PDF documents ({pdf_elapsed:.2f}s)")
-            PDF_INITIALIZED = True
-        except Exception as e:
-            print(f"⚠️ PDF loading warning: {e}")
-            HAS_PDF_SERVICE = False
-            PDF_CHUNKS = []
-            PDF_INITIALIZED = True
+
 
 
 def run_migrations(db_engine):
@@ -294,6 +272,35 @@ async def startup():
                 print("✅ Migration: page_number column ensured on classroom_chunks")
             except Exception as e:
                 print(f"⚠️ page_number migration: {e}")
+
+            # classroom_sections table
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS classroom_sections (
+                        id SERIAL PRIMARY KEY,
+                        classroom_id INTEGER NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
+                        name VARCHAR(255) NOT NULL,
+                        description TEXT,
+                        "order" INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: classroom_sections table ready")
+            except Exception as e:
+                print(f"⚠️ classroom_sections migration: {e}")
+
+            # section_id column on classroom_files
+            try:
+                conn.execute(text("""
+                    ALTER TABLE classroom_files
+                    ADD COLUMN IF NOT EXISTS section_id INTEGER
+                        REFERENCES classroom_sections(id) ON DELETE SET NULL
+                """))
+                conn.commit()
+                print("✅ Migration: section_id column ensured on classroom_files")
+            except Exception as e:
+                print(f"⚠️ section_id migration: {e}")
 
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")

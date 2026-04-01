@@ -19,7 +19,6 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)               # /fyp
 LESSON_DIR = os.getenv("LESSON_DIR", os.path.join(PROJECT_ROOT, "lessons_raw"))
 PDF_DIR = os.getenv("PDF_DIR", os.path.join(PROJECT_ROOT, "frontend", "Lecture Notes-20250622"))
 BASE_PATH = os.getenv("BASE_PATH", os.path.join(PROJECT_ROOT, "practical_tests", "set1", "questions"))
-PDF_CHUNKS = None  # Will be initialized at startup
 
 # ============================================
 # FAISS RAG System Configuration

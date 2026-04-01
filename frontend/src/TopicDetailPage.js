@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import topicContent from './topicContent.json';
 import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './HomePage';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';
@@ -27,6 +26,21 @@ export default function TopicDetailPage() {
     const [viewingDocument, setViewingDocument] = useState(null);
     const [showMilestoneModal, setShowMilestoneModal] = useState(false);
     const [milestoneTopics, setMilestoneTopics] = useState([]);
+    const [topicContent, setTopicContent] = useState(null);
+    const [contentLoading, setContentLoading] = useState(true);
+
+    // Lazy-load topicContent.json on first render
+    useEffect(() => {
+        let cancelled = false;
+        setContentLoading(true);
+        import('./topicContent.json').then(mod => {
+            if (!cancelled) {
+                setTopicContent(mod.default || mod);
+                setContentLoading(false);
+            }
+        });
+        return () => { cancelled = true; };
+    }, []);
     const [completedTopics, setCompletedTopics] = useState(() => {
         const saved = localStorage.getItem('java-roadmap-completed');
         return saved ? JSON.parse(saved) : [];
@@ -48,8 +62,19 @@ export default function TopicDetailPage() {
     const isMilestoneGroup = currentGroupIndex >= 1 && (currentGroupIndex + 1) % 2 === 0;
 
     const isCompleted = completedTopics.includes(topicId);
-    const content = topicContent[topicId];
+    const content = topicContent ? topicContent[topicId] : null;
     const ragContent = ragDocMapping[topicId];
+
+    if (contentLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="text-4xl mb-4" style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>📚</div>
+                    <p className="text-gray-500">Loading topic…</p>
+                </div>
+            </div>
+        );
+    }
 
     const handleViewDocument = (file, source) => {
         setViewingDocument({ file, source });

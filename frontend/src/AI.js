@@ -4,6 +4,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import { useNavigate } from "react-router-dom";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
+import PdfPageViewer from './components/PdfPageViewer';
 
 
 // Add getToken helper for fetching classrooms
@@ -57,17 +58,16 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const [chunkContext, setChunkContext] = useState(null);
     const [loadingContext, setLoadingContext] = useState(false);
     const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+    // Multi-source RAG state
+    const [selectedSources, setSelectedSources] = useState({ general: true }); // { general: bool, [classroomId]: bool }
+    const [enrolledClassrooms, setEnrolledClassrooms] = useState([]);
+    // RAG warm-up status
+    const [ragReady, setRagReady] = useState(null); // null = unknown, true/false
     const messagesEndRef = useRef(null);
+    const historyRef = useRef([]);
     const activeIdRef = useRef(null);
     // Stable conversation_id for this chat session — reset on new chat
     const conversationIdRef = useRef(generateId());
-
-    // Expose setUserInput and submitQuery via externalInputRef
-    useEffect(() => {
-        if (externalInputRef) {
-            externalInputRef.current = { setUserInput, setShowChat, submitQuery };
-        }
-    }, [externalInputRef, setShowChat, submitQuery]);
 
     useEffect(() => {
         const token = getToken();
@@ -126,7 +126,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                         const mappedSessions = data.map(s => ({
                             id: s.conversation_id, // in local it's arbitrary id, here we just use conversation_id
                             title: s.first_message,
-                            createdAt: new Date(s.last_message_at).getTime(),
+                            createdAt: new Date(s.last_message_at.endsWith('Z') ? s.last_message_at : s.last_message_at + 'Z').getTime(),
                             conversationId: s.conversation_id,
                             turnCount: s.turn_count,
                             isDb: true
@@ -146,7 +146,35 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
             }
         }
     }, [user, API_BASE]);
+
+    useEffect(() => {
+        historyRef.current = history;
+    }, [history]);
+
+    useEffect(() => {
+        activeIdRef.current = activeId;
+    }, [activeId]);
+
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
+
+    // Poll RAG status when chat opens — show warm-up banner until ready
+    useEffect(() => {
+        if (!showChat) return;
+        if (ragReady === true) return; // already warm
+        let cancelled = false;
+        const poll = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/rag/status`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.ready) { setRagReady(true); return; }
+                }
+            } catch (_) { /* backend may not be up yet */ }
+            if (!cancelled) setTimeout(poll, 3000);
+        };
+        poll();
+        return () => { cancelled = true; };
+    }, [showChat, ragReady, API_BASE]);
 
     useEffect(() => {
         const handleCloseTour = () => setShowChat(false);
@@ -157,6 +185,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const toggleChat = () => setShowChat(v => !v);
     const startNewChat = () => {
         setActiveId(null);
+        activeIdRef.current = null;
         setHistory([]);
         setShowHistoryPanel(false);
         conversationIdRef.current = generateId();
@@ -166,6 +195,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
         if (token && session.isDb) {
             setLoading(true);
             setActiveId(session.id);
+            activeIdRef.current = session.id;
             try {
                 const res = await fetch(`${API_BASE}/conversation/history/${session.conversationId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -188,6 +218,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
             }
         } else {
             setActiveId(session.id);
+            activeIdRef.current = session.id;
             setHistory(session.messages || []);
             setShowHistoryPanel(false);
             conversationIdRef.current = session.conversationId || generateId();
@@ -209,80 +240,62 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
             } catch (err) { console.error("Failed to delete session", err); }
         }
         setSessions(prev => prev.filter(s => s.id !== id));
-        if (activeId === id) { setActiveId(null); setHistory([]); conversationIdRef.current = generateId(); }
+        if (activeId === id) {
+            setActiveId(null);
+            activeIdRef.current = null;
+            setHistory([]);
+            conversationIdRef.current = generateId();
+        }
     };
 
-    const saveCurrentSession = (msgs, convId) => {
+    const saveCurrentSession = useCallback((msgs, convId) => {
         if (!msgs || msgs.length === 0) return;
-        const activeId = activeIdRef.current;
+        const currentActiveId = activeIdRef.current;
         const token = getToken();
         const title = msgs.find(m => m.role === 'user')?.content?.slice(0, 50) || 'New Chat';
 
         if (token) {
             setSessions(prev => {
-                const existing = prev.find(s => s.id === (activeId || convId));
+                const sessionId = currentActiveId || convId;
+                const existing = prev.find(s => s.id === sessionId);
                 if (existing) {
-                    return prev.map(s => s.id === (activeId || convId) ? { ...existing, updatedAt: Date.now(), messages: msgs } : s);
+                    return prev.map(s => s.id === sessionId ? { ...existing, updatedAt: Date.now(), messages: msgs } : s);
                 } else {
                     activeIdRef.current = convId;
+                    setActiveId(convId);
                     return [{ id: convId, title, createdAt: Date.now(), messages: msgs, conversationId: convId, isDb: true }, ...prev];
                 }
             });
-            return convId;
+            return currentActiveId || convId;
         }
         
         let sessionsList = [];
         try { sessionsList = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch (e) { sessionsList = []; }
-        const existing = sessionsList.find(s => s.id === activeId);
+        const existing = sessionsList.find(s => s.id === currentActiveId);
 
         if (existing) {
             const updated = { ...existing, messages: msgs, conversationId: convId, updatedAt: Date.now() };
-            const newSessions = sessionsList.map(s => s.id === activeId ? updated : s);
+            const newSessions = sessionsList.map(s => s.id === currentActiveId ? updated : s);
             localStorage.setItem(SESSIONS_KEY, JSON.stringify(newSessions));
             setSessions(newSessions);
-            return activeId;
+            return currentActiveId;
         } else {
             const newId = generateId();
             const session = { id: newId, title, createdAt: Date.now(), messages: msgs, conversationId: convId };
             const newSessions = [session, ...sessionsList];
             localStorage.setItem(SESSIONS_KEY, JSON.stringify(newSessions));
             activeIdRef.current = newId;
+            setActiveId(newId);
             setSessions(newSessions);
             return newId;
         }
-    };
+    }, []);
 
-    const handleEnlarge = () => {
-        const savedId = saveCurrentSession(history);
-        if (savedId) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: savedId }));
-        setShowChat(false);
-        navigate('/history');
-    };
-
-    const fetchChunkContext = async (sourceFile, chunkContent) => {
-        setLoadingContext(true);
-        try {
-            const res = await fetch(`${API_BASE}/api/get-chunk-context`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ source_file: sourceFile, chunk_content: chunkContent }),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            setChunkContext(await res.json());
-        } catch (e) { console.error('Error fetching context:', e); }
-        setLoadingContext(false);
-    };
-
-    const handleSubmit = async (e) => {
-                e.preventDefault();
-                if (!userInput.trim()) return;
-                await submitQuery(userInput);
-        };
-
-    // Extracted submit logic for programmatic use
+    // Extracted submit logic for programmatic use (must be declared before useEffect that uses it)
     const submitQuery = useCallback(async (questionText) => {
                 if (!questionText.trim()) return;
                 const userMessage = { role: 'user', content: questionText };
-                const newHistory = [...history, userMessage];
+                const newHistory = [...historyRef.current, userMessage];
                 setHistory(newHistory);
                 setUserInput('');
                 setLoading(true);
@@ -300,7 +313,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     if (classroomIds.length > 0) {
                         // Call multi-classroom RAG endpoint
                         const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-                        const res = await fetch(`${API_BASE}/classrooms/ask-multi`, {
+                        const res = await fetch(`${API_BASE}/ask-multi`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -359,7 +372,40 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
                 }
                 setLoading(false);
-        }, [history, selectedSources, user, API_BASE, saveCurrentSession]);
+            }, [selectedSources, user, API_BASE, saveCurrentSession]);
+
+    // Expose setUserInput and submitQuery via externalInputRef
+    useEffect(() => {
+        if (externalInputRef) {
+            externalInputRef.current = { setUserInput, setShowChat, submitQuery };
+        }
+    }, [externalInputRef, setShowChat, submitQuery]);
+
+    const handleEnlarge = () => {
+        const savedId = saveCurrentSession(history);
+        if (savedId) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: savedId }));
+        setShowChat(false);
+        navigate('/history');
+    };
+
+    const fetchChunkContext = async (sourceFile, chunkContent) => {
+        setLoadingContext(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/get-chunk-context`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source_file: sourceFile, chunk_content: chunkContent }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setChunkContext(await res.json());
+        } catch (e) { console.error('Error fetching context:', e); }
+        setLoadingContext(false);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!userInput.trim()) return;
+        await submitQuery(userInput);
+    };
 
     const renderAIMessage = (msg, msgIndex) => (
         <div>
@@ -393,63 +439,30 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                                 </button>
                                 {isExpanded && (
                                     <>
-                                        {isPDF && (
-                                            <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: '#f3f4f6', borderRadius: radii.md, border: `2px solid ${colors.border}` }}>
-                                                <div style={{ fontSize: 14, color: '#374151', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui' }}>
-                                                    📕 PDF Viewer: {m.file} {m.page && m.page > 1 ? `(Page ${m.page})` : ''}
-                                                </div>
-                                                <iframe
-                                                    src={(() => {
-                                                        // Insert token before hash fragment
-                                                        const url = m.iframeUrl;
-                                                        const token = getToken();
-                                                        const hashIndex = url.indexOf('#');
-                                                        let finalUrl;
-                                                        if (hashIndex > -1) {
-                                                            const base = url.substring(0, hashIndex);
-                                                            const hash = url.substring(hashIndex);
-                                                            finalUrl = `${base}?token=${token}${hash}`;
-                                                        } else {
-                                                            finalUrl = `${url}?token=${token}`;
-                                                        }
-                                                        console.log('[IFRAME] Final URL:', finalUrl);
-                                                        return finalUrl;
+                                        {isPDF ? (
+                                            <div style={{ marginTop: spacing.sm, borderRadius: radii.md, overflow: 'hidden', border: `2px solid ${colors.border}` }}>
+                                                <PdfPageViewer
+                                                    url={(() => {
+                                                        const baseUrl = m.iframeUrl.split('#')[0];
+                                                        const sep = baseUrl.includes('?') ? '&' : '?';
+                                                        return `${baseUrl}${sep}token=${getToken()}`;
                                                     })()}
-                                                    onLoad={(e) => {
-                                                        // Force page navigation after iframe loads
-                                                        if (m.page && m.page > 1) {
-                                                            setTimeout(() => {
-                                                                const iframe = e.target;
-                                                                if (iframe && iframe.contentWindow) {
-                                                                    try {
-                                                                        iframe.contentWindow.location.hash = `page=${m.page}`;
-                                                                    } catch (err) {
-                                                                        console.log('Cannot access iframe content for page navigation');
-                                                                    }
-                                                                }
-                                                            }, 1000);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        width: '100%',
-                                                        height: 600,
-                                                        borderRadius: radii.md,
-                                                        border: `1px solid ${colors.border}`,
-                                                    }}
-                                                    title={m.file}
+                                                    initialPage={m.page || 1}
+                                                    height={800}
                                                 />
                                             </div>
-                                        )}
-                                        <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.warningLight, borderRadius: radii.md, border: `2px solid ${colors.warningBorder}`, fontSize: font.sizeMd, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'Georgia, serif' }}>
-                                            <div style={{ fontSize: 14, color: '#92400e', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span>📄 Retrieved Paragraph:</span>
-                                                <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 5, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
-                                                    onClick={() => { if (hasContext) setChunkContext(null); else fetchChunkContext(m.file, m.snippet); }}
-                                                    disabled={loadingContext}
-                                                >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
+                                        ) : (
+                                            <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.warningLight, borderRadius: radii.md, border: `2px solid ${colors.warningBorder}`, fontSize: font.sizeMd, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'Georgia, serif' }}>
+                                                <div style={{ fontSize: 14, color: '#92400e', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span>📄 Retrieved Paragraph:</span>
+                                                    <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 5, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                                                        onClick={() => { if (hasContext) setChunkContext(null); else fetchChunkContext(m.file, m.snippet); }}
+                                                        disabled={loadingContext}
+                                                    >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
+                                                </div>
+                                                {cleanSnippet(m.display_snippet || m.snippet)}
                                             </div>
-                                            {cleanSnippet(m.display_snippet || m.snippet)}
-                                        </div>
+                                        )}
                                     </>
                                 )}
                                 {isExpanded && hasContext && (
@@ -485,11 +498,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
         </button>
     );
 
-    // RAG/classroom mode state
-    // Multi-source RAG state
-    const [selectedSources, setSelectedSources] = useState({ general: true }); // { general: bool, [classroomId]: bool }
-    const [enrolledClassrooms, setEnrolledClassrooms] = useState([]);
-
+    // RAG/classroom mode - fetch enrolled classrooms
         useEffect(() => {
                 // Fetch enrolled classrooms for RAG mode when chat opens
                 if (!showChat) return;
@@ -597,11 +606,37 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
 
                         {/* Messages */}
                         <div style={{ flex: 1, padding: spacing.lg, overflowY: 'auto', backgroundColor: colors.bg }}>
+                            {ragReady === false || ragReady === null ? (
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 10,
+                                    padding: '10px 16px', marginBottom: spacing.md,
+                                    background: '#fffbeb', border: '1px solid #fcd34d',
+                                    borderRadius: radii.md, fontSize: font.sizeSm, color: '#92400e'
+                                }}>
+                                    <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span>
+                                    Initializing AI tutor… first load may take up to 30 s
+                                    <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+                                </div>
+                            ) : null}
                             {history.length === 0 && (
-                                <div style={{ textAlign: 'center', marginTop: '25%', color: colors.textMuted }}>
+                                <div style={{ textAlign: 'center', marginTop: '15%', color: colors.textMuted }}>
                                     <div style={{ fontSize: 32, marginBottom: 8 }}>☕</div>
-                                    <div style={{ fontSize: font.sizeMd, color: colors.textSecondary }}>Ask me anything about Java!</div>
+                                    <div style={{ fontSize: font.sizeMd, color: colors.textSecondary, fontWeight: 600 }}>Ask me anything about Java!</div>
                                     <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginTop: 4 }}>Click History to browse past conversations</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 20 }}>
+                                        {['What is polymorphism?', 'Explain try-catch', 'ArrayList vs LinkedList'].map(q => (
+                                            <button key={q} onClick={() => { setUserInput(q); }}
+                                                style={{
+                                                    padding: '6px 14px', borderRadius: radii.full,
+                                                    border: `1px solid ${colors.border}`, background: colors.surface,
+                                                    color: colors.textSecondary, fontSize: font.sizeXs,
+                                                    cursor: 'pointer', transition
+                                                }}
+                                                onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.color = colors.primary; }}
+                                                onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.textSecondary; }}
+                                            >{q}</button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                             {history.map((msg, idx) => (

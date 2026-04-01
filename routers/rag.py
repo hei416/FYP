@@ -121,6 +121,14 @@ async def ask_classroom_rag(
 rag_chain = None
 retriever = None
 
+
+@router.get("/api/rag/status")
+async def rag_status():
+    """Return whether the RAG system is initialized (for frontend warm-up banner)."""
+    from main import RAG_INITIALIZED
+    return {"ready": RAG_INITIALIZED}
+
+
 async def get_retriever():
     """Single source of truth for retriever access across all endpoints."""
     global retriever

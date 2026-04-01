@@ -144,6 +144,7 @@ def upload_and_index(
     raw_bytes: bytes,
     uploaded_by: int,
     db: Session,
+    section_id: int = None,
 ) -> int:
     """
     1. Persist raw file bytes → classroom_files
@@ -163,6 +164,7 @@ def upload_and_index(
         mime_type=mime_type,
         file_data=raw_bytes,
         uploaded_by=uploaded_by,
+        section_id=section_id,
     )
     db.add(db_file)
     db.flush()  # populate db_file.id before inserting chunks

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Response, Header
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Response, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -9,7 +9,7 @@ import string
 import shutil, uuid, os
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection
 from routers.auth import get_current_user, require_role
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
@@ -103,9 +103,37 @@ class FileMetaResponse(BaseModel):
     filename: str
     mime_type: str
     uploaded_at: str
+    section_id: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+
+class SectionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    order: int = 0
+
+
+class SectionRename(BaseModel):
+    name: str
+
+
+class SectionResponse(BaseModel):
+    id: int
+    classroom_id: int
+    name: str
+    description: Optional[str]
+    order: int
+    created_at: datetime
+    files: List[FileMetaResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class MoveFileRequest(BaseModel):
+    section_id: Optional[int] = None  # None to unsection
 
 
 class ClassroomAskRequest(BaseModel):
@@ -514,6 +542,7 @@ ALLOWED_MIME_TYPES = {
 async def upload_file(
     classroom_id: int,
     file: UploadFile = File(...),
+    section_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -527,6 +556,15 @@ async def upload_file(
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(415, "Unsupported file type. Use PDF, DOCX, or TXT/MD.")
 
+    # Validate section belongs to this classroom (if provided)
+    if section_id is not None:
+        section = db.query(ClassroomSection).filter(
+            ClassroomSection.id == section_id,
+            ClassroomSection.classroom_id == classroom_id,
+        ).first()
+        if not section:
+            raise HTTPException(404, "Section not found in this classroom")
+
     raw_bytes = await file.read()
 
     try:
@@ -537,6 +575,7 @@ async def upload_file(
             raw_bytes=raw_bytes,
             uploaded_by=current_user.id,
             db=db,
+            section_id=section_id,
         )
         # Verify chunks were created
         chunk_count = db.query(ClassroomChunk).filter(ClassroomChunk.file_id == file_id).count()
@@ -580,6 +619,7 @@ def list_files(
             filename=f.filename,
             mime_type=f.mime_type,
             uploaded_at=f.uploaded_at.isoformat() if f.uploaded_at else "",
+            section_id=f.section_id,
         )
         for f in files
     ]
@@ -696,6 +736,193 @@ def delete_file(
 
     delete_classroom_file(file_id, classroom_id, db)
     return {"status": "deleted", "file_id": file_id}
+
+
+# ---------------------------------------------------------------------------
+# Section management endpoints
+# ---------------------------------------------------------------------------
+
+def _verify_teacher_access(classroom_id: int, current_user: User, db: Session) -> "Classroom":
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "Forbidden")
+    return classroom
+
+
+def _verify_classroom_access(classroom_id: int, current_user: User, db: Session) -> "Classroom":
+    """Allow teacher/admin OR enrolled student."""
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
+    if current_user.role == "student":
+        membership = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.student_id == current_user.id,
+        ).first()
+        if not membership:
+            raise HTTPException(403, "Not enrolled in this classroom")
+    elif current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+        raise HTTPException(403, "You do not own this classroom")
+    return classroom
+
+
+@router.post("/{classroom_id}/sections", response_model=SectionResponse, status_code=status.HTTP_201_CREATED)
+def create_section(
+    classroom_id: int,
+    data: SectionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verify_teacher_access(classroom_id, current_user, db)
+    if not data.name.strip():
+        raise HTTPException(400, "Section name cannot be empty")
+    section = ClassroomSection(
+        classroom_id=classroom_id,
+        name=data.name.strip(),
+        description=data.description,
+        order=data.order,
+    )
+    db.add(section)
+    db.commit()
+    db.refresh(section)
+    section.files = []  # new section has no files yet
+    return section
+
+
+@router.get("/{classroom_id}/sections", response_model=List[SectionResponse])
+def list_sections(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return all sections for a classroom, each with their list of file metadata.
+    An extra synthetic entry with id=None is appended for unsectioned files.
+    """
+    _verify_classroom_access(classroom_id, current_user, db)
+
+    sections = (
+        db.query(ClassroomSection)
+        .filter(ClassroomSection.classroom_id == classroom_id)
+        .order_by(ClassroomSection.order, ClassroomSection.created_at)
+        .all()
+    )
+
+    all_files = (
+        db.query(ClassroomFile)
+        .filter(ClassroomFile.classroom_id == classroom_id)
+        .order_by(ClassroomFile.uploaded_at.desc())
+        .all()
+    )
+
+    # Build a lookup of section_id → files
+    files_by_section: Dict[Optional[int], List] = {}
+    for f in all_files:
+        key = f.section_id
+        files_by_section.setdefault(key, [])
+        files_by_section[key].append(
+            FileMetaResponse(
+                id=f.id,
+                filename=f.filename,
+                mime_type=f.mime_type,
+                uploaded_at=f.uploaded_at.isoformat() if f.uploaded_at else "",
+                section_id=f.section_id,
+            )
+        )
+
+    result = []
+    for s in sections:
+        s.files = files_by_section.get(s.id, [])
+        result.append(s)
+
+    # Append unsectioned virtual entry (id=None) only if there are unsectioned files
+    unsectioned = files_by_section.get(None, [])
+    if unsectioned:
+        result.append(SectionResponse(
+            id=0,           # 0 signals "unsectioned" to the frontend
+            classroom_id=classroom_id,
+            name="Unsectioned",
+            description=None,
+            order=9999,
+            created_at=datetime.utcnow(),
+            files=unsectioned,
+        ))
+
+    return result
+
+
+@router.patch("/{classroom_id}/sections/{section_id}", response_model=SectionResponse)
+def rename_section(
+    classroom_id: int,
+    section_id: int,
+    data: SectionRename,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verify_teacher_access(classroom_id, current_user, db)
+    if not data.name.strip():
+        raise HTTPException(400, "Section name cannot be empty")
+    section = db.query(ClassroomSection).filter(
+        ClassroomSection.id == section_id,
+        ClassroomSection.classroom_id == classroom_id,
+    ).first()
+    if not section:
+        raise HTTPException(404, "Section not found")
+    section.name = data.name.strip()
+    db.commit()
+    db.refresh(section)
+    section.files = []
+    return section
+
+
+@router.delete("/{classroom_id}/sections/{section_id}", status_code=status.HTTP_200_OK)
+def delete_section(
+    classroom_id: int,
+    section_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a section. Files in it become unsectioned (section_id → NULL)."""
+    _verify_teacher_access(classroom_id, current_user, db)
+    section = db.query(ClassroomSection).filter(
+        ClassroomSection.id == section_id,
+        ClassroomSection.classroom_id == classroom_id,
+    ).first()
+    if not section:
+        raise HTTPException(404, "Section not found")
+    # Detach files from section before deleting (ON DELETE SET NULL handles it at DB level)
+    db.delete(section)
+    db.commit()
+    return {"status": "deleted", "section_id": section_id}
+
+
+@router.patch("/{classroom_id}/files/{file_id}/section")
+def move_file_to_section(
+    classroom_id: int,
+    file_id: int,
+    data: MoveFileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Move a file to a different section (or make it unsectioned)."""
+    _verify_teacher_access(classroom_id, current_user, db)
+    f = db.query(ClassroomFile).filter(
+        ClassroomFile.id == file_id,
+        ClassroomFile.classroom_id == classroom_id,
+    ).first()
+    if not f:
+        raise HTTPException(404, "File not found")
+    if data.section_id is not None:
+        section = db.query(ClassroomSection).filter(
+            ClassroomSection.id == data.section_id,
+            ClassroomSection.classroom_id == classroom_id,
+        ).first()
+        if not section:
+            raise HTTPException(404, "Section not found")
+    f.section_id = data.section_id
+    db.commit()
+    return {"status": "moved", "file_id": file_id, "section_id": data.section_id}
 
 
 @router.get("/{classroom_id}/rag-status")

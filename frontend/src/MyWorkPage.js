@@ -92,8 +92,29 @@ export default function MyWorkPage() {
       {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
 
       {!loading && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', color: '#9ca3af', padding: '60px 0' }}>
-          No saved work yet. Complete a quiz, test, or save your playground code!
+        <div style={{
+          textAlign: 'center', padding: '60px 20px', borderRadius: 16,
+          background: '#f8fafc', border: '1px dashed #cbd5e1'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
+            {filter === 'all' ? 'No saved work yet' : `No ${filter} results yet`}
+          </h3>
+          <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
+            {filter === 'quiz' && 'Try a quiz from any topic page — your scores and answers will appear here.'}
+            {filter === 'test' && 'Complete a coding challenge to track your progress here.'}
+            {filter === 'playground' && 'Write and save code in the Playground to keep it here.'}
+            {filter === 'all' && 'Start your learning journey! Complete a quiz, coding challenge, or save some playground code.'}
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 14
+            }}
+          >
+            🗺️ Go to Roadmap
+          </button>
         </div>
       )}
 

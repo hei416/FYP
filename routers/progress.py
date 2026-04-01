@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional, Any
 from database import get_db
-from db_models import User, UserProgress, QuizAttempt, TestAttempt
+from db_models import User, UserProgress, QuizAttempt, TestAttempt, SavedWork
 from routers.auth import get_current_user
 import json
 
@@ -294,3 +294,59 @@ async def record_ai_interaction(
         "status": "success",
         "ai_interactions": progress.ai_interactions
     }
+
+
+@router.get("/weak-topics")
+async def get_weak_topics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return topics where the student scores below the pass threshold."""
+    all_works = (
+        db.query(SavedWork)
+        .filter(SavedWork.user_id == current_user.id)
+        .all()
+    )
+
+    def _score_of(rd):
+        if not rd:
+            return None
+        if isinstance(rd, dict):
+            s = rd.get("score")
+            if isinstance(s, (int, float)):
+                return float(s)
+        return None
+
+    def _topics_of(w):
+        rd = w.result_data or {}
+        for key in ("topics_covered", "topics"):
+            val = rd.get(key)
+            if isinstance(val, list) and val:
+                return [str(t) for t in val]
+        if w.topic_id:
+            return [w.topic_id]
+        return []
+
+    # Aggregate per-topic scores by work type
+    from collections import defaultdict
+    topic_scores = defaultdict(list)  # topic -> list of scores
+
+    for w in all_works:
+        if w.work_type not in ("quiz", "test"):
+            continue
+        score = _score_of(w.result_data)
+        if score is None:
+            continue
+        for topic in _topics_of(w):
+            topic_scores[topic].append(score)
+
+    pass_threshold = {"quiz": 70, "test": 60}
+    # Use 70 as default threshold since we mix types
+    weak = []
+    for topic, scores in topic_scores.items():
+        avg = sum(scores) / len(scores) if scores else 0
+        if avg < 70:
+            weak.append({"topic": topic, "avg_score": round(avg, 1), "attempts": len(scores)})
+
+    weak.sort(key=lambda x: x["avg_score"])
+    return {"weak_topics": weak}

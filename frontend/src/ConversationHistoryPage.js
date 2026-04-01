@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import TextareaAutosize from 'react-textarea-autosize';
 import { colors, radii, font, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
+import PdfPageViewer from './components/PdfPageViewer';
 
 // Helper to get token from storage
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
@@ -203,7 +204,7 @@ export default function ConversationHistoryPage() {
             let aiMsg;
 
             if (classroomIds.length > 0) {
-                const res = await fetch(`${API_BASE}/classrooms/ask-multi`, {
+                const res = await fetch(`${API_BASE}/ask-multi`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                     body: JSON.stringify({
@@ -293,45 +294,21 @@ export default function ConversationHistoryPage() {
                                             {isOpen ? '📖' : '📄'} {m.file.replace('.txt', '').split('/').pop()} {m.page && m.page > 1 ? `(Page ${m.page})` : ''} {isOpen ? '▼' : '►'}
                                         </button>
                                         {isOpen && isPDF && (
-                                            <div style={{ marginTop: 8, padding: 12, background: '#f3f4f6', border: `2px solid ${colors.border}`, borderRadius: radii.md }}>
-                                                <div style={{ fontSize: 13, color: '#374151', marginBottom: 10, fontWeight: 'bold', fontFamily: 'system-ui' }}>
-                                                    📕 PDF Viewer: {m.file} {m.page && m.page > 1 ? `(Page ${m.page})` : ''}
-                                                </div>
-                                                <iframe
-                                                    src={(() => {
-                                                        // Append token for iframe auth (insert before hash fragment)
+                                            <div style={{ marginTop: 8, borderRadius: radii.md, overflow: 'hidden', border: `2px solid ${colors.border}` }}>
+                                                <PdfPageViewer
+                                                    url={(() => {
                                                         const token = getToken();
                                                         if (!token || !m.iframeUrl) return m.iframeUrl;
-                                                        const [base, hash] = m.iframeUrl.split('#');
-                                                        const sep = base.includes('?') ? '&' : '?';
-                                                        return hash ? `${base}${sep}token=${token}#${hash}` : `${base}${sep}token=${token}`;
+                                                        const baseUrl = m.iframeUrl.split('#')[0];
+                                                        const sep = baseUrl.includes('?') ? '&' : '?';
+                                                        return `${baseUrl}${sep}token=${token}`;
                                                     })()}
-                                                    onLoad={(e) => {
-                                                        // Force page navigation after iframe loads
-                                                        if (m.page && m.page > 1) {
-                                                            setTimeout(() => {
-                                                                const iframe = e.target;
-                                                                if (iframe && iframe.contentWindow) {
-                                                                    try {
-                                                                        iframe.contentWindow.location.hash = `page=${m.page}`;
-                                                                    } catch (err) {
-                                                                        console.log('Cannot access iframe content for page navigation');
-                                                                    }
-                                                                }
-                                                            }, 1000);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        width: '100%',
-                                                        height: 400,
-                                                        borderRadius: radii.md,
-                                                        border: `1px solid ${colors.border}`,
-                                                    }}
-                                                    title={m.file}
+                                                    initialPage={m.page || 1}
+                                                    height={800}
                                                 />
                                             </div>
                                         )}
-                                        {isOpen && (
+                                        {isOpen && !isPDF && (
                                             <div style={{ marginTop: 8, padding: 16, background: colors.warningLight, border: `2px solid ${colors.warningBorder}`, borderRadius: radii.md, fontSize: font.sizeSm, lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', maxHeight: 300, overflowY: 'auto' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                                                     <span style={{ fontWeight: 700, fontFamily: 'system-ui', color: '#92400e', fontSize: 13 }}>📄 Retrieved Paragraph</span>

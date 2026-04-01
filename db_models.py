@@ -107,12 +107,25 @@ class ClassroomDocument(Base):
 # Classroom File Storage (DB-backed RAG)
 # ---------------------------------------------------------------------------
 
+class ClassroomSection(Base):
+    """A named section/folder within a classroom for organising files."""
+    __tablename__ = "classroom_sections"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    name         = Column(String(255), nullable=False)
+    description  = Column(Text, nullable=True)
+    order        = Column(Integer, default=0)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
 class ClassroomFile(Base):
     """Raw file bytes uploaded by teachers to a classroom — stored in DB."""
     __tablename__ = "classroom_files"
 
     id           = Column(Integer, primary_key=True, index=True)
     classroom_id = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id   = Column(Integer, ForeignKey("classroom_sections.id", ondelete="SET NULL"), nullable=True, index=True)
     filename     = Column(String(255), nullable=False)
     mime_type    = Column(String(255), nullable=False)
     file_data    = Column(LargeBinary, nullable=False)   # raw bytes
