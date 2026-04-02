@@ -14,6 +14,7 @@ import {
   listSections,
   listClassroomFiles,
   updateClassroomCategory,
+  getClassroomCourseProgress,
 } from './classroomService';
 import { ClassroomSections } from './TeacherDashboard';
 import { radii, font, card, shadows } from './theme';
@@ -868,6 +869,9 @@ export default function TeacherClassroomDetail() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [expandedStudent,  setExpandedStudent]  = useState(null);
   const [sortKey,          setSortKey]          = useState('full_name');
+  const [courseProgressData,    setCourseProgressData]    = useState({});
+  const [courseProgressLoading, setCourseProgressLoading] = useState(false);
+  const [courseProgressCourse,  setCourseProgressCourse]  = useState('basic');
   const [sortAsc,          setSortAsc]          = useState(true);
   const [materialsData,    setMaterialsData]    = useState(null);
   const [materialsLoading, setMaterialsLoading] = useState(true);
@@ -1114,6 +1118,31 @@ export default function TeacherClassroomDetail() {
               >
                 📝 Quizzes
               </button>
+              <button
+                onClick={async () => {
+                  setClassroomView('course-progress');
+                  if (!courseProgressData[courseProgressCourse]) {
+                    setCourseProgressLoading(true);
+                    try {
+                      const d = await getClassroomCourseProgress(classroomId, courseProgressCourse);
+                      setCourseProgressData(p => ({ ...p, [courseProgressCourse]: d }));
+                    } catch (e) { console.error(e); }
+                    finally { setCourseProgressLoading(false); }
+                  }
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: radii.sm,
+                  border: classroomView === 'course-progress' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                  background: classroomView === 'course-progress' ? colors.primaryLight : colors.surface,
+                  color: classroomView === 'course-progress' ? colors.primary : colors.textSecondary,
+                  fontSize: font.sizeSm,
+                  fontWeight: font.weightSemibold,
+                  cursor: 'pointer',
+                }}
+              >
+                🗺️ Roadmap Progress
+              </button>
             </div>
           </div>
         </div>
@@ -1336,6 +1365,115 @@ export default function TeacherClassroomDetail() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Course Progress view */}
+      {activeTab === 'official-lessons' && classroomView === 'course-progress' && (
+        <div>
+          {/* Course selector tabs */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {[{ id: 'basic', label: '📗 Basic Java' }, { id: 'enhanced', label: '🚀 Enhanced Java' }].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={async () => {
+                  setCourseProgressCourse(id);
+                  if (!courseProgressData[id]) {
+                    setCourseProgressLoading(true);
+                    try {
+                      const d = await getClassroomCourseProgress(classroomId, id);
+                      setCourseProgressData(p => ({ ...p, [id]: d }));
+                    } catch (e) { console.error(e); }
+                    finally { setCourseProgressLoading(false); }
+                  }
+                }}
+                style={{
+                  padding: '8px 18px', borderRadius: radii.sm, fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+                  border: courseProgressCourse === id ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                  background: courseProgressCourse === id ? colors.primaryLight : colors.surface,
+                  color: courseProgressCourse === id ? colors.primary : colors.textSecondary,
+                  cursor: 'pointer',
+                }}
+              >{label}</button>
+            ))}
+          </div>
+
+          {courseProgressLoading && (
+            <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+              <div>Loading roadmap progress…</div>
+            </div>
+          )}
+
+          {!courseProgressLoading && courseProgressData[courseProgressCourse] && (
+            (() => {
+              const cpd = courseProgressData[courseProgressCourse];
+              return (
+                <div style={{ ...card.base, padding: 20 }}>
+                  <div style={{ marginBottom: 16, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+                      <strong>{cpd.total_students}</strong> students ·{' '}
+                      Avg completion: <strong style={{ color: colors.primary }}>
+                        {cpd.class_summary.avg_completion_percentage != null
+                          ? `${cpd.class_summary.avg_completion_percentage.toFixed(1)}%`
+                          : '—'}
+                      </strong>
+                    </div>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                      <thead>
+                        <tr style={{ background: colors.bg }}>
+                          {['Name', 'Topics Done', 'Completion', 'Ex. Attempts', 'Ex. Pass Rate', 'Ch. Attempts', 'Ch. Pass Rate'].map(h => (
+                            <th key={h} style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, textAlign: h === 'Name' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, fontSize: font.sizeXs, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cpd.students.map((s, idx) => {
+                          const prog = s.completion_percentage;
+                          const barColor = prog >= 75 ? '#16a34a' : prog >= 40 ? '#ca8a04' : colors.primary;
+                          return (
+                            <tr key={s.student_id} style={{ background: idx % 2 === 0 ? colors.surface : colors.bg }}>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}` }}>
+                                <div style={{ fontWeight: font.weightSemibold }}>{s.full_name || '—'}</div>
+                                <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{s.email}</div>
+                              </td>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, textAlign: 'center' }}>{s.completed_topics}</td>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, minWidth: 140 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ flex: 1, height: 8, background: colors.border, borderRadius: 4, overflow: 'hidden' }}>
+                                    <div style={{ width: `${prog}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width 0.4s' }} />
+                                  </div>
+                                  <span style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: barColor, minWidth: 36 }}>{prog}%</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, textAlign: 'center' }}>{s.quizzes_attempted || '—'}</td>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, textAlign: 'center' }}>
+                                <PassRateBadge passed={s.quizzes_passed} attempted={s.quizzes_attempted} tooltip="" />
+                              </td>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, textAlign: 'center' }}>{s.tests_attempted || '—'}</td>
+                              <td style={{ padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, textAlign: 'center' }}>
+                                <PassRateBadge passed={s.tests_passed} attempted={s.tests_attempted} tooltip="" />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
+          {!courseProgressLoading && !courseProgressData[courseProgressCourse] && (
+            <div style={{ ...card.base, textAlign: 'center', padding: '48px 32px' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+              <div style={{ fontSize: font.sizeLg, color: colors.textSecondary }}>No data available</div>
+              <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: 8 }}>No students have started this course yet.</div>
+            </div>
+          )}
         </div>
       )}
     </div>

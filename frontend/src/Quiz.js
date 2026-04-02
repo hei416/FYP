@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useAuth } from './AuthContext';
 import { useLocation } from "react-router-dom";
 import { ProgressTracker, QUIZ_PASS_SCORE } from "./ProgressTracker";
-import { TOPIC_GROUPS } from "./HomePage";
+import { TOPIC_GROUPS } from "./BasicJavaPage";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
 const DEFAULT_TOPICS = [

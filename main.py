@@ -88,7 +88,7 @@ def run_migrations(db_engine):
             try:
                 conn.execute(text("""
                     ALTER TABLE user_progress
-                    ADD COLUMN IF NOT EXISTS dismissed_milestones TEXT[] DEFAULT '{}'
+                    ADD COLUMN IF NOT EXISTS dismissed_milestones JSON DEFAULT '[]'::JSON
                 """))
                 conn.commit()
                 print("✅ Migration: dismissed_milestones column ensured on user_progress")

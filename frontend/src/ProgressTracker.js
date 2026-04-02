@@ -1,5 +1,5 @@
 // Import the topic IDs from HomePage
-import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from './HomePage';
+import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from './BasicJavaPage';
 import {
     syncProgressToBackend,
     recordQuizAttempt,

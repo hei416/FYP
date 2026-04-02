@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { JAVA_SUBTOPIC_COUNT } from './HomePage';
-import { ENHANCED_SUBTOPIC_COUNT } from './EnhancedHomePage';
+import { JAVA_SUBTOPIC_COUNT } from './BasicJavaPage';
+import { ENHANCED_SUBTOPIC_COUNT } from './EnhancedJavaPage';
 import { BASIC_ROADMAP_KEY, ENHANCED_ROADMAP_KEY, pullProgressFromBackend } from './progressService';
 
 export default function CourseCatalogPage() {
@@ -49,7 +49,7 @@ export default function CourseCatalogPage() {
       hoverBorder: 'hover:border-amber-500',
       headerGradient: 'from-amber-500 to-yellow-600',
       btnColor: 'bg-amber-500 hover:bg-amber-600',
-      route: '/home',
+      route: '/basic-java',
       highlights: [
         '12 topic groups → 52 subtopics',
         'Bridging Python → Java',

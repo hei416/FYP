@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ProgressTracker, QUIZ_TARGET, TEST_TARGET } from './ProgressTracker';
 import { listWork } from './myWorkService';
-import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './HomePage';
+import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './BasicJavaPage';
 import { colors, radii, shadows, spacing, font, transition } from './theme';
 import { useAuth } from './AuthContext';
 

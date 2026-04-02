@@ -170,6 +170,7 @@ class ClassroomCourseProgressAnalytics(BaseModel):
 class ClassroomCourseSummaryItem(BaseModel):
     classroom_id: int
     classroom_name: str
+    category: Optional[str] = None
     total_students: int
     class_summary: CourseClassSummary
 
@@ -638,10 +639,26 @@ async def get_classroom_analytics(
 
 @router.get("/official-aggregate/course-progress", response_model=ClassroomCourseProgressAnalytics)
 async def get_official_aggregate_course_progress(
+    course_id: str = Query(default="basic"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
     """Aggregate course-progress across all Official Lessons classrooms owned by this teacher."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    if course_id == "enhanced":
+        valid_subtopics = _VALID_ENHANCED_SUBTOPIC_IDS
+        num_main = NUM_ENHANCED_MAIN_TOPICS
+        total_acts = TOTAL_ENHANCED_ACTIVITIES
+        course_label = "Enhanced Java"
+        subtopic_map = ENHANCED_SUBTOPIC_TO_MAIN_TOPIC
+    else:
+        valid_subtopics = _VALID_SUBTOPIC_IDS
+        num_main = NUM_MAIN_TOPICS
+        total_acts = TOTAL_ACTIVITIES
+        course_label = "Basic Java"
+        subtopic_map = SUBTOPIC_TO_MAIN_TOPIC
+
     official_classrooms = (
         db.query(Classroom)
         .filter(
@@ -654,7 +671,7 @@ async def get_official_aggregate_course_progress(
     if not official_classrooms:
         return ClassroomCourseProgressAnalytics(
             classroom_id=None,
-            classroom_name="Basic Java",
+            classroom_name=course_label,
             total_students=0,
             class_summary=CourseClassSummary(
                 avg_completion_percentage=None, avg_quiz_score=None, avg_test_score=None,
@@ -688,7 +705,7 @@ async def get_official_aggregate_course_progress(
     weak_topic_freq: Dict[str, int] = {}
 
     for _, student in unique_members:
-        progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
+        progress = db.query(UserProgress).filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id).first()
         works = (
             db.query(SavedWork)
             .filter(SavedWork.user_id == student.id)
@@ -708,23 +725,23 @@ async def get_official_aggregate_course_progress(
         topic_stats = _build_course_topic_stats(works)
         weak_topics = [t.topic for t in topic_stats if t.is_weak]
 
-        subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
+        subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
         passed_quiz_main = {
-            to_main_topic(t)
+            subtopic_map.get(t, t)
             for w in quiz_works
             if (_score_of(w.result_data) or 0) >= 70
             for t in _topics_of(w)
         }
         passed_test_main = {
-            to_main_topic(t)
+            subtopic_map.get(t, t)
             for w in test_works
             if (_score_of(w.result_data) or 0) >= 60
             for t in _topics_of(w)
         }
         completed_topics_count = subtopics_read
         completion_percentage = round(
-            (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
-        )
+            (subtopics_read + min(len(passed_quiz_main), num_main) + min(len(passed_test_main), num_main)) / total_acts * 100, 1
+        ) if total_acts > 0 else 0.0
 
         sp = StudentCourseProgress(
             student_id=student.id,
@@ -763,7 +780,7 @@ async def get_official_aggregate_course_progress(
     )
     return ClassroomCourseProgressAnalytics(
         classroom_id=None,
-        classroom_name="Basic Java",
+        classroom_name=course_label,
         total_students=len(students),
         class_summary=class_summary,
         students=students,
@@ -772,10 +789,23 @@ async def get_official_aggregate_course_progress(
 
 @router.get("/official-aggregate/by-classroom", response_model=List[ClassroomCourseSummaryItem])
 async def get_official_aggregate_by_classroom(
+    course_id: str = Query(default="basic"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
     """Return a lightweight per-classroom summary for all official classrooms owned by this teacher."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    if course_id == "enhanced":
+        valid_subtopics = _VALID_ENHANCED_SUBTOPIC_IDS
+        num_main = NUM_ENHANCED_MAIN_TOPICS
+        total_acts = TOTAL_ENHANCED_ACTIVITIES
+        subtopic_map = ENHANCED_SUBTOPIC_TO_MAIN_TOPIC
+    else:
+        valid_subtopics = _VALID_SUBTOPIC_IDS
+        num_main = NUM_MAIN_TOPICS
+        total_acts = TOTAL_ACTIVITIES
+        subtopic_map = SUBTOPIC_TO_MAIN_TOPIC
     official_classrooms = (
         db.query(Classroom)
         .filter(
@@ -805,7 +835,7 @@ async def get_official_aggregate_by_classroom(
         weak_topic_freq: Dict[str, int] = {}
 
         for _, student in members:
-            progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
+            progress = db.query(UserProgress).filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id).first()
             works = (
                 db.query(SavedWork)
                 .filter(SavedWork.user_id == student.id)
@@ -823,22 +853,22 @@ async def get_official_aggregate_by_classroom(
             topic_stats = _build_course_topic_stats(works)
             weak_topics = [t.topic for t in topic_stats if t.is_weak]
 
-            subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
+            subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
             passed_quiz_main = {
-                to_main_topic(t)
+                subtopic_map.get(t, t)
                 for w in quiz_works
                 if (_score_of(w.result_data) or 0) >= 70
                 for t in _topics_of(w)
             }
             passed_test_main = {
-                to_main_topic(t)
+                subtopic_map.get(t, t)
                 for w in test_works
                 if (_score_of(w.result_data) or 0) >= 60
                 for t in _topics_of(w)
             }
             completion_percentage = round(
-                (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
-            )
+                (subtopics_read + min(len(passed_quiz_main), num_main) + min(len(passed_test_main), num_main)) / total_acts * 100, 1
+            ) if total_acts > 0 else 0.0
 
             all_completion.append(completion_percentage)
             all_quiz_scores.extend(quiz_scores)
@@ -861,6 +891,7 @@ async def get_official_aggregate_by_classroom(
         result.append(ClassroomCourseSummaryItem(
             classroom_id=classroom.id,
             classroom_name=classroom.name,
+            category=classroom.category,
             total_students=len(members),
             class_summary=class_summary,
         ))

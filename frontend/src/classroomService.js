@@ -76,14 +76,14 @@ export async function getClassroomStudentWork(classroomId, studentId, workType =
   return res.json();
 }
 
-export async function getOfficialAggregateCourseProgress() {
-  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress`, { headers: authHeaders() });
+export async function getOfficialAggregateCourseProgress(courseId = 'basic') {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress?course_id=${encodeURIComponent(courseId)}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load aggregate course progress');
   return res.json();
 }
 
-export async function getOfficialClassroomList() {
-  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/by-classroom`, { headers: authHeaders() });
+export async function getOfficialClassroomList(courseId = 'basic') {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/by-classroom?course_id=${encodeURIComponent(courseId)}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load classroom list');
   return res.json();
 }

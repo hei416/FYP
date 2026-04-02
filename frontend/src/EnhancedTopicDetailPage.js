@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ENHANCED_TOPIC_GROUPS } from './EnhancedHomePage';
+import { ENHANCED_TOPIC_GROUPS } from './EnhancedJavaPage';
 import { enhancedRagDocMapping } from './enhancedRagDocMapping';
 import { getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';

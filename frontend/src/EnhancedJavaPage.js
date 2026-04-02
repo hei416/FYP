@@ -215,7 +215,7 @@ const initialEdges = [
 ];
 
 // ----------------- Component -----------------
-export default function EnhancedHomePage() {
+export default function EnhancedJavaPage() {
   const navigate = useNavigate();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -353,27 +353,32 @@ export default function EnhancedHomePage() {
 
   return (
     <div className="relative w-full h-screen bg-gray-50 overflow-auto">
-      {/* Progress bar */}
-      <div className="fixed top-12 left-0 right-0 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl font-bold text-gray-800">🚀 Enhanced Java Learning Roadmap</h1>
-            <span className="text-sm text-green-700 font-medium bg-green-100 px-2 py-1 rounded">Enhanced Java</span>
+      {/* Header — matches site TopicDetailPage style */}
+      <div className="fixed top-16 left-0 right-0 z-20 bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-6 py-3 flex items-center justify-between">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-green-600 hover:text-green-800 text-sm font-medium transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Courses
+          </button>
+          <div className="text-right">
+            <span className="text-sm font-semibold text-green-600">{completedCount} / {totalTopics}</span>
+            <p className="text-xs text-gray-400">{progressPercentage}% done</p>
           </div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-base font-semibold text-gray-700">Learning Progress</span>
-            <span className="text-base font-bold text-green-600">{completedCount} / {totalTopics} subtopics</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div className="bg-gradient-to-r from-emerald-400 to-green-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
-          </div>
-          <div className="text-right mt-1">
-            <span className="text-xl font-bold text-green-600">{progressPercentage}%</span>
-          </div>
+        </div>
+        <div className="h-1 bg-gray-100">
+          <div
+            className="h-1 bg-gradient-to-r from-emerald-400 to-green-600 transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
         </div>
       </div>
 
-      <div style={{ marginTop: '120px', height: 'calc(100vh - 120px)' }}>
+      <div style={{ marginTop: '124px', height: 'calc(100vh - 124px)' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -382,9 +387,18 @@ export default function EnhancedHomePage() {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           fitView
-          fitViewOptions={{ padding: 0.08, nodes: [{ id: 'root' }, { id: 'etopic1' }, { id: 'adv_abstract' }, { id: 'adv_generics' }, { id: 'etopic2' }] }}
+          fitViewOptions={{
+            padding: 0.1,
+            nodes: [
+              { id: 'root' },
+              { id: 'etopic1' }, { id: 'adv_abstract' }, { id: 'adv_generics' },
+              { id: 'etopic2' }, { id: 'col_list' }, { id: 'col_queue' },
+              { id: 'etopic3' }, { id: 'stream_basics' }, { id: 'stream_ops' },
+              { id: 'etopic4' }, { id: 'exc_checked' }, { id: 'file_streams' },
+            ],
+          }}
           minZoom={0.25}
-          maxZoom={1.5}
+          maxZoom={2}
           panOnDrag
           panOnScroll
           zoomOnScroll
@@ -400,8 +414,8 @@ export default function EnhancedHomePage() {
 
       {/* Side Panel */}
       <div
-        className={`fixed top-[190px] right-0 z-30 w-96 transform bg-white shadow-xl border-l border-gray-200 transition-transform duration-300 ease-out flex flex-col ${selectedNode ? 'translate-x-0' : 'translate-x-full'}`}
-        style={{ height: 'calc(100vh - 190px)', maxHeight: 'calc(100vh - 190px)' }}
+        className={`fixed top-[124px] right-0 z-30 w-96 transform bg-white shadow-xl border-l border-gray-200 transition-transform duration-300 ease-out flex flex-col ${selectedNode ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ height: 'calc(100vh - 124px)', maxHeight: 'calc(100vh - 124px)' }}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 flex-shrink-0">
           <h2 className="text-xl font-bold text-gray-800">{content?.title || 'Details'}</h2>

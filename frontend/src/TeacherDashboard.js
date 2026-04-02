@@ -433,9 +433,12 @@ export default function TeacherDashboard() {
   // Official Classroom aggregate panel state
   const [officialClassrooms,         setOfficialClassrooms]         = useState([]);
   const [officialClassroomsLoading,  setOfficialClassroomsLoading]  = useState(false);
+  const [officialCourse,             setOfficialCourse]             = useState('basic'); // 'basic' | 'enhanced'
   const [officialPanelOpen,         setOfficialPanelOpen]         = useState(false);
   const [officialAggData,            setOfficialAggData]            = useState(null);
   const [officialAggLoading,         setOfficialAggLoading]         = useState(false);
+  const [officialEnhAggData,         setOfficialEnhAggData]         = useState(null);
+  const [officialEnhAggLoading,      setOfficialEnhAggLoading]      = useState(false);
   const [expandedOfficialStudent,    setExpandedOfficialStudent]    = useState(null);
   const [officialCourseSortKey,      setOfficialCourseSortKey]      = useState('full_name');
   const [officialCourseSortAsc,      setOfficialCourseSortAsc]      = useState(true);
@@ -443,9 +446,11 @@ export default function TeacherDashboard() {
   const [officialWorkLoading,        setOfficialWorkLoading]        = useState({});
   const [officialExpandedWork,       setOfficialExpandedWork]       = useState({});
   // Per-classroom view state
-  const [officialViewMode,           setOfficialViewMode]           = useState('aggregate'); // 'aggregate' | 'by-classroom'
+  const [officialViewMode,           setOfficialViewMode]           = useState('aggregate'); // 'aggregate' | 'by-classroom' | 'by-category'
   const [classroomList,              setClassroomList]              = useState(null);
   const [classroomListLoading,       setClassroomListLoading]       = useState(false);
+  const [enhClassroomList,           setEnhClassroomList]           = useState(null);
+  const [enhClassroomListLoading,    setEnhClassroomListLoading]    = useState(false);
   const [expandedClassroom,          setExpandedClassroom]          = useState(null);
   const [classroomDetailData,        setClassroomDetailData]        = useState({});
   const [classroomDetailLoading,     setClassroomDetailLoading]     = useState({});
@@ -453,6 +458,7 @@ export default function TeacherDashboard() {
   const [classroomStudentWork,       setClassroomStudentWork]       = useState({});
   const [classroomWorkLoading,       setClassroomWorkLoading]       = useState({});
   const [classroomExpandedWork,      setClassroomExpandedWork]      = useState({});
+  const [expandedCategory,           setExpandedCategory]           = useState(null);
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isTeacher)) navigate('/home');
@@ -488,9 +494,9 @@ export default function TeacherDashboard() {
   async function handleToggleOfficialPanel() {
     if (!officialPanelOpen) {
       setOfficialPanelOpen(true);
-      if (officialViewMode === 'aggregate' && !officialAggData && !officialAggLoading) {
+      if (officialViewMode === 'aggregate' && officialCourse !== 'enhanced' && !officialAggData && !officialAggLoading) {
         setOfficialAggLoading(true);
-        try { setOfficialAggData(await getOfficialAggregateCourseProgress()); }
+        try { setOfficialAggData(await getOfficialAggregateCourseProgress('basic')); }
         catch (e) { console.error(e); }
         finally { setOfficialAggLoading(false); }
       }
@@ -512,22 +518,38 @@ export default function TeacherDashboard() {
     }
   }
 
-  async function handleSwitchViewMode(mode) {
+  async function handleSwitchViewMode(mode, courseId) {
+    const isCourseChange = courseId !== officialCourse;
+    setOfficialCourse(courseId);
     setOfficialViewMode(mode);
-    if (!officialPanelOpen) {
-      setOfficialPanelOpen(true);
+    if (isCourseChange) setExpandedClassroom(null);
+    if (!officialPanelOpen) setOfficialPanelOpen(true);
+
+    if (mode === 'aggregate') {
+      if (courseId === 'enhanced' && !officialEnhAggData && !officialEnhAggLoading) {
+        setOfficialEnhAggLoading(true);
+        try { setOfficialEnhAggData(await getOfficialAggregateCourseProgress('enhanced')); }
+        catch (e) { console.error(e); }
+        finally { setOfficialEnhAggLoading(false); }
+      } else if (courseId !== 'enhanced' && !officialAggData && !officialAggLoading) {
+        setOfficialAggLoading(true);
+        try { setOfficialAggData(await getOfficialAggregateCourseProgress('basic')); }
+        catch (e) { console.error(e); }
+        finally { setOfficialAggLoading(false); }
+      }
     }
-    if (mode === 'aggregate' && !officialAggData && !officialAggLoading) {
-      setOfficialAggLoading(true);
-      try { setOfficialAggData(await getOfficialAggregateCourseProgress()); }
-      catch (e) { console.error(e); }
-      finally { setOfficialAggLoading(false); }
-    }
-    if (mode === 'by-classroom' && !classroomList && !classroomListLoading) {
-      setClassroomListLoading(true);
-      try { setClassroomList(await getOfficialClassroomList()); }
-      catch (e) { console.error(e); }
-      finally { setClassroomListLoading(false); }
+    if (mode === 'by-classroom' || mode === 'by-category') {
+      if (courseId === 'enhanced' && !enhClassroomList && !enhClassroomListLoading) {
+        setEnhClassroomListLoading(true);
+        try { setEnhClassroomList(await getOfficialClassroomList('enhanced')); }
+        catch (e) { console.error(e); }
+        finally { setEnhClassroomListLoading(false); }
+      } else if (courseId !== 'enhanced' && !classroomList && !classroomListLoading) {
+        setClassroomListLoading(true);
+        try { setClassroomList(await getOfficialClassroomList('basic')); }
+        catch (e) { console.error(e); }
+        finally { setClassroomListLoading(false); }
+      }
     }
   }
 
@@ -733,64 +755,164 @@ export default function TeacherDashboard() {
         {formError && <p style={{ color: '#ef4444', marginTop: 10, fontSize: font.sizeSm }}>{formError}</p>}
       </div>
 
-      {/* Official Classroom — Basic Java card + aggregate analysis panel */}
+      {/* Official Classroom — course cards + aggregate analysis panel */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <h3 style={{ fontSize: font.sizeLg, color: colors.text, margin: 0 }}>🎓 Official Classroom</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+          <h3 style={{ fontSize: font.sizeLg, color: colors.text, margin: 0 }}>🎓 Official Classroom Analytics</h3>
+          {officialPanelOpen && (
+            <button onClick={() => setOfficialPanelOpen(false)}
+              style={{ ...btn.secondary, ...btn.small, whiteSpace: 'nowrap' }}>
+              ✕ Close
+            </button>
+          )}
         </div>
         <p style={{ marginTop: 0, marginBottom: 14, color: colors.textMuted, fontSize: font.sizeSm }}>
-          Core Java course analysis across all Official Lessons classrooms.
+          Analyse student progress across all Official Lessons classrooms, per course.
         </p>
 
-        {/* Basic Java card */}
-        <div style={{ ...card.base, padding: 20, borderBottomLeftRadius: officialPanelOpen ? 0 : undefined, borderBottomRightRadius: officialPanelOpen ? 0 : undefined, borderBottom: officialPanelOpen ? 'none' : undefined }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h4 style={{ margin: 0, color: colors.primary, fontSize: font.sizeLg, fontWeight: font.weightBold }}>📚 Basic Java</h4>
-                <span style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>Official Lessons</span>
+        {/* Two course cards side by side */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 0 }}>
+          {/* Basic Java card */}
+          {(() => {
+            const isActive = officialCourse === 'basic' && officialPanelOpen;
+            const accentColor = colors.primary;
+            return (
+              <div style={{ ...card.base, padding: 20, border: `2px solid ${isActive ? accentColor : colors.border}`, borderBottomLeftRadius: isActive ? 0 : undefined, borderBottomRightRadius: isActive ? 0 : undefined, borderBottom: isActive ? 'none' : undefined, transition: 'border-color 0.2s' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📗</div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: font.weightBold, fontSize: font.sizeMd, color: accentColor }}>Basic Java</span>
+                      <span style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>Official Lessons</span>
+                    </div>
+                    <p style={{ margin: '3px 0 0 0', fontSize: font.sizeXs, color: colors.textMuted }}>
+                      {officialClassrooms.length} classroom{officialClassrooms.length !== 1 ? 's' : ''}
+                      {officialAggData ? ` · ${officialAggData.total_students} student${officialAggData.total_students !== 1 ? 's' : ''}` : ''}
+                      {officialAggData?.class_summary?.avg_completion_percentage != null
+                        ? ` · Avg ${officialAggData.class_summary.avg_completion_percentage}% completion`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {[
+                    { mode: 'aggregate',    label: '👥 All Students' },
+                    { mode: 'by-classroom', label: '📋 By Classroom' },
+                    { mode: 'by-category',  label: '🏷 By Category' },
+                  ].map(({ mode, label }) => {
+                    const active = isActive && officialViewMode === mode;
+                    return (
+                      <button key={mode} onClick={() => handleSwitchViewMode(mode, 'basic')}
+                        style={{ padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? accentColor : colors.border}`, background: active ? accentColor : colors.surface, color: active ? '#fff' : colors.textSecondary, transition: 'all 0.15s' }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary }}>
-                Aggregate course analysis · {officialClassrooms.length} classroom{officialClassrooms.length !== 1 ? 's' : ''}
-                {officialAggData ? ` · ${officialAggData.total_students} student${officialAggData.total_students !== 1 ? 's' : ''}` : ''}
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
-                onClick={() => handleSwitchViewMode('aggregate')}
-                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialViewMode === 'aggregate' && officialPanelOpen ? colors.primary : 'transparent', color: officialViewMode === 'aggregate' && officialPanelOpen ? '#fff' : colors.primary, border: `1px solid ${colors.primary}`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-                👥 All Students
-              </button>
-              <button
-                onClick={() => handleSwitchViewMode('by-classroom')}
-                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialViewMode === 'by-classroom' && officialPanelOpen ? colors.primary : 'transparent', color: officialViewMode === 'by-classroom' && officialPanelOpen ? '#fff' : colors.primary, border: `1px solid ${colors.primary}`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-                📋 By Classroom
-              </button>
-              {officialPanelOpen && (
-                <button onClick={() => setOfficialPanelOpen(false)}
-                  style={{ ...btn.secondary, ...btn.small, whiteSpace: 'nowrap' }}>
-                  ✕ Close
-                </button>
-              )}
-            </div>
-          </div>
+            );
+          })()}
+
+          {/* Enhanced Java card */}
+          {(() => {
+            const isActive = officialCourse === 'enhanced' && officialPanelOpen;
+            const accentColor = '#16a34a';
+            return (
+              <div style={{ ...card.base, padding: 20, border: `2px solid ${isActive ? accentColor : colors.border}`, borderBottomLeftRadius: isActive ? 0 : undefined, borderBottomRightRadius: isActive ? 0 : undefined, borderBottom: isActive ? 'none' : undefined, transition: 'border-color 0.2s' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🚀</div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: font.weightBold, fontSize: font.sizeMd, color: accentColor }}>Enhanced Java</span>
+                      <span style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>Advanced</span>
+                    </div>
+                    <p style={{ margin: '3px 0 0 0', fontSize: font.sizeXs, color: colors.textMuted }}>
+                      {officialClassrooms.length} classroom{officialClassrooms.length !== 1 ? 's' : ''}
+                      {officialEnhAggData ? ` · ${officialEnhAggData.total_students} student${officialEnhAggData.total_students !== 1 ? 's' : ''}` : ''}
+                      {officialEnhAggData?.class_summary?.avg_completion_percentage != null
+                        ? ` · Avg ${officialEnhAggData.class_summary.avg_completion_percentage}% completion`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {[
+                    { mode: 'aggregate',    label: '👥 All Students' },
+                    { mode: 'by-classroom', label: '📋 By Classroom' },
+                    { mode: 'by-category',  label: '🏷 By Category' },
+                  ].map(({ mode, label }) => {
+                    const active = isActive && officialViewMode === mode;
+                    return (
+                      <button key={mode} onClick={() => handleSwitchViewMode(mode, 'enhanced')}
+                        style={{ padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? accentColor : colors.border}`, background: active ? accentColor : colors.surface, color: active ? '#fff' : colors.textSecondary, transition: 'all 0.15s' }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Inline analysis panel */}
         {officialPanelOpen && (
-          <div style={{ ...card.base, padding: 28, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: `1px solid ${colors.border}` }}>
+          <div style={{ ...card.base, padding: 28, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: `2px solid ${officialCourse === 'enhanced' ? '#16a34a' : colors.primary}` }}>
+            {/* Course label strip */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+              <span style={{ fontSize: 18 }}>{officialCourse === 'enhanced' ? '🚀' : '📗'}</span>
+              <span style={{ fontWeight: font.weightBold, color: officialCourse === 'enhanced' ? '#16a34a' : colors.primary, fontSize: font.sizeMd }}>
+                {officialCourse === 'enhanced' ? 'Enhanced Java' : 'Basic Java'} —{' '}
+                {officialViewMode === 'aggregate' ? 'All Students' : officialViewMode === 'by-classroom' ? 'By Classroom' : 'By Category'}
+              </span>
+            </div>
+            {(() => {
+              const activeAggData = officialCourse === 'enhanced' ? officialEnhAggData : officialAggData;
+              const activeAggLoading = officialCourse === 'enhanced' ? officialEnhAggLoading : officialAggLoading;
+              const activeClsList = officialCourse === 'enhanced' ? enhClassroomList : classroomList;
+              const activeClsListLoading = officialCourse === 'enhanced' ? enhClassroomListLoading : classroomListLoading;
+              // By-Category: group activeClsList by category
+              const categoryGroups = (() => {
+                if (!activeClsList) return [];
+                const map = {};
+                activeClsList.forEach(cls => {
+                  const cat = cls.category || 'Uncategorised';
+                  if (!map[cat]) map[cat] = [];
+                  map[cat].push(cls);
+                });
+                return Object.entries(map).map(([cat, items]) => {
+                  const totalStudents = items.reduce((s, c) => s + c.total_students, 0);
+                  const comps = items.map(c => c.class_summary.avg_completion_percentage).filter(v => v != null);
+                  const quizS = items.map(c => c.class_summary.avg_quiz_score).filter(v => v != null);
+                  const testS = items.map(c => c.class_summary.avg_test_score).filter(v => v != null);
+                  const weakAll = items.flatMap(c => c.class_summary.most_common_weak_topics || []);
+                  const weakFreq = {}; weakAll.forEach(t => { weakFreq[t] = (weakFreq[t] || 0) + 1; });
+                  const topWeak = Object.entries(weakFreq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t]) => t);
+                  return {
+                    category: cat,
+                    items,
+                    totalStudents,
+                    avgCompletion: comps.length ? +(comps.reduce((a, b) => a + b, 0) / comps.length).toFixed(1) : null,
+                    avgQuiz: quizS.length ? +(quizS.reduce((a, b) => a + b, 0) / quizS.length).toFixed(1) : null,
+                    avgTest: testS.length ? +(testS.reduce((a, b) => a + b, 0) / testS.length).toFixed(1) : null,
+                    topWeak,
+                  };
+                });
+              })();
+
+              return <>
             {officialViewMode === 'by-classroom' ? (
               /* ── By-Classroom view ── */
-              classroomListLoading ? (
+              activeClsListLoading ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
                   <div>Loading classroom list…</div>
                 </div>
-              ) : !classroomList || classroomList.length === 0 ? (
+              ) : !activeClsList || activeClsList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>🏛</div>
                   <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No official classrooms found</div>
-                  <div style={{ fontSize: font.sizeSm }}>Create classrooms with an \"Official Lessons\" category to see them here.</div>
+                  <div style={{ fontSize: font.sizeSm }}>Create classrooms with an "Official Lessons" category to see them here.</div>
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -804,7 +926,7 @@ export default function TeacherDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {classroomList.map((cls, idx) => {
+                      {activeClsList.map((cls, idx) => {
                         const isExp = expandedClassroom === cls.classroom_id;
                         const detail = classroomDetailData[cls.classroom_id];
                         const detailLoading = Boolean(classroomDetailLoading[cls.classroom_id]);
@@ -981,14 +1103,91 @@ export default function TeacherDashboard() {
                   </table>
                 </div>
               )
+            ) : officialViewMode === 'by-category' ? (
+              /* ── By-Category view ── */
+              activeClsListLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+                  <div>Loading…</div>
+                </div>
+              ) : categoryGroups.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🏷</div>
+                  <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No classroom data</div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 32, padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                        {['Category', 'Classrooms', 'Students', 'Avg Completion', 'Avg Quiz', 'Avg Test', 'Common Weak Topics'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: h === 'Category' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categoryGroups.map((grp, idx) => {
+                        const isExp = expandedCategory === grp.category;
+                        const rowBg = isExp ? colors.primaryLight : (idx % 2 === 0 ? colors.surface : colors.bg);
+                        return (
+                          <React.Fragment key={`cat_${grp.category}`}>
+                            <tr onClick={() => setExpandedCategory(isExp ? null : grp.category)}
+                              style={{ cursor: 'pointer', background: rowBg }}
+                              onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = colors.primaryLight; }}
+                              onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = rowBg; }}>
+                              <td style={{ ...tdS, textAlign: 'center', color: colors.primary, fontWeight: 700, fontSize: 16 }}>{isExp ? '▾' : '▸'}</td>
+                              <td style={tdS}><span style={{ fontWeight: font.weightSemibold }}>{grp.category}</span></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>{grp.items.length}</td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>{grp.totalStudents}</td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={grp.avgCompletion} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={grp.avgQuiz} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={grp.avgTest} /></td>
+                              <td style={{ ...tdS }}>
+                                {grp.topWeak.length > 0
+                                  ? grp.topWeak.map(t => (
+                                      <span key={t} style={{ display: 'inline-block', marginRight: 4, marginBottom: 2, fontSize: 11, background: '#fde68a', color: '#92400e', borderRadius: 9999, padding: '1px 7px' }}>{t}</span>
+                                    ))
+                                  : <span style={{ color: colors.textMuted }}>—</span>}
+                              </td>
+                            </tr>
+                            {isExp && (
+                              <tr>
+                                <td colSpan={8} style={{ padding: '12px 16px 16px 40px', background: colors.primaryLight, borderBottom: `2px solid ${colors.primaryBorder}` }}>
+                                  <div style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Classrooms in this category</div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 10 }}>
+                                    {grp.items.map(cls => {
+                                      const s = cls.class_summary;
+                                      return (
+                                        <div key={cls.classroom_id} style={{ background: colors.surface, borderRadius: radii.md, padding: '10px 14px', border: `1px solid ${colors.border}` }}>
+                                          <div style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, marginBottom: 4 }}>{cls.classroom_name}</div>
+                                          <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 6 }}>{cls.total_students} student{cls.total_students !== 1 ? 's' : ''}</div>
+                                          <div style={{ display: 'flex', gap: 8, fontSize: font.sizeXs, flexWrap: 'wrap' }}>
+                                            <span>Avg: <_ScoreBadge score={s.avg_completion_percentage} /></span>
+                                            <span>Quiz: <_ScoreBadge score={s.avg_quiz_score} /></span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
             ) : (
               /* ── Aggregate (All Students) view ── */
-              officialAggLoading ? (
+              activeAggLoading ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
                   <div>Loading aggregate data…</div>
                 </div>
-              ) : !officialAggData || officialAggData.students.length === 0 ? (
+              ) : !activeAggData || activeAggData.students.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>👩‍🎓</div>
                   <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No student data yet</div>
@@ -996,7 +1195,7 @@ export default function TeacherDashboard() {
                 </div>
               ) : (
               <>
-                <_CourseSummaryBar summary={officialAggData.class_summary} />
+                <_CourseSummaryBar summary={activeAggData.class_summary} />
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
                     <thead>
@@ -1014,7 +1213,7 @@ export default function TeacherDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedOfficialStudents(officialAggData.students).map((s, idx) => {
+                      {sortedOfficialStudents(activeAggData.students).map((s, idx) => {
                         const isExp = expandedOfficialStudent === s.student_id;
                         const status = _studentStatus(s);
                         const rowBg = isExp ? colors.primaryLight : (idx % 2 === 0 ? colors.surface : colors.bg);
@@ -1133,6 +1332,7 @@ export default function TeacherDashboard() {
                 </div>
               </>
             ))}
+            </>;})()}
           </div>
         )}
       </div>

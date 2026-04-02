@@ -114,7 +114,7 @@ export const Auth = () => {
         </div>
 
         <div className="auth-guest">
-          <button type="button" onClick={() => navigate('/home')} className="guest-button">
+          <button type="button" onClick={() => navigate('/')} className="guest-button">
             Continue without login →
           </button>
           <p className="guest-note">Progress will be saved locally. Login anytime to back it up.</p>

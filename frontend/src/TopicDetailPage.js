@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './HomePage';
+import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './BasicJavaPage';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';
 

@@ -3,8 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "r
 import Navbar from "./Navbar";
 import AI from "./AI";
 import Compiler from "./Compiler";
-import HomePage from "./HomePage";
-import EnhancedHomePage from "./EnhancedHomePage";
+import BasicJavaPage from "./BasicJavaPage";
+import EnhancedJavaPage from "./EnhancedJavaPage";
 import CourseCatalogPage from "./CourseCatalogPage";
 import TopicDetailPage from "./TopicDetailPage";
 import EnhancedTopicDetailPage from "./EnhancedTopicDetailPage";
@@ -132,8 +132,8 @@ function AppContent() {
                 <Routes>
                     <Route path="/login"              element={<Auth />} />
                     <Route path="/"                   element={<CourseCatalogPage />} />
-                    <Route path="/home"               element={<HomePage />} />
-                    <Route path="/enhanced-java"      element={<EnhancedHomePage />} />
+                    <Route path="/basic-java"         element={<BasicJavaPage />} />
+                    <Route path="/enhanced-java"      element={<EnhancedJavaPage />} />
                     <Route path="/topic/:topicId"     element={<TopicDetailPage />} />
                     <Route path="/enhanced-topic/:topicId" element={<EnhancedTopicDetailPage />} />
                     <Route path="/playground"         element={<Playground />} />

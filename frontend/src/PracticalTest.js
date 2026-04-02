@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Compiler from "./Compiler";
-import { TOPIC_GROUPS } from "./HomePage";
+import { TOPIC_GROUPS } from "./BasicJavaPage";
 import { ProgressTracker } from "./ProgressTracker";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, codeOutput } from './theme';
 

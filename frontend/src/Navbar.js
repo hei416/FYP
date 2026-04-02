@@ -24,8 +24,6 @@ export default function Navbar({ toggleChat }) {
 
     const baseLinks = [
         { to: '/',               icon: '📚', label: 'Courses',           'data-tour': 'courses-link' },
-        { to: '/home',           icon: '🗺️', label: 'Basic Java',        'data-tour': 'home-link' },
-        { to: '/enhanced-java',  icon: '🚀', label: 'Enhanced Java',     'data-tour': 'enhanced-link' },
         { to: '/playground',     icon: '💻', label: 'Playground',        'data-tour': 'playground-link' },
         { to: '/quiz',           icon: '📝', label: 'Exercises',         'data-tour': 'quiz-link' },
         { to: '/practical-test', icon: '🎯', label: 'Coding Challenges', 'data-tour': 'test-link' },
