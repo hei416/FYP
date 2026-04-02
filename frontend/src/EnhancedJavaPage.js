@@ -115,7 +115,7 @@ const sy = (n) => gy(n) + 80;
 
 const initialNodes = [
   // Root
-  makeNode("root", 330, 5, "🚀 Enhanced Java Learning Path", { width: 300, bold: true, bg: "#059669", border: "#065F46", fontSize: 18 }),
+  makeNode("root", 330, 5, "🚀 Enhanced Java", { width: 300, bold: true, bg: "#059669", border: "#065F46", fontSize: 18 }),
 
   // === GROUP 1: Advanced OOP (3 subs) ===
   makeTopicHeader("etopic1", 330, gy(1), "1. Advanced OOP", { width: 280 }),
