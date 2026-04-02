@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
@@ -9,6 +9,8 @@ from routers.auth import get_current_user
 import json
 
 router = APIRouter(prefix="/progress", tags=["progress"])
+
+VALID_COURSES = {"basic", "enhanced"}
 
 # Pydantic models
 class ProgressUpdate(BaseModel):
@@ -56,11 +58,15 @@ class ProgressResponse(BaseModel):
         from_attributes = True
 
 # Helper function to get or create user progress
-def get_user_progress(user_id: int, db: Session) -> UserProgress:
-    """Get or create user progress record"""
-    progress = db.query(UserProgress).filter(UserProgress.user_id == user_id).first()
+def get_user_progress(user_id: int, db: Session, course_id: str = "basic") -> UserProgress:
+    """Get or create user progress record for the given course."""
+    progress = (
+        db.query(UserProgress)
+        .filter(UserProgress.user_id == user_id, UserProgress.course_id == course_id)
+        .first()
+    )
     if not progress:
-        progress = UserProgress(user_id=user_id)
+        progress = UserProgress(user_id=user_id, course_id=course_id)
         db.add(progress)
         db.commit()
         db.refresh(progress)
@@ -69,11 +75,14 @@ def get_user_progress(user_id: int, db: Session) -> UserProgress:
 # Routes
 @router.get("/me", response_model=ProgressResponse)
 async def get_user_progress_endpoint(
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get current user's progress"""
-    progress = get_user_progress(current_user.id, db)
+    """Get current user's progress for the specified course."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
     from datetime import datetime
     return ProgressResponse(
         id=progress.id,
@@ -94,17 +103,20 @@ async def get_user_progress_endpoint(
 @router.post("/sync")
 async def sync_progress(
     update: ProgressUpdate,
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Merge-sync progress from frontend.
+    Merge-sync progress from frontend for the specified course.
     Never overwrites a completed item with an incomplete one:
     - Lists are unioned (completed items are never removed)
     - Counts use max() so they only go up
     - Booleans use OR so completed=True is never lost
     """
-    progress = get_user_progress(current_user.id, db)
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
 
     # Union merge for lists (never remove completed items)
     if update.completed_topics is not None:
@@ -162,11 +174,14 @@ async def sync_progress(
 @router.post("/topic-complete")
 async def mark_topic_complete(
     request: TopicCompletionRequest,
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Mark a topic as completed"""
-    progress = get_user_progress(current_user.id, db)
+    """Mark a topic as completed for the specified course."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
     
     # Add topic to completed list if not already there
     completed = progress.completed_topics or []
@@ -185,11 +200,14 @@ async def mark_topic_complete(
 @router.post("/quiz-attempt")
 async def record_quiz_attempt(
     attempt: QuizAttemptRequest,
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Record a quiz attempt"""
-    progress = get_user_progress(current_user.id, db)
+    """Record a quiz attempt for the specified course."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
     
     # Create quiz attempt record
     quiz_attempt = QuizAttempt(
@@ -220,11 +238,14 @@ async def record_quiz_attempt(
 @router.post("/test-attempt")
 async def record_test_attempt(
     attempt: TestAttemptRequest,
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Record a test attempt"""
-    progress = get_user_progress(current_user.id, db)
+    """Record a test attempt for the specified course."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
     
     # Create test attempt record
     test_attempt = TestAttempt(
@@ -257,11 +278,14 @@ async def record_test_attempt(
 
 @router.post("/playground-use")
 async def record_playground_use(
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Record playground code execution"""
-    progress = get_user_progress(current_user.id, db)
+    """Record playground code execution."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
     
     progress.playground_executions = (progress.playground_executions or 0) + 1
     if progress.playground_executions >= 3:
@@ -279,11 +303,14 @@ async def record_playground_use(
 
 @router.post("/ai-interaction")
 async def record_ai_interaction(
+    course_id: str = Query(default="basic"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Record AI tutor interaction"""
-    progress = get_user_progress(current_user.id, db)
+    """Record AI tutor interaction."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+    progress = get_user_progress(current_user.id, db, course_id)
     
     progress.ai_interactions = (progress.ai_interactions or 0) + 1
     progress.last_synced = datetime.utcnow()

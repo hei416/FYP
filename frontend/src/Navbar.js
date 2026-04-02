@@ -23,7 +23,9 @@ export default function Navbar({ toggleChat }) {
     }, []);
 
     const baseLinks = [
-        { to: '/home',           icon: '🗺️', label: 'Roadmap',          'data-tour': 'home-link' },
+        { to: '/',               icon: '📚', label: 'Courses',           'data-tour': 'courses-link' },
+        { to: '/home',           icon: '🗺️', label: 'Basic Java',        'data-tour': 'home-link' },
+        { to: '/enhanced-java',  icon: '🚀', label: 'Enhanced Java',     'data-tour': 'enhanced-link' },
         { to: '/playground',     icon: '💻', label: 'Playground',        'data-tour': 'playground-link' },
         { to: '/quiz',           icon: '📝', label: 'Exercises',         'data-tour': 'quiz-link' },
         { to: '/practical-test', icon: '🎯', label: 'Coding Challenges', 'data-tour': 'test-link' },
@@ -91,7 +93,7 @@ export default function Navbar({ toggleChat }) {
                                 {roleIcon} {user?.email}
                             </span>
                             <button
-                                onClick={() => { logout(); navigate('/home'); }}
+                                onClick={() => { logout(); navigate('/'); }}
                                 style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, color: colors.textSecondary, fontSize: font.sizeSm, cursor: 'pointer', transition }}
                                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.error || '#ef4444'; e.currentTarget.style.color = colors.error || '#ef4444'; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.textSecondary; }}
@@ -121,7 +123,7 @@ export default function Navbar({ toggleChat }) {
                 display: 'flex', flexDirection: 'column', padding: spacing.xl
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30, paddingBottom: spacing.xl, borderBottom: `2px solid ${colors.border}` }}>
-                    <h2 style={{ margin: 0, fontSize: font.sizeXl, color: colors.primary, fontWeight: font.weightBold }}>Java Learning Hub</h2>
+                    <h2 style={{ margin: 0, fontSize: font.sizeXl, color: colors.primary, fontWeight: font.weightBold }}>CodeTutor</h2>
                     <button onClick={toggleSidebar} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: colors.textMuted, padding: 4 }}>×</button>
                 </div>
 

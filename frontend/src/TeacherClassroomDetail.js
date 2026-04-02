@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { getClassroomAnalytics } from './classroomService';
 import {
+  getClassroomAnalytics,
+  getClassroomMaterialsWithProgress,
+  getClassroomQuizzesWithProgress,
+  getClassroomStudentWork,
   generateClassroomQuiz,
   saveClassroomQuiz,
   listClassroomQuizzes,
@@ -10,6 +13,7 @@ import {
   deleteClassroomQuiz,
   listSections,
   listClassroomFiles,
+  updateClassroomCategory,
 } from './classroomService';
 import { ClassroomSections } from './TeacherDashboard';
 import { radii, font, card, shadows } from './theme';
@@ -126,6 +130,74 @@ function ClassSummaryBar({ summary }) {
       {summary.most_common_weak_topics?.length > 0 && (
         <div style={{ background: colors.warningLight, border: `1px solid ${colors.warningBorder}`, borderRadius: radii.md, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.warning }}>⚠️ Class-wide weak topics:</span>
+          {summary.most_common_weak_topics.map(t => (
+            <span key={t} style={{ fontSize: font.sizeSm, color: '#92400e', background: '#fde68a', borderRadius: radii.full, padding: '2px 10px', fontWeight: font.weightMedium }}>{t}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CourseSummaryBar({ summary }) {
+  if (!summary) return null;
+
+  const stats = [
+    {
+      icon: '🎯',
+      label: 'Avg Completion',
+      numericValue: summary.avg_completion_percentage,
+      value: summary.avg_completion_percentage != null ? `${summary.avg_completion_percentage}%` : '—',
+      color: scoreColor(summary.avg_completion_percentage).fg,
+    },
+    {
+      icon: '📝',
+      label: 'Avg Quiz Score',
+      numericValue: summary.avg_quiz_score,
+      value: summary.avg_quiz_score != null ? `${summary.avg_quiz_score}%` : '—',
+      color: scoreColor(summary.avg_quiz_score).fg,
+    },
+    {
+      icon: '💻',
+      label: 'Avg Test Score',
+      numericValue: summary.avg_test_score,
+      value: summary.avg_test_score != null ? `${summary.avg_test_score}%` : '—',
+      color: scoreColor(summary.avg_test_score).fg,
+    },
+    {
+      icon: '✅',
+      label: 'Quiz Pass Rate',
+      numericValue: summary.quiz_pass_rate,
+      value: summary.quiz_pass_rate != null ? `${summary.quiz_pass_rate}%` : '—',
+      color: rateColor(summary.quiz_pass_rate),
+    },
+    {
+      icon: '🏆',
+      label: 'Test Pass Rate',
+      numericValue: summary.test_pass_rate,
+      value: summary.test_pass_rate != null ? `${summary.test_pass_rate}%` : '—',
+      color: rateColor(summary.test_pass_rate),
+    },
+  ];
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '14px 16px', boxShadow: shadows.sm }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 16 }}>{s.icon}</span>
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{s.label}</div>
+            </div>
+            <div style={{ fontSize: font.sizeXl, fontWeight: font.weightBold, color: s.color }}>{s.value}</div>
+            <MiniBar value={s.numericValue} color={s.color} />
+          </div>
+        ))}
+      </div>
+
+      {summary.most_common_weak_topics?.length > 0 && (
+        <div style={{ background: colors.warningLight, border: `1px solid ${colors.warningBorder}`, borderRadius: radii.md, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.warning }}>⚠️ Common weak topics:</span>
           {summary.most_common_weak_topics.map(t => (
             <span key={t} style={{ fontSize: font.sizeSm, color: '#92400e', background: '#fde68a', borderRadius: radii.full, padding: '2px 10px', fontWeight: font.weightMedium }}>{t}</span>
           ))}
@@ -786,13 +858,26 @@ export default function TeacherClassroomDetail() {
 
   const classroomName = state?.name || `Classroom #${classroomId}`;
   const classCode     = state?.class_code;
+  const [classroomCategory, setClassroomCategory] = useState(state?.category || 'Official Lessons');
+  const [editingCategory,   setEditingCategory]   = useState(false);
+  const [categoryInput,     setCategoryInput]     = useState(state?.category || 'Official Lessons');
+  const [categoryLoading,   setCategoryLoading]   = useState(false);
+  const [categoryError,     setCategoryError]     = useState('');
 
   const [analytics,        setAnalytics]        = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [expandedStudent,  setExpandedStudent]  = useState(null);
   const [sortKey,          setSortKey]          = useState('full_name');
   const [sortAsc,          setSortAsc]          = useState(true);
-  const [activeTab,        setActiveTab]        = useState('materials');
+  const [materialsData,    setMaterialsData]    = useState(null);
+  const [materialsLoading, setMaterialsLoading] = useState(true);
+  const [quizzesData,      setQuizzesData]      = useState(null);
+  const [quizzesLoading,   setQuizzesLoading]   = useState(true);
+  const [studentWorkById,  setStudentWorkById]  = useState({});
+  const [studentWorkLoading, setStudentWorkLoading] = useState({});
+  const [expandedWorkItem, setExpandedWorkItem] = useState({});
+  const [activeTab,        setActiveTab]        = useState(state?.initialTab || 'materials');
+  const [classroomView,    setClassroomView]    = useState(state?.initialClassroomView || 'materials');
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isTeacher)) navigate('/home');
@@ -806,6 +891,40 @@ export default function TeacherClassroomDetail() {
       .catch(console.error)
       .finally(() => setAnalyticsLoading(false));
   }, [classroomId, isTeacher]);
+
+  useEffect(() => {
+    if (!isTeacher) return;
+    setMaterialsLoading(true);
+    getClassroomMaterialsWithProgress(classroomId)
+      .then(setMaterialsData)
+      .catch(console.error)
+      .finally(() => setMaterialsLoading(false));
+  }, [classroomId, isTeacher]);
+
+  useEffect(() => {
+    if (!isTeacher) return;
+    setQuizzesLoading(true);
+    getClassroomQuizzesWithProgress(classroomId)
+      .then(setQuizzesData)
+      .catch(console.error)
+      .finally(() => setQuizzesLoading(false));
+  }, [classroomId, isTeacher]);
+
+  async function handleSaveCategory() {
+    const trimmed = categoryInput.trim();
+    if (!trimmed) { setCategoryError('Category cannot be empty'); return; }
+    setCategoryLoading(true);
+    setCategoryError('');
+    try {
+      const updated = await updateClassroomCategory(classroomId, trimmed);
+      setClassroomCategory(updated.category);
+      setEditingCategory(false);
+    } catch (e) {
+      setCategoryError(e.message || 'Failed to update category');
+    } finally {
+      setCategoryLoading(false);
+    }
+  }
 
   function toggleSort(key) {
     if (sortKey === key) setSortAsc(a => !a);
@@ -855,6 +974,10 @@ export default function TeacherClassroomDetail() {
     );
   };
 
+  const hasWorkDetails = (item) => {
+    return Boolean(item?.result_data?.review || item?.result_data?.question || item?.content);
+  };
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '36px 24px' }}>
       {/* Page header */}
@@ -879,6 +1002,39 @@ export default function TeacherClassroomDetail() {
               {analytics.total_students} student{analytics.total_students !== 1 ? 's' : ''} enrolled
             </span>
           )}
+          {/* Category badge / inline editor */}
+          {editingCategory ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <input
+                value={categoryInput}
+                onChange={e => setCategoryInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSaveCategory();
+                  if (e.key === 'Escape') { setEditingCategory(false); setCategoryError(''); setCategoryInput(classroomCategory); }
+                }}
+                style={{ padding: '4px 8px', fontSize: font.sizeSm, border: `1px solid ${categoryError ? '#ef4444' : colors.border}`, borderRadius: radii.sm, outline: 'none', width: 160 }}
+                autoFocus
+                maxLength={100}
+              />
+              <button onClick={handleSaveCategory} disabled={categoryLoading}
+                style={{ ...btn.primary, padding: '4px 10px', fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>
+                {categoryLoading ? '…' : 'Save'}
+              </button>
+              <button onClick={() => { setEditingCategory(false); setCategoryError(''); setCategoryInput(classroomCategory); }}
+                style={{ ...btn.secondary, padding: '4px 10px', fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>
+                Cancel
+              </button>
+              {categoryError && <span style={{ color: '#ef4444', fontSize: font.sizeXs }}>{categoryError}</span>}
+            </div>
+          ) : (
+            <button
+              onClick={() => { setEditingCategory(true); setCategoryInput(classroomCategory); }}
+              style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '2px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              title="Click to edit category"
+            >
+              {classroomCategory} ✏️
+            </button>
+          )}
         </div>
       </div>
 
@@ -887,7 +1043,7 @@ export default function TeacherClassroomDetail() {
         {[
           { key: 'materials', label: '📁 Learning Materials' },
           { key: 'quizzes',   label: '📝 Quizzes & Tests' },
-          { key: 'analytics', label: '📊 Analytics' },
+          { key: 'official-lessons', label: '📊 Classroom Analysis' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -917,15 +1073,183 @@ export default function TeacherClassroomDetail() {
         <ClassroomQuizManager classroomId={classroomId} />
       )}
 
-      {/* Analytics tab */}
-      {activeTab === 'analytics' && analyticsLoading && (
+      {/* Official Lessons category header */}
+      {activeTab === 'official-lessons' && (
+        <div style={{ ...card.base, padding: 18, marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>Classroom Analysis</div>
+              <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+                <strong>{classroomName}</strong> ({classCode || classroomId}) · Category: <strong>{classroomCategory}</strong>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setClassroomView('materials')}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: radii.sm,
+                  border: classroomView === 'materials' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                  background: classroomView === 'materials' ? colors.primaryLight : colors.surface,
+                  color: classroomView === 'materials' ? colors.primary : colors.textSecondary,
+                  fontSize: font.sizeSm,
+                  fontWeight: font.weightSemibold,
+                  cursor: 'pointer',
+                }}
+              >
+                📚 Materials
+              </button>
+              <button
+                onClick={() => setClassroomView('quizzes')}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: radii.sm,
+                  border: classroomView === 'quizzes' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                  background: classroomView === 'quizzes' ? colors.primaryLight : colors.surface,
+                  color: classroomView === 'quizzes' ? colors.primary : colors.textSecondary,
+                  fontSize: font.sizeSm,
+                  fontWeight: font.weightSemibold,
+                  cursor: 'pointer',
+                }}
+              >
+                📝 Quizzes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Materials View */}
+      {activeTab === 'official-lessons' && classroomView === 'materials' && materialsLoading && (
+        <div style={{ textAlign: 'center', padding: '64px 0', color: colors.textMuted }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+          <div style={{ fontSize: font.sizeMd }}>Loading materials…</div>
+        </div>
+      )}
+
+      {activeTab === 'official-lessons' && classroomView === 'materials' && !materialsLoading && (!materialsData || materialsData.length === 0) && (
+        <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
+          <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No materials uploaded yet</div>
+          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>Upload materials in the Learning Materials tab</div>
+        </div>
+      )}
+
+      {activeTab === 'official-lessons' && classroomView === 'materials' && !materialsLoading && materialsData && materialsData.length > 0 && (
+        <div>
+          {materialsData.map((material, idx) => (
+            <div key={material.file_id} style={{ ...card.base, padding: 18, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.text }}>{material.filename}</div>
+                  <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: 4 }}>
+                    Uploaded {new Date(material.uploaded_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.primary }}>
+                    {material.read_count}/{material.total_students}
+                  </div>
+                  <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{material.read_percentage}% read</div>
+                </div>
+              </div>
+
+              <div style={{ background: colors.bg, borderRadius: radii.sm, padding: 12, fontSize: font.sizeXs }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+                  {material.student_progress.map(sp => (
+                    <div key={sp.student_id} style={{ padding: '8px 10px', background: colors.surface, borderRadius: radii.sm, border: `1px solid ${sp.marked_read ? '#bbf7d0' : colors.border}` }}>
+                      <div style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</div>
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{sp.student_email}</div>
+                      <div style={{ marginTop: 4, fontSize: 11, fontWeight: 700, color: sp.marked_read ? '#16a34a' : colors.textMuted }}>
+                        {sp.marked_read ? '✓ Read' : '○ Not read'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quizzes View */}
+      {activeTab === 'official-lessons' && classroomView === 'quizzes' && quizzesLoading && (
+        <div style={{ textAlign: 'center', padding: '64px 0', color: colors.textMuted }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+          <div style={{ fontSize: font.sizeMd }}>Loading quizzes…</div>
+        </div>
+      )}
+
+      {activeTab === 'official-lessons' && classroomView === 'quizzes' && !quizzesLoading && (!quizzesData || quizzesData.length === 0) && (
+        <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+          <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No quizzes created yet</div>
+          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>Create quizzes in the Quizzes & Tests tab</div>
+        </div>
+      )}
+
+      {activeTab === 'official-lessons' && classroomView === 'quizzes' && !quizzesLoading && quizzesData && quizzesData.length > 0 && (
+        <div>
+          {quizzesData.map((quiz, idx) => (
+            <div key={quiz.quiz_id} style={{ ...card.base, padding: 18, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.text }}>{quiz.title}</div>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: quiz.status === 'published' ? '#dcfce7' : '#f3f4f6', color: quiz.status === 'published' ? '#16a34a' : colors.textMuted, borderRadius: radii.full, padding: '2px 8px' }}>
+                      {quiz.status}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+                    Created {new Date(quiz.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.primary }}>
+                    {quiz.attempt_count}/{quiz.total_students}
+                  </div>
+                  <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{quiz.attempt_percentage}% attempted</div>
+                </div>
+              </div>
+
+              <div style={{ background: colors.bg, borderRadius: radii.sm, padding: 12, fontSize: font.sizeXs }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+                  {quiz.student_progress.map(sp => (
+                    <div key={sp.student_id} style={{ padding: '8px 10px', background: colors.surface, borderRadius: radii.sm, border: `1px solid ${sp.attempted ? '#bbf7d0' : colors.border}` }}>
+                      <div style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</div>
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{sp.student_email}</div>
+                      <div style={{ marginTop: 4 }}>
+                        {sp.attempted ? (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>✓ Attempted ({sp.attempt_count}x)</div>
+                            {sp.best_score != null && (
+                              <div style={{ marginTop: 2 }}>
+                                <ScoreBadge score={sp.best_score} />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted }}>○ Not attempted</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Analytics tab - kept for reference */}
+      {activeTab === 'official-lessons' && classroomView === 'analytics' && analyticsLoading && (
         <div style={{ textAlign: 'center', padding: '64px 0', color: colors.textMuted }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
           <div style={{ fontSize: font.sizeMd }}>Loading student data…</div>
         </div>
       )}
 
-      {activeTab === 'analytics' && !analyticsLoading && analytics && analytics.students.length === 0 && (
+      {activeTab === 'official-lessons' && classroomView === 'analytics' && !analyticsLoading && analytics && analytics.students.length === 0 && (
         <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>👩‍🎓</div>
           <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No students yet</div>
@@ -937,7 +1261,7 @@ export default function TeacherClassroomDetail() {
         </div>
       )}
 
-      {activeTab === 'analytics' && !analyticsLoading && analytics && analytics.students.length > 0 && (
+      {activeTab === 'official-lessons' && classroomView === 'analytics' && !analyticsLoading && analytics && analytics.students.length > 0 && (
         <div style={{ ...card.base, padding: 28 }}>
           <ClassSummaryBar summary={analytics.class_summary} />
 

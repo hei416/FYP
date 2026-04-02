@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Response, Header
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Response, Header, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -10,14 +10,27 @@ import shutil, uuid, os, time, json
 import httpx
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, MaterialRead
 from routers.auth import get_current_user, require_role
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
     search_classroom_context, get_chunks_for_files,
 )
+from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, ENHANCED_SUBTOPIC_TO_MAIN_TOPIC, to_main_topic
 
 router = APIRouter(prefix="/classrooms", tags=["Classroom"])
+
+# Basic Java constants
+_VALID_SUBTOPIC_IDS = set(SUBTOPIC_TO_MAIN_TOPIC.keys())
+NUM_MAIN_TOPICS = len(set(SUBTOPIC_TO_MAIN_TOPIC.values()))  # 12
+TOTAL_ACTIVITIES = len(_VALID_SUBTOPIC_IDS) + NUM_MAIN_TOPICS + NUM_MAIN_TOPICS  # 76
+
+# Enhanced Java constants
+_VALID_ENHANCED_SUBTOPIC_IDS = set(ENHANCED_SUBTOPIC_TO_MAIN_TOPIC.keys())
+NUM_ENHANCED_MAIN_TOPICS = len(set(ENHANCED_SUBTOPIC_TO_MAIN_TOPIC.values()))  # 8
+TOTAL_ENHANCED_ACTIVITIES = len(_VALID_ENHANCED_SUBTOPIC_IDS) + NUM_ENHANCED_MAIN_TOPICS + NUM_ENHANCED_MAIN_TOPICS
+
+VALID_COURSES = {"basic", "enhanced"}
 
 
 def generate_class_code(length: int = 8) -> str:
@@ -38,19 +51,29 @@ def unique_class_code(db: Session) -> str:
 
 class ClassroomCreate(BaseModel):
     name: str
+    category: Optional[str] = "Official Lessons"
     description: Optional[str] = None
+    enrolled_courses: Optional[List[str]] = None
 
 
 class ClassroomResponse(BaseModel):
     id: int
     name: str
+    category: str
     description: Optional[str]
     class_code: str
     teacher_id: int
+    enrolled_courses: Optional[List[str]] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class ClassroomUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
 
 
 class JoinClassroomRequest(BaseModel):
@@ -97,6 +120,75 @@ class ClassroomAnalytics(BaseModel):
     total_students: int
     class_summary: ClassSummary
     students: List[StudentSummary]
+
+
+class CourseTopicStat(BaseModel):
+    topic: str
+    quiz_attempts: int
+    quiz_avg_score: Optional[float]
+    quiz_pass_rate: Optional[float]
+    test_attempts: int
+    test_avg_score: Optional[float]
+    test_pass_rate: Optional[float]
+    is_weak: bool
+
+
+class StudentCourseProgress(BaseModel):
+    student_id: int
+    full_name: Optional[str]
+    email: str
+    completion_percentage: float
+    completed_topics: int
+    quizzes_attempted: int
+    quizzes_passed: int
+    avg_quiz_score: Optional[float]
+    tests_attempted: int
+    tests_passed: int
+    avg_test_score: Optional[float]
+    last_active: Optional[datetime]
+    weak_topics: List[str]
+    topic_stats: List[CourseTopicStat]
+
+
+class CourseClassSummary(BaseModel):
+    avg_completion_percentage: Optional[float]
+    avg_quiz_score: Optional[float]
+    avg_test_score: Optional[float]
+    quiz_pass_rate: Optional[float]
+    test_pass_rate: Optional[float]
+    most_common_weak_topics: List[str]
+
+
+class ClassroomCourseProgressAnalytics(BaseModel):
+    classroom_id: Optional[int]
+    classroom_name: str
+    total_students: int
+    class_summary: CourseClassSummary
+    students: List[StudentCourseProgress]
+
+
+class ClassroomCourseSummaryItem(BaseModel):
+    classroom_id: int
+    classroom_name: str
+    total_students: int
+    class_summary: CourseClassSummary
+
+
+class StudentWorkItem(BaseModel):
+    id: int
+    work_type: str
+    title: str
+    topic_id: Optional[str]
+    content: Optional[str]
+    result_data: Optional[Any]
+    created_at: datetime
+
+
+class StudentWorkListResponse(BaseModel):
+    student_id: int
+    full_name: Optional[str]
+    email: str
+    items: List[StudentWorkItem]
 
 
 class FileMetaResponse(BaseModel):
@@ -237,6 +329,73 @@ def _build_topic_stats(works: List[SavedWork], work_type: str) -> Dict[str, Dict
     return result
 
 
+def _build_course_topic_stats(works: List[SavedWork]) -> List[CourseTopicStat]:
+    topic_buckets: Dict[str, Dict[str, Any]] = {}
+    for w in works:
+        if w.work_type not in ("quiz", "test"):
+            continue
+
+        score = _score_of(w.result_data)
+        topics = _topics_of(w)
+        if not topics:
+            continue
+
+        for topic in topics:
+            bucket = topic_buckets.setdefault(topic, {
+                "quiz_attempts": 0,
+                "quiz_scores": [],
+                "test_attempts": 0,
+                "test_scores": [],
+            })
+
+            if w.work_type == "quiz":
+                bucket["quiz_attempts"] += 1
+                if score is not None:
+                    bucket["quiz_scores"].append(score)
+            else:
+                bucket["test_attempts"] += 1
+                if score is not None:
+                    bucket["test_scores"].append(score)
+
+    stats: List[CourseTopicStat] = []
+    for topic in sorted(topic_buckets.keys()):
+        bucket = topic_buckets[topic]
+
+        quiz_scores = bucket["quiz_scores"]
+        test_scores = bucket["test_scores"]
+
+        quiz_avg = round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None
+        test_avg = round(sum(test_scores) / len(test_scores), 1) if test_scores else None
+
+        quiz_passed = sum(1 for s in quiz_scores if s >= 70)
+        test_passed = sum(1 for s in test_scores if s >= 60)
+
+        quiz_pass_rate = (
+            round(quiz_passed / len(quiz_scores) * 100, 1) if quiz_scores else None
+        )
+        test_pass_rate = (
+            round(test_passed / len(test_scores) * 100, 1) if test_scores else None
+        )
+
+        is_weak = (
+            (quiz_avg is not None and quiz_avg < 70) or
+            (test_avg is not None and test_avg < 60)
+        )
+
+        stats.append(CourseTopicStat(
+            topic=topic,
+            quiz_attempts=bucket["quiz_attempts"],
+            quiz_avg_score=quiz_avg,
+            quiz_pass_rate=quiz_pass_rate,
+            test_attempts=bucket["test_attempts"],
+            test_avg_score=test_avg,
+            test_pass_rate=test_pass_rate,
+            is_weak=is_weak,
+        ))
+
+    return stats
+
+
 # ---------------------------------------------------------------------------
 # Teacher endpoints
 # ---------------------------------------------------------------------------
@@ -248,11 +407,22 @@ async def create_classroom(
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
     code = unique_class_code(db)
+    normalized_category = (data.category or "Official Lessons").strip()
+    if not normalized_category:
+        normalized_category = "Official Lessons"
+
+    # Validate enrolled_courses; default to ["basic"]
+    valid_courses = [c for c in (data.enrolled_courses or []) if c in VALID_COURSES]
+    if not valid_courses:
+        valid_courses = ["basic"]
+
     classroom = Classroom(
         name=data.name,
+        category=normalized_category[:100],
         description=data.description,
         class_code=code,
-        teacher_id=current_user.id
+        teacher_id=current_user.id,
+        enrolled_courses=valid_courses,
     )
     db.add(classroom)
     db.commit()
@@ -262,10 +432,68 @@ async def create_classroom(
 
 @router.get("/my", response_model=List[ClassroomResponse])
 async def list_my_classrooms(
+    search: Optional[str] = Query(None),
+    category_filter: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
-    return db.query(Classroom).filter(Classroom.teacher_id == current_user.id).all()
+    query = db.query(Classroom).filter(Classroom.teacher_id == current_user.id)
+    if category_filter:
+        query = query.filter(
+            func.lower(Classroom.category) == category_filter.strip().lower()
+        )
+    if search:
+        term = f"%{search.strip().lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(Classroom.name).like(term),
+                func.lower(Classroom.category).like(term),
+                func.lower(Classroom.description).like(term),
+            )
+        )
+    return query.order_by(Classroom.created_at.desc()).all()
+
+
+@router.get("/official/list", response_model=List[ClassroomResponse])
+async def list_official_classrooms(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher", "admin"))
+):
+    """Return all 'official' classrooms (category starts with 'official') owned by this teacher."""
+    query = db.query(Classroom).filter(
+        Classroom.teacher_id == current_user.id,
+        Classroom.category.ilike("official%")
+    )
+    return query.order_by(Classroom.created_at.desc()).all()
+
+
+@router.patch("/{classroom_id}", response_model=ClassroomResponse)
+async def update_classroom(
+    classroom_id: int,
+    data: ClassroomUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    if current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this classroom")
+    if data.name is not None:
+        stripped = data.name.strip()
+        if not stripped:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        classroom.name = stripped
+    if data.category is not None:
+        stripped = data.category.strip()
+        if not stripped:
+            raise HTTPException(status_code=400, detail="Category cannot be empty")
+        classroom.category = stripped[:100]
+    if data.description is not None:
+        classroom.description = data.description.strip() or None
+    db.commit()
+    db.refresh(classroom)
+    return classroom
 
 
 @router.get("/{classroom_id}/analytics", response_model=ClassroomAnalytics)
@@ -405,6 +633,480 @@ async def get_classroom_analytics(
         total_students=len(student_summaries),
         class_summary=class_summary,
         students=student_summaries,
+    )
+
+
+@router.get("/official-aggregate/course-progress", response_model=ClassroomCourseProgressAnalytics)
+async def get_official_aggregate_course_progress(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher", "admin"))
+):
+    """Aggregate course-progress across all Official Lessons classrooms owned by this teacher."""
+    official_classrooms = (
+        db.query(Classroom)
+        .filter(
+            Classroom.teacher_id == current_user.id,
+            Classroom.category.ilike("official%"),
+        )
+        .all()
+    )
+
+    if not official_classrooms:
+        return ClassroomCourseProgressAnalytics(
+            classroom_id=None,
+            classroom_name="Basic Java",
+            total_students=0,
+            class_summary=CourseClassSummary(
+                avg_completion_percentage=None, avg_quiz_score=None, avg_test_score=None,
+                quiz_pass_rate=None, test_pass_rate=None, most_common_weak_topics=[],
+            ),
+            students=[],
+        )
+
+    classroom_ids = [c.id for c in official_classrooms]
+    raw_members = (
+        db.query(ClassroomMember, User)
+        .join(User, ClassroomMember.student_id == User.id)
+        .filter(ClassroomMember.classroom_id.in_(classroom_ids))
+        .all()
+    )
+    seen_ids: set = set()
+    unique_members = []
+    for member, student in raw_members:
+        if student.id not in seen_ids:
+            seen_ids.add(student.id)
+            unique_members.append((member, student))
+
+    students: List[StudentCourseProgress] = []
+    all_completion_scores: List[float] = []
+    all_quiz_scores: List[float] = []
+    all_test_scores: List[float] = []
+    total_quiz_attempts = 0
+    total_quiz_passed = 0
+    total_test_attempts = 0
+    total_test_passed = 0
+    weak_topic_freq: Dict[str, int] = {}
+
+    for _, student in unique_members:
+        progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
+        works = (
+            db.query(SavedWork)
+            .filter(SavedWork.user_id == student.id)
+            .order_by(SavedWork.created_at.desc())
+            .all()
+        )
+        quiz_works = [w for w in works if w.work_type == "quiz"]
+        test_works = [w for w in works if w.work_type == "test"]
+        quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
+        test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
+
+        quizzes_attempted = len(quiz_works)
+        quizzes_passed = sum(1 for s in quiz_scores if s >= 70)
+        tests_attempted = len(test_works)
+        tests_passed = sum(1 for s in test_scores if s >= 60)
+
+        topic_stats = _build_course_topic_stats(works)
+        weak_topics = [t.topic for t in topic_stats if t.is_weak]
+
+        subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
+        passed_quiz_main = {
+            to_main_topic(t)
+            for w in quiz_works
+            if (_score_of(w.result_data) or 0) >= 70
+            for t in _topics_of(w)
+        }
+        passed_test_main = {
+            to_main_topic(t)
+            for w in test_works
+            if (_score_of(w.result_data) or 0) >= 60
+            for t in _topics_of(w)
+        }
+        completed_topics_count = subtopics_read
+        completion_percentage = round(
+            (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
+        )
+
+        sp = StudentCourseProgress(
+            student_id=student.id,
+            full_name=student.full_name,
+            email=student.email,
+            completion_percentage=completion_percentage,
+            completed_topics=completed_topics_count,
+            quizzes_attempted=quizzes_attempted,
+            quizzes_passed=quizzes_passed,
+            avg_quiz_score=round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None,
+            tests_attempted=tests_attempted,
+            tests_passed=tests_passed,
+            avg_test_score=round(sum(test_scores) / len(test_scores), 1) if test_scores else None,
+            last_active=works[0].created_at if works else None,
+            weak_topics=weak_topics,
+            topic_stats=topic_stats,
+        )
+        students.append(sp)
+        all_completion_scores.append(sp.completion_percentage)
+        all_quiz_scores.extend(quiz_scores)
+        all_test_scores.extend(test_scores)
+        total_quiz_attempts += quizzes_attempted
+        total_quiz_passed += quizzes_passed
+        total_test_attempts += tests_attempted
+        total_test_passed += tests_passed
+        for topic in weak_topics:
+            weak_topic_freq[topic] = weak_topic_freq.get(topic, 0) + 1
+
+    class_summary = CourseClassSummary(
+        avg_completion_percentage=round(sum(all_completion_scores) / len(all_completion_scores), 1) if all_completion_scores else None,
+        avg_quiz_score=round(sum(all_quiz_scores) / len(all_quiz_scores), 1) if all_quiz_scores else None,
+        avg_test_score=round(sum(all_test_scores) / len(all_test_scores), 1) if all_test_scores else None,
+        quiz_pass_rate=round(total_quiz_passed / total_quiz_attempts * 100, 1) if total_quiz_attempts > 0 else None,
+        test_pass_rate=round(total_test_passed / total_test_attempts * 100, 1) if total_test_attempts > 0 else None,
+        most_common_weak_topics=sorted(weak_topic_freq, key=lambda x: -weak_topic_freq[x])[:5],
+    )
+    return ClassroomCourseProgressAnalytics(
+        classroom_id=None,
+        classroom_name="Basic Java",
+        total_students=len(students),
+        class_summary=class_summary,
+        students=students,
+    )
+
+
+@router.get("/official-aggregate/by-classroom", response_model=List[ClassroomCourseSummaryItem])
+async def get_official_aggregate_by_classroom(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher", "admin"))
+):
+    """Return a lightweight per-classroom summary for all official classrooms owned by this teacher."""
+    official_classrooms = (
+        db.query(Classroom)
+        .filter(
+            Classroom.teacher_id == current_user.id,
+            Classroom.category.ilike("official%"),
+        )
+        .order_by(Classroom.name)
+        .all()
+    )
+
+    result: List[ClassroomCourseSummaryItem] = []
+    for classroom in official_classrooms:
+        members = (
+            db.query(ClassroomMember, User)
+            .join(User, ClassroomMember.student_id == User.id)
+            .filter(ClassroomMember.classroom_id == classroom.id)
+            .all()
+        )
+
+        all_completion: List[float] = []
+        all_quiz_scores: List[float] = []
+        all_test_scores: List[float] = []
+        total_quiz_attempts = 0
+        total_quiz_passed = 0
+        total_test_attempts = 0
+        total_test_passed = 0
+        weak_topic_freq: Dict[str, int] = {}
+
+        for _, student in members:
+            progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
+            works = (
+                db.query(SavedWork)
+                .filter(SavedWork.user_id == student.id)
+                .order_by(SavedWork.created_at.desc())
+                .all()
+            )
+            quiz_works = [w for w in works if w.work_type == "quiz"]
+            test_works = [w for w in works if w.work_type == "test"]
+            quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
+            test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
+
+            quizzes_passed = sum(1 for s in quiz_scores if s >= 70)
+            tests_passed = sum(1 for s in test_scores if s >= 60)
+
+            topic_stats = _build_course_topic_stats(works)
+            weak_topics = [t.topic for t in topic_stats if t.is_weak]
+
+            subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
+            passed_quiz_main = {
+                to_main_topic(t)
+                for w in quiz_works
+                if (_score_of(w.result_data) or 0) >= 70
+                for t in _topics_of(w)
+            }
+            passed_test_main = {
+                to_main_topic(t)
+                for w in test_works
+                if (_score_of(w.result_data) or 0) >= 60
+                for t in _topics_of(w)
+            }
+            completion_percentage = round(
+                (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
+            )
+
+            all_completion.append(completion_percentage)
+            all_quiz_scores.extend(quiz_scores)
+            all_test_scores.extend(test_scores)
+            total_quiz_attempts += len(quiz_works)
+            total_quiz_passed += quizzes_passed
+            total_test_attempts += len(test_works)
+            total_test_passed += tests_passed
+            for topic in weak_topics:
+                weak_topic_freq[topic] = weak_topic_freq.get(topic, 0) + 1
+
+        class_summary = CourseClassSummary(
+            avg_completion_percentage=round(sum(all_completion) / len(all_completion), 1) if all_completion else None,
+            avg_quiz_score=round(sum(all_quiz_scores) / len(all_quiz_scores), 1) if all_quiz_scores else None,
+            avg_test_score=round(sum(all_test_scores) / len(all_test_scores), 1) if all_test_scores else None,
+            quiz_pass_rate=round(total_quiz_passed / total_quiz_attempts * 100, 1) if total_quiz_attempts > 0 else None,
+            test_pass_rate=round(total_test_passed / total_test_attempts * 100, 1) if total_test_attempts > 0 else None,
+            most_common_weak_topics=sorted(weak_topic_freq, key=lambda x: -weak_topic_freq[x])[:5],
+        )
+        result.append(ClassroomCourseSummaryItem(
+            classroom_id=classroom.id,
+            classroom_name=classroom.name,
+            total_students=len(members),
+            class_summary=class_summary,
+        ))
+
+    return result
+
+
+@router.get("/official-aggregate/students/{student_id}/work", response_model=StudentWorkListResponse)
+async def get_official_aggregate_student_work(
+    student_id: int,
+    work_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher", "admin"))
+):
+    """Fetch a student's work for teachers via the aggregate official-classroom path."""
+    official_classrooms = (
+        db.query(Classroom)
+        .filter(Classroom.teacher_id == current_user.id, Classroom.category.ilike("official%"))
+        .all()
+    )
+    if not official_classrooms:
+        raise HTTPException(status_code=404, detail="No official classrooms found")
+
+    membership = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id.in_([c.id for c in official_classrooms]),
+        ClassroomMember.student_id == student_id,
+    ).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Student not enrolled in any official classroom")
+
+    student = db.query(User).filter(User.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if work_type and work_type not in ("playground", "quiz", "test"):
+        raise HTTPException(status_code=400, detail="work_type must be one of: playground, quiz, test")
+
+    query = db.query(SavedWork).filter(SavedWork.user_id == student_id)
+    if work_type:
+        query = query.filter(SavedWork.work_type == work_type)
+    items = query.order_by(SavedWork.created_at.desc()).all()
+
+    return StudentWorkListResponse(
+        student_id=student.id,
+        full_name=student.full_name,
+        email=student.email,
+        items=[
+            StudentWorkItem(id=i.id, work_type=i.work_type, title=i.title, topic_id=i.topic_id,
+                            content=i.content, result_data=i.result_data, created_at=i.created_at)
+            for i in items
+        ],
+    )
+
+
+@router.get("/{classroom_id}/course-progress", response_model=ClassroomCourseProgressAnalytics)
+async def get_classroom_course_progress(
+    classroom_id: int,
+    course_id: str = Query(default="basic"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher", "admin"))
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    if current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this classroom")
+
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+
+    # Pick the right constants for the selected course
+    if course_id == "enhanced":
+        valid_subtopics = _VALID_ENHANCED_SUBTOPIC_IDS
+        num_main = NUM_ENHANCED_MAIN_TOPICS
+        total_acts = TOTAL_ENHANCED_ACTIVITIES
+        course_label = "Enhanced Java"
+        subtopic_map = ENHANCED_SUBTOPIC_TO_MAIN_TOPIC
+    else:
+        valid_subtopics = _VALID_SUBTOPIC_IDS
+        num_main = NUM_MAIN_TOPICS
+        total_acts = TOTAL_ACTIVITIES
+        course_label = "Basic Java"
+        subtopic_map = SUBTOPIC_TO_MAIN_TOPIC
+
+    members = (
+        db.query(ClassroomMember, User)
+        .join(User, ClassroomMember.student_id == User.id)
+        .filter(ClassroomMember.classroom_id == classroom_id)
+        .all()
+    )
+
+    students: List[StudentCourseProgress] = []
+
+    all_completion_scores: List[float] = []
+    all_quiz_scores: List[float] = []
+    all_test_scores: List[float] = []
+    total_quiz_attempts = 0
+    total_quiz_passed = 0
+    total_test_attempts = 0
+    total_test_passed = 0
+    weak_topic_freq: Dict[str, int] = {}
+
+    for _, student in members:
+        progress = (
+            db.query(UserProgress)
+            .filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id)
+            .first()
+        )
+        works = (
+            db.query(SavedWork)
+            .filter(SavedWork.user_id == student.id)
+            .order_by(SavedWork.created_at.desc())
+            .all()
+        )
+
+        quiz_works = [w for w in works if w.work_type == "quiz"]
+        test_works = [w for w in works if w.work_type == "test"]
+
+        quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
+        test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
+
+        quizzes_attempted = len(quiz_works)
+        quizzes_passed = sum(1 for s in quiz_scores if s >= 70)
+        tests_attempted = len(test_works)
+        tests_passed = sum(1 for s in test_scores if s >= 60)
+
+        topic_stats = _build_course_topic_stats(works)
+        weak_topics = [t.topic for t in topic_stats if t.is_weak]
+
+        subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
+        passed_quiz_main = {
+            subtopic_map.get(t, t)
+            for w in quiz_works
+            if (_score_of(w.result_data) or 0) >= 70
+            for t in _topics_of(w)
+        }
+        passed_test_main = {
+            subtopic_map.get(t, t)
+            for w in test_works
+            if (_score_of(w.result_data) or 0) >= 60
+            for t in _topics_of(w)
+        }
+        completed_topics_count = subtopics_read
+        completion_percentage = round(
+            (subtopics_read + min(len(passed_quiz_main), num_main) + min(len(passed_test_main), num_main)) / total_acts * 100, 1
+        ) if total_acts > 0 else 0.0
+
+        student_progress = StudentCourseProgress(
+            student_id=student.id,
+            full_name=student.full_name,
+            email=student.email,
+            completion_percentage=round(completion_percentage, 1),
+            completed_topics=completed_topics_count,
+            quizzes_attempted=quizzes_attempted,
+            quizzes_passed=quizzes_passed,
+            avg_quiz_score=round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else None,
+            tests_attempted=tests_attempted,
+            tests_passed=tests_passed,
+            avg_test_score=round(sum(test_scores) / len(test_scores), 1) if test_scores else None,
+            last_active=works[0].created_at if works else None,
+            weak_topics=weak_topics,
+            topic_stats=topic_stats,
+        )
+
+        students.append(student_progress)
+        all_completion_scores.append(student_progress.completion_percentage)
+
+        all_quiz_scores.extend(quiz_scores)
+        all_test_scores.extend(test_scores)
+
+        total_quiz_attempts += quizzes_attempted
+        total_quiz_passed += quizzes_passed
+        total_test_attempts += tests_attempted
+        total_test_passed += tests_passed
+
+        for topic in weak_topics:
+            weak_topic_freq[topic] = weak_topic_freq.get(topic, 0) + 1
+
+    class_summary = CourseClassSummary(
+        avg_completion_percentage=round(sum(all_completion_scores) / len(all_completion_scores), 1) if all_completion_scores else None,
+        avg_quiz_score=round(sum(all_quiz_scores) / len(all_quiz_scores), 1) if all_quiz_scores else None,
+        avg_test_score=round(sum(all_test_scores) / len(all_test_scores), 1) if all_test_scores else None,
+        quiz_pass_rate=round(total_quiz_passed / total_quiz_attempts * 100, 1) if total_quiz_attempts > 0 else None,
+        test_pass_rate=round(total_test_passed / total_test_attempts * 100, 1) if total_test_attempts > 0 else None,
+        most_common_weak_topics=sorted(weak_topic_freq, key=lambda x: -weak_topic_freq[x])[:5],
+    )
+
+    return ClassroomCourseProgressAnalytics(
+        classroom_id=classroom.id,
+        classroom_name=classroom.name,
+        total_students=len(students),
+        class_summary=class_summary,
+        students=students,
+    )
+
+
+@router.get("/{classroom_id}/students/{student_id}/work", response_model=StudentWorkListResponse)
+async def get_student_work_for_teacher(
+    classroom_id: int,
+    student_id: int,
+    work_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher", "admin"))
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    if current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this classroom")
+
+    membership = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id,
+        ClassroomMember.student_id == student_id,
+    ).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Student is not enrolled in this classroom")
+
+    if work_type and work_type not in ("playground", "quiz", "test"):
+        raise HTTPException(status_code=400, detail="work_type must be one of: playground, quiz, test")
+
+    student = db.query(User).filter(User.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    query = db.query(SavedWork).filter(SavedWork.user_id == student_id)
+    if work_type:
+        query = query.filter(SavedWork.work_type == work_type)
+
+    items = query.order_by(SavedWork.created_at.desc()).all()
+
+    return StudentWorkListResponse(
+        student_id=student.id,
+        full_name=student.full_name,
+        email=student.email,
+        items=[
+            StudentWorkItem(
+                id=i.id,
+                work_type=i.work_type,
+                title=i.title,
+                topic_id=i.topic_id,
+                content=i.content,
+                result_data=i.result_data,
+                created_at=i.created_at,
+            )
+            for i in items
+        ],
     )
 
 
@@ -1317,4 +2019,172 @@ def delete_classroom_quiz(
     db.delete(quiz)
     db.commit()
     return {"status": "deleted", "quiz_id": quiz_id}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Material Reads tracking
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/{classroom_id}/materials/{file_id}/mark-read")
+def mark_material_as_read(
+    classroom_id: int,
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark a material as read by a student."""
+    # Verify student has access to classroom
+    member = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id,
+        ClassroomMember.student_id == current_user.id,
+    ).first()
+    if not member and current_user.role != "teacher":
+        raise HTTPException(403, "You do not have access to this classroom")
+
+    # Verify file exists in this classroom
+    file = db.query(ClassroomFile).filter(
+        ClassroomFile.id == file_id,
+        ClassroomFile.classroom_id == classroom_id,
+    ).first()
+    if not file:
+        raise HTTPException(404, "File not found in this classroom")
+
+    # Check if already marked as read
+    existing = db.query(MaterialRead).filter(
+        MaterialRead.file_id == file_id,
+        MaterialRead.student_id == current_user.id,
+    ).first()
+    
+    if existing:
+        return {"status": "already_marked", "message": "Already marked as read"}
+
+    # Mark as read
+    read = MaterialRead(file_id=file_id, student_id=current_user.id)
+    db.add(read)
+    db.commit()
+    db.refresh(read)
+    
+    return {"status": "marked", "read_at": read.marked_at}
+
+
+@router.get("/{classroom_id}/materials-with-progress")
+def get_classroom_materials_with_progress(
+    classroom_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all materials in classroom with read status per student."""
+    _verify_teacher_access(classroom_id, current_user, db)
+    
+    # Get all materials in classroom
+    materials = db.query(ClassroomFile).filter(
+        ClassroomFile.classroom_id == classroom_id
+    ).order_by(ClassroomFile.uploaded_at.desc()).all()
+
+    # Get all classroom students
+    members = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id
+    ).all()
+
+    result = []
+    for material in materials:
+        # Get read status for each student
+        reads = db.query(MaterialRead).filter(
+            MaterialRead.file_id == material.id
+        ).all()
+        read_user_ids = {r.student_id for r in reads}
+
+        student_progress = []
+        for member in members:
+            student_reads = db.query(User).filter(User.id == member.student_id).first()
+            if student_reads:
+                student_progress.append({
+                    "student_id": member.student_id,
+                    "student_name": student_reads.full_name,
+                    "student_email": student_reads.email,
+                    "marked_read": member.student_id in read_user_ids,
+                })
+
+        read_count = len(read_user_ids)
+        total_students = len(members)
+
+        result.append({
+            "file_id": material.id,
+            "filename": material.filename,
+            "mime_type": material.mime_type,
+            "uploaded_by": material.uploaded_by,
+            "uploaded_at": material.uploaded_at,
+            "read_count": read_count,
+            "total_students": total_students,
+            "read_percentage": round((read_count / total_students * 100) if total_students > 0 else 0, 1),
+            "student_progress": student_progress,
+        })
+
+    return result
+
+
+@router.get("/{classroom_id}/quizzes-with-progress")
+def get_classroom_quizzes_with_progress(
+    classroom_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all teacher-created quizzes in classroom with attempt status per student."""
+    _verify_teacher_access(classroom_id, current_user, db)
+
+    # Get all quizzes created by this teacher in this classroom
+    quizzes = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.classroom_id == classroom_id,
+        ClassroomQuiz.created_by == current_user.id,
+    ).order_by(ClassroomQuiz.created_at.desc()).all()
+
+    # Get all classroom students
+    members = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id
+    ).all()
+
+    result = []
+    for quiz in quizzes:
+        # Get attempts for this quiz
+        from db_models import QuizAttempt
+        attempts = db.query(QuizAttempt).filter(
+            QuizAttempt.quiz_id == quiz.id
+        ).all()
+        
+        attempt_user_ids = {a.user_id for a in attempts}
+        student_progress = []
+        
+        for member in members:
+            student = db.query(User).filter(User.id == member.student_id).first()
+            if student:
+                # Get best score for this student on this quiz
+                student_attempt = db.query(QuizAttempt).filter(
+                    QuizAttempt.quiz_id == quiz.id,
+                    QuizAttempt.user_id == member.student_id,
+                ).order_by(QuizAttempt.score.desc()).first()
+                
+                student_progress.append({
+                    "student_id": member.student_id,
+                    "student_name": student.full_name,
+                    "student_email": student.email,
+                    "attempted": member.student_id in attempt_user_ids,
+                    "best_score": student_attempt.score if student_attempt else None,
+                    "attempt_count": len([a for a in attempts if a.user_id == member.student_id]),
+                })
+
+        attempt_count = len(attempt_user_ids)
+        total_students = len(members)
+
+        result.append({
+            "quiz_id": quiz.id,
+            "title": quiz.title,
+            "status": quiz.status,
+            "created_at": quiz.created_at,
+            "attempt_count": attempt_count,
+            "total_students": total_students,
+            "attempt_percentage": round((attempt_count / total_students * 100) if total_students > 0 else 0, 1),
+            "student_progress": student_progress,
+        })
+
+    return result
 

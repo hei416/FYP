@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import {
-  createClassroom, getMyClassrooms,
+  createClassroom, getMyClassrooms, getOfficialClassrooms,
   createSection, listSections, deleteSection, renameSection,
   uploadClassroomFileToSection, deleteClassroomFile, moveFileToSection,
+  getOfficialAggregateCourseProgress, getOfficialAggregateStudentWork,
+  getOfficialClassroomList, getClassroomCourseProgress, getClassroomStudentWork,
 } from './classroomService';
 import { radii, font, card, shadows } from './theme';
 import { btn, colors } from './theme';
@@ -332,16 +334,125 @@ export function ClassroomSections({ classroomId }) {
   );
 }
 
+// ─── Course-progress helpers (used in the Official Classroom panel) ──────────
+const _scoreColor = (s) => {
+  if (s == null) return { bg: '#f3f4f6', fg: '#9ca3af' };
+  if (s >= 70) return { bg: '#dcfce7', fg: '#16a34a' };
+  if (s >= 50) return { bg: '#fef9c3', fg: '#ca8a04' };
+  return { bg: '#fee2e2', fg: '#dc2626' };
+};
+const _rateColor = (r) => r == null ? '#9ca3af' : r >= 60 ? '#16a34a' : r >= 40 ? '#ca8a04' : '#dc2626';
+const _passRate = (passed, attempted) => attempted > 0 ? Math.round((passed / attempted) * 100) : null;
+const _studentStatus = (s) => {
+  const exRate = _passRate(s.quizzes_passed, s.quizzes_attempted);
+  const chRate = _passRate(s.tests_passed, s.tests_attempted);
+  const hasActivity = s.quizzes_attempted > 0 || s.tests_attempted > 0;
+  if (!hasActivity) return { dot: '⚪', label: 'No Activity', bg: '#f3f4f6', fg: '#9ca3af' };
+  if ((exRate !== null && exRate < 40) || (chRate !== null && chRate < 40))
+    return { dot: '🔴', label: 'At Risk', bg: '#fee2e2', fg: '#dc2626' };
+  if ((exRate !== null && exRate < 60) || (chRate !== null && chRate < 60) || (s.weak_topics?.length >= 3))
+    return { dot: '🟡', label: 'Needs Attention', bg: '#fef9c3', fg: '#ca8a04' };
+  return { dot: '🟢', label: 'On Track', bg: '#dcfce7', fg: '#16a34a' };
+};
+
+function _ScoreBadge({ score }) {
+  if (score == null) return <span style={{ color: '#9ca3af' }}>—</span>;
+  const { bg, fg } = _scoreColor(score);
+  return <span style={{ padding: '2px 8px', borderRadius: 9999, fontSize: 12, fontWeight: 600, background: bg, color: fg }}>{score}%</span>;
+}
+
+function _PassRateBadge({ passed, attempted, tooltip }) {
+  if (attempted === 0) return <span style={{ color: '#9ca3af' }}>—</span>;
+  const rate = _passRate(passed, attempted);
+  return (
+    <span title={tooltip} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+      <span style={{ fontSize: 12, color: '#6b7280' }}>{passed}/{attempted}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: _rateColor(rate) }}>{rate}%</span>
+    </span>
+  );
+}
+
+function _MiniBar({ value, color }) {
+  if (value == null) return null;
+  const pct = Math.min(100, Math.max(0, value));
+  return (
+    <div style={{ marginTop: 8, background: '#e5e7eb', borderRadius: 9999, height: 5, overflow: 'hidden' }}>
+      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 9999, transition: 'width 0.5s ease' }} />
+    </div>
+  );
+}
+
+function _CourseSummaryBar({ summary }) {
+  if (!summary) return null;
+  const stats = [
+    { icon: '🎯', label: 'Avg Completion',  val: summary.avg_completion_percentage, fmt: (v) => `${v}%`, color: _scoreColor(summary.avg_completion_percentage).fg },
+    { icon: '📝', label: 'Avg Quiz Score',  val: summary.avg_quiz_score,            fmt: (v) => `${v}%`, color: _scoreColor(summary.avg_quiz_score).fg },
+    { icon: '💻', label: 'Avg Test Score',  val: summary.avg_test_score,            fmt: (v) => `${v}%`, color: _scoreColor(summary.avg_test_score).fg },
+    { icon: '✅', label: 'Quiz Pass Rate',  val: summary.quiz_pass_rate,            fmt: (v) => `${v}%`, color: _rateColor(summary.quiz_pass_rate) },
+    { icon: '🏆', label: 'Test Pass Rate',  val: summary.test_pass_rate,            fmt: (v) => `${v}%`, color: _rateColor(summary.test_pass_rate) },
+  ];
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10, marginBottom: 14 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '12px 14px', boxShadow: shadows.sm }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+              <span style={{ fontSize: 14 }}>{s.icon}</span>
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{s.label}</div>
+            </div>
+            <div style={{ fontSize: font.sizeXl, fontWeight: font.weightBold, color: s.color }}>{s.val != null ? s.fmt(s.val) : '—'}</div>
+            <_MiniBar value={s.val} color={s.color} />
+          </div>
+        ))}
+      </div>
+      {summary.most_common_weak_topics?.length > 0 && (
+        <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: radii.md, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: '#ca8a04' }}>⚠️ Common weak topics:</span>
+          {summary.most_common_weak_topics.map(t => (
+            <span key={t} style={{ fontSize: font.sizeSm, color: '#92400e', background: '#fde68a', borderRadius: radii.full, padding: '2px 10px', fontWeight: font.weightMedium }}>{t}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function TeacherDashboard() {
   const { isTeacher, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
 
   const [classes,     setClasses]     = useState([]);
-  const [form,        setForm]        = useState({ name: '', description: '' });
+  const [form,        setForm]        = useState({ name: '', description: '', category: '', enrolled_courses: ['basic'] });
   const [creating,    setCreating]    = useState(false);
   const [formError,   setFormError]   = useState('');
   const [copiedCode,  setCopiedCode]  = useState(null);
+  const [categoryFilter,  setCategoryFilter]  = useState('all');
+  const [classroomSearch, setClassroomSearch] = useState('');
+
+  // Official Classroom aggregate panel state
+  const [officialClassrooms,         setOfficialClassrooms]         = useState([]);
+  const [officialClassroomsLoading,  setOfficialClassroomsLoading]  = useState(false);
+  const [officialPanelOpen,         setOfficialPanelOpen]         = useState(false);
+  const [officialAggData,            setOfficialAggData]            = useState(null);
+  const [officialAggLoading,         setOfficialAggLoading]         = useState(false);
+  const [expandedOfficialStudent,    setExpandedOfficialStudent]    = useState(null);
+  const [officialCourseSortKey,      setOfficialCourseSortKey]      = useState('full_name');
+  const [officialCourseSortAsc,      setOfficialCourseSortAsc]      = useState(true);
+  const [officialStudentWork,        setOfficialStudentWork]        = useState({});
+  const [officialWorkLoading,        setOfficialWorkLoading]        = useState({});
+  const [officialExpandedWork,       setOfficialExpandedWork]       = useState({});
+  // Per-classroom view state
+  const [officialViewMode,           setOfficialViewMode]           = useState('aggregate'); // 'aggregate' | 'by-classroom'
+  const [classroomList,              setClassroomList]              = useState(null);
+  const [classroomListLoading,       setClassroomListLoading]       = useState(false);
+  const [expandedClassroom,          setExpandedClassroom]          = useState(null);
+  const [classroomDetailData,        setClassroomDetailData]        = useState({});
+  const [classroomDetailLoading,     setClassroomDetailLoading]     = useState({});
+  const [classroomExpandedStudent,   setClassroomExpandedStudent]   = useState({});
+  const [classroomStudentWork,       setClassroomStudentWork]       = useState({});
+  const [classroomWorkLoading,       setClassroomWorkLoading]       = useState({});
+  const [classroomExpandedWork,      setClassroomExpandedWork]      = useState({});
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isTeacher)) navigate('/home');
@@ -350,14 +461,19 @@ export default function TeacherDashboard() {
   useEffect(() => { if (isTeacher) loadClasses(); }, [isTeacher]);
 
   async function loadClasses() {
-    try { setClasses(await getMyClassrooms()); } catch (e) { console.error(e); }
+    try { 
+      setClasses(await getMyClassrooms()); 
+      setOfficialClassroomsLoading(true);
+      setOfficialClassrooms(await getOfficialClassrooms());
+    } catch (e) { console.error(e); }
+    finally { setOfficialClassroomsLoading(false); }
   }
 
   async function handleCreate(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
     setCreating(true); setFormError('');
-    try { await createClassroom(form); setForm({ name: '', description: '' }); await loadClasses(); }
+    try { await createClassroom(form); setForm({ name: '', description: '', category: '', enrolled_courses: ['basic'] }); await loadClasses(); }
     catch (e) { setFormError(e.message); }
     finally { setCreating(false); }
   }
@@ -369,6 +485,94 @@ export default function TeacherDashboard() {
     setTimeout(() => setCopiedCode(null), 2000);
   }
 
+  async function handleToggleOfficialPanel() {
+    if (!officialPanelOpen) {
+      setOfficialPanelOpen(true);
+      if (officialViewMode === 'aggregate' && !officialAggData && !officialAggLoading) {
+        setOfficialAggLoading(true);
+        try { setOfficialAggData(await getOfficialAggregateCourseProgress()); }
+        catch (e) { console.error(e); }
+        finally { setOfficialAggLoading(false); }
+      }
+    } else {
+      setOfficialPanelOpen(false);
+    }
+  }
+
+  async function toggleOfficialStudentRow(studentId) {
+    if (expandedOfficialStudent === studentId) { setExpandedOfficialStudent(null); return; }
+    setExpandedOfficialStudent(studentId);
+    if (!officialStudentWork[studentId] && !officialWorkLoading[studentId]) {
+      setOfficialWorkLoading(p => ({ ...p, [studentId]: true }));
+      try {
+        const data = await getOfficialAggregateStudentWork(studentId);
+        setOfficialStudentWork(p => ({ ...p, [studentId]: data.items }));
+      } catch (e) { console.error(e); }
+      finally { setOfficialWorkLoading(p => ({ ...p, [studentId]: false })); }
+    }
+  }
+
+  async function handleSwitchViewMode(mode) {
+    setOfficialViewMode(mode);
+    if (!officialPanelOpen) {
+      setOfficialPanelOpen(true);
+    }
+    if (mode === 'aggregate' && !officialAggData && !officialAggLoading) {
+      setOfficialAggLoading(true);
+      try { setOfficialAggData(await getOfficialAggregateCourseProgress()); }
+      catch (e) { console.error(e); }
+      finally { setOfficialAggLoading(false); }
+    }
+    if (mode === 'by-classroom' && !classroomList && !classroomListLoading) {
+      setClassroomListLoading(true);
+      try { setClassroomList(await getOfficialClassroomList()); }
+      catch (e) { console.error(e); }
+      finally { setClassroomListLoading(false); }
+    }
+  }
+
+  async function toggleClassroomRow(classroomId) {
+    if (expandedClassroom === classroomId) { setExpandedClassroom(null); return; }
+    setExpandedClassroom(classroomId);
+    if (!classroomDetailData[classroomId] && !classroomDetailLoading[classroomId]) {
+      setClassroomDetailLoading(p => ({ ...p, [classroomId]: true }));
+      try {
+        const data = await getClassroomCourseProgress(classroomId);
+        setClassroomDetailData(p => ({ ...p, [classroomId]: data }));
+      } catch (e) { console.error(e); }
+      finally { setClassroomDetailLoading(p => ({ ...p, [classroomId]: false })); }
+    }
+  }
+
+  async function toggleClassroomStudentRow(classroomId, studentId) {
+    setClassroomExpandedStudent(p => ({ ...p, [classroomId]: p[classroomId] === studentId ? null : studentId }));
+    const key = `${classroomId}_${studentId}`;
+    if (!classroomStudentWork[key] && !classroomWorkLoading[key]) {
+      setClassroomWorkLoading(p => ({ ...p, [key]: true }));
+      try {
+        const data = await getClassroomStudentWork(classroomId, studentId);
+        setClassroomStudentWork(p => ({ ...p, [key]: data.items }));
+      } catch (e) { console.error(e); }
+      finally { setClassroomWorkLoading(p => ({ ...p, [key]: false })); }
+    }
+  }
+
+  function sortedOfficialStudents(students) {
+    return [...students].sort((a, b) => {
+      let av, bv;
+      const k = officialCourseSortKey;
+      if (k === 'status') { av = _studentStatus(a).label; bv = _studentStatus(b).label; }
+      else if (k === 'quiz_pass_rate') { av = a.quizzes_attempted > 0 ? a.quizzes_passed / a.quizzes_attempted : -1; bv = b.quizzes_attempted > 0 ? b.quizzes_passed / b.quizzes_attempted : -1; }
+      else if (k === 'test_pass_rate') { av = a.tests_attempted > 0 ? a.tests_passed / a.tests_attempted : -1; bv = b.tests_attempted > 0 ? b.tests_passed / b.tests_attempted : -1; }
+      else if (k === 'weak_count') { av = a.weak_topics?.length; bv = b.weak_topics?.length; }
+      else if (k === 'last_active') { av = a.last_active ? new Date(a.last_active).getTime() : 0; bv = b.last_active ? new Date(b.last_active).getTime() : 0; }
+      else { av = a[k]; bv = b[k]; }
+      if (av == null) return 1; if (bv == null) return -1;
+      const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+      return officialCourseSortAsc ? cmp : -cmp;
+    });
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted }}>Loading…</div>;
 
   const inputStyle = {
@@ -377,6 +581,97 @@ export default function TeacherDashboard() {
     fontSize: font.sizeMd, color: colors.text,
     outline: 'none', boxSizing: 'border-box', background: colors.surface,
   };
+
+  const isOfficialCategory = (category) => {
+    return (category || '').toLowerCase().includes('official');
+  };
+
+  const uniqueCategories = [...new Set(classes.map(c => c.category || 'Official Lessons'))].sort();
+  const filteredClasses = classes.filter(cls => {
+    if (categoryFilter !== 'all' && cls.category !== categoryFilter) return false;
+    if (classroomSearch.trim()) {
+      const term = classroomSearch.trim().toLowerCase();
+      return (
+        (cls.name || '').toLowerCase().includes(term) ||
+        (cls.category || '').toLowerCase().includes(term) ||
+        (cls.description || '').toLowerCase().includes(term)
+      );
+    }
+    return true;
+  });
+
+  const OfficialSortTh = ({ label, sortKeyName, center = false }) => {
+    const isActive = officialCourseSortKey === sortKeyName;
+    return (
+      <th onClick={() => { if (officialCourseSortKey === sortKeyName) setOfficialCourseSortAsc(!officialCourseSortAsc); else { setOfficialCourseSortKey(sortKeyName); setOfficialCourseSortAsc(true); } }}
+        style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: center ? 'center' : 'left', color: isActive ? colors.primary : colors.textSecondary, fontWeight: isActive ? font.weightBold : font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+        {label}<span style={{ marginLeft: 4, opacity: isActive ? 1 : 0.3 }}>{isActive ? (officialCourseSortAsc ? '↑' : '↓') : '↕'}</span>
+      </th>
+    );
+  };
+
+  const tdS = { padding: '10px 14px', borderBottom: `1px solid ${colors.border}`, verticalAlign: 'middle' };
+
+  const renderClassroomCard = (cls, isOfficial = false) => (
+    <div key={cls.id}
+      style={{
+        ...card.base, padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = shadows.md; e.currentTarget.style.borderColor = colors.primaryBorder; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = card.base?.boxShadow || ''; e.currentTarget.style.borderColor = colors.border; }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <h4 style={{ margin: 0, color: colors.primary, fontSize: font.sizeLg, fontWeight: font.weightBold, lineHeight: 1.3 }}>{cls.name}</h4>
+          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>
+              {cls.category || 'Official Lessons'}
+            </span>
+            
+          </div>
+          {cls.description && <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary, lineHeight: 1.4 }}>{cls.description}</p>}
+        </div>
+        <button
+          onClick={() => navigate(`/teacher-classroom/${cls.id}`, {
+            state: {
+              name: cls.name,
+              description: cls.description,
+              class_code: cls.class_code,
+              category: cls.category,
+              initialTab: isOfficial ? 'official-lessons' : 'materials',
+              initialOfficialView: isOfficial ? 'analysis' : undefined,
+            }
+          })}
+          style={{ ...btn.primary, ...btn.small, whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          {isOfficial ? 'Open Analysis →' : 'Open →'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <code style={{
+          background: colors.bg, border: `1px solid ${colors.border}`,
+          borderRadius: radii.sm, padding: '5px 12px',
+          fontSize: font.sizeSm, fontWeight: font.weightBold, letterSpacing: 3,
+          color: colors.text, flex: 1, textAlign: 'center',
+        }}>
+          {cls.class_code}
+        </code>
+        <button onClick={e => copyCode(e, cls.class_code)}
+          style={{
+            padding: '5px 12px', fontSize: font.sizeSm, fontWeight: font.weightMedium,
+            background: copiedCode === cls.class_code ? colors.successLight : 'transparent',
+            border: `1px solid ${copiedCode === cls.class_code ? colors.successBorder : colors.border}`,
+            borderRadius: radii.sm, cursor: 'pointer',
+            color: copiedCode === cls.class_code ? colors.success : colors.textSecondary,
+            transition: 'all 0.2s', whiteSpace: 'nowrap',
+          }}>
+          {copiedCode === cls.class_code ? '✓ Copied' : '📋 Copy'}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '36px 24px' }}>
@@ -394,9 +689,42 @@ export default function TeacherDashboard() {
             <label style={{ display: 'block', marginBottom: 6, fontSize: font.sizeSm, color: colors.textSecondary }}>Class Name *</label>
             <input style={inputStyle} placeholder="e.g. Java Intro 2026" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           </div>
+          <div style={{ flex: '1 1 220px' }}>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: font.sizeSm, color: colors.textSecondary }}>Category *</label>
+            <input
+              style={inputStyle}
+              placeholder="e.g. Official Lessons, Revision, Advanced"
+              value={form.category}
+              onChange={e => setForm({ ...form, category: e.target.value })}
+              required
+            />
+          </div>
           <div style={{ flex: '2 1 300px' }}>
             <label style={{ display: 'block', marginBottom: 6, fontSize: font.sizeSm, color: colors.textSecondary }}>Description</label>
             <input style={inputStyle} placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div style={{ flex: '1 1 220px' }}>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: font.sizeSm, color: colors.textSecondary }}>Courses Enrolled</label>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', paddingTop: 6 }}>
+              {[{ id: 'basic', label: '📗 Basic Java' }, { id: 'enhanced', label: '🚀 Enhanced Java' }].map(({ id, label }) => {
+                const checked = form.enrolled_courses.includes(id);
+                return (
+                  <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: font.sizeSm, color: colors.textSecondary }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? form.enrolled_courses.filter(c => c !== id)
+                          : [...form.enrolled_courses, id];
+                        setForm({ ...form, enrolled_courses: next });
+                      }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
           </div>
           <button type="submit" disabled={creating} style={{ ...btn.primary, ...btn.small, whiteSpace: 'nowrap' }}>
             {creating ? 'Creating…' : '+ Create Classroom'}
@@ -405,70 +733,463 @@ export default function TeacherDashboard() {
         {formError && <p style={{ color: '#ef4444', marginTop: 10, fontSize: font.sizeSm }}>{formError}</p>}
       </div>
 
-      {/* Classroom grid */}
+      {/* Official Classroom — Basic Java card + aggregate analysis panel */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <h3 style={{ fontSize: font.sizeLg, color: colors.text, margin: 0 }}>🎓 Official Classroom</h3>
+        </div>
+        <p style={{ marginTop: 0, marginBottom: 14, color: colors.textMuted, fontSize: font.sizeSm }}>
+          Core Java course analysis across all Official Lessons classrooms.
+        </p>
+
+        {/* Basic Java card */}
+        <div style={{ ...card.base, padding: 20, borderBottomLeftRadius: officialPanelOpen ? 0 : undefined, borderBottomRightRadius: officialPanelOpen ? 0 : undefined, borderBottom: officialPanelOpen ? 'none' : undefined }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h4 style={{ margin: 0, color: colors.primary, fontSize: font.sizeLg, fontWeight: font.weightBold }}>📚 Basic Java</h4>
+                <span style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>Official Lessons</span>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary }}>
+                Aggregate course analysis · {officialClassrooms.length} classroom{officialClassrooms.length !== 1 ? 's' : ''}
+                {officialAggData ? ` · ${officialAggData.total_students} student${officialAggData.total_students !== 1 ? 's' : ''}` : ''}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                onClick={() => handleSwitchViewMode('aggregate')}
+                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialViewMode === 'aggregate' && officialPanelOpen ? colors.primary : 'transparent', color: officialViewMode === 'aggregate' && officialPanelOpen ? '#fff' : colors.primary, border: `1px solid ${colors.primary}`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                👥 All Students
+              </button>
+              <button
+                onClick={() => handleSwitchViewMode('by-classroom')}
+                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialViewMode === 'by-classroom' && officialPanelOpen ? colors.primary : 'transparent', color: officialViewMode === 'by-classroom' && officialPanelOpen ? '#fff' : colors.primary, border: `1px solid ${colors.primary}`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                📋 By Classroom
+              </button>
+              {officialPanelOpen && (
+                <button onClick={() => setOfficialPanelOpen(false)}
+                  style={{ ...btn.secondary, ...btn.small, whiteSpace: 'nowrap' }}>
+                  ✕ Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Inline analysis panel */}
+        {officialPanelOpen && (
+          <div style={{ ...card.base, padding: 28, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: `1px solid ${colors.border}` }}>
+            {officialViewMode === 'by-classroom' ? (
+              /* ── By-Classroom view ── */
+              classroomListLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+                  <div>Loading classroom list…</div>
+                </div>
+              ) : !classroomList || classroomList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🏛</div>
+                  <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No official classrooms found</div>
+                  <div style={{ fontSize: font.sizeSm }}>Create classrooms with an \"Official Lessons\" category to see them here.</div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 32, padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                        {['Classroom', 'Students', 'Avg Completion', 'Avg Quiz', 'Avg Test', 'Quiz Pass Rate', 'Test Pass Rate', 'Common Weak Topics'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: h === 'Classroom' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {classroomList.map((cls, idx) => {
+                        const isExp = expandedClassroom === cls.classroom_id;
+                        const detail = classroomDetailData[cls.classroom_id];
+                        const detailLoading = Boolean(classroomDetailLoading[cls.classroom_id]);
+                        const rowBg = isExp ? colors.primaryLight : (idx % 2 === 0 ? colors.surface : colors.bg);
+                        const s = cls.class_summary;
+                        return (
+                          <React.Fragment key={`clsc_${cls.classroom_id}`}>
+                            <tr onClick={() => toggleClassroomRow(cls.classroom_id)}
+                              style={{ cursor: 'pointer', background: rowBg }}
+                              onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = colors.primaryLight; }}
+                              onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = rowBg; }}>
+                              <td style={{ ...tdS, textAlign: 'center', color: colors.primary, fontWeight: 700, fontSize: 16 }}>{isExp ? '▾' : '▸'}</td>
+                              <td style={tdS}><span style={{ fontWeight: font.weightSemibold }}>{cls.classroom_name}</span></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>{cls.total_students}</td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_completion_percentage} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_quiz_score} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_test_score} /></td>
+                              <td style={{ ...tdS, textAlign: 'center', color: s.quiz_pass_rate != null ? _rateColor(s.quiz_pass_rate) : colors.textMuted, fontWeight: 600 }}>{s.quiz_pass_rate != null ? `${s.quiz_pass_rate}%` : '—'}</td>
+                              <td style={{ ...tdS, textAlign: 'center', color: s.test_pass_rate != null ? _rateColor(s.test_pass_rate) : colors.textMuted, fontWeight: 600 }}>{s.test_pass_rate != null ? `${s.test_pass_rate}%` : '—'}</td>
+                              <td style={{ ...tdS }}>
+                                {s.most_common_weak_topics?.length > 0
+                                  ? s.most_common_weak_topics.slice(0, 3).map(t => (
+                                      <span key={t} style={{ display: 'inline-block', marginRight: 4, marginBottom: 2, fontSize: 11, background: '#fde68a', color: '#92400e', borderRadius: 9999, padding: '1px 7px' }}>{t}</span>
+                                    ))
+                                  : <span style={{ color: colors.textMuted }}>—</span>}
+                              </td>
+                            </tr>
+                            {isExp && (
+                              <tr>
+                                <td colSpan={9} style={{ padding: '16px 24px 24px 48px', background: colors.primaryLight, borderBottom: `2px solid ${colors.primaryBorder}` }}>
+                                  {detailLoading ? (
+                                    <div style={{ color: colors.textMuted, padding: '20px 0' }}>⏳ Loading students…</div>
+                                  ) : !detail || detail.students.length === 0 ? (
+                                    <div style={{ color: colors.textMuted }}>No student data for this classroom yet.</div>
+                                  ) : (
+                                    <>
+                                      <_CourseSummaryBar summary={detail.class_summary} />
+                                      <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                                          <thead>
+                                            <tr>
+                                              <th style={{ width: 32, padding: '8px 12px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                                              {['Status', 'Name', 'Completion', 'Quiz Pass', 'Avg Quiz', 'Test Pass', 'Avg Test', 'Weak', 'Last Active'].map(h => (
+                                                <th key={h} style={{ padding: '8px 12px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: h === 'Name' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>{h}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {detail.students.map((stu, si) => {
+                                              const stuExp = classroomExpandedStudent[cls.classroom_id] === stu.student_id;
+                                              const stuStatus = _studentStatus(stu);
+                                              const stuBg = stuExp ? '#e0e7ff' : (si % 2 === 0 ? colors.surface : colors.bg);
+                                              const wkey = `${cls.classroom_id}_${stu.student_id}`;
+                                              const stuWork = classroomStudentWork[wkey] || [];
+                                              const stuWorkLoading = Boolean(classroomWorkLoading[wkey]);
+                                              return (
+                                                <React.Fragment key={`clsstu_${cls.classroom_id}_${stu.student_id}`}>
+                                                  <tr onClick={() => toggleClassroomStudentRow(cls.classroom_id, stu.student_id)}
+                                                    style={{ cursor: 'pointer', background: stuBg }}
+                                                    onMouseEnter={e => { if (!stuExp) e.currentTarget.style.background = '#e0e7ff'; }}
+                                                    onMouseLeave={e => { if (!stuExp) e.currentTarget.style.background = stuBg; }}>
+                                                    <td style={{ ...tdS, textAlign: 'center', color: colors.primary, fontWeight: 700 }}>{stuExp ? '▾' : '▸'}</td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}>
+                                                      <span title={stuStatus.label} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: stuStatus.bg, color: stuStatus.fg, whiteSpace: 'nowrap' }}>{stuStatus.dot} {stuStatus.label}</span>
+                                                    </td>
+                                                    <td style={tdS}>
+                                                      <div style={{ fontWeight: font.weightSemibold }}>{stu.full_name || '—'}</div>
+                                                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{stu.email}</div>
+                                                    </td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={stu.completion_percentage} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={stu.quizzes_passed} attempted={stu.quizzes_attempted} tooltip={`${stu.quizzes_passed}/${stu.quizzes_attempted} quizzes ≥70`} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={stu.avg_quiz_score} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={stu.tests_passed} attempted={stu.tests_attempted} tooltip={`${stu.tests_passed}/${stu.tests_attempted} tests ≥60`} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={stu.avg_test_score} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}>{stu.weak_topics?.length || 0}</td>
+                                                    <td style={{ ...tdS, textAlign: 'center', color: colors.textMuted, fontSize: font.sizeXs }}>{stu.last_active ? new Date(stu.last_active).toLocaleDateString() : '—'}</td>
+                                                  </tr>
+                                                  {stuExp && (
+                                                    <tr>
+                                                      <td colSpan={10} style={{ padding: '12px 20px 18px 44px', background: '#eef2ff', borderBottom: `2px solid ${colors.primaryBorder}` }}>
+                                                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+                                                          <div style={{ fontSize: font.sizeSm }}><strong>Subtopics Read:</strong> {stu.completed_topics}</div>
+                                                          <div style={{ fontSize: font.sizeSm }}><strong>Weak Topics:</strong> {stu.weak_topics?.length ? stu.weak_topics.join(', ') : 'None'}</div>
+                                                        </div>
+                                                        {stu.topic_stats?.length > 0 && (
+                                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeXs, marginBottom: 14 }}>
+                                                            <thead>
+                                                              <tr style={{ background: colors.bg }}>
+                                                                {['Topic', 'Quiz Attempts', 'Quiz Avg', 'Quiz Pass', 'Test Attempts', 'Test Avg', 'Test Pass'].map(h => (
+                                                                  <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Topic' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                                                                ))}
+                                                              </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                              {stu.topic_stats.map(ts => (
+                                                                <tr key={ts.topic} style={{ background: ts.is_weak ? '#fff7ed' : 'transparent' }}>
+                                                                  <td style={{ padding: '5px 8px', borderBottom: `1px solid ${colors.border}` }}>{ts.is_weak && <span style={{ marginRight: 4 }}>⚠️</span>}{ts.topic}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.quiz_attempts || '—'}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.quiz_avg_score} /></td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.quiz_pass_rate != null ? `${ts.quiz_pass_rate}%` : '—'}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.test_attempts || '—'}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.test_avg_score} /></td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.test_pass_rate != null ? `${ts.test_pass_rate}%` : '—'}</td>
+                                                                </tr>
+                                                              ))}
+                                                            </tbody>
+                                                          </table>
+                                                        )}
+                                                        <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 10 }}>
+                                                          <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, marginBottom: 8 }}>Student Work Details</div>
+                                                          {stuWorkLoading && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>Loading…</div>}
+                                                          {!stuWorkLoading && stuWork.length === 0 && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>No saved work yet.</div>}
+                                                          {!stuWorkLoading && stuWork.map(item => {
+                                                            const wexp = Boolean(classroomExpandedWork[item.id]);
+                                                            const score = item.result_data?.score;
+                                                            const hasDetails = (item.work_type === 'quiz' && item.result_data?.review?.length > 0) || (item.work_type === 'test' && (item.result_data?.question?.description || item.content));
+                                                            return (
+                                                              <div key={item.id} style={{ border: `1px solid ${colors.border}`, borderRadius: radii.md, background: colors.surface, padding: '10px 12px', marginBottom: 8 }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                                                  <div>
+                                                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold }}>{item.title}</div>
+                                                                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{item.work_type.toUpperCase()} · {item.topic_id || 'No topic'} · {new Date(item.created_at).toLocaleDateString()}</div>
+                                                                  </div>
+                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    {score != null && <_ScoreBadge score={score} />}
+                                                                    {hasDetails && (
+                                                                      <button onClick={() => setClassroomExpandedWork(p => ({ ...p, [item.id]: !p[item.id] }))}
+                                                                        style={{ ...btn.secondary, padding: '4px 10px', fontSize: 12 }}>{wexp ? 'Hide' : 'View Details'}</button>
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+                                                                {wexp && (
+                                                                  <div style={{ marginTop: 10 }}>
+                                                                    {item.work_type === 'quiz' && item.result_data?.review?.map((r, i) => (
+                                                                      <div key={i} style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 8, background: r.is_correct ? '#f0fdf4' : '#fef2f2', border: `1px solid ${r.is_correct ? '#bbf7d0' : '#fecaca'}`, fontSize: 12 }}>
+                                                                        <div style={{ fontWeight: 600, marginBottom: 3 }}>Q{i + 1}: {r.question}</div>
+                                                                        <div>Your answer: <strong>{r.your_answer}</strong></div>
+                                                                        {!r.is_correct && <div style={{ color: '#16a34a' }}>Correct: {r.correct_answer}</div>}
+                                                                        {r.explanation && <div style={{ marginTop: 3, color: colors.textMuted }}>💡 {r.explanation}</div>}
+                                                                      </div>
+                                                                    ))}
+                                                                    {item.work_type === 'test' && item.result_data?.question?.description && (
+                                                                      <div style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, fontSize: 12 }}>
+                                                                        <strong>Question:</strong> {item.result_data.question.description}
+                                                                      </div>
+                                                                    )}
+                                                                    {item.work_type === 'test' && item.content && (
+                                                                      <pre style={{ background: '#1e1e1e', color: '#d4d4d4', borderRadius: 8, padding: '10px 12px', fontSize: 12, overflowX: 'auto', maxHeight: 220 }}>{item.content}</pre>
+                                                                    )}
+                                                                  </div>
+                                                                )}
+                                                              </div>
+                                                            );
+                                                          })}
+                                                        </div>
+                                                      </td>
+                                                    </tr>
+                                                  )}
+                                                </React.Fragment>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (
+              /* ── Aggregate (All Students) view ── */
+              officialAggLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+                  <div>Loading aggregate data…</div>
+                </div>
+              ) : !officialAggData || officialAggData.students.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>👩‍🎓</div>
+                  <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No student data yet</div>
+                  <div style={{ fontSize: font.sizeSm }}>Share official classroom join codes with students to get started.</div>
+                </div>
+              ) : (
+              <>
+                <_CourseSummaryBar summary={officialAggData.class_summary} />
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 32, padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                        <OfficialSortTh label="Status"      sortKeyName="status"               center />
+                        <OfficialSortTh label="Name"        sortKeyName="full_name" />
+                        <OfficialSortTh label="Completion"  sortKeyName="completion_percentage" center />
+                        <OfficialSortTh label="Quiz Pass"   sortKeyName="quiz_pass_rate"        center />
+                        <OfficialSortTh label="Avg Quiz"    sortKeyName="avg_quiz_score"        center />
+                        <OfficialSortTh label="Test Pass"   sortKeyName="test_pass_rate"        center />
+                        <OfficialSortTh label="Avg Test"    sortKeyName="avg_test_score"        center />
+                        <OfficialSortTh label="Weak Topics" sortKeyName="weak_count"            center />
+                        <OfficialSortTh label="Last Active" sortKeyName="last_active"           center />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedOfficialStudents(officialAggData.students).map((s, idx) => {
+                        const isExp = expandedOfficialStudent === s.student_id;
+                        const status = _studentStatus(s);
+                        const rowBg = isExp ? colors.primaryLight : (idx % 2 === 0 ? colors.surface : colors.bg);
+                        const work = officialStudentWork[s.student_id] || [];
+                        const workLoading = Boolean(officialWorkLoading[s.student_id]);
+                        return (
+                          <React.Fragment key={`off_${s.student_id}`}>
+                            <tr onClick={() => toggleOfficialStudentRow(s.student_id)}
+                              style={{ cursor: 'pointer', background: rowBg, transition: 'background 0.15s' }}
+                              onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = colors.primaryLight; }}
+                              onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = rowBg; }}>
+                              <td style={{ ...tdS, textAlign: 'center', color: colors.primary, fontWeight: 700, fontSize: 16 }}>{isExp ? '▾' : '▸'}</td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>
+                                <span title={status.label} style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: status.bg, color: status.fg, whiteSpace: 'nowrap' }}>{status.dot} {status.label}</span>
+                              </td>
+                              <td style={tdS}>
+                                <div style={{ fontWeight: font.weightSemibold }}>{s.full_name || '—'}</div>
+                                <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{s.email}</div>
+                              </td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.completion_percentage} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={s.quizzes_passed} attempted={s.quizzes_attempted} tooltip={`${s.quizzes_passed}/${s.quizzes_attempted} quizzes ≥70`} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_quiz_score} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={s.tests_passed} attempted={s.tests_attempted} tooltip={`${s.tests_passed}/${s.tests_attempted} tests ≥60`} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_test_score} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>{s.weak_topics?.length || 0}</td>
+                              <td style={{ ...tdS, textAlign: 'center', color: colors.textMuted, fontSize: font.sizeXs }}>{s.last_active ? new Date(s.last_active).toLocaleDateString() : '—'}</td>
+                            </tr>
+                            {isExp && (
+                              <tr>
+                                <td colSpan={10} style={{ padding: '12px 24px 20px 48px', background: colors.primaryLight, borderBottom: `2px solid ${colors.primaryBorder}` }}>
+                                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 8 }}>
+                                    <div style={{ fontSize: font.sizeSm }}><strong>Subtopics Read:</strong> {s.completed_topics}</div>
+                                    <div style={{ fontSize: font.sizeSm }}><strong>Weak Topics:</strong> {s.weak_topics?.length ? s.weak_topics.join(', ') : 'None'}</div>
+                                  </div>
+
+                                  {s.topic_stats?.length > 0 && (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeXs, marginBottom: 14 }}>
+                                      <thead>
+                                        <tr style={{ background: colors.bg }}>
+                                          {['Topic', 'Quiz Attempts', 'Quiz Avg', 'Quiz Pass', 'Test Attempts', 'Test Avg', 'Test Pass'].map(h => (
+                                            <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Topic' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {s.topic_stats.map(ts => (
+                                          <tr key={ts.topic} style={{ background: ts.is_weak ? '#fff7ed' : 'transparent' }}>
+                                            <td style={{ padding: '6px 10px', color: colors.text, borderBottom: `1px solid ${colors.border}` }}>{ts.is_weak && <span style={{ marginRight: 4 }}>⚠️</span>}{ts.topic}</td>
+                                            <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.quiz_attempts || '—'}</td>
+                                            <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.quiz_avg_score} /></td>
+                                            <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.quiz_pass_rate != null ? `${ts.quiz_pass_rate}%` : '—'}</td>
+                                            <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.test_attempts || '—'}</td>
+                                            <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.test_avg_score} /></td>
+                                            <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.test_pass_rate != null ? `${ts.test_pass_rate}%` : '—'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+
+                                  <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 10 }}>
+                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, marginBottom: 8, color: colors.text }}>Student Work Details</div>
+                                    {workLoading && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>Loading…</div>}
+                                    {!workLoading && work.length === 0 && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>No saved work yet.</div>}
+                                    {!workLoading && work.map(item => {
+                                      const exp = Boolean(officialExpandedWork[item.id]);
+                                      const score = item.result_data?.score;
+                                      const hasDetails = (item.work_type === 'quiz' && item.result_data?.review?.length > 0) || (item.work_type === 'test' && (item.result_data?.question?.description || item.content));
+                                      return (
+                                        <div key={item.id} style={{ border: `1px solid ${colors.border}`, borderRadius: radii.md, background: colors.surface, padding: '10px 12px', marginBottom: 8 }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                            <div>
+                                              <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold }}>{item.title}</div>
+                                              <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{item.work_type.toUpperCase()} · {item.topic_id || 'No topic'} · {new Date(item.created_at).toLocaleDateString()}</div>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                              {score != null && <_ScoreBadge score={score} />}
+                                              {hasDetails && (
+                                                <button onClick={() => setOfficialExpandedWork(p => ({ ...p, [item.id]: !p[item.id] }))}
+                                                  style={{ ...btn.secondary, padding: '4px 10px', fontSize: 12 }}>{exp ? 'Hide' : 'View Details'}</button>
+                                              )}
+                                            </div>
+                                          </div>
+                                          {exp && (
+                                            <div style={{ marginTop: 10 }}>
+                                              {item.work_type === 'quiz' && item.result_data?.review?.map((r, i) => (
+                                                <div key={i} style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 8, background: r.is_correct ? '#f0fdf4' : '#fef2f2', border: `1px solid ${r.is_correct ? '#bbf7d0' : '#fecaca'}`, fontSize: 12 }}>
+                                                  <div style={{ fontWeight: 600, marginBottom: 3 }}>Q{i + 1}: {r.question}</div>
+                                                  <div>Your answer: <strong>{r.your_answer}</strong></div>
+                                                  {!r.is_correct && <div style={{ color: '#16a34a' }}>Correct: {r.correct_answer}</div>}
+                                                  {r.explanation && <div style={{ marginTop: 3, color: colors.textMuted }}>💡 {r.explanation}</div>}
+                                                </div>
+                                              ))}
+                                              {item.work_type === 'test' && item.result_data?.question?.description && (
+                                                <div style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, fontSize: 12 }}>
+                                                  <strong>Question:</strong> {item.result_data.question.description}
+                                                </div>
+                                              )}
+                                              {item.work_type === 'test' && item.content && (
+                                                <pre style={{ background: '#1e1e1e', color: '#d4d4d4', borderRadius: 8, padding: '10px 12px', fontSize: 12, overflowX: 'auto', maxHeight: 220 }}>{item.content}</pre>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Your Classrooms — flat grid of ALL classrooms */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <h3 style={{ fontSize: font.sizeLg, color: colors.text, margin: 0 }}>🏛 Your Classrooms</h3>
-          <span style={{ background: colors.primaryLight, color: colors.primary, borderRadius: radii.full, padding: '2px 10px', fontSize: font.sizeSm, fontWeight: font.weightBold }}>{classes.length}</span>
+          <span style={{ background: colors.primaryLight, color: colors.primary, borderRadius: radii.full, padding: '2px 10px', fontSize: font.sizeSm, fontWeight: font.weightBold }}>
+            {filteredClasses.length}{filteredClasses.length !== classes.length ? ` / ${classes.length}` : ''}
+          </span>
         </div>
+
+        {/* Search + category filter */}
+        {classes.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16, alignItems: 'flex-start' }}>
+            <input
+              value={classroomSearch}
+              onChange={e => setClassroomSearch(e.target.value)}
+              placeholder="Search classrooms…"
+              style={{ ...inputStyle, flex: '1 1 100%', padding: '7px 12px', fontSize: font.sizeSm }}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, width: '100%' }}>
+              {['all', ...uniqueCategories].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  style={{
+                    padding: '5px 12px', fontSize: font.sizeXs, fontWeight: font.weightSemibold,
+                    borderRadius: radii.full, cursor: 'pointer', whiteSpace: 'nowrap',
+                    border: categoryFilter === cat ? `1.5px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                    background: categoryFilter === cat ? colors.primaryLight : colors.surface,
+                    color: categoryFilter === cat ? colors.primary : colors.textSecondary,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {cat === 'all' ? 'All' : cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {classes.length === 0 ? (
           <div style={{ ...card.base, textAlign: 'center', padding: 48, color: colors.textMuted }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🏛</div>
             <div style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 6 }}>No classrooms yet</div>
-            <div style={{ fontSize: font.sizeSm }}>Fill in the form above to create your first classroom.</div>
+            <div style={{ fontSize: font.sizeSm }}>Create a classroom above to get started.</div>
+          </div>
+        ) : filteredClasses.length === 0 ? (
+          <div style={{ ...card.base, textAlign: 'center', padding: 32, color: colors.textMuted }}>
+            <div style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 6 }}>No classrooms match your filter</div>
+            <div style={{ fontSize: font.sizeSm }}>Try a different category or clear the search.</div>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20 }}>
-            {classes.map(cls => (
-              <div key={cls.id}
-                style={{
-                  ...card.base, padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = shadows.md; e.currentTarget.style.borderColor = colors.primaryBorder; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = card.base?.boxShadow || ''; e.currentTarget.style.borderColor = colors.border; }}
-              >
-                {/* Card header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <h4 style={{ margin: 0, color: colors.primary, fontSize: font.sizeLg, fontWeight: font.weightBold, lineHeight: 1.3 }}>{cls.name}</h4>
-                    {cls.description && <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary, lineHeight: 1.4 }}>{cls.description}</p>}
-                  </div>
-                  {/* Open classroom button */}
-                  <button
-                    onClick={() => navigate(`/teacher-classroom/${cls.id}`, { state: { name: cls.name, description: cls.description, class_code: cls.class_code } })}
-                    style={{ ...btn.primary, ...btn.small, whiteSpace: 'nowrap', flexShrink: 0 }}
-                  >
-                    Open →
-                  </button>
-                </div>
-
-                {/* Class code */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <code style={{
-                    background: colors.bg, border: `1px solid ${colors.border}`,
-                    borderRadius: radii.sm, padding: '5px 12px',
-                    fontSize: font.sizeSm, fontWeight: font.weightBold, letterSpacing: 3,
-                    color: colors.text, flex: 1, textAlign: 'center',
-                  }}>
-                    {cls.class_code}
-                  </code>
-                  <button onClick={e => copyCode(e, cls.class_code)}
-                    style={{
-                      padding: '5px 12px', fontSize: font.sizeSm, fontWeight: font.weightMedium,
-                      background: copiedCode === cls.class_code ? colors.successLight : 'transparent',
-                      border: `1px solid ${copiedCode === cls.class_code ? colors.successBorder : colors.border}`,
-                      borderRadius: radii.sm, cursor: 'pointer',
-                      color: copiedCode === cls.class_code ? colors.success : colors.textSecondary,
-                      transition: 'all 0.2s', whiteSpace: 'nowrap',
-                    }}>
-                    {copiedCode === cls.class_code ? '✓ Copied' : '📋 Copy'}
-                  </button>
-                </div>
-
-              </div>
-            ))}
+            {filteredClasses.map(cls => renderClassroomCard(cls, isOfficialCategory(cls.category)))}
           </div>
         )}
       </div>

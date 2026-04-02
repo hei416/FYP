@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON, LargeBinary
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON, LargeBinary, UniqueConstraint
 from datetime import datetime
 import json
 
@@ -22,9 +22,11 @@ class Classroom(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=False, default="Official Lessons")
     description = Column(Text, nullable=True)
     class_code = Column(String(20), unique=True, nullable=False, index=True)  # e.g. JAVA101A
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    enrolled_courses = Column(JSON, default=lambda: ["basic"])  # list of course IDs: "basic", "enhanced"
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -82,9 +84,14 @@ class UserProgress(Base):
     # Overall progress
     completion_percentage = Column(Float, default=0.0)
 
+    # Course identifier — one row per (user_id, course_id)
+    course_id = Column(String(50), nullable=False, default="basic")
+
     # Timestamps
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_synced = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("user_id", "course_id", name="uq_user_course"),)
 
 
 # --- ClassroomDocument model for classroom document uploads ---
@@ -303,3 +310,15 @@ class ClassroomQuiz(Base):
     created_by   = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at   = Column(DateTime, default=datetime.utcnow)
     updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MaterialRead(Base):
+    """Tracks which students have marked classroom materials as read."""
+    __tablename__ = "material_reads"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    file_id      = Column(Integer, ForeignKey("classroom_files.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id   = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    marked_at    = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('file_id', 'student_id', name='uq_file_student_read'),)

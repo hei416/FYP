@@ -20,14 +20,37 @@ const authHeaders = () => {
 
 const isAuthenticated = () => !!getToken();
 
+// localStorage keys per course
+export const BASIC_ROADMAP_KEY    = 'java-roadmap-completed';
+export const ENHANCED_ROADMAP_KEY = 'enhanced-roadmap-completed';
+export const BASIC_PROGRESS_KEY   = 'codetutor_learning_progress';
+export const ENHANCED_PROGRESS_KEY = 'enhanced-codetutor-learning-progress';
+export const BASIC_MILESTONES_KEY    = 'dismissed_milestones';
+export const ENHANCED_MILESTONES_KEY = 'enhanced-dismissed-milestones';
+
+export function getCourseKeys(courseId = 'basic') {
+  if (courseId === 'enhanced') {
+    return {
+      roadmapKey: ENHANCED_ROADMAP_KEY,
+      progressKey: ENHANCED_PROGRESS_KEY,
+      milestonesKey: ENHANCED_MILESTONES_KEY,
+    };
+  }
+  return {
+    roadmapKey: BASIC_ROADMAP_KEY,
+    progressKey: BASIC_PROGRESS_KEY,
+    milestonesKey: BASIC_MILESTONES_KEY,
+  };
+}
+
 /**
  * Fetch user progress from backend and merge with localStorage
  */
-export async function loadProgressFromBackend() {
+export async function loadProgressFromBackend(courseId = 'basic') {
   if (!isAuthenticated()) return null;
 
   try {
-    const res = await fetch(`${API_BASE}/progress/me`, {
+    const res = await fetch(`${API_BASE}/progress/me?course_id=${courseId}`, {
       headers: authHeaders()
     });
 
@@ -47,24 +70,25 @@ export async function loadProgressFromBackend() {
 }
 
 // Pull progress from backend into localStorage (merge, never downgrade)
-export const pullProgressFromBackend = async () => {
+export const pullProgressFromBackend = async (courseId = 'basic') => {
   if (!isAuthenticated()) return;
   try {
-    const backend = await loadProgressFromBackend();
+    const { roadmapKey, progressKey, milestonesKey } = getCourseKeys(courseId);
+    const backend = await loadProgressFromBackend(courseId);
     if (!backend) return;
 
     // Merge roadmap completed topics into localStorage (union)
-    const localRoadmap = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
+    const localRoadmap = JSON.parse(localStorage.getItem(roadmapKey) || '[]');
     const merged = Array.from(new Set([...(localRoadmap || []), ...(backend.completed_topics || [])]));
-    localStorage.setItem('java-roadmap-completed', JSON.stringify(merged));
+    localStorage.setItem(roadmapKey, JSON.stringify(merged));
 
     // Restore dismissed milestones if present
     if (backend.dismissed_milestones) {
-      localStorage.setItem('dismissed_milestones', JSON.stringify(backend.dismissed_milestones));
+      localStorage.setItem(milestonesKey, JSON.stringify(backend.dismissed_milestones));
     }
 
     // Use existing merge util to merge richer progress object
-    mergeProgressWithLocal(backend, 'codetutor_learning_progress', 'java-roadmap-completed');
+    mergeProgressWithLocal(backend, progressKey, roadmapKey);
   } catch (e) {
     console.warn('[ProgressService] pullProgressFromBackend failed', e);
   }
@@ -73,7 +97,7 @@ export const pullProgressFromBackend = async () => {
 /**
  * Sync all local progress to backend
  */
-export async function syncProgressToBackend(localProgress, roadmapCompleted) {
+export async function syncProgressToBackend(localProgress, roadmapCompleted, courseId = 'basic') {
   if (!isAuthenticated()) return;
 
   try {
@@ -88,7 +112,7 @@ export async function syncProgressToBackend(localProgress, roadmapCompleted) {
       ai_interactions: localProgress?.aiInteractions || 0
     };
 
-    await fetch(`${API_BASE}/progress/sync`, {
+    await fetch(`${API_BASE}/progress/sync?course_id=${courseId}`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload)
@@ -99,13 +123,14 @@ export async function syncProgressToBackend(localProgress, roadmapCompleted) {
 }
 
 // Push localStorage progress up to backend
-export const pushProgressToBackend = async () => {
+export const pushProgressToBackend = async (courseId = 'basic') => {
   if (!isAuthenticated()) return;
 
   try {
-    const completed = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
-    const dismissed = JSON.parse(localStorage.getItem('dismissed_milestones') || '[]');
-    const local = JSON.parse(localStorage.getItem('codetutor_learning_progress') || '{}');
+    const { roadmapKey, progressKey, milestonesKey } = getCourseKeys(courseId);
+    const completed = JSON.parse(localStorage.getItem(roadmapKey) || '[]');
+    const dismissed = JSON.parse(localStorage.getItem(milestonesKey) || '[]');
+    const local = JSON.parse(localStorage.getItem(progressKey) || '{}');
 
     // ✅ Don't push if localStorage hasn't been loaded from backend yet
     if (completed.length === 0 && !(local?.quizzes?.attempted > 0) && !(local?.aiInteractions > 0)) {
@@ -125,7 +150,7 @@ export const pushProgressToBackend = async () => {
       ai_interactions: local?.aiInteractions || 0
     };
 
-    await fetch(`${API_BASE}/progress/sync`, {
+    await fetch(`${API_BASE}/progress/sync?course_id=${courseId}`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload)
@@ -138,11 +163,11 @@ export const pushProgressToBackend = async () => {
 /**
  * Mark a topic as completed on the backend
  */
-export async function markTopicCompleteOnBackend(topicId) {
+export async function markTopicCompleteOnBackend(topicId, courseId = 'basic') {
   if (!isAuthenticated()) return;
 
   try {
-    await fetch(`${API_BASE}/progress/topic-complete`, {
+    await fetch(`${API_BASE}/progress/topic-complete?course_id=${courseId}`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ topic_id: topicId })

@@ -16,11 +16,11 @@ function getToken() {
 // Classroom CRUD
 // ---------------------------------------------------------------------------
 
-export async function createClassroom({ name, description }) {
+export async function createClassroom({ name, description, category = 'Official Lessons', enrolled_courses = ['basic'] }) {
   const res = await fetch(`${API_BASE}/classrooms`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify({ name, description, category, enrolled_courses }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -35,9 +35,65 @@ export async function getMyClassrooms() {
   return res.json();
 }
 
+export async function getOfficialClassrooms() {
+  const res = await fetch(`${API_BASE}/classrooms/official/list`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load official classrooms');
+  return res.json();
+}
+
+export async function updateClassroomCategory(classroomId, category) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ category }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to update category');
+  }
+  return res.json();
+}
+
 export async function getClassroomAnalytics(classroomId) {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/analytics`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load analytics');
+  return res.json();
+}
+
+export async function getClassroomCourseProgress(classroomId, courseId = null) {
+  const query = courseId ? `?course_id=${encodeURIComponent(courseId)}` : '';
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/course-progress${query}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load course progress');
+  return res.json();
+}
+
+export async function getClassroomStudentWork(classroomId, studentId, workType = null) {
+  const query = workType ? `?work_type=${encodeURIComponent(workType)}` : '';
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/students/${studentId}/work${query}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load student work');
+  return res.json();
+}
+
+export async function getOfficialAggregateCourseProgress() {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load aggregate course progress');
+  return res.json();
+}
+
+export async function getOfficialClassroomList() {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/by-classroom`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load classroom list');
+  return res.json();
+}
+
+export async function getOfficialAggregateStudentWork(studentId, workType = null) {
+  const query = workType ? `?work_type=${encodeURIComponent(workType)}` : '';
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/students/${studentId}/work${query}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load student work');
   return res.json();
 }
 
@@ -338,3 +394,32 @@ export const deleteClassroomQuiz = async (classroomId, quizId) => {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Material Reads tracking
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function markMaterialAsRead(classroomId, fileId) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/materials/${fileId}/mark-read`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to mark as read');
+  return res.json();
+}
+
+export async function getClassroomMaterialsWithProgress(classroomId) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/materials-with-progress`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load materials progress');
+  return res.json();
+}
+
+export async function getClassroomQuizzesWithProgress(classroomId) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes-with-progress`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load quizzes progress');
+  return res.json();
+}

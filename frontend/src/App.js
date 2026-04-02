@@ -4,7 +4,10 @@ import Navbar from "./Navbar";
 import AI from "./AI";
 import Compiler from "./Compiler";
 import HomePage from "./HomePage";
+import EnhancedHomePage from "./EnhancedHomePage";
+import CourseCatalogPage from "./CourseCatalogPage";
 import TopicDetailPage from "./TopicDetailPage";
+import EnhancedTopicDetailPage from "./EnhancedTopicDetailPage";
 import Quiz from "./Quiz";
 import PracticalTest from "./PracticalTest";
 import Playground from "./Playground";
@@ -128,8 +131,11 @@ function AppContent() {
             <div style={{ paddingTop: navbar.height }} className="bg-white min-h-screen">
                 <Routes>
                     <Route path="/login"              element={<Auth />} />
+                    <Route path="/"                   element={<CourseCatalogPage />} />
                     <Route path="/home"               element={<HomePage />} />
+                    <Route path="/enhanced-java"      element={<EnhancedHomePage />} />
                     <Route path="/topic/:topicId"     element={<TopicDetailPage />} />
+                    <Route path="/enhanced-topic/:topicId" element={<EnhancedTopicDetailPage />} />
                     <Route path="/playground"         element={<Playground />} />
                     <Route path="/quiz"               element={<Quiz />} />
                     <Route path="/practical-test"     element={<PracticalTest />} />
@@ -141,7 +147,6 @@ function AppContent() {
                     <Route path="/classrooms/:classroomId" element={<StudentClassroomDetail />} />
                     <Route path="/admin"              element={<AdminDashboard />} />
                     <Route path="/compiler"           element={<Navigate to="/playground" replace />} />
-                    <Route path="/"                  element={<Navigate to="/home" replace />} />
                 </Routes>
             </div>
         </>

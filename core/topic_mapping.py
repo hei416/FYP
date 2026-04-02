@@ -71,6 +71,52 @@ SUBTOPIC_TO_MAIN_TOPIC = {
     "revision_comprehensive": "Recursion and Revision",
 }
 
+# ---------------------------------------------------------------------------
+# Enhanced Java course — 8 topic groups, 25 subtopics
+# ---------------------------------------------------------------------------
+
+ENHANCED_SUBTOPIC_TO_MAIN_TOPIC = {
+    # Advanced OOP
+    "adv_abstract":     "Advanced OOP",
+    "adv_interfaces":   "Advanced OOP",
+    "adv_generics":     "Advanced OOP",
+    # Collections Framework
+    "col_list":         "Collections Framework",
+    "col_map":          "Collections Framework",
+    "col_set":          "Collections Framework",
+    "col_queue":        "Collections Framework",
+    # Streams & Functional
+    "stream_basics":    "Streams & Functional",
+    "stream_lambda":    "Streams & Functional",
+    "stream_ops":       "Streams & Functional",
+    # Exception & I/O
+    "exc_checked":      "Exception & I/O",
+    "exc_custom":       "Exception & I/O",
+    "file_read":        "Exception & I/O",
+    "file_streams":     "Exception & I/O",
+    # Concurrency
+    "thread_basics":    "Concurrency",
+    "thread_sync":      "Concurrency",
+    "thread_lifecycle": "Concurrency",
+    # Data Structures
+    "ds_arrays_lists":  "Data Structures",
+    "ds_stacks_queues": "Data Structures",
+    "ds_trees":         "Data Structures",
+    "ds_hashing":       "Data Structures",
+    # Algorithms
+    "algo_sorting":     "Algorithms",
+    "algo_searching":   "Algorithms",
+    "algo_complexity":  "Algorithms",
+    # Advanced Patterns
+    "adv_recursion":    "Advanced Patterns",
+    "adv_design":       "Advanced Patterns",
+}
+
+COURSE_SUBTOPIC_MAPS = {
+    "basic": SUBTOPIC_TO_MAIN_TOPIC,
+    "enhanced": ENHANCED_SUBTOPIC_TO_MAIN_TOPIC,
+}
+
 
 def convert_topic_ids_to_main_topics(topic_identifiers: List[str]) -> List[str]:
     """Convert subtopic IDs to main topic names."""
@@ -91,3 +137,4 @@ def to_main_topic(topic_id: str) -> str:
 def to_main_topics(topic_ids: List[str]) -> List[str]:
     """Convert a list of subtopic IDs to unique main topic names."""
     return list({to_main_topic(t) for t in topic_ids})
+

@@ -112,6 +112,7 @@ def run_migrations(db_engine):
                     CREATE TABLE IF NOT EXISTS classrooms (
                         id SERIAL PRIMARY KEY,
                         name VARCHAR(255) NOT NULL,
+                        category VARCHAR(100) NOT NULL DEFAULT 'Official Lessons',
                         description TEXT,
                         class_code VARCHAR(20) UNIQUE NOT NULL,
                         teacher_id INTEGER NOT NULL REFERENCES users(id),
@@ -123,6 +124,17 @@ def run_migrations(db_engine):
                 print("✅ Migration: classrooms table ready")
             except Exception as e:
                 print(f"⚠️ classrooms migration: {e}")
+
+            # --- Category column on classrooms ---
+            try:
+                conn.execute(text("""
+                    ALTER TABLE classrooms
+                    ADD COLUMN IF NOT EXISTS category VARCHAR(100) NOT NULL DEFAULT 'Official Lessons'
+                """))
+                conn.commit()
+                print("✅ Migration: category column ensured on classrooms")
+            except Exception as e:
+                print(f"⚠️ classroom category migration: {e}")
 
             # --- Classroom members table ---
             try:

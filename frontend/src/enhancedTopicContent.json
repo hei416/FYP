@@ -1,0 +1,469 @@
+{
+  "adv_abstract": {
+    "title": "Abstract Classes & Abstraction",
+    "overview": "Abstract classes define a template for subclasses. They can contain both abstract methods (no body) and concrete methods, enabling a mix of enforced contracts and shared behaviour.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Abstract Class</h3><p>Declared with <code>abstract</code>; cannot be instantiated directly. Subclasses must implement all abstract methods or also be declared abstract.</p><pre><code>abstract class Shape {\n    abstract double area();\n    void describe() {\n        System.out.println(\"Area: \" + area());\n    }\n}</code></pre></div><div class='concept'><h3>2. Concrete Subclass</h3><pre><code>class Circle extends Shape {\n    double radius;\n    Circle(double r) { this.radius = r; }\n    @Override double area() { return Math.PI * radius * radius; }\n}</code></pre></div><div class='concept'><h3>3. Abstract vs Interface</h3><p>Use an abstract class when subclasses share state or partial implementation. Use an interface to define a pure contract.</p></div>",
+    "codeExamples": [
+      { "title": "Abstract class with concrete helper", "code": "abstract class Animal {\n    String name;\n    Animal(String n) { this.name = n; }\n    abstract String sound();\n    void speak() { System.out.println(name + \" says \" + sound()); }\n}\nclass Dog extends Animal {\n    Dog() { super(\"Dog\"); }\n    @Override String sound() { return \"Woof\"; }\n}" }
+    ],
+    "keyTakeaways": [
+      "Abstract classes can have constructors, fields, and concrete methods.",
+      "You cannot instantiate an abstract class — only its concrete subclasses.",
+      "Abstract methods force subclasses to provide their own implementation.",
+      "Prefer abstract classes over interfaces when you need shared state."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Interfaces and Inheritance", "url": "https://docs.oracle.com/javase/tutorial/java/IandI/index.html" }
+    ]
+  },
+
+  "adv_interfaces": {
+    "title": "Interfaces & Default Methods",
+    "overview": "Interfaces define pure contracts. Since Java 8 they can also contain default and static methods, enabling API evolution without breaking existing implementations.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Interface Declaration</h3><pre><code>interface Drawable {\n    void draw();\n    default String description() { return \"A drawable shape\"; }\n}</code></pre></div><div class='concept'><h3>2. Multiple Implementation</h3><p>A class can implement multiple interfaces, granting a form of multiple inheritance for behaviour.</p><pre><code>class Icon implements Drawable, Serializable {\n    public void draw() { System.out.println(\"Drawing icon\"); }\n}</code></pre></div><div class='concept'><h3>3. Functional Interfaces</h3><p>An interface with exactly one abstract method — the basis for lambda expressions.</p><pre><code>@FunctionalInterface\ninterface Transformer { String transform(String s); }</code></pre></div>",
+    "codeExamples": [
+      { "title": "Default method conflict resolution", "code": "interface A { default void greet() { System.out.println(\"Hello from A\"); } }\ninterface B { default void greet() { System.out.println(\"Hello from B\"); } }\nclass C implements A, B {\n    public void greet() { A.super.greet(); } // explicit resolution\n}" }
+    ],
+    "keyTakeaways": [
+      "Interfaces can have default and static methods since Java 8.",
+      "A class must resolve conflicts when two interfaces provide the same default method.",
+      "Functional interfaces enable lambda syntax and method references.",
+      "Use interfaces to decouple API from implementation."
+    ],
+    "externalResources": [
+      { "title": "GeeksforGeeks — Interfaces in Java", "url": "https://www.geeksforgeeks.org/interfaces-in-java/" }
+    ]
+  },
+
+  "adv_generics": {
+    "title": "Generics",
+    "overview": "Generics allow classes and methods to operate on typed parameters, providing compile-time type safety while eliminating casts.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Generic Class</h3><pre><code>class Box&lt;T&gt; {\n    private T value;\n    Box(T v) { this.value = v; }\n    T get() { return value; }\n}</code></pre></div><div class='concept'><h3>2. Bounded Type Parameters</h3><pre><code>class NumberBox&lt;T extends Number&gt; {\n    T value;\n    double doubled() { return value.doubleValue() * 2; }\n}</code></pre></div><div class='concept'><h3>3. Wildcards</h3><p><code>? extends T</code> (upper bound) for reading; <code>? super T</code> (lower bound) for writing.</p></div>",
+    "codeExamples": [
+      { "title": "Generic method", "code": "public static <T extends Comparable<T>> T max(T a, T b) {\n    return a.compareTo(b) >= 0 ? a : b;\n}\n// Usage:\nSystem.out.println(max(3, 7));    // 7\nSystem.out.println(max(\"apple\", \"mango\")); // mango" }
+    ],
+    "keyTakeaways": [
+      "Generics provide type safety at compile time with no runtime overhead.",
+      "Use <T extends Foo> to restrict the type parameter to subclasses of Foo.",
+      "Wildcards make generic code more flexible: ? extends T for reading, ? super T for writing.",
+      "Type erasure means generic type info is removed at runtime."
+    ],
+    "externalResources": [
+      { "title": "Java Notes — Generics & Streams", "url": "http://math.hws.edu/javanotes/c10/" }
+    ]
+  },
+
+  "col_list": {
+    "title": "List — ArrayList & LinkedList",
+    "overview": "The List interface models an ordered sequence. ArrayList uses a dynamic array for O(1) random access; LinkedList uses doubly-linked nodes for O(1) add/remove at both ends.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Creating a List</h3><pre><code>List&lt;String&gt; names = new ArrayList&lt;&gt;();\nnames.add(\"Alice\");\nnames.add(\"Bob\");\nSystem.out.println(names.get(0)); // Alice</code></pre></div><div class='concept'><h3>2. Common Operations</h3><pre><code>names.remove(\"Bob\");\nCollections.sort(names);\nnames.forEach(System.out::println);</code></pre></div><div class='concept'><h3>3. ArrayList vs LinkedList</h3><p>ArrayList wins for random access; LinkedList wins for frequent insertions/deletions in the middle.</p></div>",
+    "codeExamples": [
+      { "title": "Iterating with index and for-each", "code": "List<Integer> nums = List.of(10, 20, 30, 40);\nfor (int i = 0; i < nums.size(); i++)\n    System.out.println(i + \": \" + nums.get(i));\nnums.forEach(n -> System.out.println(n * 2));" }
+    ],
+    "keyTakeaways": [
+      "ArrayList.get(i) is O(1); LinkedList.get(i) is O(n).",
+      "Use List.of() for immutable lists; new ArrayList<>() for mutable.",
+      "Collections.sort() works on any List; provide a Comparator for custom order.",
+      "Prefer ArrayList unless you frequently add/remove at arbitrary positions."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Collections", "url": "https://docs.oracle.com/javase/tutorial/collections/index.html" }
+    ]
+  },
+
+  "col_map": {
+    "title": "Map — HashMap & TreeMap",
+    "overview": "Map stores key-value pairs with unique keys. HashMap offers O(1) average-case operations; TreeMap keeps keys sorted and offers O(log n).",
+    "keyConceptsHtml": "<div class='concept'><h3>1. HashMap basics</h3><pre><code>Map&lt;String, Integer&gt; scores = new HashMap&lt;&gt;();\nscores.put(\"Alice\", 95);\nscores.put(\"Bob\", 82);\nSystem.out.println(scores.get(\"Alice\")); // 95</code></pre></div><div class='concept'><h3>2. Iteration</h3><pre><code>for (Map.Entry&lt;String,Integer&gt; e : scores.entrySet())\n    System.out.println(e.getKey() + \" -> \" + e.getValue());</code></pre></div><div class='concept'><h3>3. getOrDefault & putIfAbsent</h3><pre><code>scores.getOrDefault(\"Carol\", 0); // 0\nscores.putIfAbsent(\"Dave\", 70);</code></pre></div>",
+    "codeExamples": [
+      { "title": "Word frequency counter", "code": "String[] words = {\"the\",\"cat\",\"sat\",\"on\",\"the\",\"mat\"};\nMap<String,Integer> freq = new HashMap<>();\nfor (String w : words)\n    freq.merge(w, 1, Integer::sum);\nSystem.out.println(freq); // {the=2, cat=1, sat=1, on=1, mat=1}" }
+    ],
+    "keyTakeaways": [
+      "HashMap.get/put are O(1) average under low load factor.",
+      "TreeMap entries are always sorted by key (natural order or Comparator).",
+      "Use merge() or computeIfAbsent() to simplify accumulation patterns.",
+      "Keys must properly implement hashCode() and equals()."
+    ],
+    "externalResources": [
+      { "title": "GeeksforGeeks — Collections in Java", "url": "https://www.geeksforgeeks.org/collections-in-java-2/" }
+    ]
+  },
+
+  "col_set": {
+    "title": "Set — HashSet & TreeSet",
+    "overview": "Set guarantees uniqueness. HashSet offers O(1) add/contains; TreeSet keeps elements sorted.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. HashSet Usage</h3><pre><code>Set&lt;String&gt; seen = new HashSet&lt;&gt;();\nseen.add(\"apple\");\nseen.add(\"banana\");\nseen.add(\"apple\"); // duplicate ignored\nSystem.out.println(seen.size()); // 2</code></pre></div><div class='concept'><h3>2. Set Operations</h3><pre><code>Set&lt;Integer&gt; a = new HashSet&lt;&gt;(Set.of(1,2,3));\nSet&lt;Integer&gt; b = new HashSet&lt;&gt;(Set.of(2,3,4));\na.retainAll(b); // intersection: {2,3}</code></pre></div>",
+    "codeExamples": [
+      { "title": "Remove duplicates from a list", "code": "List<String> list = List.of(\"a\",\"b\",\"a\",\"c\",\"b\");\nSet<String> unique = new LinkedHashSet<>(list); // preserves order\nSystem.out.println(unique); // [a, b, c]" }
+    ],
+    "keyTakeaways": [
+      "Sets reject duplicate elements based on equals()/hashCode().",
+      "HashSet has O(1) add/contains; TreeSet has O(log n) but sorted.",
+      "LinkedHashSet preserves insertion order.",
+      "Use Set.copyOf() for an immutable snapshot."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Collections", "url": "https://docs.oracle.com/javase/tutorial/collections/index.html" }
+    ]
+  },
+
+  "col_queue": {
+    "title": "Queue & Deque",
+    "overview": "Queue models FIFO processing. Deque (double-ended queue) supports insertion and removal at both ends, acting as both queue and stack.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. LinkedList as Queue</h3><pre><code>Queue&lt;String&gt; q = new LinkedList&lt;&gt;();\nq.offer(\"first\");\nq.offer(\"second\");\nSystem.out.println(q.poll()); // first</code></pre></div><div class='concept'><h3>2. PriorityQueue</h3><pre><code>PriorityQueue&lt;Integer&gt; pq = new PriorityQueue&lt;&gt;();\npq.add(5); pq.add(1); pq.add(3);\nSystem.out.println(pq.poll()); // 1 (min-heap)</code></pre></div><div class='concept'><h3>3. ArrayDeque as Stack</h3><pre><code>Deque&lt;String&gt; stack = new ArrayDeque&lt;&gt;();\nstack.push(\"a\"); stack.push(\"b\");\nSystem.out.println(stack.pop()); // b</code></pre></div>",
+    "codeExamples": [
+      { "title": "BFS skeleton using Queue", "code": "Queue<Integer> bfs = new LinkedList<>();\nbfs.offer(startNode);\nwhile (!bfs.isEmpty()) {\n    int node = bfs.poll();\n    for (int neighbor : graph.get(node))\n        bfs.offer(neighbor);\n}" }
+    ],
+    "keyTakeaways": [
+      "Use offer/poll (Queue) instead of add/remove to avoid exceptions on empty queues.",
+      "PriorityQueue orders by natural order or custom Comparator.",
+      "ArrayDeque is faster than LinkedList for stack/queue use-cases.",
+      "Deque can be used as a double-ended queue, queue, or stack."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Collections", "url": "https://docs.oracle.com/javase/tutorial/collections/index.html" }
+    ]
+  },
+
+  "stream_basics": {
+    "title": "Stream API Basics",
+    "overview": "The Stream API (Java 8+) provides a declarative pipeline for processing sequences of data with lazy evaluation and optional parallelism.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Creating Streams</h3><pre><code>Stream&lt;String&gt; s1 = Stream.of(\"a\",\"b\",\"c\");\nStream&lt;Integer&gt; s2 = List.of(1,2,3).stream();\nIntStream range = IntStream.range(0, 5);</code></pre></div><div class='concept'><h3>2. Lazy Evaluation</h3><p>Intermediate operations (filter, map) are lazy — they don't execute until a terminal operation (collect, forEach) is called.</p></div><div class='concept'><h3>3. Terminal Operations</h3><pre><code>List.of(1,2,3,4).stream()\n    .filter(n -> n % 2 == 0)\n    .forEach(System.out::println); // 2, 4</code></pre></div>",
+    "codeExamples": [
+      { "title": "Collect filtered results", "code": "List<String> names = List.of(\"Alice\",\"Bob\",\"Anna\",\"Charlie\");\nList<String> aNames = names.stream()\n    .filter(n -> n.startsWith(\"A\"))\n    .sorted()\n    .collect(Collectors.toList());\nSystem.out.println(aNames); // [Alice, Anna]" }
+    ],
+    "keyTakeaways": [
+      "Streams are single-use — you cannot reuse a consumed stream.",
+      "Intermediate operations are lazy; terminal operations are eager.",
+      "Use Collectors.toList(), toMap(), joining() to collect results.",
+      "Parallel streams via .parallelStream() — only beneficial for large CPU-bound tasks."
+    ],
+    "externalResources": [
+      { "title": "GeeksforGeeks — Stream in Java", "url": "https://www.geeksforgeeks.org/stream-in-java/" }
+    ]
+  },
+
+  "stream_lambda": {
+    "title": "Lambda Expressions & Functional Interfaces",
+    "overview": "Lambdas provide concise anonymous function syntax. Combined with functional interfaces they power the entire Streams and function composition API.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Lambda Syntax</h3><pre><code>// (params) -> expression\nRunnable r = () -> System.out.println(\"Hello\");\nComparator&lt;String&gt; cmp = (a, b) -> a.length() - b.length();</code></pre></div><div class='concept'><h3>2. Method References</h3><pre><code>List.of(\"x\",\"y\",\"z\").forEach(System.out::println);\nList.of(1,2,3).stream().map(String::valueOf).forEach(System.out::println);</code></pre></div><div class='concept'><h3>3. Built-in Functional Interfaces</h3><ul><li><code>Predicate&lt;T&gt;</code> — boolean test(T t)</li><li><code>Function&lt;T,R&gt;</code> — R apply(T t)</li><li><code>Consumer&lt;T&gt;</code> — void accept(T t)</li><li><code>Supplier&lt;T&gt;</code> — T get()</li></ul></div>",
+    "codeExamples": [
+      { "title": "Compose Predicates", "code": "Predicate<Integer> isEven = n -> n % 2 == 0;\nPredicate<Integer> isPositive = n -> n > 0;\nPredicate<Integer> isEvenAndPositive = isEven.and(isPositive);\nSystem.out.println(isEvenAndPositive.test(4));  // true\nSystem.out.println(isEvenAndPositive.test(-2)); // false" }
+    ],
+    "keyTakeaways": [
+      "A lambda is essentially an instance of a functional interface.",
+      "Use :: for method references: ClassName::method or instance::method.",
+      "Predicate.and/or/negate allows composing conditions.",
+      "Captured local variables must be effectively final."
+    ],
+    "externalResources": [
+      { "title": "Java Notes — Streams Chapter", "url": "http://math.hws.edu/javanotes/c10/" }
+    ]
+  },
+
+  "stream_ops": {
+    "title": "Stream Operations: filter, map, reduce",
+    "overview": "Core stream operations transform data pipelines: filter selects elements, map transforms them, reduce aggregates them into a single value.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. filter</h3><pre><code>Stream.of(1,2,3,4,5)\n    .filter(n -> n > 2)\n    .forEach(System.out::println); // 3 4 5</code></pre></div><div class='concept'><h3>2. map & flatMap</h3><pre><code>Stream.of(\"hello\",\"world\")\n    .map(String::toUpperCase)\n    .forEach(System.out::println);\nStream.of(List.of(1,2), List.of(3,4))\n    .flatMap(Collection::stream)\n    .forEach(System.out::println); // 1 2 3 4</code></pre></div><div class='concept'><h3>3. reduce</h3><pre><code>int sum = Stream.of(1,2,3,4,5)\n    .reduce(0, Integer::sum);\nSystem.out.println(sum); // 15</code></pre></div>",
+    "codeExamples": [
+      { "title": "Collect to grouped Map", "code": "List<String> words = List.of(\"one\",\"two\",\"three\",\"four\",\"five\");\nMap<Integer, List<String>> byLength = words.stream()\n    .collect(Collectors.groupingBy(String::length));\nSystem.out.println(byLength);\n// {3=[one, two], 5=[three], 4=[four, five]}" }
+    ],
+    "keyTakeaways": [
+      "filter, map, flatMap are intermediate (lazy); collect, reduce, count are terminal.",
+      "flatMap flattens a stream of streams into one stream.",
+      "Collectors.groupingBy creates a Map grouping by a classifier function.",
+      "reduce requires an identity value and an associative accumulator."
+    ],
+    "externalResources": [
+      { "title": "GeeksforGeeks — Stream in Java", "url": "https://www.geeksforgeeks.org/stream-in-java/" }
+    ]
+  },
+
+  "exc_checked": {
+    "title": "Checked vs Unchecked Exceptions",
+    "overview": "Java distinguishes checked exceptions (must be handled or declared) from unchecked exceptions (runtime errors that don't require explicit handling).",
+    "keyConceptsHtml": "<div class='concept'><h3>1. The Hierarchy</h3><ul><li><code>Throwable</code><ul><li><code>Exception</code> (checked if not subclass of RuntimeException)<ul><li><code>RuntimeException</code> (unchecked)</li></ul></li><li><code>Error</code> (unchecked, system-level)</li></ul></li></ul></div><div class='concept'><h3>2. Checked Example</h3><pre><code>void readFile(String path) throws IOException {\n    BufferedReader br = new BufferedReader(new FileReader(path));\n    System.out.println(br.readLine());\n    br.close();\n}</code></pre></div><div class='concept'><h3>3. Unchecked Example</h3><pre><code>int[] arr = new int[3];\narr[5] = 10; // ArrayIndexOutOfBoundsException — unchecked</code></pre></div>",
+    "codeExamples": [
+      { "title": "Checked vs unchecked side by side", "code": "// Checked — compiler enforces handling\ntry {\n    Class.forName(\"com.example.Foo\"); // throws ClassNotFoundException\n} catch (ClassNotFoundException e) {\n    System.out.println(\"Class not found: \" + e.getMessage());\n}\n// Unchecked — no forced handling\nString s = null;\nSystem.out.println(s.length()); // NullPointerException at runtime" }
+    ],
+    "keyTakeaways": [
+      "Checked exceptions extend Exception but not RuntimeException.",
+      "The compiler forces you to catch or declare checked exceptions.",
+      "Unchecked exceptions (RuntimeException subclasses) indicate programming bugs.",
+      "Errors (OutOfMemoryError etc.) should generally not be caught."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Exceptions", "url": "https://docs.oracle.com/javase/tutorial/essential/exceptions/" }
+    ]
+  },
+
+  "exc_custom": {
+    "title": "Custom Exceptions",
+    "overview": "Creating domain-specific exception classes makes error handling clearer and enables callers to distinguish different failure modes precisely.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Custom Checked Exception</h3><pre><code>public class InsufficientFundsException extends Exception {\n    private double amount;\n    public InsufficientFundsException(double a) {\n        super(\"Insufficient funds: need \" + a + \" more\");\n        this.amount = a;\n    }\n    public double getAmount() { return amount; }\n}</code></pre></div><div class='concept'><h3>2. Exception Chaining</h3><pre><code>try {\n    parseConfig();\n} catch (IOException e) {\n    throw new ConfigException(\"Failed to load config\", e); // wraps original cause\n}</code></pre></div>",
+    "codeExamples": [
+      { "title": "Using a custom exception", "code": "class BankAccount {\n    double balance;\n    void withdraw(double amt) throws InsufficientFundsException {\n        if (amt > balance)\n            throw new InsufficientFundsException(amt - balance);\n        balance -= amt;\n    }\n}" }
+    ],
+    "keyTakeaways": [
+      "Extend Exception for checked or RuntimeException for unchecked custom exceptions.",
+      "Always pass a meaningful message to super().",
+      "Exception chaining (passing cause to constructor) preserves the original stack trace.",
+      "Use custom exceptions to express domain-specific failures clearly."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Exceptions", "url": "https://docs.oracle.com/javase/tutorial/essential/exceptions/" }
+    ]
+  },
+
+  "file_read": {
+    "title": "File I/O — Reading & Writing",
+    "overview": "Java provides multiple APIs for reading/writing files. The modern approach uses try-with-resources with BufferedReader/Writer, or the NIO.2 Files utility.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Reading with BufferedReader</h3><pre><code>try (BufferedReader br = new BufferedReader(new FileReader(\"data.txt\"))) {\n    String line;\n    while ((line = br.readLine()) != null)\n        System.out.println(line);\n} // auto-closed</code></pre></div><div class='concept'><h3>2. Writing with BufferedWriter</h3><pre><code>try (BufferedWriter bw = new BufferedWriter(new FileWriter(\"out.txt\"))) {\n    bw.write(\"Hello, file!\");\n    bw.newLine();\n}</code></pre></div><div class='concept'><h3>3. NIO.2 convenience</h3><pre><code>Path p = Path.of(\"data.txt\");\nList&lt;String&gt; lines = Files.readAllLines(p);\nFiles.writeString(p, \"content\");</code></pre></div>",
+    "codeExamples": [
+      { "title": "Copy a file using NIO.2", "code": "Path src = Path.of(\"source.txt\");\nPath dst = Path.of(\"dest.txt\");\nFiles.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);" }
+    ],
+    "keyTakeaways": [
+      "Always use try-with-resources to ensure streams are closed.",
+      "BufferedReader/Writer add buffering for better performance.",
+      "NIO.2 (java.nio.file) is the modern, simpler file API.",
+      "Files.readAllLines() loads all lines into memory — avoid on large files."
+    ],
+    "externalResources": [
+      { "title": "Java Notes — I/O, Files, Networking", "url": "http://math.hws.edu/javanotes/c11/" }
+    ]
+  },
+
+  "file_streams": {
+    "title": "Byte & Character Streams",
+    "overview": "Java I/O is built on a decorator-pattern hierarchy of streams. Byte streams handle raw binary data; character streams handle text with encoding awareness.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Byte Streams</h3><pre><code>try (FileInputStream fis = new FileInputStream(\"img.png\");\n     FileOutputStream fos = new FileOutputStream(\"copy.png\")) {\n    byte[] buf = new byte[1024];\n    int read;\n    while ((read = fis.read(buf)) != -1)\n        fos.write(buf, 0, read);\n}</code></pre></div><div class='concept'><h3>2. Character Streams</h3><p>InputStreamReader/OutputStreamWriter bridge byte ↔ char with a specified charset.</p><pre><code>Reader r = new InputStreamReader(new FileInputStream(\"f.txt\"), StandardCharsets.UTF_8);</code></pre></div><div class='concept'><h3>3. Object Serialisation</h3><pre><code>// Serialise\ntry (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(\"obj.bin\"))) {\n    oos.writeObject(myObject);\n}</code></pre></div>",
+    "codeExamples": [
+      { "title": "Reading a binary file into byte array", "code": "byte[] data = Files.readAllBytes(Path.of(\"image.png\"));\nSystem.out.println(\"Size: \" + data.length + \" bytes\");" }
+    ],
+    "keyTakeaways": [
+      "Byte streams: InputStream/OutputStream — for images, audio, binary data.",
+      "Character streams: Reader/Writer — for text, respects charset.",
+      "The decorator pattern means you wrap streams for extra capability.",
+      "Use ObjectOutputStream/ObjectInputStream for Java object serialisation."
+    ],
+    "externalResources": [
+      { "title": "GeeksforGeeks — Java I/O Tutorial", "url": "https://www.geeksforgeeks.org/java-io-tutorial/" }
+    ]
+  },
+
+  "thread_basics": {
+    "title": "Thread Basics",
+    "overview": "A thread is a lightweight unit of execution. Java threads can be created by extending Thread or implementing Runnable, and share the process memory space.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Extending Thread</h3><pre><code>class MyThread extends Thread {\n    public void run() {\n        System.out.println(\"Running: \" + getName());\n    }\n}\nnew MyThread().start();</code></pre></div><div class='concept'><h3>2. Implementing Runnable</h3><pre><code>Runnable r = () -> System.out.println(\"Lambda thread\");\nThread t = new Thread(r);\nt.start();\nt.join(); // wait for completion</code></pre></div><div class='concept'><h3>3. sleep & interrupt</h3><pre><code>try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }</code></pre></div>",
+    "codeExamples": [
+      { "title": "Two threads racing", "code": "Thread t1 = new Thread(() -> { for (int i=0;i<5;i++) System.out.println(\"T1: \"+i); });\nThread t2 = new Thread(() -> { for (int i=0;i<5;i++) System.out.println(\"T2: \"+i); });\nt1.start(); t2.start();\nt1.join(); t2.join();\nSystem.out.println(\"Done\");" }
+    ],
+    "keyTakeaways": [
+      "Always call start(), not run(), to launch a new thread.",
+      "Prefer Runnable over extending Thread to keep concerns separated.",
+      "join() blocks the calling thread until the target thread finishes.",
+      "Catch InterruptedException and restore the interrupted flag."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Concurrency", "url": "https://docs.oracle.com/javase/tutorial/essential/concurrency/" }
+    ]
+  },
+
+  "thread_sync": {
+    "title": "Synchronisation & Locks",
+    "overview": "When multiple threads access shared mutable state, synchronisation prevents race conditions: only one thread can execute a synchronised section at a time.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. synchronized Method</h3><pre><code>class Counter {\n    private int count = 0;\n    public synchronized void increment() { count++; }\n    public synchronized int get() { return count; }\n}</code></pre></div><div class='concept'><h3>2. synchronized Block</h3><pre><code>private final Object lock = new Object();\nvoid update() {\n    synchronized (lock) {\n        // critical section\n    }\n}</code></pre></div><div class='concept'><h3>3. volatile</h3><p>Ensures visibility of changes across threads without mutual exclusion.</p><pre><code>private volatile boolean running = true;</code></pre></div>",
+    "codeExamples": [
+      { "title": "ReentrantLock", "code": "Lock lock = new ReentrantLock();\nlock.lock();\ntry {\n    // critical section\n} finally {\n    lock.unlock(); // always unlock in finally\n}" }
+    ],
+    "keyTakeaways": [
+      "synchronized ensures only one thread executes the critical section at once.",
+      "volatile guarantees memory visibility but not atomicity.",
+      "ReentrantLock provides tryLock() and timed lock acquisition.",
+      "Always release locks in a finally block to avoid deadlocks."
+    ],
+    "externalResources": [
+      { "title": "Oracle — Concurrency", "url": "https://docs.oracle.com/javase/tutorial/essential/concurrency/" }
+    ]
+  },
+
+  "thread_lifecycle": {
+    "title": "Thread Lifecycle & ExecutorService",
+    "overview": "Threads transition through well-defined states. ExecutorService manages a pool of worker threads, decoupling task submission from thread management.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Thread States</h3><p>NEW → RUNNABLE → (BLOCKED | WAITING | TIMED_WAITING) → TERMINATED</p></div><div class='concept'><h3>2. ExecutorService</h3><pre><code>ExecutorService pool = Executors.newFixedThreadPool(4);\npool.submit(() -> System.out.println(\"Task\"));\npool.shutdown();</code></pre></div><div class='concept'><h3>3. Callable & Future</h3><pre><code>Future&lt;Integer&gt; f = pool.submit(() -> 42);\nSystem.out.println(f.get()); // blocks until result ready</code></pre></div>",
+    "codeExamples": [
+      { "title": "Parallel sum with Callable", "code": "ExecutorService exec = Executors.newFixedThreadPool(2);\nFuture<Integer> f1 = exec.submit(() -> IntStream.rangeClosed(1,500).sum());\nFuture<Integer> f2 = exec.submit(() -> IntStream.rangeClosed(501,1000).sum());\nint total = f1.get() + f2.get();\nexec.shutdown();\nSystem.out.println(total); // 500500" }
+    ],
+    "keyTakeaways": [
+      "Prefer ExecutorService over raw Thread management for scalability.",
+      "Use Callable<T> when a task needs to return a value.",
+      "Future.get() blocks — use timeout variant to avoid indefinite waits.",
+      "Always call shutdown() or shutdownNow() to release thread pool resources."
+    ],
+    "externalResources": [
+      { "title": "Java Notes — Threads", "url": "http://math.hws.edu/javanotes/c9/" }
+    ]
+  },
+
+  "ds_arrays_lists": {
+    "title": "Arrays & Array-Based Lists",
+    "overview": "Array-backed structures store elements in contiguous memory. This gives O(1) random access but O(n) insertion/deletion in the middle.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Static Array</h3><pre><code>int[] arr = new int[10];\narr[0] = 5;\nSystem.out.println(arr.length); // 10</code></pre></div><div class='concept'><h3>2. Dynamic Array (ArrayList)</h3><p>Doubles capacity when full — amortised O(1) append.</p></div><div class='concept'><h3>3. Time Complexity</h3><table><tr><td>get(i)</td><td>O(1)</td></tr><tr><td>add(end)</td><td>O(1) amortised</td></tr><tr><td>add(mid)</td><td>O(n)</td></tr><tr><td>remove(mid)</td><td>O(n)</td></tr></table></div>",
+    "codeExamples": [
+      { "title": "Manual dynamic array resize", "code": "int[] data = new int[4];\nint size = 0;\n// add element — resize if needed\nif (size == data.length) data = Arrays.copyOf(data, data.length * 2);\ndata[size++] = 42;" }
+    ],
+    "keyTakeaways": [
+      "Arrays provide O(1) random access via index.",
+      "Insertion/deletion in the middle requires shifting elements — O(n).",
+      "ArrayList doubles its internal array when capacity is exceeded.",
+      "Arrays.copyOf() copies elements to a new array of the given length."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 2", "url": "http://opendatastructures.org/ods-java/2_Array_Based_Lists.html" }
+    ]
+  },
+
+  "ds_stacks_queues": {
+    "title": "Stacks & Queues",
+    "overview": "Stacks (LIFO) and queues (FIFO) are fundamental ADTs implemented efficiently with arrays or linked lists.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Stack</h3><pre><code>Deque&lt;Integer&gt; stack = new ArrayDeque&lt;&gt;();\nstack.push(1); stack.push(2); stack.push(3);\nSystem.out.println(stack.pop());  // 3 (LIFO)</code></pre></div><div class='concept'><h3>2. Queue</h3><pre><code>Queue&lt;Integer&gt; queue = new LinkedList&lt;&gt;();\nqueue.offer(1); queue.offer(2); queue.offer(3);\nSystem.out.println(queue.poll()); // 1 (FIFO)</code></pre></div><div class='concept'><h3>3. Array-backed Circular Buffer</h3><p>Fixed-size queue implemented with a circular array avoids expensive head-removal shifts.</p></div>",
+    "codeExamples": [
+      { "title": "Balanced brackets using Stack", "code": "boolean isBalanced(String s) {\n    Deque<Character> st = new ArrayDeque<>();\n    for (char c : s.toCharArray()) {\n        if (\"([{\".indexOf(c) >= 0) st.push(c);\n        else {\n            if (st.isEmpty()) return false;\n            char top = st.pop();\n            if ((c==')' && top!='(') || (c==']' && top!='[') || (c=='}' && top!='{')) return false;\n        }\n    }\n    return st.isEmpty();\n}" }
+    ],
+    "keyTakeaways": [
+      "Stack: push to top, pop from top — LIFO.",
+      "Queue: enqueue at back, dequeue from front — FIFO.",
+      "ArrayDeque is the recommended implementation for both in Java.",
+      "Circular buffer gives O(1) enqueue and dequeue with fixed memory."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 3", "url": "http://opendatastructures.org/ods-java/3_Linked_Lists.html" }
+    ]
+  },
+
+  "ds_trees": {
+    "title": "Trees & Binary Search Trees",
+    "overview": "Trees are hierarchical structures. A Binary Search Tree maintains an ordering invariant enabling O(log n) average search, insert, and delete.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. BST Property</h3><p>For every node: left subtree contains smaller keys; right subtree contains larger keys.</p></div><div class='concept'><h3>2. Traversals</h3><ul><li>In-order (LNR) — yields sorted sequence</li><li>Pre-order (NLR) — root first</li><li>Post-order (LRN) — root last</li></ul></div><div class='concept'><h3>3. Balanced Trees</h3><p>Unbalanced BSTs degrade to O(n). Self-balancing trees (AVL, Red-Black) guarantee O(log n) worst case. Java's TreeMap uses a Red-Black tree.</p></div>",
+    "codeExamples": [
+      { "title": "Simple BST node", "code": "class BST {\n    int val; BST left, right;\n    BST(int v) { val = v; }\n    BST insert(int v) {\n        if (v < val) left  = (left  == null) ? new BST(v) : left.insert(v);\n        else         right = (right == null) ? new BST(v) : right.insert(v);\n        return this;\n    }\n    void inOrder() { if (left!=null) left.inOrder(); System.out.print(val+\" \"); if (right!=null) right.inOrder(); }\n}" }
+    ],
+    "keyTakeaways": [
+      "BST search/insert is O(log n) average, O(n) worst case (degenerate).",
+      "In-order traversal of a BST yields elements in sorted order.",
+      "TreeMap and TreeSet use a Red-Black tree internally.",
+      "Prefer TreeMap over sorted iteration over HashMap."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 6", "url": "http://opendatastructures.org/ods-java/6_Binary_Trees.html" }
+    ]
+  },
+
+  "ds_hashing": {
+    "title": "Hash Tables",
+    "overview": "Hash tables achieve O(1) average-case lookup, insert, and delete by mapping keys to indices via a hash function and resolving collisions.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Hash Function</h3><p>Maps a key to a bucket index. Java's <code>hashCode()</code> method and % table-size.</p></div><div class='concept'><h3>2. Collision Resolution</h3><ul><li>Chaining — each bucket holds a linked list of entries.</li><li>Open addressing — probe for the next empty bucket.</li></ul></div><div class='concept'><h3>3. Load Factor</h3><p>When (entries / buckets) exceeds the load factor (default 0.75 in Java), the table is resized and rehashed.</p></div>",
+    "codeExamples": [
+      { "title": "Custom hashCode and equals", "code": "class Point {\n    int x, y;\n    Point(int x, int y) { this.x=x; this.y=y; }\n    @Override public int hashCode() { return 31*x + y; }\n    @Override public boolean equals(Object o) {\n        if (!(o instanceof Point)) return false;\n        Point p = (Point)o;\n        return x==p.x && y==p.y;\n    }\n}\n// Now safe to use as HashMap key\nMap<Point,String> map = new HashMap<>();\nmap.put(new Point(1,2), \"A\");\nSystem.out.println(map.get(new Point(1,2))); // A" }
+    ],
+    "keyTakeaways": [
+      "hash + equals contract: equal objects must have identical hashCodes.",
+      "Chaining (HashMap default) keeps each bucket as a list.",
+      "Load factor controls the resize threshold — lower = faster lookups, more memory.",
+      "Always override both hashCode() and equals() together."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 5", "url": "http://opendatastructures.org/ods-java/5_Hash_Tables.html" }
+    ]
+  },
+
+  "algo_sorting": {
+    "title": "Sorting Algorithms",
+    "overview": "Sorting is foundational. Comparison-based algorithms have an O(n log n) lower bound. MergeSort, QuickSort, and HeapSort all achieve this.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. MergeSort</h3><p>Divide array in half, sort each half recursively, merge. Stable, O(n log n) guaranteed, O(n) extra space.</p></div><div class='concept'><h3>2. QuickSort</h3><p>Pick a pivot, partition around it. Average O(n log n), worst O(n²) (bad pivot), in-place, not stable.</p></div><div class='concept'><h3>3. HeapSort</h3><p>Build a max-heap, then repeatedly extract max. O(n log n), in-place, not stable.</p></div>",
+    "codeExamples": [
+      { "title": "MergeSort in Java", "code": "void mergeSort(int[] arr, int l, int r) {\n    if (l >= r) return;\n    int m = (l+r)/2;\n    mergeSort(arr, l, m);\n    mergeSort(arr, m+1, r);\n    merge(arr, l, m, r);\n}\nvoid merge(int[] arr, int l, int m, int r) {\n    int[] tmp = Arrays.copyOfRange(arr, l, r+1);\n    int i=0, j=m-l+1, k=l;\n    while (i<=m-l && j<=r-l) arr[k++] = tmp[i]<=tmp[j] ? tmp[i++] : tmp[j++];\n    while (i<=m-l) arr[k++] = tmp[i++];\n    while (j<=r-l) arr[k++] = tmp[j++];\n}" }
+    ],
+    "keyTakeaways": [
+      "No comparison sort can do better than O(n log n) in the worst case.",
+      "Arrays.sort() uses DualPivotQuickSort (primitives) or TimSort (objects).",
+      "MergeSort is preferred when stability is required.",
+      "QuickSort is often fastest in practice due to cache locality."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 11", "url": "http://opendatastructures.org/ods-java/11_Sorting_Algorithms.html" }
+    ]
+  },
+
+  "algo_searching": {
+    "title": "Searching Algorithms",
+    "overview": "Searching efficiency depends on data organisation. Linear search works on unsorted data in O(n); binary search requires sorted data and runs in O(log n).",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Linear Search</h3><pre><code>int linearSearch(int[] arr, int target) {\n    for (int i=0; i&lt;arr.length; i++)\n        if (arr[i] == target) return i;\n    return -1;\n}</code></pre></div><div class='concept'><h3>2. Binary Search</h3><pre><code>int binarySearch(int[] arr, int target) {\n    int lo=0, hi=arr.length-1;\n    while (lo&lt;=hi) {\n        int mid=(lo+hi)/2;\n        if (arr[mid]==target) return mid;\n        if (arr[mid]&lt;target) lo=mid+1;\n        else hi=mid-1;\n    }\n    return -1;\n}</code></pre></div><div class='concept'><h3>3. Built-in</h3><pre><code>Arrays.binarySearch(sortedArr, key); // returns index or negative</code></pre></div>",
+    "codeExamples": [
+      { "title": "First occurrence binary search", "code": "int firstOccurrence(int[] arr, int target) {\n    int lo=0, hi=arr.length-1, result=-1;\n    while (lo<=hi) {\n        int mid=(lo+hi)/2;\n        if (arr[mid]==target) { result=mid; hi=mid-1; } // keep searching left\n        else if (arr[mid]<target) lo=mid+1;\n        else hi=mid-1;\n    }\n    return result;\n}" }
+    ],
+    "keyTakeaways": [
+      "Binary search requires sorted input and runs in O(log n).",
+      "Arrays.binarySearch returns insertion point (negative) if not found.",
+      "HashMap/HashSet give O(1) membership testing — the go-to for search.",
+      "Always prefer sorted structures + binary search over repeated linear scan."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 5", "url": "http://opendatastructures.org/ods-java/5_Hash_Tables.html" }
+    ]
+  },
+
+  "algo_complexity": {
+    "title": "Algorithm Complexity — Big O",
+    "overview": "Big O notation characterises how algorithm runtime and memory scale with input size, enabling objective comparison of algorithms.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Common Classes</h3><table><tr><td>O(1)</td><td>Constant — array index</td></tr><tr><td>O(log n)</td><td>Logarithmic — binary search</td></tr><tr><td>O(n)</td><td>Linear — single loop</td></tr><tr><td>O(n log n)</td><td>Linearithmic — MergeSort</td></tr><tr><td>O(n²)</td><td>Quadratic — nested loops</td></tr></table></div><div class='concept'><h3>2. Amortised Analysis</h3><p>ArrayList.add() is O(1) amortised — occasional O(n) resize is spread over many cheap operations.</p></div><div class='concept'><h3>3. Space Complexity</h3><p>Measure extra memory beyond input. MergeSort: O(n) extra; QuickSort in-place: O(log n) stack.</p></div>",
+    "codeExamples": [
+      { "title": "Identifying complexity from code", "code": "// O(n) — single loop\nfor (String s : list) process(s);\n\n// O(n²) — nested loops over same collection\nfor (int i=0;i<n;i++) for (int j=0;j<n;j++) check(i,j);\n\n// O(n log n) — sort then linear scan\nCollections.sort(list);\nfor (String s : list) if (s.startsWith(\"A\")) result.add(s);" }
+    ],
+    "keyTakeaways": [
+      "Big O describes asymptotic upper bound as input size → ∞.",
+      "Drop constants and lower-order terms: O(3n + 5) = O(n).",
+      "Amortised O(1) means occasionally expensive but cheap on average.",
+      "Always consider both time and space complexity when comparing solutions."
+    ],
+    "externalResources": [
+      { "title": "Open Data Structures — Chapter 1", "url": "http://opendatastructures.org/ods-java/1_Introduction.html" }
+    ]
+  },
+
+  "adv_recursion": {
+    "title": "Advanced Recursion",
+    "overview": "Advanced recursive patterns include backtracking (systematic exploration of choices), memoisation (caching subproblem solutions), and divide & conquer.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Backtracking</h3><p>Try a choice, recurse, undo if it leads to failure. Classic use: N-Queens, subsets, permutations.</p></div><div class='concept'><h3>2. Memoisation</h3><pre><code>Map&lt;Integer,Long&gt; memo = new HashMap&lt;&gt;();\nlong fib(int n) {\n    if (n&lt;=1) return n;\n    if (memo.containsKey(n)) return memo.get(n);\n    long r = fib(n-1)+fib(n-2);\n    memo.put(n,r);\n    return r;\n}</code></pre></div><div class='concept'><h3>3. Divide & Conquer</h3><p>Divide problem into independent subproblems, solve recursively, combine. MergeSort is the canonical example.</p></div>",
+    "codeExamples": [
+      { "title": "Generate all subsets (backtracking)", "code": "void subsets(int[] nums, int start, List<Integer> cur, List<List<Integer>> res) {\n    res.add(new ArrayList<>(cur));\n    for (int i=start; i<nums.length; i++) {\n        cur.add(nums[i]);\n        subsets(nums, i+1, cur, res);\n        cur.remove(cur.size()-1); // undo\n    }\n}" }
+    ],
+    "keyTakeaways": [
+      "Backtracking prunes branches early when a partial solution cannot succeed.",
+      "Memoisation converts exponential recursion to polynomial with a cache.",
+      "Top-down memoisation = recursion + cache; bottom-up = dynamic programming.",
+      "Tail recursion can be optimised to a loop by some JVMs."
+    ],
+    "externalResources": [
+      { "title": "Java Notes — Recursion", "url": "http://math.hws.edu/javanotes/c7/" }
+    ]
+  },
+
+  "adv_design": {
+    "title": "Design Considerations & Robustness",
+    "overview": "Writing correct, robust code requires deliberate design: clear preconditions, defensive checks, meaningful tests, and structured error handling.",
+    "keyConceptsHtml": "<div class='concept'><h3>1. Preconditions & Assertions</h3><pre><code>assert index >= 0 : \"Index must be non-negative\";\nObjects.requireNonNull(name, \"name cannot be null\");</code></pre></div><div class='concept'><h3>2. Defensive Programming</h3><p>Validate inputs at system boundaries. Return Optional instead of null. Make objects immutable when possible.</p></div><div class='concept'><h3>3. Unit Testing Mindset</h3><p>Write code that is easily testable: small methods, single responsibility, inject dependencies.</p></div>",
+    "codeExamples": [
+      { "title": "Returning Optional instead of null", "code": "Optional<User> findById(int id) {\n    return users.stream()\n        .filter(u -> u.id == id)\n        .findFirst();\n}\n// Caller handles absent case gracefully\nfindById(42).ifPresent(u -> System.out.println(\"Found: \" + u.name));" }
+    ],
+    "keyTakeaways": [
+      "Validate all public method inputs — fail fast with clear messages.",
+      "Prefer Optional<T> over returning null to make absent values explicit.",
+      "Assertions (assert) are for internal invariants, not user input validation.",
+      "Small, single-responsibility methods are easier to test and reason about."
+    ],
+    "externalResources": [
+      { "title": "Java Notes — Correctness & Robustness", "url": "http://math.hws.edu/javanotes/c8/" }
+    ]
+  }
+}

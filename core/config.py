@@ -39,13 +39,13 @@ DOCS_PLATFORM_DIR = os.path.join(DOCS_ROOT, "platform_guide")
 # Backward-compatible alias for call sites still expecting the unified path.
 VECTORSTORE_PATH = LEGACY_VECTORSTORE_PATH
 
-# LLM Settings (MUST MATCH NOTEBOOK!)
+# LLM Settings 
 FAISS_MODEL_NAME = "qwen3-max"
 FAISS_API_VERSION = "v1"  # ← Changed from "2024-11-04"
 FAISS_TEMPERATURE = 0.3
 FAISS_MAX_TOKENS = 400
 
-# Embedding Settings (MUST MATCH NOTEBOOK!)
+# Embedding Settings
 FAISS_EMBEDDING_MODEL = "text-embedding-3-small"
 FAISS_EMBEDDING_API_VERSION = "2024-05-01-preview"  # ← Changed from "2024-02-01"
 
