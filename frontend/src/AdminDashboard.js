@@ -132,7 +132,7 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!loading && (!isAuthenticated || !isAdmin)) navigate('/home');
+    if (!loading && (!isAuthenticated || !isAdmin)) navigate('/');
   }, [loading, isAuthenticated, isAdmin, navigate]);
 
   // Load classrooms

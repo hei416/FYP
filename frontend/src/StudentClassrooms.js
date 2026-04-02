@@ -16,7 +16,7 @@ export default function StudentClassrooms() {
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isStudent)) {
-      navigate('/home');
+      navigate('/');
     }
   }, [loading, isAuthenticated, isStudent, navigate]);
 

@@ -884,7 +884,7 @@ export default function TeacherClassroomDetail() {
   const [classroomView,    setClassroomView]    = useState(state?.initialClassroomView || 'materials');
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !isTeacher)) navigate('/home');
+    if (!authLoading && (!isAuthenticated || !isTeacher)) navigate('/');
   }, [authLoading, isAuthenticated, isTeacher, navigate]);
 
   useEffect(() => {

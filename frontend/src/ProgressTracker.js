@@ -1,12 +1,14 @@
-// Import the topic IDs from HomePage
+// Import the topic IDs from both courses
 import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from './BasicJavaPage';
+import { ENHANCED_SUBTOPIC_IDS, ENHANCED_SUBTOPIC_COUNT } from './EnhancedJavaPage';
 import {
     syncProgressToBackend,
     recordQuizAttempt,
     recordTestAttempt,
     recordPlaygroundUse,
     recordAIInteraction,
-    markTopicCompleteOnBackend
+    markTopicCompleteOnBackend,
+    ENHANCED_ROADMAP_KEY
 } from './progressService';
 
 export const QUIZ_TARGET = 12;
@@ -19,16 +21,20 @@ export class ProgressTracker {
     constructor() {
         this.storageKey = 'codetutor_learning_progress';
         this.roadmapKey = 'java-roadmap-completed';
+        this.enhancedRoadmapKey = ENHANCED_ROADMAP_KEY;
 
-        this.allTopicIds = JAVA_SUBTOPIC_IDS;
-        this.totalTopics = JAVA_SUBTOPIC_COUNT;
+        this.allTopicIds = [...JAVA_SUBTOPIC_IDS, ...ENHANCED_SUBTOPIC_IDS];
+        this.totalTopics = JAVA_SUBTOPIC_COUNT + ENHANCED_SUBTOPIC_COUNT;
 
         this.initializeProgress();
     }
 
     getRoadmapCompleted() {
-        const saved = localStorage.getItem(this.roadmapKey);
-        return saved ? JSON.parse(saved) : [];
+        const basicSaved = localStorage.getItem(this.roadmapKey);
+        const enhancedSaved = localStorage.getItem(this.enhancedRoadmapKey);
+        const basic = basicSaved ? JSON.parse(basicSaved) : [];
+        const enhanced = enhancedSaved ? JSON.parse(enhancedSaved) : [];
+        return [...basic, ...enhanced];
     }
 
     getValidCompletedTopics() {

@@ -556,7 +556,7 @@ const sy = (n) => gy(n) + 80;           // subtopic y for group n
 
 const initialNodes = [
   // Root
-  makeNode("root", 350, 5, "☕ Basic Java", {
+  makeNode("root", 350, 5, "☕ Java Learning Path", {
     width: 280,
     bold: true,
     bg: "#6366F1",

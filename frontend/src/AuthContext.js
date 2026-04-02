@@ -69,10 +69,10 @@ export const AuthProvider = ({ children }) => {
       }
       const data = await response.json();
       localStorage.setItem('authToken', data.access_token);
-      // ✅ Populate localStorage with backend progress before /home mounts
+      // ✅ Populate localStorage with backend progress before / mounts
       try { await pullProgressFromBackend(); } catch (_) {}
       // Hard reload so all state initialises fresh for the new user
-      window.location.href = '/home';
+      window.location.href = '/';
       return data;
     } catch (err) {
       setError(err.message);
@@ -98,11 +98,11 @@ export const AuthProvider = ({ children }) => {
       }
       const data = await response.json();
       localStorage.setItem('authToken', data.access_token);
-      // ✅ Populate localStorage with backend progress before /home mounts
+      // ✅ Populate localStorage with backend progress before / mounts
       try { await pullProgressFromBackend(); } catch (_) {}
       // Hard reload — ensures progress, roadmap and all component state
       // re-initialises cleanly from the backend for this user.
-      window.location.href = '/home';
+      window.location.href = '/';
       return data;
     } catch (err) {
       setError(err.message);

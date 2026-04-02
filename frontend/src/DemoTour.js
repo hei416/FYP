@@ -90,7 +90,7 @@ export class DemoTour {
             ]
         });
 
-        // STEP 2: Navigate to Roadmap (correct route: /home)
+        // STEP 2: Navigate to Roadmap (correct route: /)
         this.tour.addStep({
             id: 'roadmap-navigate',
             attachTo: { element: '[data-tour="home-link"]', on: 'right' },
@@ -103,7 +103,7 @@ export class DemoTour {
             `,
             beforeShowPromise: async () => {
                 await this.closeAI();
-                await this.navigateTo('/home');
+                await this.navigateTo('/');
                 await this.openSidebar();
             },
             buttons: [
@@ -114,7 +114,7 @@ export class DemoTour {
             ]
         });
 
-        // STEP 3: Highlight the roadmap itself (no navigation needed, already at /home)
+        // STEP 3: Highlight the roadmap itself (no navigation needed, already at /)
         this.tour.addStep({
             id: 'roadmap-overview',
             attachTo: { element: '[data-tour="roadmap-flow"]', on: 'bottom' },
@@ -314,7 +314,7 @@ public class Demo {
                 <h3 style="margin: 0 0 10px 0; color: #128C7E;">📝 Knowledge Quiz</h3>
                 <p style="margin: 0; line-height: 1.6;">Time to test what you've learned! The quiz section provides multiple-choice questions to reinforce your Java knowledge.</p>
             `,
-            beforeShowPromise: async () => { await this.navigateTo('/home'); await this.openSidebar(); },
+            beforeShowPromise: async () => { await this.navigateTo('/'); await this.openSidebar(); },
             buttons: [ { text: 'Go to Quiz →', action: async () => { await this.closeSidebar(); await this.navigateTo('/quiz'); this.tour.next(); } } ]
         });
 
@@ -346,7 +346,7 @@ public class Demo {
                 <h3 style="margin: 0 0 10px 0; color: #128C7E;">🎯 Practical Tests</h3>
                 <p style="margin: 0; line-height: 1.6;">Ready for a real challenge? Practical tests require you to write complete Java programs to solve specific problems.</p>
             `,
-            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); await this.openSidebar(); },
+            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/'); await this.openSidebar(); },
             buttons: [ { text: 'Go to Tests →', action: async () => { await this.closeSidebar(); await this.navigateTo('/practical-test'); this.tour.next(); } } ]
         });
 
@@ -387,7 +387,7 @@ public class Demo {
         <li>🕘 <strong>Chat history</strong> — all your conversations are saved so you can review them later</li>
     </ul>
 `,
-            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); await this.closeSidebar(); },
+            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/'); await this.closeSidebar(); },
             buttons: [
                 { text: 'Back', action: () => this.tour.back(), secondary: true },
                 {
@@ -417,7 +417,7 @@ public class Demo {
         <li>🎯 <strong>Goal: 100%</strong> — complete all 65 subtopics to fully master the Java curriculum</li>
     </ul>
 `,
-            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/home'); },
+            beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/'); },
             buttons: [ { text: 'Back', action: () => this.tour.back(), secondary: true }, { text: 'Next: Complete →', action: () => this.tour.next() } ]
         });
 
@@ -439,7 +439,7 @@ public class Demo {
             `,
             beforeShowPromise: async () => {
                 await this.closeAI();
-                await this.navigateTo('/home');
+                await this.navigateTo('/');
                 await this.openSidebar();
             },
             buttons: [
@@ -472,7 +472,7 @@ public class Demo {
     `,
             beforeShowPromise: async () => {
                 await this.closeAI();
-                await this.navigateTo('/home');
+                await this.navigateTo('/');
                 await this.openSidebar();
             },
             buttons: [

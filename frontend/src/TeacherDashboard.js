@@ -461,7 +461,7 @@ export default function TeacherDashboard() {
   const [expandedCategory,           setExpandedCategory]           = useState(null);
 
   useEffect(() => {
-    if (!loading && (!isAuthenticated || !isTeacher)) navigate('/home');
+    if (!loading && (!isAuthenticated || !isTeacher)) navigate('/');
   }, [loading, isAuthenticated, isTeacher, navigate]);
 
   useEffect(() => { if (isTeacher) loadClasses(); }, [isTeacher]);
