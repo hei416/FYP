@@ -3,7 +3,8 @@ import os
 # ============================================
 API_KEY = os.environ.get("API_KEY")
 if not API_KEY:
-	raise ValueError("API_KEY environment variable is not set. Please set it in your .env or environment.")
+    import sys
+    print("⚠️ WARNING: API_KEY environment variable is not set — AI endpoints will fail at request time.", file=sys.stderr)
 PAIZA_API_KEY = os.environ.get("PAIZA_API_KEY", "guest")
 BASE_URL = "https://genai.hkbu.edu.hk/api/v0/rest"
 

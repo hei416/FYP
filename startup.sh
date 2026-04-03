@@ -49,6 +49,9 @@ if [ -z "$SECRET_KEY" ]; then
     echo "❌ FATAL: SECRET_KEY environment variable is not set — auth routes will be misconfigured."
     STARTUP_ERROR=1
 fi
+if [ -z "$API_KEY" ]; then
+    echo "⚠️ WARNING: API_KEY environment variable is not set — AI/RAG endpoints will fail at request time."
+fi
 if [ "${DATABASE_URL%%:*}" = "sqlite" ]; then
     echo "⚠️ WARNING: Using SQLite fallback — set DATABASE_URL to a Postgres URL for production."
 fi
