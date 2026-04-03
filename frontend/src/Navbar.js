@@ -45,6 +45,12 @@ export default function Navbar({ toggleChat }) {
 
     const roleIcon = isAdmin ? '🛡️' : isTeacher ? '🏫' : '👤';
 
+    const handleGreetingClick = () => {
+        if (isAdmin) navigate('/admin');
+        else if (isTeacher) navigate('/teacher-dashboard');
+        else navigate('/my-classrooms');
+    };
+
     return (
         <>
             <nav
@@ -87,12 +93,27 @@ export default function Navbar({ toggleChat }) {
 
                     {isAuthenticated ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: '8px',
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                padding: '6px 14px', borderRadius: '20px',
-                                border: `1px solid rgba(255, 255, 255, 0.2)`
-                            }}>
+                            <div
+                                onClick={handleGreetingClick}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    padding: '6px 14px', borderRadius: '20px',
+                                    border: `1px solid rgba(255, 255, 255, 0.2)`,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                            >
                                 <div style={{
                                     width: '28px', height: '28px',
                                     borderRadius: '50%',
@@ -123,9 +144,9 @@ export default function Navbar({ toggleChat }) {
                     ) : (
                         <button
                             onClick={() => navigate('/login')}
-                            style={{ padding: '6px 18px', background: 'transparent', border: `1px solid ${colors.primary}`, borderRadius: radii.sm, color: colors.primary, fontSize: font.sizeSm, fontWeight: font.weightMedium, cursor: 'pointer', transition }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = '#fff'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = colors.primary; }}
+                            style={{ padding: '6px 18px', background: colors.primary, border: `1px solid ${colors.primary}`, borderRadius: radii.sm, color: '#fff', fontSize: font.sizeSm, fontWeight: font.weightMedium, cursor: 'pointer', transition, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                         >Login / Register</button>
                     )}
                 </div>
