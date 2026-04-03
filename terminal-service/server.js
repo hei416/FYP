@@ -55,6 +55,12 @@ wss.on('connection', (ws) => {
     if (data.type === 'run') {
       const className = data.className || 'Main';
       const filename = data.filename || `${className}.java`;
+      // Derive the actual entry class from the filename (e.g. C.java -> C).
+      // javac names .class files after the declared class, and the filename is
+      // authoritative when the class is non-public (no public class to mandate
+      // the filename). This avoids the mismatch where the frontend sends
+      // className='Main' for code that has no public class.
+      const entryClass = path.basename(filename, '.java');
       const filePath = path.join(tmpDir, filename);
 
       try { fs.writeFileSync(filePath, data.code); } catch (e) {
@@ -74,7 +80,7 @@ wss.on('connection', (ws) => {
           return;
         }
 
-        const classFile = path.join(tmpDir, `${className}.class`);
+        const classFile = path.join(tmpDir, `${entryClass}.class`);
         if (!(await waitForFile(classFile))) {
           ws.send(JSON.stringify({ type: 'output', data: '\r\n\x1b[31mCompilation produced no .class file\x1b[0m' }));
           ws.send(JSON.stringify({ type: 'exit', code: 1 }));
@@ -82,7 +88,7 @@ wss.on('connection', (ws) => {
         }
 
         try {
-          javaProc = spawn(JAVA_PATH, ['-cp', '.', className], {
+          javaProc = spawn(JAVA_PATH, ['-cp', '.', entryClass], {
             cwd: tmpDir,
             env: spawnEnv,
             stdio: ['pipe', 'pipe', 'pipe'],

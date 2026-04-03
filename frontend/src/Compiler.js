@@ -105,8 +105,20 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     }, []);
 
     const extractClassName = (code) => {
-        const match = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
-        return match ? match[1] : 'Main';
+        // Prefer public class (must match filename in Java)
+        const publicMatch = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
+        if (publicMatch) return publicMatch[1];
+        // Fall back to the class that contains main() — mirrors backend extract_class_name()
+        const mainPos = code.indexOf('public static void main');
+        if (mainPos !== -1) {
+            const beforeMain = code.substring(0, mainPos);
+            const classMatches = [...beforeMain.matchAll(/\bclass\s+([a-zA-Z0-9_]+)/g)];
+            if (classMatches.length > 0) return classMatches[classMatches.length - 1][1];
+        }
+        // Fall back to first class found
+        const firstClass = code.match(/\bclass\s+([a-zA-Z0-9_]+)/);
+        if (firstClass) return firstClass[1];
+        return 'Main';
     };
 
     const activeFile = files.find((file) => file.id === activeFileId);
