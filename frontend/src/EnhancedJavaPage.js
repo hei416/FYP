@@ -319,7 +319,7 @@ export default function EnhancedJavaPage() {
                   (testAttempted === 0 ? `💡 You haven't attempted any practical tests yet!\n` : '') +
                   `\nGo to Quizzes now?`
                 );
-                if (go) window.location.href = '/quiz';
+                if (go) window.location.href = '/exercises';
               }, 300);
             }
           }

@@ -27,6 +27,7 @@ class Classroom(Base):
     class_code = Column(String(20), unique=True, nullable=False, index=True)  # e.g. JAVA101A
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     enrolled_courses = Column(JSON, default=lambda: ["basic"])  # list of course IDs: "basic", "enhanced"
+    is_public = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

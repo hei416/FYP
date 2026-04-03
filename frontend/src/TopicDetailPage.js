@@ -461,7 +461,7 @@ export default function TopicDetailPage() {
                             <button
                                 onClick={() => {
                                     setShowMilestoneModal(false);
-                                    navigate('/quiz', { state: { preSelectedTopics: milestoneTopics } });
+                                    navigate('/exercises', { state: { preSelectedTopics: milestoneTopics } });
                                 }}
                                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
                             >
@@ -473,7 +473,7 @@ export default function TopicDetailPage() {
                             <button
                                 onClick={() => {
                                     setShowMilestoneModal(false);
-                                    navigate('/practical-test');
+                                    navigate('/coding-challenges');
                                 }}
                                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
                             >

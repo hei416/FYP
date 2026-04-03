@@ -41,6 +41,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
     const debounceRef = useRef(null);
+    const filenameDebounceRef = useRef(null);
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const [errorExplanations, setErrorExplanations] = useState({}); // { idx: "explanation text" }
@@ -92,7 +93,10 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     }, []);
 
     useEffect(() => {
-        return () => clearTimeout(debounceRef.current);
+        return () => {
+            clearTimeout(debounceRef.current);
+            clearTimeout(filenameDebounceRef.current);
+        };
     }, []);
 
     const extractClassName = (code) => {
@@ -217,7 +221,11 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         ));
     };
 
-    const handleFileNameChange = (e, fileId) => updateFileName(fileId, e.target.value);
+    const handleFileNameChange = (e, fileId) => {
+        updateFileName(fileId, e.target.value);
+        clearTimeout(filenameDebounceRef.current);
+        filenameDebounceRef.current = setTimeout(() => checkSyntax(), 1000);
+    };
     const handleFileNameBlur = () => setEditingFileId(null);
     const handleFileNameKeyDown = (e) => { if (e.key === 'Enter') setEditingFileId(null); };
 

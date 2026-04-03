@@ -385,7 +385,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
         const savedId = saveCurrentSession(history);
         if (savedId) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: savedId }));
         setShowChat(false);
-        navigate('/history');
+        navigate('/chat-history');
     };
 
     const fetchChunkContext = async (sourceFile, chunkContent) => {

@@ -234,14 +234,14 @@ export default function ProgressDisplay() {
                     e.currentTarget.style.boxShadow = shadows.sm;
                 }}
             >
-                <div style={{ position: 'relative', width: '40px', height: '40px' }}>
-                    <svg width="40" height="40" style={{ transform: 'rotate(-90deg)' }}>
-                        <circle cx="20" cy="20" r="16" fill="none" stroke={colors.primaryBorder} strokeWidth="4" />
+                <div style={{ position: 'relative', width: '44px', height: '44px' }}>
+                    <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
+                        <circle cx="22" cy="22" r="18" fill="none" stroke={colors.primaryBorder} strokeWidth="4" />
                         <circle
-                            cx="20" cy="20" r="16" fill="none"
+                            cx="22" cy="22" r="18" fill="none"
                             stroke={colors.primary} strokeWidth="4"
-                            strokeDasharray={`${2 * Math.PI * 16}`}
-                            strokeDashoffset={`${2 * Math.PI * 16 * (1 - percentage / 100)}`}
+                            strokeDasharray={`${2 * Math.PI * 18}`}
+                            strokeDashoffset={`${2 * Math.PI * 18 * (1 - percentage / 100)}`}
                             strokeLinecap="round"
                             style={{ transition: 'stroke-dashoffset 0.5s ease' }}
                         />
@@ -249,13 +249,13 @@ export default function ProgressDisplay() {
                     <div style={{
                         position: 'absolute', top: '50%', left: '50%',
                         transform: 'translate(-50%, -50%)',
-                        fontSize: '10px', fontWeight: font.weightBold, color: colors.primary
+                        fontSize: '12px', fontWeight: font.weightBold, color: colors.primary
                     }}>
                         {percentage}%
                     </div>
                 </div>
                 <div>
-                    <div style={{ fontSize: font.sizeXs, fontWeight: font.weightMedium, color: colors.textSecondary, lineHeight: '1.2' }}>
+                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightMedium, color: colors.textSecondary, lineHeight: '1.2' }}>
                         Progress
                     </div>
                     <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.primary, lineHeight: '1.2' }}>

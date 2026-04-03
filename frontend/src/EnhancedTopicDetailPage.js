@@ -413,13 +413,13 @@ export default function EnhancedTopicDetailPage() {
                         <p className="text-gray-600 mb-6 text-sm">Now's a great time to test your understanding!</p>
                         <div className="flex flex-col gap-3">
                             <button
-                                onClick={() => { setShowMilestoneModal(false); navigate('/quiz', { state: { preSelectedTopics: milestoneTopics } }); }}
+                                onClick={() => { setShowMilestoneModal(false); navigate('/exercises', { state: { preSelectedTopics: milestoneTopics } }); }}
                                 className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
                             >
                                 Take Quiz
                             </button>
                             <button
-                                onClick={() => { setShowMilestoneModal(false); navigate('/practical-test'); }}
+                                onClick={() => { setShowMilestoneModal(false); navigate('/coding-challenges'); }}
                                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
                             >
                                 Take Practical Test

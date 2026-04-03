@@ -28,8 +28,25 @@ async def _wait_for_completion(client: httpx.AsyncClient, session_id: str, api_k
 
 
 def extract_class_name(code: str) -> str:
+    # Prefer public class
     match = re.search(r'public\s+class\s+([a-zA-Z0-9_]+)', code)
-    return match.group(1) if match else 'Main'
+    if match:
+        return match.group(1)
+    # Fall back: find the class that contains the main method
+    main_pos = code.find('public static void main')
+    if main_pos != -1:
+        classes = list(re.finditer(r'\bclass\s+([a-zA-Z0-9_]+)', code))
+        last_before_main = None
+        for m in classes:
+            if m.start() < main_pos:
+                last_before_main = m
+        if last_before_main:
+            return last_before_main.group(1)
+    # Fall back: first class found
+    match = re.search(r'\bclass\s+([a-zA-Z0-9_]+)', code)
+    if match:
+        return match.group(1)
+    return 'Main'
 
 
 def validate_filename_class(filename: str, source: str):
@@ -54,21 +71,29 @@ def _build_source_from_files(files: List[Dict]) -> str:
 
 
 def normalize_public_class(source: str, target_name: str = "Main") -> str:
-    """Return a version of `source` where the public class declaration and
+    """Return a version of `source` where the entry-point class declaration and
     identifier occurrences are renamed to `target_name` so that compilers
     that expect the file to be named Main.java (e.g. Paiza) can compile it.
-    This is a best-effort textual transformation using word boundaries.
+    Handles both `public class X` and non-public `class X` declarations.
     """
-    class_name = extract_class_name(source)
-    if not class_name or class_name == target_name:
+    # Nothing to do if public class Main already exists
+    if re.search(r'\bpublic\s+class\s+' + re.escape(target_name) + r'\b', source):
         return source
 
-    # Replace the public class declaration (only the first occurrence)
-    source = re.sub(r"\bpublic\s+class\s+" + re.escape(class_name),
-                    f"public class {target_name}", source, count=1)
+    class_name = extract_class_name(source)
 
-    # Replace other identifier occurrences using word boundaries
-    source = re.sub(r"\b" + re.escape(class_name) + r"\b", target_name, source)
+    # Replace 'public class X' or plain 'class X' → 'public class Main'
+    new_source = re.sub(r"\bpublic\s+class\s+" + re.escape(class_name),
+                        f"public class {target_name}", source, count=1)
+    if new_source == source:
+        # Non-public class — add public modifier
+        new_source = re.sub(r"\bclass\s+" + re.escape(class_name) + r"\b",
+                            f"public class {target_name}", source, count=1)
+    source = new_source
+
+    # Rename remaining references to the old class name
+    if class_name != target_name:
+        source = re.sub(r"\b" + re.escape(class_name) + r"\b", target_name, source)
     return source
 
 

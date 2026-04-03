@@ -349,7 +349,7 @@ export const codeOutput = {
 
 // ── Navbar reference values ─────────────────────────────────
 export const navbar = {
-  height: 64,
+  height: 80,
   bg: colors.surface,
   borderColor: colors.border,
   shadow: '0 1px 4px rgba(0,0,0,0.06)',

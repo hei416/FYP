@@ -21,10 +21,10 @@ const QuizReminderModal = ({ show, chapterCount, onClose, onDismiss }) => {
           for this milestone to check your understanding.
         </p>
         <div style={styles.buttonRow}>
-          <button style={styles.quizBtn} onClick={() => { onClose(); navigate('/quiz'); }}>
+          <button style={styles.quizBtn} onClick={() => { onClose(); navigate('/exercises'); }}>
             Go to Quiz
           </button>
-          <button style={styles.testBtn} onClick={() => { onClose(); navigate('/practical-test'); }}>
+          <button style={styles.testBtn} onClick={() => { onClose(); navigate('/coding-challenges'); }}>
             Go to Practical Test
           </button>
         </div>

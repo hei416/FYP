@@ -11,7 +11,7 @@ import httpx
 
 from database import get_db
 from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, MaterialRead
-from routers.auth import get_current_user, require_role
+from routers.auth import get_current_user, require_role, get_optional_user
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
     search_classroom_context, get_chunks_for_files,
@@ -64,7 +64,9 @@ class ClassroomResponse(BaseModel):
     class_code: str
     teacher_id: int
     enrolled_courses: Optional[List[str]] = None
+    is_public: bool = False
     created_at: datetime
+    member_count: int = 0
 
     class Config:
         from_attributes = True
@@ -74,6 +76,7 @@ class ClassroomUpdate(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     description: Optional[str] = None
+    is_public: Optional[bool] = None
 
 
 class JoinClassroomRequest(BaseModel):
@@ -170,7 +173,6 @@ class ClassroomCourseProgressAnalytics(BaseModel):
 class ClassroomCourseSummaryItem(BaseModel):
     classroom_id: int
     classroom_name: str
-    category: Optional[str] = None
     total_students: int
     class_summary: CourseClassSummary
 
@@ -492,9 +494,106 @@ async def update_classroom(
         classroom.category = stripped[:100]
     if data.description is not None:
         classroom.description = data.description.strip() or None
+    if data.is_public is not None:
+        classroom.is_public = data.is_public
     db.commit()
     db.refresh(classroom)
     return classroom
+
+
+# ---------------------------------------------------------------------------
+# Student-facing classroom endpoints (literal paths before dynamic ones)
+# ---------------------------------------------------------------------------
+
+@router.get("/public", response_model=List[ClassroomResponse])
+async def list_public_classrooms(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    """Return all public classrooms. Excludes already-joined ones for authenticated users."""
+    member_count_sq = (
+        db.query(func.count(ClassroomMember.id))
+        .filter(ClassroomMember.classroom_id == Classroom.id)
+        .correlate(Classroom)
+        .scalar_subquery()
+    )
+    query = db.query(Classroom, member_count_sq.label("member_count")).filter(Classroom.is_public == True)  # noqa: E712
+    if current_user:
+        joined_ids = (
+            db.query(ClassroomMember.classroom_id)
+            .filter(ClassroomMember.student_id == current_user.id)
+        )
+        query = query.filter(Classroom.id.notin_(joined_ids))
+    rows = query.order_by(Classroom.created_at.desc()).all()
+    result = []
+    for cls, count in rows:
+        d = ClassroomResponse.model_validate(cls)
+        d.member_count = count or 0
+        result.append(d)
+    return result
+
+
+@router.post("/join", status_code=status.HTTP_200_OK)
+async def join_classroom(
+    data: JoinClassroomRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("student"))
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.class_code == data.class_code.upper().strip()
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Invalid class code")
+
+    already_member = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom.id,
+        ClassroomMember.student_id == current_user.id
+    ).first()
+    if already_member:
+        raise HTTPException(status_code=409, detail="You are already in this classroom")
+
+    membership = ClassroomMember(
+        classroom_id=classroom.id,
+        student_id=current_user.id
+    )
+    db.add(membership)
+    db.commit()
+    return {"status": "joined", "classroom_id": classroom.id, "classroom_name": classroom.name}
+
+
+@router.get("/enrolled", response_model=List[ClassroomResponse])
+async def list_enrolled_classrooms(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List classrooms for the current user: 
+    - Students: classrooms they're enrolled in
+    - Teachers: classrooms they teach
+    - Admins: all classrooms
+    """
+    print(f"📚 [CLASSROOM] Fetching enrolled classrooms for user {current_user.id} (role={current_user.role})")
+    if current_user.role == "admin":
+        classrooms = db.query(Classroom).all()
+        print(f"   → Admin: returning all {len(classrooms)} classrooms")
+        return classrooms
+    elif current_user.role == "teacher":
+        classrooms = db.query(Classroom).filter(Classroom.teacher_id == current_user.id).all()
+        print(f"   → Teacher: returning {len(classrooms)} classrooms they teach")
+        return classrooms
+    else:  # student
+        memberships = (
+            db.query(ClassroomMember)
+            .filter(ClassroomMember.student_id == current_user.id)
+            .all()
+        )
+        classroom_ids = [m.classroom_id for m in memberships]
+        print(f"   → Student: enrolled in classrooms: {classroom_ids}")
+        if not classroom_ids:
+            print(f"   → No classrooms found")
+            return []
+        classrooms = db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
+        print(f"   → Returning {len(classrooms)} classrooms")
+        return classrooms
 
 
 @router.get("/{classroom_id}/analytics", response_model=ClassroomAnalytics)
@@ -639,26 +738,10 @@ async def get_classroom_analytics(
 
 @router.get("/official-aggregate/course-progress", response_model=ClassroomCourseProgressAnalytics)
 async def get_official_aggregate_course_progress(
-    course_id: str = Query(default="basic"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
     """Aggregate course-progress across all Official Lessons classrooms owned by this teacher."""
-    if course_id not in VALID_COURSES:
-        course_id = "basic"
-    if course_id == "enhanced":
-        valid_subtopics = _VALID_ENHANCED_SUBTOPIC_IDS
-        num_main = NUM_ENHANCED_MAIN_TOPICS
-        total_acts = TOTAL_ENHANCED_ACTIVITIES
-        course_label = "Enhanced Java"
-        subtopic_map = ENHANCED_SUBTOPIC_TO_MAIN_TOPIC
-    else:
-        valid_subtopics = _VALID_SUBTOPIC_IDS
-        num_main = NUM_MAIN_TOPICS
-        total_acts = TOTAL_ACTIVITIES
-        course_label = "Basic Java"
-        subtopic_map = SUBTOPIC_TO_MAIN_TOPIC
-
     official_classrooms = (
         db.query(Classroom)
         .filter(
@@ -671,7 +754,7 @@ async def get_official_aggregate_course_progress(
     if not official_classrooms:
         return ClassroomCourseProgressAnalytics(
             classroom_id=None,
-            classroom_name=course_label,
+            classroom_name="Basic Java",
             total_students=0,
             class_summary=CourseClassSummary(
                 avg_completion_percentage=None, avg_quiz_score=None, avg_test_score=None,
@@ -705,7 +788,7 @@ async def get_official_aggregate_course_progress(
     weak_topic_freq: Dict[str, int] = {}
 
     for _, student in unique_members:
-        progress = db.query(UserProgress).filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id).first()
+        progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
         works = (
             db.query(SavedWork)
             .filter(SavedWork.user_id == student.id)
@@ -725,23 +808,23 @@ async def get_official_aggregate_course_progress(
         topic_stats = _build_course_topic_stats(works)
         weak_topics = [t.topic for t in topic_stats if t.is_weak]
 
-        subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
+        subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
         passed_quiz_main = {
-            subtopic_map.get(t, t)
+            to_main_topic(t)
             for w in quiz_works
             if (_score_of(w.result_data) or 0) >= 70
             for t in _topics_of(w)
         }
         passed_test_main = {
-            subtopic_map.get(t, t)
+            to_main_topic(t)
             for w in test_works
             if (_score_of(w.result_data) or 0) >= 60
             for t in _topics_of(w)
         }
         completed_topics_count = subtopics_read
         completion_percentage = round(
-            (subtopics_read + min(len(passed_quiz_main), num_main) + min(len(passed_test_main), num_main)) / total_acts * 100, 1
-        ) if total_acts > 0 else 0.0
+            (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
+        )
 
         sp = StudentCourseProgress(
             student_id=student.id,
@@ -780,7 +863,7 @@ async def get_official_aggregate_course_progress(
     )
     return ClassroomCourseProgressAnalytics(
         classroom_id=None,
-        classroom_name=course_label,
+        classroom_name="Basic Java",
         total_students=len(students),
         class_summary=class_summary,
         students=students,
@@ -789,23 +872,10 @@ async def get_official_aggregate_course_progress(
 
 @router.get("/official-aggregate/by-classroom", response_model=List[ClassroomCourseSummaryItem])
 async def get_official_aggregate_by_classroom(
-    course_id: str = Query(default="basic"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
     """Return a lightweight per-classroom summary for all official classrooms owned by this teacher."""
-    if course_id not in VALID_COURSES:
-        course_id = "basic"
-    if course_id == "enhanced":
-        valid_subtopics = _VALID_ENHANCED_SUBTOPIC_IDS
-        num_main = NUM_ENHANCED_MAIN_TOPICS
-        total_acts = TOTAL_ENHANCED_ACTIVITIES
-        subtopic_map = ENHANCED_SUBTOPIC_TO_MAIN_TOPIC
-    else:
-        valid_subtopics = _VALID_SUBTOPIC_IDS
-        num_main = NUM_MAIN_TOPICS
-        total_acts = TOTAL_ACTIVITIES
-        subtopic_map = SUBTOPIC_TO_MAIN_TOPIC
     official_classrooms = (
         db.query(Classroom)
         .filter(
@@ -835,7 +905,7 @@ async def get_official_aggregate_by_classroom(
         weak_topic_freq: Dict[str, int] = {}
 
         for _, student in members:
-            progress = db.query(UserProgress).filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id).first()
+            progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
             works = (
                 db.query(SavedWork)
                 .filter(SavedWork.user_id == student.id)
@@ -853,22 +923,22 @@ async def get_official_aggregate_by_classroom(
             topic_stats = _build_course_topic_stats(works)
             weak_topics = [t.topic for t in topic_stats if t.is_weak]
 
-            subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
+            subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
             passed_quiz_main = {
-                subtopic_map.get(t, t)
+                to_main_topic(t)
                 for w in quiz_works
                 if (_score_of(w.result_data) or 0) >= 70
                 for t in _topics_of(w)
             }
             passed_test_main = {
-                subtopic_map.get(t, t)
+                to_main_topic(t)
                 for w in test_works
                 if (_score_of(w.result_data) or 0) >= 60
                 for t in _topics_of(w)
             }
             completion_percentage = round(
-                (subtopics_read + min(len(passed_quiz_main), num_main) + min(len(passed_test_main), num_main)) / total_acts * 100, 1
-            ) if total_acts > 0 else 0.0
+                (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
+            )
 
             all_completion.append(completion_percentage)
             all_quiz_scores.extend(quiz_scores)
@@ -891,7 +961,6 @@ async def get_official_aggregate_by_classroom(
         result.append(ClassroomCourseSummaryItem(
             classroom_id=classroom.id,
             classroom_name=classroom.name,
-            category=classroom.category,
             total_students=len(members),
             class_summary=class_summary,
         ))
@@ -1144,6 +1213,34 @@ async def get_student_work_for_teacher(
 # ---------------------------------------------------------------------------
 # Student endpoints
 # ---------------------------------------------------------------------------
+
+@router.get("/public", response_model=List[ClassroomResponse])
+async def list_public_classrooms(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    """Return all public classrooms. Excludes already-joined ones for authenticated users."""
+    member_count_sq = (
+        db.query(func.count(ClassroomMember.id))
+        .filter(ClassroomMember.classroom_id == Classroom.id)
+        .correlate(Classroom)
+        .scalar_subquery()
+    )
+    query = db.query(Classroom, member_count_sq.label("member_count")).filter(Classroom.is_public == True)  # noqa: E712
+    if current_user:
+        joined_ids = (
+            db.query(ClassroomMember.classroom_id)
+            .filter(ClassroomMember.student_id == current_user.id)
+        )
+        query = query.filter(Classroom.id.notin_(joined_ids))
+    rows = query.order_by(Classroom.created_at.desc()).all()
+    result = []
+    for cls, count in rows:
+        d = ClassroomResponse.model_validate(cls)
+        d.member_count = count or 0
+        result.append(d)
+    return result
+
 
 @router.post("/join", status_code=status.HTTP_200_OK)
 async def join_classroom(

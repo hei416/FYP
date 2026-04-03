@@ -54,6 +54,27 @@ export async function updateClassroomCategory(classroomId, category) {
   return res.json();
 }
 
+export async function toggleClassroomPublic(classroomId, is_public) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ is_public }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to update visibility');
+  }
+  return res.json();
+}
+
+export async function getPublicClassrooms() {
+  const token = localStorage.getItem('authToken');
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API_BASE}/classrooms/public`, { headers });
+  if (!res.ok) throw new Error('Failed to load public classrooms');
+  return res.json();
+}
+
 export async function getClassroomAnalytics(classroomId) {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/analytics`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load analytics');
@@ -76,14 +97,14 @@ export async function getClassroomStudentWork(classroomId, studentId, workType =
   return res.json();
 }
 
-export async function getOfficialAggregateCourseProgress(courseId = 'basic') {
-  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress?course_id=${encodeURIComponent(courseId)}`, { headers: authHeaders() });
+export async function getOfficialAggregateCourseProgress() {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load aggregate course progress');
   return res.json();
 }
 
-export async function getOfficialClassroomList(courseId = 'basic') {
-  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/by-classroom?course_id=${encodeURIComponent(courseId)}`, { headers: authHeaders() });
+export async function getOfficialClassroomList() {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/by-classroom`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load classroom list');
   return res.json();
 }

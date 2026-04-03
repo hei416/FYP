@@ -13,6 +13,7 @@ export default function StudentClassrooms() {
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [joinSuccess, setJoinSuccess] = useState('');
+  const [classSearch, setClassSearch] = useState('');
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isStudent)) {
@@ -83,8 +84,19 @@ export default function StudentClassrooms() {
       </div>
 
       {/* Enrolled classrooms */}
-      <h3 style={{ fontSize: font.sizeLg, color: colors.text, marginBottom: 16 }}>Enrolled Classrooms ({classes.length})</h3>
-      {classes.length === 0 ? (
+      <h3 style={{ fontSize: font.sizeLg, color: colors.text, marginBottom: 12 }}>Enrolled Classrooms ({classes.length})</h3>
+      <input
+        value={classSearch}
+        onChange={e => setClassSearch(e.target.value)}
+        placeholder="Search classrooms..."
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '9px 14px', marginBottom: 16,
+          border: `1px solid ${colors.border}`, borderRadius: radii.sm,
+          fontSize: font.sizeMd, outline: 'none',
+        }}
+      />
+      {classes.filter(c => (c.name + ' ' + (c.description || '')).toLowerCase().includes(classSearch.toLowerCase())).length === 0 ? (
         <div style={{ ...card, padding: 32, textAlign: 'center', color: colors.textMuted }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
           <p>You haven't joined any classrooms yet.</p>
@@ -92,7 +104,7 @@ export default function StudentClassrooms() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {classes.map((cls) => (
+          {classes.filter(c => (c.name + ' ' + (c.description || '')).toLowerCase().includes(classSearch.toLowerCase())).map((cls) => (
             <div 
               key={cls.id} 
               onClick={() => navigate(`/classrooms/${cls.id}`)}

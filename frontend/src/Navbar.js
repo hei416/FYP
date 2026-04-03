@@ -25,10 +25,10 @@ export default function Navbar({ toggleChat }) {
     const baseLinks = [
         { to: '/',               icon: '📚', label: 'Courses',           'data-tour': 'courses-link' },
         { to: '/playground',     icon: '💻', label: 'Playground',        'data-tour': 'playground-link' },
-        { to: '/quiz',           icon: '📝', label: 'Exercises',         'data-tour': 'quiz-link' },
-        { to: '/practical-test', icon: '🎯', label: 'Coding Challenges', 'data-tour': 'test-link' },
-        { to: '/my-work',        icon: '📁', label: 'My Work',           'data-tour': 'my-work-link' },
-        { to: '/history',        icon: '🕘', label: 'Chat History',      'data-tour': 'history-link' },
+        { to: '/exercises',         icon: '📝', label: 'Exercises',         'data-tour': 'quiz-link' },
+        { to: '/coding-challenges', icon: '🎯', label: 'Coding Challenges', 'data-tour': 'test-link' },
+        { to: '/my-work',           icon: '📁', label: 'My Work',           'data-tour': 'my-work-link' },
+        { to: '/chat-history',      icon: '🕘', label: 'Chat History',      'data-tour': 'history-link' },
     ];
 
     const roleLinks = isAdmin
@@ -86,10 +86,33 @@ export default function Navbar({ toggleChat }) {
                     </button>
 
                     {isAuthenticated ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: font.sizeSm, color: colors.textSecondary, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {roleIcon} {user?.email}
-                            </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                background: `${colors.primary}15`,
+                                padding: '6px 14px', borderRadius: '20px',
+                                border: `1px solid ${colors.primary}30`
+                            }}>
+                                <div style={{
+                                    width: '28px', height: '28px',
+                                    borderRadius: '50%',
+                                    background: colors.primary,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: '#fff',
+                                    fontSize: font.sizeSm,
+                                    fontWeight: font.weightBold
+                                }}>
+                                    {(user?.full_name || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
+                                    <span style={{ fontSize: '11px', color: colors.textSecondary, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                                        Welcome Back
+                                    </span>
+                                    <span style={{ fontSize: font.sizeSm, color: colors.primary, fontWeight: font.weightMedium, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {user?.full_name || 'User'}
+                                    </span>
+                                </div>
+                            </div>
                             <button
                                 onClick={() => { logout(); navigate('/'); }}
                                 style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, color: colors.textSecondary, fontSize: font.sizeSm, cursor: 'pointer', transition }}

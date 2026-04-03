@@ -80,7 +80,7 @@ export class DemoTour {
                         Just sit back and watch, or click through at your own pace!
                     </p>
                     <p style="margin: 15px 0 0 0; font-size: 14px; color: #9ca3af;">
-                        <strong>Duration:</strong> ~3 minutes | <strong>Steps:</strong> 15
+                        <strong>Duration:</strong> ~3 minutes | <strong>Steps:</strong> 17
                     </p>
                 </div>
             `,
@@ -90,15 +90,16 @@ export class DemoTour {
             ]
         });
 
-        // STEP 2: Navigate to Roadmap (correct route: /)
+        // STEP 2: Navigate to Courses (home page is now CourseCatalogPage)
         this.tour.addStep({
             id: 'roadmap-navigate',
-            attachTo: { element: '[data-tour="home-link"]', on: 'right' },
+            attachTo: { element: '[data-tour="courses-link"]', on: 'right' },
             text: `
-                <h3 style="margin: 0 0 10px 0; color: #128C7E;">🗺️ Java Learning Roadmap</h3>
+                <h3 style="margin: 0 0 10px 0; color: #128C7E;">📚 Java Learning Courses</h3>
                 <p style="margin: 0; line-height: 1.6;">
-                    Your structured learning path with <strong>12 topics</strong> and 
-                    <strong>48 subtopics</strong>! Each node you click opens its learning content.
+                    Your home base — choose between <strong>Basic Java</strong> (52 subtopics)
+                    and <strong>Enhanced Java</strong> (26 subtopics). Each course has its own
+                    visual roadmap you navigate topic by topic.
                 </p>
             `,
             beforeShowPromise: async () => {
@@ -114,7 +115,7 @@ export class DemoTour {
             ]
         });
 
-        // STEP 3: Highlight the roadmap itself (no navigation needed, already at /)
+        // STEP 3: Highlight the roadmap itself (navigate to /basic-java)
         this.tour.addStep({
             id: 'roadmap-overview',
             attachTo: { element: '[data-tour="roadmap-flow"]', on: 'bottom' },
@@ -125,12 +126,16 @@ export class DemoTour {
     </p>
     <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
         <li>🗂️ <strong>12 Topic Groups</strong> — from Java Syntax basics all the way to Recursion and OOP</li>
-        <li>🔗 <strong>48 Subtopics</strong> — each is a focused lesson with its own content page</li>
+        <li>🔗 <strong>52 Subtopics</strong> — each is a focused lesson with its own content page</li>
         <li>👆 <strong>Click any node</strong> to open that subtopic's full learning page instantly</li>
         <li>✅ <strong>Green nodes</strong> = completed | 🟡 <strong>Amber nodes</strong> = prerequisites not yet done</li>
-        <li>📊 <strong>Progress bar</strong> at top tracks your overall % completion across all 65 subtopics</li>
+        <li>📊 <strong>Progress bar</strong> at top tracks your overall % completion across all 52 subtopics</li>
     </ul>
 `,
+            beforeShowPromise: async () => {
+                await this.closeSidebar();
+                await this.navigateTo('/basic-java');
+            },
             buttons: [ { text: 'Next: Topic Detail →', action: () => this.tour.next() } ]
         });
 
@@ -315,7 +320,7 @@ public class Demo {
                 <p style="margin: 0; line-height: 1.6;">Time to test what you've learned! The quiz section provides multiple-choice questions to reinforce your Java knowledge.</p>
             `,
             beforeShowPromise: async () => { await this.navigateTo('/'); await this.openSidebar(); },
-            buttons: [ { text: 'Go to Quiz →', action: async () => { await this.closeSidebar(); await this.navigateTo('/quiz'); this.tour.next(); } } ]
+            buttons: [ { text: 'Go to Quiz →', action: async () => { await this.closeSidebar(); await this.navigateTo('/exercises'); this.tour.next(); } } ]
         });
 
         // Step 8: Show Quiz Features
@@ -347,7 +352,7 @@ public class Demo {
                 <p style="margin: 0; line-height: 1.6;">Ready for a real challenge? Practical tests require you to write complete Java programs to solve specific problems.</p>
             `,
             beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/'); await this.openSidebar(); },
-            buttons: [ { text: 'Go to Tests →', action: async () => { await this.closeSidebar(); await this.navigateTo('/practical-test'); this.tour.next(); } } ]
+            buttons: [ { text: 'Go to Tests →', action: async () => { await this.closeSidebar(); await this.navigateTo('/coding-challenges'); this.tour.next(); } } ]
         });
 
         // Step 10: Show Test Features
@@ -410,11 +415,11 @@ public class Demo {
         This widget in the top bar gives you a <strong>live overview</strong> of your learning journey:
     </p>
     <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
-        <li>🔢 <strong>X / 65</strong> — number of subtopics you've marked as complete out of 65 total</li>
+        <li>🔢 <strong>X / 52</strong> — number of subtopics you've marked as complete out of 52 total (Basic Java)</li>
         <li>🔵 <strong>Ring chart</strong> — visual percentage fill so you can see progress at a glance</li>
         <li>⚡ <strong>Updates instantly</strong> — completing a quiz, test, or lesson updates the count live</li>
         <li>🗺️ <strong>Linked to Roadmap</strong> — each completed item turns green on the flow diagram</li>
-        <li>🎯 <strong>Goal: 100%</strong> — complete all 65 subtopics to fully master the Java curriculum</li>
+        <li>🎯 <strong>Goal: 100%</strong> — complete all 52 subtopics to fully master the Basic Java curriculum</li>
     </ul>
 `,
             beforeShowPromise: async () => { await this.closeAI(); await this.navigateTo('/'); },
@@ -506,6 +511,31 @@ public class Demo {
     `,
             beforeShowPromise: async () => {
                 await new Promise(resolve => setTimeout(resolve, 400));
+            },
+            buttons: [
+                { text: 'Back', action: () => this.tour.back(), secondary: true },
+                { text: 'Next: Classrooms →', action: () => this.tour.next() }
+            ]
+        });
+
+        // Step: Student Classrooms
+        this.tour.addStep({
+            id: 'my-classrooms',
+            text: `
+    <h3 style="margin: 0 0 10px 0; color: #128C7E;">🎓 Student Classrooms</h3>
+    <p style="margin: 0 0 8px 0; line-height: 1.6;">
+        CodeTutor supports a <strong>classroom system</strong> — teachers create classes, students join and learn together:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.9; font-size: 14px;">
+        <li>🔎 <strong>Browse & join</strong> — find public classrooms or enter an enrolment code</li>
+        <li>📊 <strong>Class progress</strong> — see your completion stats within the classroom context</li>
+        <li>👩‍🏫 <strong>Teacher view</strong> — teachers monitor all enrolled students and their roadmap progress</li>
+        <li>💬 <strong>Classroom AI</strong> — ask the AI tutor questions scoped to your classroom's material</li>
+    </ul>
+`,
+            beforeShowPromise: async () => {
+                await this.closeAI();
+                await this.navigateTo('/my-classrooms');
             },
             buttons: [
                 { text: 'Back', action: () => this.tour.back(), secondary: true },

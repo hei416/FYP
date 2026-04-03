@@ -137,10 +137,13 @@ function AppContent() {
                     <Route path="/topic/:topicId"     element={<TopicDetailPage />} />
                     <Route path="/enhanced-topic/:topicId" element={<EnhancedTopicDetailPage />} />
                     <Route path="/playground"         element={<Playground />} />
-                    <Route path="/quiz"               element={<Quiz />} />
-                    <Route path="/practical-test"     element={<PracticalTest />} />
+                    <Route path="/exercises"          element={<Quiz />} />
+                    <Route path="/coding-challenges"  element={<PracticalTest />} />
                     <Route path="/my-work"            element={<MyWorkPage />} />
-                    <Route path="/history"            element={<ConversationHistoryPage />} />
+                    <Route path="/chat-history"       element={<ConversationHistoryPage />} />
+                    <Route path="/quiz"               element={<Navigate to="/exercises" replace />} />
+                    <Route path="/practical-test"     element={<Navigate to="/coding-challenges" replace />} />
+                    <Route path="/history"            element={<Navigate to="/chat-history" replace />} />
                     <Route path="/teacher-dashboard"  element={<TeacherDashboard />} />
                     <Route path="/teacher-classroom/:classroomId" element={<TeacherClassroomDetail />} />
                     <Route path="/my-classrooms"      element={<StudentClassrooms />} />

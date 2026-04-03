@@ -121,6 +121,23 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """Like get_current_user but returns None instead of raising 401."""
+    if not authorization:
+        return None
+    token = authorization[7:] if authorization.lower().startswith("bearer ") else authorization
+    if not token:
+        return None
+    try:
+        payload = verify_token(token)
+        return db.query(User).filter(User.id == payload["user_id"]).first()
+    except Exception:
+        return None
+
+
 def require_role(*allowed_roles: str):
     """Dependency factory: raises 403 if the current user's role is not in allowed_roles."""
     def _checker(current_user: User = Depends(get_current_user)) -> User:
