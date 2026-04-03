@@ -4,7 +4,8 @@ __pycache__/
 .venv/
 node_modules/
 frontend/node_modules/
-index.faiss
+# vectorstore FAISS binaries are committed for fast production startup (Option B)
+# index.faiss
 .DS_Store
 .idea/
 .vscode/# 依賴
