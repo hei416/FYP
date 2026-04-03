@@ -416,6 +416,29 @@ export const deleteClassroomQuiz = async (classroomId, quizId) => {
   return res.json();
 };
 
+/** Submit a quiz attempt with score and answers. */
+export const submitClassroomQuizAttempt = async (classroomId, quizId, { score, answers = null }) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/${quizId}/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ score, answers }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to submit quiz attempt');
+  }
+  return res.json();
+};
+
+/** Get quiz attempt results (student or teacher view). */
+export const getClassroomQuizStudentResults = async (classroomId, quizId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/${quizId}/student-results`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error('Failed to load quiz results');
+  return res.json();
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Material Reads tracking
 // ─────────────────────────────────────────────────────────────────────────────
@@ -507,6 +530,53 @@ export const updateClassroomPracticalChallenge = async (classroomId, challengeId
 export const deleteClassroomPracticalChallenge = async (classroomId, challengeId) => {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}`, {
     method: 'DELETE',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/**
+ * Submit a student's solution code and execution result for a practical challenge.
+ * Called after student evaluates code via /practical-tests/evaluate-ai.
+ * Saves the attempt to database for teacher dashboard and student history.
+ */
+export const submitPracticalChallengeAttempt = async (classroomId, challengeId, submittedCode, executionOutput) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ submitted_code: submittedCode, execution_output: executionOutput }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to submit challenge attempt');
+  }
+  return res.json();
+};
+
+/** Get all attempts for a challenge (teachers: all students, students: own only). */
+export const getClassroomPracticalChallengeAttempts = async (classroomId, challengeId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}/attempts`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/** Get the best (most recent passed, or latest) attempt for current student. */
+export const getClassroomPracticalChallengeBestAttempt = async (classroomId, challengeId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}/best-attempt`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/** Get student results for a challenge (aggregated for teacher, detailed for student). */
+export const getClassroomPracticalChallengeStudentResults = async (classroomId, challengeId, studentId = null) => {
+  let url = `${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}/student-results`;
+  if (studentId) url += `?student_id=${studentId}`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   if (!res.ok) throw new Error(await res.text());

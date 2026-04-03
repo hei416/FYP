@@ -240,7 +240,7 @@ def _save_db_question(q: dict):
             db.close()
 
 
-async def _generate_practical_question(topic: str, existing_titles: List[str]) -> dict:
+async def _generate_practical_question(topic: str, existing_titles: List[str], reference_material: Optional[str] = None) -> dict:
     exclusion = ""
     if existing_titles:
         exclusion = "\n\nDo NOT repeat any of these existing question titles:\n" + "\n".join(
@@ -275,10 +275,15 @@ async def _generate_practical_question(topic: str, existing_titles: List[str]) -
     id_val = f"pt_{int(time.time())}_{random.randint(1000, 9999)}"
     class_name = "Main"
 
+    # Build prompt with optional reference material
     prompt = f"""You are a Java instructor. Create a beginner-friendly coding exercise covering: "{topic}".
 {exclusion}{hint_block}
+"""
+    
+    if reference_material:
+        prompt += f"\nREFERENCE MATERIAL:\n{reference_material}\n\n"
 
-{complexity_block}
+    prompt += f"""{complexity_block}
 
 Return a JSON object with this EXACT schema:
 
@@ -562,6 +567,16 @@ def _build_smart_run_app(base_methods: dict) -> str:
 
 @router.post("/evaluate-ai")
 def evaluate_ai(req: AiCodeRequest):
+    """Evaluate student code against a practical test question.
+    
+    FLOW FOR CLASSROOM CHALLENGES:
+    1. Student evaluates code → calls this endpoint → gets execution result
+    2. THEN calls POST /classrooms/{classroom_id}/practical-challenges/{challenge_id}/submit
+       with submitted_code and execution_output from this endpoint
+    3. Results are saved to classroom_practical_challenge_attempts table
+    4. Teachers can view results via GET /classrooms/{classroom_id}/practical-challenges/{challenge_id}/student-results
+    5. Students can view their attempts via GET /classrooms/{classroom_id}/practical-challenges/{challenge_id}/attempts
+    """
     row = None
     if SessionLocal and PracticalTestQuestion:
         db = SessionLocal()

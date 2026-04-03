@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { downloadClassroomFile, askClassroom, listSections, listClassroomQuizzes } from './classroomService';
+import { downloadClassroomFile, askClassroom, listSections, listClassroomQuizzes, listClassroomPracticalChallenges, submitClassroomQuizAttempt, markMaterialAsRead, getClassroomQuizStudentResults } from './classroomService';
+import CodingChallengePlayer, { normalizeChallenge } from './CodingChallengePlayer';
 
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
@@ -30,17 +31,65 @@ export default function StudentClassroomDetail() {
   // Quizzes tab state
   const [quizzes, setQuizzes] = useState([]);
   const [quizzesLoading, setQuizzesLoading] = useState(false);
+  const [quizAttempts, setQuizAttempts] = useState({});  // quizId -> { attempt_count, all_scores, best_score }
+  const [expandedAttempts, setExpandedAttempts] = useState({}); // quizId -> true/false
   const [activeQuiz, setActiveQuiz] = useState(null);    // quiz being taken
   const [quizCurrentQ, setQuizCurrentQ] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState({});    // questionId → selectedIndex
   const [quizChecked, setQuizChecked] = useState({});    // questionId → true/false
   const [quizDone, setQuizDone] = useState(false);
+  // Challenges tab state
+  const [challenges, setChallenges] = useState([]);
+  const [challengesLoading, setChallengesLoading] = useState(false);
+  const [activeChallenge, setActiveChallenge] = useState(null); // normalized challenge being attempted
+
+  // Diagnostic: log when tab changes
+  useEffect(() => {
+    console.log(`📑 [StudentClassroomDetail] Tab changed to:`, tab);
+  }, [tab]);
 
   useEffect(() => {
     // Reset conversation ID when classroom changes
     setClassroomConversationId(null);
     console.log(`🔄 Reset conversation ID for new classroom: ${classroomId}`);
   }, [classroomId]);
+
+  // Diagnostic: log when active challenge changes
+  useEffect(() => {
+    if (activeChallenge) {
+      console.log(`⚡ [StudentClassroomDetail] Active challenge changed:`, {
+        hasChallenge: !!activeChallenge.challenge,
+        challengeId: activeChallenge.challengeId,
+        challengeTitle: activeChallenge.challenge?.title,
+      });
+    }
+  }, [activeChallenge]);
+
+  // Submit quiz attempt when finished
+  useEffect(() => {
+    if (quizDone && activeQuiz) {
+      const questions = activeQuiz.questions;
+      const correct = questions.filter(q => quizAnswers[q.id] === q.correct_index).length;
+      const score = Math.round((correct / questions.length) * 100);
+      
+      console.log(`📝 [StudentClassroomDetail] Quiz completed - submitting:`, {
+        quizId: activeQuiz.id,
+        score,
+        classroomId: parseInt(classroomId, 10),
+      });
+
+      submitClassroomQuizAttempt(parseInt(classroomId, 10), activeQuiz.id, {
+        score,
+        answers: quizAnswers,
+      })
+        .then(result => {
+          console.log(`✅ [StudentClassroomDetail] Quiz attempt saved:`, result);
+        })
+        .catch(err => {
+          console.warn(`⚠️ [StudentClassroomDetail] Failed to save quiz attempt:`, err.message);
+        });
+    }
+  }, [quizDone, activeQuiz, quizAnswers, classroomId]);
 
   // Refresh sections when classroom changes
   useEffect(() => {
@@ -64,6 +113,47 @@ export default function StudentClassroomDetail() {
       .then(data => setQuizzes(data))
       .catch(() => setQuizzes([]))
       .finally(() => setQuizzesLoading(false));
+  }, [classroomId]);
+
+  // Load attempt history for each quiz
+  useEffect(() => {
+    if (!classroomId || quizzes.length === 0) return;
+    const loadAttempts = async () => {
+      const attempts = {};
+      for (const quiz of quizzes) {
+        try {
+          const result = await getClassroomQuizStudentResults(classroomId, quiz.id);
+          if (result && result.all_scores) {
+            attempts[quiz.id] = {
+              attempt_count: result.all_scores.length,
+              all_scores: result.all_scores,
+              best_score: Math.max(...result.all_scores)
+            };
+          }
+        } catch (err) {
+          console.warn(`⚠️ Failed to load attempts for quiz ${quiz.id}:`, err);
+        }
+      }
+      setQuizAttempts(attempts);
+    };
+    loadAttempts();
+  }, [classroomId, quizzes]);
+
+  // Load published challenges
+  useEffect(() => {
+    if (!classroomId) return;
+    setChallengesLoading(true);
+    console.log(`📥 [StudentClassroomDetail] Loading challenges for classroom ${classroomId}`);
+    listClassroomPracticalChallenges(classroomId)
+      .then(data => {
+        console.log(`✅ [StudentClassroomDetail] Challenges loaded:`, data.length, 'challenges');
+        setChallenges(data);
+      })
+      .catch((err) => {
+        console.error(`❌ [StudentClassroomDetail] Failed to load challenges:`, err);
+        setChallenges([]);
+      })
+      .finally(() => setChallengesLoading(false));
   }, [classroomId]);
 
   // Get token on mount
@@ -348,7 +438,17 @@ export default function StudentClassroomDetail() {
           style={styles.tab(tab === 'quizzes')}
           onClick={() => setTab('quizzes')}
         >
-          📝 Quizzes
+          📝 Exercises
+        </button>
+        <button
+          style={styles.tab(tab === 'challenges')}
+          onClick={() => { 
+            console.log(`👆 [StudentClassroomDetail] Switching to CHALLENGES tab`);
+            setTab('challenges'); 
+            setActiveChallenge(null); 
+          }}
+        >
+          💻 Challenges
         </button>
       </div>
 
@@ -389,6 +489,17 @@ export default function StudentClassroomDetail() {
                     title="Download file"
                   >
                     ⬇️ Download
+                  </button>
+                  <button
+                    style={{...styles.downloadBtn, background: '#2563EB'}}
+                    onClick={() => {
+                      markMaterialAsRead(parseInt(classroomId, 10), f.id)
+                        .then(() => console.log(`✅ Marked material as viewed: ${f.filename}`))
+                        .catch(err => console.warn(`⚠️ Failed to mark as viewed:`, err.message));
+                    }}
+                    title="Mark this material as viewed"
+                  >
+                    ✓ Mark as Viewed
                   </button>
                 </div>
               </div>
@@ -589,32 +700,66 @@ export default function StudentClassroomDetail() {
                 <p style={{ fontSize: 13, marginTop: 6 }}>Your teacher will publish quizzes here for you to attempt.</p>
               </div>
             ) : (
-              quizzes.map(quiz => (
-                <div key={quiz.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-                  border: '1px solid #E5E7EB', borderRadius: 10, marginBottom: 10, background: '#FAFAFA',
-                }}>
-                  <span style={{ fontSize: 26 }}>📝</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 15, color: '#1F2937' }}>{quiz.title}</div>
-                    <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-                      {quiz.questions.length} question{quiz.questions.length !== 1 ? 's' : ''}
+              quizzes.map(quiz => {
+                const attempts = quizAttempts[quiz.id];
+                const isExpanded = expandedAttempts[quiz.id];
+                return (
+                  <div key={quiz.id} style={{
+                    border: '1px solid #E5E7EB', borderRadius: 10, marginBottom: 10, background: '#FAFAFA', overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                    }}>
+                      <span style={{ fontSize: 26 }}>📝</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15, color: '#1F2937' }}>{quiz.title}</div>
+                        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
+                          {quiz.questions.length} question{quiz.questions.length !== 1 ? 's' : ''}
+                        </div>
+                        {attempts && (
+                          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#16a34a' }}>✓ {attempts.attempt_count} attempt{attempts.attempt_count !== 1 ? 's' : ''}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>Best: {Math.round(attempts.best_score)}%</span>
+                            {attempts.all_scores.length > 1 && (
+                              <button
+                                onClick={() => setExpandedAttempts(e => ({ ...e, [quiz.id]: !e[quiz.id] }))}
+                                style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #cbd5e1', borderRadius: 4, background: '#f1f5f9', color: '#0f766e', cursor: 'pointer' }}
+                              >
+                                {isExpanded ? '▼' : '▶'} All
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {isExpanded && attempts && attempts.all_scores.length > 0 && (
+                          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {attempts.all_scores.map((score, idx) => (
+                              <div key={idx} style={{
+                                padding: '3px 8px', fontSize: 11, fontWeight: 600, borderRadius: 3, textAlign: 'center',
+                                background: score >= 70 ? '#dcfce7' : score >= 50 ? '#fef3c7' : '#fee2e2',
+                                color: score >= 70 ? '#166534' : score >= 50 ? '#92400e' : '#991b1b',
+                              }}>
+                                Attempt {idx + 1}: {Math.round(score)}%
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setActiveQuiz(quiz);
+                          setQuizCurrentQ(0);
+                          setQuizAnswers({});
+                          setQuizChecked({});
+                          setQuizDone(false);
+                        }}
+                        style={styles.downloadBtn}
+                      >
+                        Start Exercise →
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setActiveQuiz(quiz);
-                      setQuizCurrentQ(0);
-                      setQuizAnswers({});
-                      setQuizChecked({});
-                      setQuizDone(false);
-                    }}
-                    style={styles.downloadBtn}
-                  >
-                    Start Quiz →
-                  </button>
-                </div>
-              ))
+                );
+              })
             )
           ) : quizDone ? (
             /* Results screen */
@@ -657,7 +802,7 @@ export default function StudentClassroomDetail() {
                   <button
                     onClick={() => setActiveQuiz(null)}
                     style={{ ...styles.downloadBtn, marginTop: 12 }}
-                  >← Back to Quizzes</button>
+                  >← Back to Exercises</button>
                 </div>
               );
             })()
@@ -679,7 +824,7 @@ export default function StudentClassroomDetail() {
                     <button
                       onClick={() => setActiveQuiz(null)}
                       style={{ background: 'none', border: 'none', fontSize: 12, color: '#9CA3AF', cursor: 'pointer' }}
-                    >✕ Exit</button>
+                    >✕ Exit Exercise</button>
                   </div>
                   <div style={{ height: 4, background: '#E5E7EB', borderRadius: 99, marginBottom: 20 }}>
                     <div style={{ width: `${((quizCurrentQ + 1) / questions.length) * 100}%`, height: '100%', background: '#2563EB', borderRadius: 99, transition: 'width 0.3s' }} />
@@ -755,12 +900,72 @@ export default function StudentClassroomDetail() {
                       <button
                         onClick={() => setQuizDone(true)}
                         style={{ ...styles.downloadBtn, background: '#16a34a' }}
-                      >Finish Quiz 🏆</button>
+                      >Finish Exercise 🏆</button>
                     )}
                   </div>
                 </div>
               );
             })()
+          )}
+        </div>
+      )}
+
+      {/* ── Challenges tab ─────────────────────────────────────────────── */}
+      {tab === 'challenges' && (
+        <div>
+          {activeChallenge ? (
+            (() => {
+              console.log(`📍 [StudentClassroomDetail] Rendering CodingChallengePlayer:`, {
+                classroomId,
+                challengeId: activeChallenge?.challengeId,
+                hasChallengeData: !!activeChallenge?.challenge,
+              });
+              return (
+                /* Challenge player — reuses the same UI as the practice challenges */
+                <CodingChallengePlayer
+                  challenge={activeChallenge.challenge}
+                  label="📝 Classroom Challenge"
+                  onBack={() => setActiveChallenge(null)}
+                  classroomId={parseInt(classroomId, 10)}
+                  challengeId={activeChallenge.challengeId}
+                />
+              );
+            })()
+          ) : challengesLoading ? (
+            <p style={styles.empty}>Loading challenges…</p>
+          ) : challenges.length === 0 ? (
+            <div style={styles.empty}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>💻</div>
+              <p>No challenges published yet.</p>
+              <p style={{ fontSize: 13, marginTop: 6 }}>Your teacher will publish coding challenges here for you to attempt.</p>
+            </div>
+          ) : (
+            challenges.map(challenge => (
+              <div key={challenge.id} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                border: '1px solid #E5E7EB', borderRadius: 10, marginBottom: 10, background: '#FAFAFA',
+              }}>
+                <span style={{ fontSize: 26 }}>💻</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: '#1F2937' }}>{challenge.title}</div>
+                  {challenge.topic_prompt && (
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Topic: {challenge.topic_prompt}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    console.log(`🖱️ [StudentClassroomDetail] Start Challenge clicked for:`, challenge.id, challenge.title);
+                    setActiveChallenge({ 
+                      challenge: normalizeChallenge(challenge),
+                      challengeId: challenge.id,
+                    });
+                  }}
+                  style={styles.downloadBtn}
+                >
+                  Start Challenge →
+                </button>
+              </div>
+            ))
           )}
         </div>
       )}

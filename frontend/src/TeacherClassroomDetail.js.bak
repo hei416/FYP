@@ -22,8 +22,6 @@ import {
   listClassroomPracticalChallenges,
   updateClassroomPracticalChallenge,
   deleteClassroomPracticalChallenge,
-  getClassroomPracticalChallengeStudentResults,
-  getClassroomQuizStudentResults,
 } from './classroomService';
 import { ClassroomSections } from './TeacherDashboard';
 import { radii, font, card, shadows } from './theme';
@@ -289,17 +287,17 @@ function ClassroomQuizManager({ classroomId }) {
   // Generate form
   const [showGenForm, setShowGenForm] = useState(false);
   const [genTitle, setGenTitle] = useState('');
-  const [genPrompt, setGenPrompt] = useState('Describe the topics or concepts to test in the exercise');
+  const [genPrompt, setGenPrompt] = useState('Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms');
   const [genNumQ, setGenNumQ] = useState(5);
   const [genSectionId, setGenSectionId] = useState('');
   const [genFileIds, setGenFileIds] = useState([]);   // selected file IDs for context
-  const [genSource, setGenSource] = useState('classroom'); // 'classroom' | 'course' | 'both'
+  const [genSource, setGenSource] = useState('classroom'); // 'classroom' | 'course'
   const [genCoursePath, setGenCoursePath] = useState('basic_java'); // 'basic_java' | 'enhanced_java'
   const [genTopicGroups, setGenTopicGroups] = useState([]);   // topic groups for selected course
   const [genSelectedTopics, setGenSelectedTopics] = useState([]); // selected topic labels
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
-  const DEFAULT_PROMPT = 'Describe the topics or concepts to test in the exercise';
+  const DEFAULT_PROMPT = 'Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms';
 
   // Draft preview / editor
   const [draftQuestions, setDraftQuestions] = useState(null); // generated but unsaved
@@ -307,7 +305,6 @@ function ClassroomQuizManager({ classroomId }) {
   const [editTitle, setEditTitle] = useState('');
   const [editQuestions, setEditQuestions] = useState([]);
   const [editSectionId, setEditSectionId] = useState('');
-  const [editAttemptLimit, setEditAttemptLimit] = useState(null);
   const [saving, setSaving] = useState(false);
 
   // Collapsed sections
@@ -333,9 +330,9 @@ function ClassroomQuizManager({ classroomId }) {
 
   useEffect(() => { load(); }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load topic groups when source='course'/'both' and course path changes
+  // Load topic groups when source='course' and course path changes
   useEffect(() => {
-    if (genSource !== 'course' && genSource !== 'both') return;
+    if (genSource !== 'course') return;
     const pathKey = genCoursePath === 'enhanced_java' ? 'enhanced' : 'basic';
     getTopicGroupsForPath(pathKey).then(groups => {
       setGenTopicGroups(groups);
@@ -346,7 +343,7 @@ function ClassroomQuizManager({ classroomId }) {
 
   // Auto-fill prompt from selected topics
   useEffect(() => {
-    if ((genSource !== 'course' && genSource !== 'both') || genSelectedTopics.length === 0) return;
+    if (genSource !== 'course' || genSelectedTopics.length === 0) return;
     setGenPrompt(genSelectedTopics.join(', '));
   }, [genSelectedTopics, genSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -360,9 +357,9 @@ function ClassroomQuizManager({ classroomId }) {
         topic_prompt: genPrompt.trim(),
         num_questions: genNumQ,
         section_id: genSectionId !== '' ? Number(genSectionId) : null,
-        file_ids: (genSource === 'classroom' || genSource === 'both') && genFileIds.length > 0 ? genFileIds : null,
+        file_ids: genSource === 'classroom' && genFileIds.length > 0 ? genFileIds : null,
         source: genSource,
-        course_path: (genSource === 'course' || genSource === 'both') ? genCoursePath : null,
+        course_path: genSource === 'course' ? genCoursePath : null,
       });
       setDraftQuestions(res.questions);
       setEditQuestions(res.questions.map(q => ({ ...q })));
@@ -381,7 +378,6 @@ function ClassroomQuizManager({ classroomId }) {
     setEditTitle(quiz.title);
     setEditQuestions(JSON.parse(JSON.stringify(quiz.questions))); // deep copy
     setEditSectionId(quiz.section_id != null ? String(quiz.section_id) : '');
-    setEditAttemptLimit(quiz.attempt_limit || null);
     setDraftQuestions(quiz.questions);
     setShowGenForm(false);
   };
@@ -394,7 +390,6 @@ function ClassroomQuizManager({ classroomId }) {
         topic_prompt: genPrompt.trim() || null,
         questions: editQuestions,
         section_id: editSectionId !== '' ? Number(editSectionId) : null,
-        attempt_limit: editAttemptLimit,
         status: publishStatus,
       };
       if (editingQuizId != null) {
@@ -405,8 +400,7 @@ function ClassroomQuizManager({ classroomId }) {
       setDraftQuestions(null);
       setEditQuestions([]);
       setEditTitle('');
-      setEditAttemptLimit(null);
-      setGenPrompt('Describe the topics or concepts to test in the exercise');
+      setGenPrompt('Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms');
       setGenTitle('');
       setGenSectionId('');
       setGenFileIds([]);
@@ -599,7 +593,6 @@ function ClassroomQuizManager({ classroomId }) {
               {[
                 { value: 'classroom', label: '📁 Classroom Documents' },
                 { value: 'course',    label: '📚 Course Content' },
-                { value: 'both',      label: '🔀 Both' },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -615,7 +608,7 @@ function ClassroomQuizManager({ classroomId }) {
                 >{opt.label}</button>
               ))}
             </div>
-            {(genSource === 'course' || genSource === 'both') && (
+            {genSource === 'course' && (
               <div style={{ marginTop: 10 }}>
                 {/* Course toggle */}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
@@ -727,7 +720,7 @@ function ClassroomQuizManager({ classroomId }) {
             <textarea
               value={genPrompt}
               onChange={e => setGenPrompt(e.target.value)}
-              placeholder="Based on the source, give me 10 quiz questions"
+              placeholder="e.g. Java inheritance and polymorphism, OOP design patterns, Exception handling..."
               rows={2}
               style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
             />
@@ -746,8 +739,8 @@ function ClassroomQuizManager({ classroomId }) {
             </select>
           </div>
 
-          {/* File picker — only shown for classroom document source (or 'both') */}
-          {(genSource === 'classroom' || genSource === 'both') && <div style={{ marginBottom: 16 }}>
+          {/* File picker — only shown for classroom document source */}
+          {genSource === 'classroom' && <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <label style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>
                 Source Files (optional)
@@ -851,7 +844,7 @@ function ClassroomQuizManager({ classroomId }) {
           </div>
 
           {/* Title & section row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 20 }}>
             <div>
               <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Exercise Title *</label>
               <input
@@ -870,18 +863,6 @@ function ClassroomQuizManager({ classroomId }) {
                 <option value="">— None —</option>
                 {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Max Attempts</label>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={editAttemptLimit === null ? '' : editAttemptLimit}
-                onChange={e => setEditAttemptLimit(e.target.value === '' ? null : Number(e.target.value))}
-                placeholder="Unlimited"
-                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
-              />
             </div>
           </div>
 
@@ -1495,8 +1476,8 @@ export default function TeacherClassroomDetail() {
       {activeTab === 'official-lessons' && classroomView === 'quizzes' && !quizzesLoading && (!quizzesData || quizzesData.length === 0) && (
         <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-          <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No exercises created yet</div>
-          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>Create exercises in the Quizzes & Tests tab</div>
+          <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No quizzes created yet</div>
+          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>Create quizzes in the Quizzes & Tests tab</div>
         </div>
       )}
 
@@ -1533,22 +1514,10 @@ export default function TeacherClassroomDetail() {
                       <div style={{ marginTop: 4 }}>
                         {sp.attempted ? (
                           <div>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>✓ {sp.attempt_count} attempt{sp.attempt_count === 1 ? '' : 's'}</div>
-                            {sp.all_scores && sp.all_scores.length > 0 && (
-                              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                {sp.all_scores.map((score, idx) => (
-                                  <div key={idx} style={{
-                                    padding: '2px 6px',
-                                    background: score >= 70 ? '#dcfce7' : score >= 50 ? '#fef3c7' : '#fee2e2',
-                                    color: score >= 70 ? '#166534' : score >= 50 ? '#92400e' : '#991b1b',
-                                    borderRadius: 4,
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    textAlign: 'center'
-                                  }}>
-                                    Attempt {idx + 1}: {Math.round(score)}%
-                                  </div>
-                                ))}
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>✓ Attempted ({sp.attempt_count}x)</div>
+                            {sp.best_score != null && (
+                              <div style={{ marginTop: 2 }}>
+                                <ScoreBadge score={sp.best_score} />
                               </div>
                             )}
                           </div>
@@ -1778,9 +1747,7 @@ export default function TeacherClassroomDetail() {
 // ─── Classroom Practical Challenge Manager ────────────────────────────────────
 function ClassroomPracticalChallengeManager({ classroomId }) {
   const [sections, setSections] = useState([]);
-  const [allFiles, setAllFiles] = useState([]);   // classroom files for file picker
   const [challenges, setChallenges] = useState([]);
-  const [challengeAttempts, setChallengeAttempts] = useState({}); // challengeId -> { totalAttempts, passedCount, studentResults }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -1789,11 +1756,6 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
   const [genTitle, setGenTitle] = useState('');
   const [genPrompt, setGenPrompt] = useState('');
   const [genSectionId, setGenSectionId] = useState('');
-  const [genSource, setGenSource] = useState('classroom'); // 'classroom' | 'course' | 'both'
-  const [genCoursePath, setGenCoursePath] = useState('basic_java');
-  const [genFileIds, setGenFileIds] = useState([]);   // selected file IDs for context
-  const [genTopicGroups, setGenTopicGroups] = useState([]);
-  const [genSelectedTopics, setGenSelectedTopics] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
 
@@ -1816,14 +1778,12 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
   const load = async () => {
     setLoading(true);
     try {
-      const [challengeData, secData, fileData] = await Promise.all([
+      const [challengeData, secData] = await Promise.all([
         listClassroomPracticalChallenges(classroomId),
         listSections(classroomId),
-        listClassroomFiles(classroomId),
       ]);
       setChallenges(challengeData);
       setSections(secData.filter(s => s.id !== 0));
-      setAllFiles(fileData);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1832,64 +1792,6 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
   };
 
   useEffect(() => { load(); }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load attempt data for each challenge
-  useEffect(() => {
-    if (!classroomId || challenges.length === 0) return;
-    
-    const loadAttemptData = async () => {
-      const attemptMap = {};
-      
-      for (const challenge of challenges) {
-        try {
-          const results = await getClassroomPracticalChallengeStudentResults(classroomId, challenge.id);
-          
-          // Count total attempts and passed
-          let totalAttempts = 0;
-          let passedCount = 0;
-          
-          if (Array.isArray(results)) {
-            // results is array of student results
-            totalAttempts = results.length;
-            passedCount = results.filter(r => r.passed).length;
-          } else if (results && Array.isArray(results.attempts)) {
-            // Fallback for different response format
-            totalAttempts = results.attempts.length;
-            passedCount = results.attempts.filter(a => a.passed).length;
-          }
-          
-          attemptMap[challenge.id] = {
-            totalAttempts,
-            passedCount,
-            studentResults: results,
-          };
-        } catch (err) {
-          console.warn(`Failed to load attempts for challenge ${challenge.id}:`, err);
-          attemptMap[challenge.id] = { totalAttempts: 0, passedCount: 0, studentResults: [] };
-        }
-      }
-      
-      setChallengeAttempts(attemptMap);
-    };
-    
-    loadAttemptData();
-  }, [classroomId, challenges]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load topic groups when source='course'/'both' and course path changes
-  useEffect(() => {
-    if (genSource !== 'course' && genSource !== 'both') return;
-    const pathKey = genCoursePath === 'enhanced_java' ? 'enhanced' : 'basic';
-    getTopicGroupsForPath(pathKey).then(groups => {
-      setGenTopicGroups(groups);
-      setGenSelectedTopics([]);
-    }).catch(() => setGenTopicGroups([]));
-  }, [genSource, genCoursePath]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-fill prompt from selected topics
-  useEffect(() => {
-    if ((genSource !== 'course' && genSource !== 'both') || genSelectedTopics.length === 0) return;
-    setGenPrompt(genSelectedTopics.join(', '));
-  }, [genSelectedTopics, genSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerate = async () => {
     if (!genPrompt.trim()) { setGenError('Please enter a topic or prompt.'); return; }
@@ -1900,9 +1802,6 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
       const res = await generateClassroomPracticalChallenge(classroomId, {
         topic_prompt: genPrompt.trim(),
         section_id: genSectionId !== '' ? Number(genSectionId) : null,
-        source: genSource,
-        file_ids: (genSource === 'classroom' || genSource === 'both') && genFileIds.length > 0 ? genFileIds : null,
-        course_path: (genSource === 'course' || genSource === 'both') ? genCoursePath : null,
       });
       setDraftData(res);
       setEditQuestion(JSON.parse(JSON.stringify(res.question)));
@@ -1954,11 +1853,6 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
       setGenPrompt('');
       setGenTitle('');
       setGenSectionId('');
-      setGenSource('classroom');
-      setGenCoursePath('basic_java');
-      setGenFileIds([]);
-      setGenTopicGroups([]);
-      setGenSelectedTopics([]);
       setEditingChallengeId(null);
       setShowGenForm(false);
       await load();
@@ -2041,22 +1935,6 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
         <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
           {challenge.question?.methods?.length || 0} method(s) to implement
           {challenge.topic_prompt && <span> · <em>{challenge.topic_prompt.slice(0, 60)}{challenge.topic_prompt.length > 60 ? '…' : ''}</em></span>}
-          {challenge.status === 'published' && (
-            <div style={{ marginTop: 6 }}>
-              {(() => {
-                const attData = challengeAttempts[challenge.id];
-                if (!attData) return <span>Loading attempts…</span>;
-                const { studentResults } = attData;
-                // Count students who have attempted (teacher view returns array of students)
-                const studentsAttempted = Array.isArray(studentResults) ? studentResults.length : 0;
-                return (
-                  <span style={{ color: studentsAttempted > 0 ? colors.text : colors.textMuted }}>
-                    {studentsAttempted}/1 attempted {studentsAttempted > 0 && `· ${studentResults.filter(s => s.passed).length} passed`}
-                  </span>
-                );
-              })()}
-            </div>
-          )}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
@@ -2156,147 +2034,6 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
               </select>
             </div>
           </div>
-          {/* Source selector */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 6 }}>
-              Generate From
-            </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[
-                { value: 'classroom', label: '📁 Classroom Documents' },
-                { value: 'course',    label: '📚 Course Content' },
-                { value: 'both',      label: '🔀 Both' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setGenSource(opt.value)}
-                  style={{
-                    padding: '6px 14px', fontSize: font.sizeXs, fontWeight: font.weightSemibold,
-                    border: `1.5px solid ${genSource === opt.value ? colors.primary : colors.border}`,
-                    borderRadius: radii.sm, cursor: 'pointer',
-                    background: genSource === opt.value ? '#eff6ff' : colors.bg,
-                    color: genSource === opt.value ? colors.primary : colors.textSecondary,
-                  }}
-                >{opt.label}</button>
-              ))}
-            </div>
-            {(genSource === 'course' || genSource === 'both') && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: font.sizeXs, color: colors.textSecondary, fontWeight: font.weightSemibold }}>Course:</span>
-                  {[
-                    { value: 'basic_java',    label: '☕ Basic Java' },
-                    { value: 'enhanced_java', label: '🚀 Enhanced Java' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setGenCoursePath(opt.value)}
-                      style={{
-                        padding: '4px 12px', fontSize: font.sizeXs, fontWeight: font.weightSemibold,
-                        border: `1.5px solid ${genCoursePath === opt.value ? '#7c3aed' : colors.border}`,
-                        borderRadius: radii.sm, cursor: 'pointer',
-                        background: genCoursePath === opt.value ? '#f5f3ff' : colors.bg,
-                        color: genCoursePath === opt.value ? '#7c3aed' : colors.textSecondary,
-                      }}
-                    >{opt.label}</button>
-                  ))}
-                </div>
-                {genTopicGroups.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                      <span style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>
-                        Topics <span style={{ fontWeight: 400, color: colors.textMuted }}>(select to filter; prompt auto-filled)</span>
-                      </span>
-                      <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                        <button type="button"
-                          onClick={() => setGenSelectedTopics(genTopicGroups.map(g => g.label))}
-                          style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}
-                        >All</button>
-                        <button type="button"
-                          onClick={() => setGenSelectedTopics([])}
-                          style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}
-                        >Clear</button>
-                      </div>
-                    </div>
-                    <div style={{ maxHeight: 160, overflowY: 'auto', border: `1px solid ${colors.border}`, borderRadius: radii.sm, background: colors.bg, padding: '4px 8px' }}>
-                      {genTopicGroups.map(g => {
-                        const checked = genSelectedTopics.includes(g.label);
-                        return (
-                          <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 4px', borderRadius: radii.sm, cursor: 'pointer', background: checked ? '#eff6ff' : 'transparent', marginBottom: 1 }}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => setGenSelectedTopics(prev =>
-                                prev.includes(g.label) ? prev.filter(t => t !== g.label) : [...prev, g.label]
-                              )}
-                              style={{ accentColor: colors.primary, flexShrink: 0 }}
-                            />
-                            <span style={{ fontSize: font.sizeXs, color: checked ? colors.primary : colors.text, fontWeight: checked ? font.weightSemibold : 'normal' }}>
-                              {g.label}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                    {genSelectedTopics.length > 0 && (
-                      <div style={{ marginTop: 4, fontSize: font.sizeXs, color: colors.primary, fontWeight: font.weightSemibold }}>
-                        ✓ {genSelectedTopics.length} topic{genSelectedTopics.length !== 1 ? 's' : ''} selected
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* File picker — only shown for classroom document source (or 'both') */}
-          {(genSource === 'classroom' || genSource === 'both') && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <label style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>
-                  Source Files (optional)
-                </label>
-                <span style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
-                  — leave unchecked to search all documents
-                </span>
-                {allFiles.length > 0 && (
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => setGenFileIds(allFiles.map(f => f.id))}
-                      style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}>Select All</button>
-                    <button type="button" onClick={() => setGenFileIds([])}
-                      style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}>Clear</button>
-                  </div>
-                )}
-              </div>
-              <div style={{ maxHeight: 140, overflowY: 'auto', border: `1px solid ${colors.border}`, borderRadius: radii.sm, background: colors.bg, padding: '6px 8px' }}>
-                {allFiles.length === 0 ? (
-                  <div style={{ padding: '8px', fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>
-                    No files uploaded yet. Upload files in the Learning Materials tab first.
-                  </div>
-                ) : allFiles.map(f => {
-                  const checked = genFileIds.includes(f.id);
-                  return (
-                    <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: radii.sm, cursor: 'pointer', background: checked ? '#eff6ff' : 'transparent', marginBottom: 2 }}>
-                      <input type="checkbox" checked={checked}
-                        onChange={() => setGenFileIds(ids => ids.includes(f.id) ? ids.filter(id => id !== f.id) : [...ids, f.id])}
-                        style={{ accentColor: colors.primary, flexShrink: 0 }} />
-                      <span style={{ fontSize: font.sizeXs, color: checked ? colors.primary : colors.text, fontWeight: checked ? font.weightSemibold : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        📄 {f.filename}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {genFileIds.length > 0 && (
-                <div style={{ marginTop: 5, fontSize: font.sizeXs, color: colors.primary, fontWeight: font.weightSemibold }}>
-                  ✓ Using {genFileIds.length} of {allFiles.length} file{allFiles.length !== 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
-          )}
-
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
               Topic / Prompt * <span style={{ fontWeight: 400, color: colors.textMuted }}>(Java concept(s) to cover)</span>
@@ -2304,7 +2041,7 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
             <textarea
               value={genPrompt}
               onChange={e => setGenPrompt(e.target.value)}
-              placeholder="e.g. Inheritance and polymorphism with abstract classes"
+              placeholder="e.g. Inheritance and method overriding, or OOP with polymorphism…"
               rows={2}
               style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
             />

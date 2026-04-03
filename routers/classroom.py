@@ -10,7 +10,7 @@ import shutil, uuid, os, time, json
 import httpx
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, ClassroomPracticalChallenge, MaterialRead
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, ClassroomPracticalChallenge, ClassroomPracticalChallengeAttempt, ClassroomQuizAttempt, MaterialRead
 from routers.auth import get_current_user, require_role, get_optional_user
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
@@ -254,8 +254,8 @@ class GenerateClassroomQuizRequest(BaseModel):
     num_questions: int = 5
     section_id: Optional[int] = None
     file_ids: Optional[List[int]] = None  # if set, restrict context to these files
-    source: str = "classroom"             # 'classroom' | 'course'
-    course_path: Optional[str] = None     # 'basic_java' | 'enhanced_java' (used when source='course')
+    source: str = "classroom"             # 'classroom' | 'course' | 'both'
+    course_path: Optional[str] = None     # 'basic_java' | 'enhanced_java' (used when source='course' or 'both')
 
 
 class SaveClassroomQuizRequest(BaseModel):
@@ -264,6 +264,7 @@ class SaveClassroomQuizRequest(BaseModel):
     questions: List[dict]
     section_id: Optional[int] = None
     status: str = "draft"  # "draft" | "published"
+    attempt_limit: Optional[int] = None  # max attempts per student (None = unlimited)
 
 
 class UpdateClassroomQuizRequest(BaseModel):
@@ -271,6 +272,13 @@ class UpdateClassroomQuizRequest(BaseModel):
     questions: Optional[List[dict]] = None
     section_id: Optional[int] = None
     status: Optional[str] = None
+    attempt_limit: Optional[int] = None  # max attempts per student (None = unlimited)
+
+
+class SubmitClassroomQuizAttemptRequest(BaseModel):
+    """Student submits quiz attempt with answers and score"""
+    score: float          # 0-100, percentage correct
+    answers: Optional[dict] = None  # {question_id: selected_option_index, ...}
 
 
 class ClassroomQuizResponse(BaseModel):
@@ -1958,17 +1966,24 @@ async def generate_classroom_quiz_questions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Generate MCQ draft questions using classroom RAG context or course content. Returns questions for teacher preview — nothing is saved yet."""
+    """Generate MCQ draft questions using classroom RAG context, course content, or both. Returns questions for teacher preview — nothing is saved yet."""
     _verify_teacher_access(classroom_id, current_user, db)
 
     if not data.topic_prompt.strip():
         raise HTTPException(400, "topic_prompt cannot be empty")
 
+    if data.source not in ("classroom", "course", "both"):
+        raise HTTPException(400, "source must be 'classroom', 'course', or 'both'")
+
     num_q = max(1, min(data.num_questions, 20))
     context_chunks_raw = []
 
-    if data.source == "course":
-        # Use the course java_knowledge vectorstore
+    # Gather from course and/or classroom according to data.source
+    course_chunks = []
+    classroom_chunks = []
+    context_source_label = ""
+
+    if data.source in ("course", "both"):
         valid_paths = {"basic_java", "enhanced_java"}
         course_path = data.course_path or "basic_java"
         if course_path not in valid_paths:
@@ -1977,14 +1992,15 @@ async def generate_classroom_quiz_questions(
             from routers.rag import get_retriever
             retriever = await get_retriever()
             docs = retriever.invoke(data.topic_prompt)
-            context_chunks_raw = [{"text": d.page_content} for d in docs]
+            course_chunks = [{"text": d.page_content} for d in docs]
+            print(f"✓ Retrieved {len(course_chunks)} chunks from course content ({course_path})")
         except Exception as exc:
-            raise HTTPException(503, f"Course content unavailable: {str(exc)}")
-        if not context_chunks_raw:
-            raise HTTPException(400, "No course content found for the given topic. Try a different topic.")
-        context_source_label = f"{course_path.replace('_', ' ').title()} course content"
-    else:
-        # Choose context source: specific files (direct chunk fetch) or global RAG search
+            if data.source == "course":
+                raise HTTPException(503, f"Course content unavailable: {str(exc)}")
+            print(f"⚠️ Course content unavailable (proceeding with classroom only): {str(exc)}")
+            course_chunks = []
+
+    if data.source in ("classroom", "both"):
         if data.file_ids:
             # Validate all file_ids belong to this classroom
             valid_ids = [
@@ -1995,23 +2011,48 @@ async def generate_classroom_quiz_questions(
             ]
             if not valid_ids:
                 raise HTTPException(404, "None of the selected files were found in this classroom.")
-            context_chunks_raw = get_chunks_for_files(classroom_id, valid_ids, db)
+            classroom_chunks = get_chunks_for_files(classroom_id, valid_ids, db)
+            print(f"✓ Retrieved {len(classroom_chunks)} chunks from {len(valid_ids)} selected classroom files")
         else:
-            context_chunks_raw = search_classroom_context(
+            classroom_chunks = search_classroom_context(
                 classroom_id=classroom_id,
                 query=data.topic_prompt,
                 db=db,
                 top_k=10,
             )
-        if not context_chunks_raw:
+            print(f"✓ Retrieved {len(classroom_chunks)} chunks from classroom RAG search")
+        
+        if not classroom_chunks and data.source == "classroom":
             raise HTTPException(400, "No classroom documents found. Upload documents first, then generate an exercise.")
-        context_source_label = "classroom materials"
 
-    # context chunks are dicts with "text" key
+    # Merge and deduplicate by text
+    merged = []
+    seen = set()
+    for c in (course_chunks + classroom_chunks):
+        t = (c["text"] if isinstance(c, dict) else str(c)).strip()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        merged.append(c)
+
+    if not merged:
+        raise HTTPException(400, f"No context found from selected sources ({data.source}). Try uploading documents or selecting a different course.")
+
+    context_chunks_raw = merged
+
+    # Build context string
     texts = [c["text"] if isinstance(c, dict) else str(c) for c in context_chunks_raw]
     context_str = "\n\n---\n\n".join(texts)
     if len(context_str) > 7000:
         context_str = context_str[:7000] + "\n...[context truncated]"
+
+    # Build source label for prompt
+    if data.source == "both":
+        context_source_label = "classroom materials and course content"
+    elif data.source == "course":
+        context_source_label = f"{(data.course_path or 'basic_java').replace('_', ' ').title()} course content"
+    else:
+        context_source_label = "classroom materials"
 
     id_prefix = f"cq{classroom_id}_{int(time.time())}_"
 
@@ -2044,8 +2085,8 @@ async def generate_classroom_quiz_questions(
     if not questions:
         raise HTTPException(500, "LLM returned no questions. Please try again with a different prompt.")
 
-    print(f"✅ Generated {len(questions)} questions for classroom {classroom_id}, topic: {data.topic_prompt}")
-    return {"questions": questions, "context_chunks_used": len(context_chunks_raw)}
+    print(f"✅ Generated {len(questions)} questions for classroom {classroom_id}, topic: {data.topic_prompt}, source: {data.source}")
+    return {"questions": questions, "context_chunks_used": len(context_chunks_raw), "source": data.source}
 
 
 @router.post("/{classroom_id}/quizzes", response_model=ClassroomQuizResponse, status_code=status.HTTP_201_CREATED)
@@ -2080,6 +2121,7 @@ def save_classroom_quiz(
         topic_prompt=data.topic_prompt,
         questions=data.questions,
         status=data.status,
+        attempt_limit=data.attempt_limit,
         created_by=current_user.id,
     )
     db.add(quiz)
@@ -2161,6 +2203,8 @@ def update_classroom_quiz(
             if not section:
                 raise HTTPException(404, "Section not found")
         quiz.section_id = data.section_id
+    if data.attempt_limit is not None:
+        quiz.attempt_limit = data.attempt_limit
 
     quiz.updated_at = datetime.utcnow()
     db.commit()
@@ -2185,6 +2229,143 @@ def delete_classroom_quiz(
     db.delete(quiz)
     db.commit()
     return {"status": "deleted", "quiz_id": quiz_id}
+
+
+@router.post("/{classroom_id}/quizzes/{quiz_id}/submit")
+def submit_classroom_quiz_attempt(
+    classroom_id: int,
+    quiz_id: int,
+    data: SubmitClassroomQuizAttemptRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Submit a quiz attempt with score and answers. Students submit after completing a quiz."""
+    # Verify student is in classroom
+    _verify_classroom_access(classroom_id, current_user, db)
+    if current_user.role != "student":
+        raise HTTPException(403, "Only students can submit quiz attempts")
+    
+    # Verify quiz exists and is published
+    quiz = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.id == quiz_id,
+        ClassroomQuiz.classroom_id == classroom_id,
+        ClassroomQuiz.status == "published",
+    ).first()
+    if not quiz:
+        raise HTTPException(404, "Quiz not found or not yet published")
+    
+    # Create and save attempt
+    from db_models import ClassroomQuizAttempt
+    attempt = ClassroomQuizAttempt(
+        quiz_id=quiz_id,
+        student_id=current_user.id,
+        score=data.score,
+        answers=data.answers,
+    )
+    db.add(attempt)
+    db.commit()
+    db.refresh(attempt)
+    
+    return {
+        "status": "submitted",
+        "attempt_id": attempt.id,
+        "quiz_id": quiz_id,
+        "score": attempt.score,
+        "submitted_at": attempt.submitted_at.isoformat(),
+    }
+
+
+@router.get("/{classroom_id}/quizzes/{quiz_id}/student-results")
+def get_classroom_quiz_student_results(
+    classroom_id: int,
+    quiz_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get quiz attempt results for all students (teacher view) or current student's results (student view)."""
+    # Verify access
+    member = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id,
+        ClassroomMember.student_id == current_user.id,
+    ).first()
+    is_student = bool(member)
+    is_teacher = current_user.role == "teacher" and db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id,
+        ClassroomMember.student_id == current_user.id,
+    ).first() is None or current_user.role == "teacher"
+    
+    if not (is_student or is_teacher):
+        raise HTTPException(403, "You do not have access to this classroom")
+    
+    # Verify quiz exists
+    quiz = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.id == quiz_id,
+        ClassroomQuiz.classroom_id == classroom_id,
+    ).first()
+    if not quiz:
+        raise HTTPException(404, "Quiz not found")
+    
+    from db_models import ClassroomQuizAttempt, User
+    
+    if is_student:
+        # Return only current student's attempts
+        attempts = db.query(ClassroomQuizAttempt).filter(
+            ClassroomQuizAttempt.quiz_id == quiz_id,
+            ClassroomQuizAttempt.student_id == current_user.id,
+        ).order_by(ClassroomQuizAttempt.submitted_at.desc()).all()
+        
+        return {
+            "quiz_id": quiz_id,
+            "student_id": current_user.id,
+            "attempts": [
+                {
+                    "id": a.id,
+                    "score": a.score,
+                    "submitted_at": a.submitted_at.isoformat(),
+                }
+                for a in attempts
+            ],
+        }
+    else:
+        # Teacher view: return all students' results
+        members = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id
+        ).all()
+        
+        student_results = []
+        for member in members:
+            student = db.query(User).filter(User.id == member.student_id).first()
+            if not student:
+                continue
+            
+            # Get best attempt for this student
+            best_attempt = db.query(ClassroomQuizAttempt).filter(
+                ClassroomQuizAttempt.quiz_id == quiz_id,
+                ClassroomQuizAttempt.student_id == member.student_id,
+            ).order_by(ClassroomQuizAttempt.score.desc()).first()
+            
+            # Count total attempts
+            attempt_count = db.query(ClassroomQuizAttempt).filter(
+                ClassroomQuizAttempt.quiz_id == quiz_id,
+                ClassroomQuizAttempt.student_id == member.student_id,
+            ).count()
+            
+            student_results.append({
+                "student_id": member.student_id,
+                "student_name": student.full_name,
+                "student_email": student.email,
+                "attempted": attempt_count > 0,
+                "attempt_count": attempt_count,
+                "best_score": best_attempt.score if best_attempt else None,
+                "last_submitted": best_attempt.submitted_at.isoformat() if best_attempt else None,
+            })
+        
+        return {
+            "quiz_id": quiz_id,
+            "classroom_id": classroom_id,
+            "total_students": len(members),
+            "student_results": student_results,
+        }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2311,31 +2492,34 @@ def get_classroom_quizzes_with_progress(
 
     result = []
     for quiz in quizzes:
-        # Get attempts for this quiz
-        from db_models import QuizAttempt
-        attempts = db.query(QuizAttempt).filter(
-            QuizAttempt.quiz_id == quiz.id
+        # Get attempts for this quiz from ClassroomQuizAttempt
+        attempts = db.query(ClassroomQuizAttempt).filter(
+            ClassroomQuizAttempt.quiz_id == quiz.id
         ).all()
         
-        attempt_user_ids = {a.user_id for a in attempts}
+        attempt_user_ids = {a.student_id for a in attempts}
         student_progress = []
         
         for member in members:
             student = db.query(User).filter(User.id == member.student_id).first()
             if student:
-                # Get best score for this student on this quiz
-                student_attempt = db.query(QuizAttempt).filter(
-                    QuizAttempt.quiz_id == quiz.id,
-                    QuizAttempt.user_id == member.student_id,
-                ).order_by(QuizAttempt.score.desc()).first()
+                # Get all attempts for this student on this quiz
+                student_attempts = db.query(ClassroomQuizAttempt).filter(
+                    ClassroomQuizAttempt.quiz_id == quiz.id,
+                    ClassroomQuizAttempt.student_id == member.student_id,
+                ).order_by(ClassroomQuizAttempt.submitted_at.asc()).all()
+                
+                all_scores = [a.score for a in student_attempts]
+                best_score = max(all_scores) if all_scores else None
                 
                 student_progress.append({
                     "student_id": member.student_id,
                     "student_name": student.full_name,
                     "student_email": student.email,
                     "attempted": member.student_id in attempt_user_ids,
-                    "best_score": student_attempt.score if student_attempt else None,
-                    "attempt_count": len([a for a in attempts if a.user_id == member.student_id]),
+                    "all_scores": all_scores,
+                    "best_score": best_score,
+                    "attempt_count": len(student_attempts),
                 })
 
         attempt_count = len(attempt_user_ids)
@@ -2396,6 +2580,9 @@ class PracticalChallengeResponse(BaseModel):
 class GeneratePracticalChallengeRequest(BaseModel):
     topic_prompt: str           # e.g. "Inheritance and Polymorphism"
     section_id: Optional[int] = None
+    source: str = "classroom"   # 'classroom' | 'course' | 'both'
+    file_ids: Optional[List[int]] = None
+    course_path: Optional[str] = None
 
 
 class SavePracticalChallengeRequest(BaseModel):
@@ -2406,6 +2593,7 @@ class SavePracticalChallengeRequest(BaseModel):
     model_solution: Dict[str, Any]
     section_id: Optional[int] = None
     status: str = "draft"       # "draft" | "published"
+    attempt_limit: Optional[int] = None  # max attempts per student (None = unlimited)
 
 
 class UpdatePracticalChallengeRequest(BaseModel):
@@ -2416,6 +2604,7 @@ class UpdatePracticalChallengeRequest(BaseModel):
     model_solution: Optional[Dict[str, Any]] = None
     section_id: Optional[int] = None
     status: Optional[str] = None
+    attempt_limit: Optional[int] = None  # max attempts per student
 
 
 @router.post("/{classroom_id}/practical-challenges/generate")
@@ -2426,24 +2615,99 @@ async def generate_classroom_practical_challenge(
     current_user: User = Depends(get_current_user),
 ):
     """Generate a practical coding challenge with model solution for teacher preview.
+    Can use classroom materials, course content, or both as reference material.
     Nothing is saved — teacher reviews/edits, then calls the save endpoint."""
     _verify_teacher_access(classroom_id, current_user, db)
 
     if not data.topic_prompt.strip():
         raise HTTPException(400, "topic_prompt cannot be empty")
 
-    # Import the existing generator to reuse its battle-tested prompt + validation logic
+    if data.source not in ("classroom", "course", "both"):
+        raise HTTPException(400, "source must be 'classroom', 'course', or 'both'")
+
+    # Gather context from selected sources (same as quiz generation)
+    course_chunks = []
+    classroom_chunks = []
+
+    if data.source in ("course", "both"):
+        valid_paths = {"basic_java", "enhanced_java"}
+        course_path = data.course_path or "basic_java"
+        if course_path not in valid_paths:
+            raise HTTPException(400, f"course_path must be one of {valid_paths}")
+        try:
+            from routers.rag import get_retriever
+            retriever = await get_retriever()
+            docs = retriever.invoke(data.topic_prompt)
+            course_chunks = [{"text": d.page_content} for d in docs]
+            print(f"✓ Retrieved {len(course_chunks)} chunks from course content ({course_path})")
+        except Exception as exc:
+            if data.source == "course":
+                raise HTTPException(503, f"Course content unavailable: {str(exc)}")
+            print(f"⚠️ Course content unavailable (proceeding with classroom only): {str(exc)}")
+            course_chunks = []
+
+    if data.source in ("classroom", "both"):
+        if data.file_ids:
+            valid_ids = [
+                f.id for f in db.query(ClassroomFile)
+                               .filter(ClassroomFile.classroom_id == classroom_id,
+                                       ClassroomFile.id.in_(data.file_ids))
+                               .all()
+            ]
+            if not valid_ids:
+                raise HTTPException(404, "None of the selected files were found in this classroom.")
+            classroom_chunks = get_chunks_for_files(classroom_id, valid_ids, db)
+            print(f"✓ Retrieved {len(classroom_chunks)} chunks from {len(valid_ids)} selected classroom files")
+        else:
+            classroom_chunks = search_classroom_context(
+                classroom_id=classroom_id,
+                query=data.topic_prompt,
+                db=db,
+                top_k=10,
+            )
+            print(f"✓ Retrieved {len(classroom_chunks)} chunks from classroom RAG search")
+        
+        if not classroom_chunks and data.source == "classroom":
+            raise HTTPException(400, "No classroom documents found. Upload documents first, then generate a challenge.")
+
+    # Merge and deduplicate
+    merged = []
+    seen = set()
+    for c in (course_chunks + classroom_chunks):
+        t = (c["text"] if isinstance(c, dict) else str(c)).strip()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        merged.append(c)
+
+    if not merged:
+        raise HTTPException(400, f"No context found from selected sources ({data.source}). Try uploading documents or selecting a different course.")
+
+    # Build context string
+    texts = [c["text"] if isinstance(c, dict) else str(c) for c in merged]
+    context_str = "\n\n---\n\n".join(texts)
+    if len(context_str) > 7000:
+        context_str = context_str[:7000] + "\n...[context truncated]"
+
+    # Import the existing generator and pass reference material
     from routers.practical_tests import _generate_practical_question
     try:
-        result = await _generate_practical_question(data.topic_prompt.strip(), [])
+        result = await _generate_practical_question(
+            data.topic_prompt.strip(), 
+            [],
+            reference_material=context_str if merged else None
+        )
     except Exception as exc:
         raise HTTPException(502, f"AI generation failed: {str(exc)}")
 
+    print(f"✅ Generated practical challenge for classroom {classroom_id}, topic: {data.topic_prompt}, source: {data.source}")
     return {
         "question":       result.get("question", {}),
         "base_code":      result.get("baseCode", {}),
         "model_solution": result.get("solution", {}),
         "topic_prompt":   data.topic_prompt.strip(),
+        "source": data.source,
+        "context_chunks_used": len(merged),
     }
 
 
@@ -2471,6 +2735,7 @@ def save_classroom_practical_challenge(
         base_code=data.base_code,
         model_solution=data.model_solution,
         status=data.status,
+        attempt_limit=data.attempt_limit,
         created_by=current_user.id,
     )
     db.add(challenge)
@@ -2561,4 +2826,214 @@ def delete_classroom_practical_challenge(
     db.delete(challenge)
     db.commit()
     return {"ok": True}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PRACTICAL CHALLENGE SUBMISSIONS & RESULTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SubmitPracticalChallengeRequest(BaseModel):
+    """Submit solution code for a practical challenge."""
+    submitted_code: Dict[str, str]  # {class_name: code_string, ...}
+    execution_output: Optional[Dict[str, Any]] = None  # Result from code execution
+
+
+class PracticalChallengeAttemptResponse(BaseModel):
+    id: int
+    challenge_id: int
+    student_id: int
+    passed: bool
+    execution_output: Optional[Dict[str, Any]]
+    submitted_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/{classroom_id}/practical-challenges/{challenge_id}/submit")
+def submit_practical_challenge_attempt(
+    classroom_id: int,
+    challenge_id: int,
+    data: SubmitPracticalChallengeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Submit solution code and execution result for a practical challenge.
+    Students submit their code; the result is tracked for teacher dashboard."""
+    
+    # Verify student is in classroom
+    _verify_classroom_access(classroom_id, current_user, db)
+    if current_user.role != "student":
+        raise HTTPException(403, "Only students can submit challenge attempts")
+    
+    # Verify challenge exists and is published
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+        ClassroomPracticalChallenge.status == "published",
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found or not yet published")
+    
+    # Determine if passed based on execution output
+    passed = False
+    if data.execution_output:
+        # Check if test cases passed
+        passed = data.execution_output.get("passed", False) or data.execution_output.get("all_passed", False)
+        # If not explicitly marked, check for successful execution (no build errors, no stderr)
+        if not passed and not data.execution_output.get("stderr") and not data.execution_output.get("build_stderr"):
+            passed = data.execution_output.get("status") == "completed"
+    
+    # Create or update attempt record
+    attempt = db.query(ClassroomPracticalChallengeAttempt).filter(
+        ClassroomPracticalChallengeAttempt.challenge_id == challenge_id,
+        ClassroomPracticalChallengeAttempt.student_id == current_user.id,
+    ).order_by(ClassroomPracticalChallengeAttempt.submitted_at.desc()).first()
+    
+    # Always create a new attempt record (don't update previous ones)
+    attempt = ClassroomPracticalChallengeAttempt(
+        challenge_id=challenge_id,
+        student_id=current_user.id,
+        submitted_code=data.submitted_code,
+        passed=passed,
+        execution_output=data.execution_output,
+    )
+    db.add(attempt)
+    db.commit()
+    db.refresh(attempt)
+    
+    return attempt
+
+
+@router.get("/{classroom_id}/practical-challenges/{challenge_id}/attempts")
+def get_practical_challenge_attempts(
+    classroom_id: int,
+    challenge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all attempts for a challenge.
+    - Teachers see all student attempts
+    - Students see only their own attempts"""
+    
+    _verify_classroom_access(classroom_id, current_user, db)
+    
+    # Verify challenge exists
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found")
+    
+    q = db.query(ClassroomPracticalChallengeAttempt).filter(
+        ClassroomPracticalChallengeAttempt.challenge_id == challenge_id
+    )
+    
+    # Students can only see their own attempts
+    if current_user.role == "student":
+        q = q.filter(ClassroomPracticalChallengeAttempt.student_id == current_user.id)
+    
+    attempts = q.order_by(ClassroomPracticalChallengeAttempt.submitted_at.desc()).all()
+    return attempts
+
+
+@router.get("/{classroom_id}/practical-challenges/{challenge_id}/best-attempt")
+def get_best_practical_challenge_attempt(
+    classroom_id: int,
+    challenge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the best (most recent passed, or latest) attempt for the current student.
+    Useful for displaying pass status on student dashboard."""
+    
+    _verify_classroom_access(classroom_id, current_user, db)
+    if current_user.role != "student":
+        raise HTTPException(403, "Only students can view their best attempt")
+    
+    # Verify challenge exists
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found")
+    
+    # Check for passed attempt first
+    passed_attempt = db.query(ClassroomPracticalChallengeAttempt).filter(
+        ClassroomPracticalChallengeAttempt.challenge_id == challenge_id,
+        ClassroomPracticalChallengeAttempt.student_id == current_user.id,
+        ClassroomPracticalChallengeAttempt.passed == True,
+    ).order_by(ClassroomPracticalChallengeAttempt.submitted_at.asc()).first()
+    
+    if passed_attempt:
+        return passed_attempt
+    
+    # Otherwise return latest attempt
+    latest_attempt = db.query(ClassroomPracticalChallengeAttempt).filter(
+        ClassroomPracticalChallengeAttempt.challenge_id == challenge_id,
+        ClassroomPracticalChallengeAttempt.student_id == current_user.id,
+    ).order_by(ClassroomPracticalChallengeAttempt.submitted_at.desc()).first()
+    
+    if not latest_attempt:
+        raise HTTPException(404, "No attempts found for this challenge")
+    
+    return latest_attempt
+
+
+@router.get("/{classroom_id}/practical-challenges/{challenge_id}/student-results")
+def get_practical_challenge_student_results(
+    classroom_id: int,
+    challenge_id: int,
+    student_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all student results for a challenge (teacher view) or current student's results (student view)."""
+    
+    _verify_classroom_access(classroom_id, current_user, db)
+    
+    if current_user.role == "student":
+        # Students see only their own results
+        student_id = current_user.id
+    elif not student_id:
+        # Teachers get all unique students who attempted
+        results = db.query(ClassroomPracticalChallengeAttempt).filter(
+            ClassroomPracticalChallengeAttempt.challenge_id == challenge_id
+        ).all()
+        # Group by student
+        by_student = {}
+        for attempt in results:
+            if attempt.student_id not in by_student:
+                student = db.query(User).filter(User.id == attempt.student_id).first()
+                by_student[attempt.student_id] = {
+                    "student_id": attempt.student_id,
+                    "student_name": student.full_name if student else "Unknown",
+                    "student_email": student.email if student else "",
+                    "attempts_count": 0,
+                    "passed_count": 0,
+                    "failed_count": 0,
+                    "all_attempts": [],
+                    "passed": False,
+                    "latest_attempt": None,
+                }
+            by_student[attempt.student_id]["attempts_count"] += 1
+            if attempt.passed:
+                by_student[attempt.student_id]["passed"] = True
+                by_student[attempt.student_id]["passed_count"] += 1
+            else:
+                by_student[attempt.student_id]["failed_count"] += 1
+            by_student[attempt.student_id]["all_attempts"].append(attempt)
+            # Always update to latest
+            by_student[attempt.student_id]["latest_attempt"] = attempt
+        return list(by_student.values())
+    
+    # Get specific student's results
+    results = db.query(ClassroomPracticalChallengeAttempt).filter(
+        ClassroomPracticalChallengeAttempt.challenge_id == challenge_id,
+        ClassroomPracticalChallengeAttempt.student_id == student_id,
+    ).order_by(ClassroomPracticalChallengeAttempt.submitted_at.desc()).all()
+    
+    return {"student_id": student_id, "attempts": results}
 

@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON, LargeBinary, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON, LargeBinary, UniqueConstraint, Index
 from datetime import datetime
 import json
 
@@ -308,6 +308,7 @@ class ClassroomQuiz(Base):
     topic_prompt = Column(Text, nullable=True)       # prompt used to generate questions
     questions    = Column(JSON, nullable=False)       # list of MCQ dicts
     status       = Column(String(20), default="draft")  # "draft" | "published"
+    attempt_limit = Column(Integer, default=None)     # max attempts allowed per student (None = unlimited)
     created_by   = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at   = Column(DateTime, default=datetime.utcnow)
     updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -326,9 +327,49 @@ class ClassroomPracticalChallenge(Base):
     base_code      = Column(JSON, nullable=False)        # {class, helperClasses, methods}
     model_solution = Column(JSON, nullable=False)        # {class, helperClasses, methods} — teacher-reviewed
     status         = Column(String(20), default="draft") # "draft" | "published"
+    attempt_limit  = Column(Integer, default=None)      # max attempts allowed per student (None = unlimited)
     created_by     = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at     = Column(DateTime, default=datetime.utcnow)
     updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClassroomPracticalChallengeAttempt(Base):
+    """Track student submissions and results for practical challenges"""
+    __tablename__ = "classroom_practical_challenge_attempts"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    challenge_id      = Column(Integer, ForeignKey("classroom_practical_challenges.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id        = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Submission data
+    submitted_code    = Column(JSON, nullable=False)     # {class_name: code_string, ...}
+    
+    # Execution result
+    passed            = Column(Boolean, default=False)   # True if all tests passed
+    execution_output  = Column(JSON, nullable=True)      # {stdout, stderr, build_stderr, passed_tests, etc.}
+    
+    # Timing and metadata
+    submitted_at      = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    __table_args__ = (Index('ix_challenge_student', 'challenge_id', 'student_id'),)
+
+
+class ClassroomQuizAttempt(Base):
+    """Track student quiz attempts and results for classroom quizzes"""
+    __tablename__ = "classroom_quiz_attempts"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    quiz_id       = Column(Integer, ForeignKey("classroom_quizzes.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Submission data
+    score         = Column(Float, nullable=False)        # 0-100, percentage
+    answers       = Column(JSON, nullable=True)          # {question_id: selected_option_index, ...}
+    
+    # Timing and metadata
+    submitted_at  = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    __table_args__ = (Index('ix_quiz_student', 'quiz_id', 'student_id'),)
 
 
 class MaterialRead(Base):

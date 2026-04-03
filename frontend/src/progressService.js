@@ -52,11 +52,62 @@ export const ALL_PROGRESS_LOCAL_KEYS = [
   BASIC_MILESTONES_KEY,
   ENHANCED_MILESTONES_KEY,
   'hasSeenDemoTour',
+  'codetutor_chat_history',
+  'codetutor_active_sessions',
+  'codetutor_active_session',
+  'expectedOutput',
 ];
 
 // Clear all progress-related localStorage keys (used on logout and page unload)
 export function clearAllProgressLocalData() {
+  // Clear all explicitly-defined keys from localStorage
   ALL_PROGRESS_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
+  
+  // Clear dynamically-created user-specific keys from localStorage matching patterns:
+  // - quiz/milestone reminder dismissals: quiz_reminder_*, enhanced_quiz_reminder_*
+  // - topic dismissals: *_dismissed_*, enhanced_*_dismissed_*
+  // - classroom/session data: classroom_*, enrollment_*
+  const localKeysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    
+    const isUserPattern = 
+      key.includes('reminder_dismissed') ||
+      key.includes('_dismissed_') ||
+      key.includes('classroom_') ||
+      key.includes('enrollment_') ||
+      key.includes('current_classroom') ||
+      key.includes('lesson_') ||
+      key.includes('topic_') ||
+      key.includes('conversation_');
+    
+    if (isUserPattern) {
+      localKeysToRemove.push(key);
+    }
+  }
+  
+  localKeysToRemove.forEach(key => localStorage.removeItem(key));
+  
+  // Also clear sessionStorage keys that contain user-specific session/conversation data
+  const sessionKeysToRemove = [];
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    if (!key) continue;
+    
+    // Remove session/conversation related keys from sessionStorage
+    const isSessionUserData = 
+      key.includes('codetutor') ||
+      key.includes('session') ||
+      key.includes('conversation') ||
+      key.includes('active_');
+    
+    if (isSessionUserData) {
+      sessionKeysToRemove.push(key);
+    }
+  }
+  
+  sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
 }
 
 /**
