@@ -23,6 +23,7 @@ export default function Playground() {
     });
 
     const fromTopic = location.state?.fromTopic;
+    const fromRoute = location.state?.fromRoute || '/topic';
     const tracker = useRef(new ProgressTracker()).current;
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -88,7 +89,7 @@ export default function Playground() {
             {fromTopic && (
                 <div style={{ marginBottom: spacing.md, paddingBottom: spacing.md, borderBottom: `1px solid #e5e7eb` }}>
                     <button
-                        onClick={() => navigate(`/topic/${fromTopic}`)}
+                        onClick={() => navigate(`${fromRoute}/${fromTopic}`)}
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',

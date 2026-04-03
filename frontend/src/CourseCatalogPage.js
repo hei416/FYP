@@ -352,7 +352,7 @@ export default function CourseCatalogPage() {
                       </div>
                       {/* Body */}
                       <div className="p-5 flex flex-col gap-4 flex-1">
-                        <p className="text-sm text-gray-400 leading-relaxed line-clamp-2 flex-1 min-h-[2.5rem] font-medium">
+                        <p className="text-sm text-gray-400 leading-relaxed line-clamp-2 min-h-[2.5rem] font-medium">
                           {cls.description || <span className="italic text-gray-500">No description provided.</span>}
                         </p>
                         {/* Stat badges */}

@@ -220,7 +220,7 @@ export default function EnhancedTopicDetailPage() {
                                                 <pre className="whitespace-pre-wrap break-words">{example.code}</pre>
                                             </div>
                                             <button
-                                                onClick={() => navigate('/playground', { state: { code: example.code, fromTopic: topicId } })}
+                                                onClick={() => navigate('/playground', { state: { code: example.code, fromTopic: topicId, fromRoute: '/enhanced-topic' } })}
                                                 className="mt-3 inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                                             >
                                                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

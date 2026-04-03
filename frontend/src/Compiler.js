@@ -104,6 +104,13 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         };
     }, []);
 
+    // Returns true when the code contains stdin-reading APIs (Scanner, BufferedReader, System.in, etc.).
+    // Used to conditionally show the stdin input box only when the program needs user input.
+    const needsStdin = (code) => {
+        if (!code) return false;
+        return /\bScanner\b|\bBufferedReader\b|System\.in\b|\bInputStreamReader\b|System\.console\(\)|Console\.readLine/.test(code);
+    };
+
     const extractClassName = (code) => {
         // Prefer public class (must match filename in Java)
         const publicMatch = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
@@ -631,8 +638,8 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
                 </div>
             )}
 
-            {/* ── stdin input (shown while program awaits input) ── */}
-            {wsRunning && !hideRunButton && (
+            {/* ── stdin input (only shown when code reads from stdin and program is running) ── */}
+            {wsRunning && !hideRunButton && needsStdin(activeFile?.content) && (
                 <form onSubmit={sendStdin} style={{ display: 'flex', gap: spacing.xs, marginTop: spacing.xs }}>
                     <input
                         type="text"
