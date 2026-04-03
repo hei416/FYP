@@ -73,11 +73,10 @@ except Exception as e:
 " || true
 }
 
-# Start terminal service if available (runs in background)
+# Start terminal service fully in background — MUST NOT block gunicorn startup
 if [ -d "$APP_DIR/terminal-service" ]; then
-    echo "Starting terminal-service from $APP_DIR/terminal-service"
-    (cd "$APP_DIR/terminal-service" && npm install --no-audit --no-fund 2>/dev/null || true)
-    (cd "$APP_DIR/terminal-service" && node server.js &) || echo "Failed to start terminal-service"
+    echo "Starting terminal-service in background from $APP_DIR/terminal-service"
+    (cd "$APP_DIR/terminal-service" && npm install --no-audit --no-fund 2>/dev/null && node server.js 2>/dev/null) &
 fi
 
 # Start gunicorn from the correct app directory

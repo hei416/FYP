@@ -44,8 +44,9 @@ jobs:
             --settings \
               SCM_DO_BUILD_DURING_DEPLOYMENT=true \
               ENABLE_ORYX_BUILD=true \
-              SCM_NO_BUILD_CACHE=true \
+              SCM_NO_BUILD_CACHE=false \
               WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
+              WEBSITES_CONTAINER_START_TIME_LIMIT=1800 \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "SECRET_KEY=${{ secrets.SECRET_KEY }}"
 
@@ -86,18 +87,18 @@ jobs:
 
       - name: Wait for build then poll health
         run: |
-          echo "Waiting 3 min for Oryx server-side build to complete..."
-          sleep 180
+          echo "Waiting 5 min for Oryx server-side build to complete..."
+          sleep 300
           echo "Polling https://codetutor-fyp-hei.azurewebsites.net/health ..."
-          for i in $(seq 1 30); do
+          for i in $(seq 1 40); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               https://codetutor-fyp-hei.azurewebsites.net/health || echo "000")
-            echo "  Attempt $i/30 — HTTP $STATUS"
+            echo "  Attempt $i/40 — HTTP $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "✅ Site is healthy!"
               exit 0
             fi
-            sleep 20
+            sleep 30
           done
-          echo "❌ Site did not respond with 200 within ~13 minutes."
+          echo "❌ Site did not respond with 200 within ~25 minutes."
           exit 1
