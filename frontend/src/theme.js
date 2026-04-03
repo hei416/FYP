@@ -36,15 +36,21 @@ export const colors = {
   warningBorder: '#FDE68A',   // amber-200
 
   // Neutrals
-  text:          '#111827',   // gray-900
-  textSecondary: '#4B5563',   // gray-600
-  textMuted:     '#9CA3AF',   // gray-400
-  border:        '#E5E7EB',   // gray-200
-  divider:       '#F3F4F6',   // gray-100
-  bg:            '#F9FAFB',   // gray-50
-  surface:       '#FFFFFF',
+  text:          '#111827',   // gray-900 (dark text for light surfaces)
+  textSecondary: '#4B5563',   // gray-600 (medium gray)
+  textMuted:     '#9CA3AF',   // gray-400 (lighter gray)
+  border:        '#E5E7EB',   // gray-200 (light border)
+  divider:       '#F3F4F6',   // gray-100 (light divider)
+  bg:            '#DBEAFE',   // blue-100 (soft light blue page background)
+  surface:       '#F0F9FF',   // sky-50 (light blue for content cards/surfaces)
   backdrop:      'rgba(0, 0, 0, 0.5)',
+
+  // Navbar (dark theme)
+  navbarBg:      '#1F2A3F',   // soft dark blue
+  navbarText:    '#F3F4F6',   // light gray-100
+  navbarBrand:   '#FFFFFF',   // white for logo
 };
+
 
 // ── Spacing ─────────────────────────────────────────────────
 export const spacing = {
@@ -350,9 +356,11 @@ export const codeOutput = {
 // ── Navbar reference values ─────────────────────────────────
 export const navbar = {
   height: 80,
-  bg: colors.surface,
-  borderColor: colors.border,
-  shadow: '0 1px 4px rgba(0,0,0,0.06)',
+  bg: colors.navbarBg,
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+  text: colors.navbarText,
+  brand: colors.navbarBrand,
+  shadow: '0 4px 12px rgba(0,0,0,0.15)',
   brandColor: colors.primary,
 };
 

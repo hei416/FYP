@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Compiler from "./Compiler";
-import { TOPIC_GROUPS } from "./BasicJavaPage";
+import { getTopicGroupsForPath } from "./learningPathUtils";
 import { ProgressTracker } from "./ProgressTracker";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, codeOutput } from './theme';
 
@@ -46,18 +46,30 @@ function buildStarterCode(baseCode) {
     return code;
 }
 
-const ALL_TOPICS = TOPIC_GROUPS.map(g => g.label);
 const MAX_TOPICS = 3;
 
 // ─── component ────────────────────────────────────────────────────────────────
 export default function PracticalTest() {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
+    const [topicGroups, setTopicGroups] = useState([]);
+    const [selectedPath, setSelectedPath] = useState(null);
     const [screen, setScreen] = useState('select');
     const [selectedTopics, setSelectedTopics] = useState([]);
     const [activeTestTopics, setActiveTestTopics] = useState([]);
     const [generating, setGenerating] = useState(false);
     const [genError, setGenError] = useState('');
+
+    // Load topic groups when a path is explicitly selected
+    useEffect(() => {
+        if (!selectedPath) { setTopicGroups([]); return; }
+        getTopicGroupsForPath(selectedPath).then(groups => {
+            setTopicGroups(groups);
+        }).catch(err => {
+            console.error('Failed to load topic groups:', err);
+            setTopicGroups([]);
+        });
+    }, [selectedPath]);
 
     const [currentQuestionData, setCurrentQuestionData] = useState(null);
     const [questionDbId, setQuestionDbId] = useState(null);
@@ -80,7 +92,12 @@ export default function PracticalTest() {
     const [hintLoading, setHintLoading] = useState(false);
     const [testResults, setTestResults] = useState(null);
 
+    // Model answer — populated from evaluate-ai response after submission
+    const [modelSolution, setModelSolution] = useState(null);
+    const [showModelAnswer, setShowModelAnswer] = useState(false);
+
     const tracker = useRef(new ProgressTracker()).current;
+    const ALL_TOPICS = topicGroups.map(g => g.label);
 
     useEffect(() => {
         if (!started) return;
@@ -102,7 +119,7 @@ export default function PracticalTest() {
     const clearAll  = () => setSelectedTopics([]);
     const selectCompleted = () => {
         const completed = tracker.getCompletedTopics();
-        const completedLabels = TOPIC_GROUPS
+        const completedLabels = topicGroups
             .filter(g => g.subtopics.some(s => completed.includes(s)))
             .map(g => g.label);
         if (completedLabels.length === 0) {
@@ -135,6 +152,8 @@ export default function PracticalTest() {
         setElapsedTime(0);   // auto-reset timer when loading a question
         setStarted(true);    // auto-start timer when question loads
         setSubmitted(false); // unlock editor for new question
+        setModelSolution(null);
+        setShowModelAnswer(false);
     };
 
     // ── generate AI question ──────────────────────────────────────────────────
@@ -268,6 +287,10 @@ export default function PracticalTest() {
             }
             const results = { passed, failed, expected_outputs: expectedOutputs, actual_outputs: actualOutputs };
             setTestResults(results);
+            // Capture model solution if backend returned one
+            if (data.model_solution) {
+                setModelSolution(data.model_solution);
+            }
             if (failed.length === 0) {
                 setResult(`✅ All tests passed! Your solution is correct.\n\nYour Output:\n${actualOutput}`);
             } else {
@@ -381,9 +404,49 @@ export default function PracticalTest() {
 
             {screen === 'select' && (
                 <>
-                    <p style={{ color: colors.textSecondary, fontSize: font.sizeMd, marginBottom: spacing.lg }}>
-                        Select one or more topics, then generate an AI coding exercise tailored to those concepts.
-                    </p>
+                    {!selectedPath ? (
+                        <>
+                            <p style={{ color: colors.textSecondary, fontSize: font.sizeMd, marginBottom: spacing.xl }}>
+                                Choose which Java course to generate a coding challenge for.
+                            </p>
+                            <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => { setSelectedPath('basic'); setSelectedTopics([]); }}
+                                    style={{
+                                        padding: '32px 40px', borderRadius: radii.md,
+                                        border: `2px solid ${colors.border}`, background: colors.surface,
+                                        cursor: 'pointer', textAlign: 'center', minWidth: 220,
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                                    }}
+                                >
+                                    <div style={{ fontSize: 40, marginBottom: 10 }}>☕</div>
+                                    <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>Basic Java</div>
+                                    <div style={{ fontSize: font.sizeSm, color: colors.textSecondary, marginTop: 6 }}>12 topic groups · Beginner to intermediate</div>
+                                </button>
+                                <button
+                                    onClick={() => { setSelectedPath('enhanced'); setSelectedTopics([]); }}
+                                    style={{
+                                        padding: '32px 40px', borderRadius: radii.md,
+                                        border: `2px solid ${colors.border}`, background: colors.surface,
+                                        cursor: 'pointer', textAlign: 'center', minWidth: 220,
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                                    }}
+                                >
+                                    <div style={{ fontSize: 40, marginBottom: 10 }}>🚀</div>
+                                    <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>Enhanced Java</div>
+                                    <div style={{ fontSize: font.sizeSm, color: colors.textSecondary, marginTop: 6 }}>8 topic groups · Advanced concepts</div>
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: spacing.md }}>
+                                <button onClick={() => { setSelectedPath(null); setSelectedTopics([]); }} style={{ ...btn.ghost, fontSize: font.sizeSm, padding: '4px 10px' }}>← Change Course</button>
+                                <span style={{ fontSize: font.sizeSm, color: colors.textSecondary }}>{selectedPath === 'enhanced' ? '🚀 Enhanced Java' : '☕ Basic Java'}</span>
+                            </div>
+                            <p style={{ color: colors.textSecondary, fontSize: font.sizeMd, marginBottom: spacing.lg }}>
+                                Select one or more topics, then generate an AI coding exercise tailored to those concepts.
+                            </p>
 
                     <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.lg }}>
                         <button onClick={selectCompleted} style={{ ...btn.primary, fontSize: font.sizeSm }}>✅ My Completed Topics</button>
@@ -436,11 +499,12 @@ export default function PracticalTest() {
                         </button>
                     </div>
 
-                    {(
-                        <p style={{ marginTop: spacing.md, fontSize: font.sizeSm, color: colors.textSecondary }}>
+                    {(                        <p style={{ marginTop: spacing.md, fontSize: font.sizeSm, color: colors.textSecondary }}>
                             Selected: {selectedTopics.length}/{MAX_TOPICS} topics
                             {selectedTopics.length > 0 && ` · ${selectedTopics.join(' · ')}`}
                         </p>
+                    )}
+                        </>
                     )}
                 </>
             )}
@@ -585,6 +649,72 @@ export default function PracticalTest() {
                     )}
 
                     {result && <pre style={{ ...codeOutput, marginTop: spacing.lg }}>{result}</pre>}
+
+                    {/* Model Answer — shown post-submission when solution is available */}
+                    {submitted && modelSolution && (
+                        <div style={{ marginTop: spacing.lg }}>
+                            <button
+                                onClick={() => setShowModelAnswer(v => !v)}
+                                style={{
+                                    ...btn.secondary,
+                                    background: showModelAnswer ? '#f3f0ff' : undefined,
+                                    border: `1px solid ${showModelAnswer ? '#a78bfa' : undefined}`,
+                                    color: showModelAnswer ? '#7c3aed' : undefined,
+                                }}
+                            >
+                                🔑 {showModelAnswer ? 'Hide Model Answer' : 'View Model Answer'}
+                            </button>
+
+                            {showModelAnswer && (
+                                <div style={{ ...card.base, marginTop: spacing.md, border: '1px solid #d8b4fe', background: '#faf5ff' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+                                        <span style={{ fontWeight: font.weightBold, color: '#7c3aed', fontSize: font.sizeMd }}>
+                                            🔑 Model Answer
+                                        </span>
+                                        <span style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+                                            Reference solution — study this after your attempt
+                                        </span>
+                                    </div>
+
+                                    {Object.entries(modelSolution.methods || {}).map(([methodName, lines]) => {
+                                        if (methodName === 'runApp') return null;
+                                        const code = Array.isArray(lines) ? lines.join('\n') : String(lines);
+                                        return (
+                                            <div key={methodName} style={{ marginBottom: spacing.lg }}>
+                                                <div style={{ fontSize: font.sizeXs, color: '#7c3aed', fontWeight: font.weightSemibold, marginBottom: 6 }}>
+                                                    Method: <code style={{ background: '#f3f0ff', padding: '1px 6px', borderRadius: 4 }}>{methodName}</code>
+                                                </div>
+                                                <pre style={{
+                                                    background: '#1e1b4b', color: '#e0e7ff',
+                                                    borderRadius: radii.md, padding: '12px 16px',
+                                                    fontFamily: 'monospace', fontSize: 13, lineHeight: 1.65,
+                                                    overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                                }}>{code}</pre>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {modelSolution.helperClasses && modelSolution.helperClasses.trim() && (
+                                        <div style={{ marginBottom: spacing.lg }}>
+                                            <div style={{ fontSize: font.sizeXs, color: '#7c3aed', fontWeight: font.weightSemibold, marginBottom: 6 }}>
+                                                Helper Classes
+                                            </div>
+                                            <pre style={{
+                                                background: '#1e1b4b', color: '#e0e7ff',
+                                                borderRadius: radii.md, padding: '12px 16px',
+                                                fontFamily: 'monospace', fontSize: 13, lineHeight: 1.65,
+                                                overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                            }}>{modelSolution.helperClasses}</pre>
+                                        </div>
+                                    )}
+
+                                    <div style={{ fontSize: font.sizeSm, color: colors.textMuted, fontStyle: 'italic', marginTop: spacing.sm }}>
+                                        💡 This is one possible correct solution. Your approach may differ and still be valid.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </>
             )}
         </div>

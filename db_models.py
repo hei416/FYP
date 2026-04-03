@@ -313,6 +313,24 @@ class ClassroomQuiz(Base):
     updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ClassroomPracticalChallenge(Base):
+    """A teacher-created coding challenge for a classroom, with AI-generated model solution."""
+    __tablename__ = "classroom_practical_challenges"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    classroom_id   = Column(Integer, ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id     = Column(Integer, ForeignKey("classroom_sections.id", ondelete="SET NULL"), nullable=True, index=True)
+    title          = Column(String(500), nullable=False)
+    topic_prompt   = Column(Text, nullable=True)         # prompt / topics used to generate
+    question       = Column(JSON, nullable=False)        # {title, description, note, methods, expectedOutput}
+    base_code      = Column(JSON, nullable=False)        # {class, helperClasses, methods}
+    model_solution = Column(JSON, nullable=False)        # {class, helperClasses, methods} — teacher-reviewed
+    status         = Column(String(20), default="draft") # "draft" | "published"
+    created_by     = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class MaterialRead(Base):
     """Tracks which students have marked classroom materials as read."""
     __tablename__ = "material_reads"

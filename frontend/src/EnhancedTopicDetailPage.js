@@ -4,6 +4,7 @@ import { ENHANCED_TOPIC_GROUPS } from './EnhancedJavaPage';
 import { enhancedRagDocMapping } from './enhancedRagDocMapping';
 import { getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';
+import enhancedTopicContent from './enhancedTopicContent.json';
 
 const GROUP_QUIZ_TOPICS = [
     "Advanced OOP",
@@ -26,15 +27,8 @@ export default function EnhancedTopicDetailPage() {
     const [contentLoading, setContentLoading] = useState(true);
 
     useEffect(() => {
-        let cancelled = false;
-        setContentLoading(true);
-        import('./enhancedTopicContent.json').then(mod => {
-            if (!cancelled) {
-                setTopicContent(mod.default || mod);
-                setContentLoading(false);
-            }
-        });
-        return () => { cancelled = true; };
+        setTopicContent(enhancedTopicContent);
+        setContentLoading(false);
     }, []);
 
     const [completedTopics, setCompletedTopics] = useState(() => {

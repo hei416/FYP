@@ -118,23 +118,35 @@ COURSE_SUBTOPIC_MAPS = {
 }
 
 
+def _resolve_topic_id(topic_id: str) -> str:
+    """
+    Resolve a single topic ID by checking both Basic and Enhanced mappings.
+    Returns the main topic name, or the original ID if not found.
+    """
+    # Check Basic Java mapping first
+    if topic_id in SUBTOPIC_TO_MAIN_TOPIC:
+        return SUBTOPIC_TO_MAIN_TOPIC[topic_id]
+    # Then check Enhanced Java mapping
+    if topic_id in ENHANCED_SUBTOPIC_TO_MAIN_TOPIC:
+        return ENHANCED_SUBTOPIC_TO_MAIN_TOPIC[topic_id]
+    # Fallback: return as-is (preserves current behavior for unrecognized IDs)
+    return topic_id
+
+
 def convert_topic_ids_to_main_topics(topic_identifiers: List[str]) -> List[str]:
-    """Convert subtopic IDs to main topic names."""
+    """Convert subtopic IDs (Basic or Enhanced) to main topic names."""
     main_topics = set()
     for identifier in topic_identifiers:
-        if identifier in SUBTOPIC_TO_MAIN_TOPIC:
-            main_topics.add(SUBTOPIC_TO_MAIN_TOPIC[identifier])
-        else:
-            main_topics.add(identifier)
+        main_topics.add(_resolve_topic_id(identifier))
     return list(main_topics)
 
 
 def to_main_topic(topic_id: str) -> str:
-    """Convert a single subtopic ID to its main topic name."""
-    return SUBTOPIC_TO_MAIN_TOPIC.get(topic_id, topic_id)
+    """Convert a single subtopic ID to its main topic name (Basic or Enhanced)."""
+    return _resolve_topic_id(topic_id)
 
 
 def to_main_topics(topic_ids: List[str]) -> List[str]:
-    """Convert a list of subtopic IDs to unique main topic names."""
+    """Convert a list of subtopic IDs to unique main topic names (Basic or Enhanced)."""
     return list({to_main_topic(t) for t in topic_ids})
 

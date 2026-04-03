@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { listWork, deleteWork } from './myWorkService';
 import { useAuth } from './AuthContext';
 
-const typeLabel = { playground: '💻 Code', quiz: '📝 Quiz', test: '🧪 Test' };
+const typeLabel = { playground: '💻 Playground', quiz: '📝 Exercises', test: '🎯 Coding Challenges' };
 const typeColor = { playground: '#3b82f6', quiz: '#8b5cf6', test: '#10b981' };
 
 export default function MyWorkPage() {
@@ -52,7 +52,7 @@ export default function MyWorkPage() {
             Login Required
           </h2>
           <p style={{ color: '#6b7280', marginBottom: 24, fontSize: 15 }}>
-            Register or log in to save and view your quiz results, test submissions, and playground code.
+            Register or log in to save and view your exercise results, coding challenge submissions, and playground code.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <button
@@ -74,7 +74,7 @@ export default function MyWorkPage() {
     <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>📁 My Work</h1>
       <p style={{ color: '#6b7280', marginBottom: 24 }}>
-        Your saved playground code, quiz results, and test submissions.
+        Your saved playground code, exercise results, and coding challenge submissions.
       </p>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
@@ -98,13 +98,13 @@ export default function MyWorkPage() {
         }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
           <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
-            {filter === 'all' ? 'No saved work yet' : `No ${filter} results yet`}
+            {filter === 'all' ? 'No saved work yet' : filter === 'quiz' ? 'No exercise results yet' : filter === 'test' ? 'No coding challenge results yet' : 'No playground saves yet'}
           </h3>
           <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
-            {filter === 'quiz' && 'Try a quiz from any topic page — your scores and answers will appear here.'}
+            {filter === 'quiz' && 'Complete an exercise from any topic page — your scores and answers will appear here.'}
             {filter === 'test' && 'Complete a coding challenge to track your progress here.'}
             {filter === 'playground' && 'Write and save code in the Playground to keep it here.'}
-            {filter === 'all' && 'Start your learning journey! Complete a quiz, coding challenge, or save some playground code.'}
+            {filter === 'all' && 'Start your learning journey! Complete an exercise, coding challenge, or save some playground code.'}
           </p>
           <button
             onClick={() => navigate('/')}

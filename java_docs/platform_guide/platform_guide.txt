@@ -4,13 +4,35 @@ URL: http://localhost:3000
 
 === WHAT IS CODETUTOR? ===
 
-CodeTutor is an AI-powered Java learning platform designed for university students. It combines a structured learning roadmap, an AI tutor powered by a Java knowledge base, an interactive code editor, quizzes, coding challenges, and classroom management tools. The platform guides students step-by-step through Java programming from beginner to advanced level.
+CodeTutor is an AI-powered Java learning platform designed for university students. It combines multiple learning pathways, an intelligent AI tutor, interactive code editors, quizzes, coding challenges, and comprehensive classroom management. The platform guides students step-by-step through Java programming from beginner to advanced level, with flexibility to choose their preferred learning track.
 
-=== LEARNING ROADMAP ===
+=== QUICK START: CHOOSE YOUR LEARNING PATH ===
 
-The homepage shows the Java Learning Roadmap — a visual interactive map of 52 subtopics organised into 12 topic groups. Students must complete each group before unlocking the next, ensuring prerequisite knowledge is built up progressively.
+When you first log in to CodeTutor, you'll be asked to choose a learning path:
 
-The 12 topic groups (in order) are:
+**Basic Java (Recommended for beginners)**
+- 12 main topic groups covering foundational to advanced Java concepts
+- Prerequisite-based unlocking (complete each group before moving to the next)
+- Traditional step-by-step learning progression
+- Best for: Students new to Java or those who prefer a structured, guided approach
+
+**Enhanced Java (For advanced or fast-track learners)**
+- 8 main topic groups with condensed, practical focus
+- Faster-paced content with more direct application to real-world scenarios
+- Reduced prerequisites for faster progression
+- Best for: Students with programming experience or those who want to accelerate their learning
+
+You can switch between paths anytime from the "Home" menu or by visiting the Course Catalog page.
+
+Your progress is tracked separately for each path — switching paths doesn't erase your previous work.
+
+Each path includes the same powerful tools: AI tutor, code editor, quizzes, challenges, and classroom integration.
+
+=== LEARNING ROADMAP (BASIC PATH) ===
+
+The homepage shows your chosen Learning Roadmap — a visual interactive map organized into topic groups. In the Basic Java path, you'll see 52 subtopics organised into 12 main topic groups that must be completed in order to ensure prerequisite knowledge is built up progressively.
+
+The 12 topic groups in the Basic path (in order) are:
 1. Bridging from Python — syntax differences, type system, compilation, program structure
 2. Problem Solving with Java — algorithm thinking, code optimisation, pseudocode, debugging
 3. String — string operations, formatting, parsing, StringBuffer/StringBuilder
@@ -25,6 +47,25 @@ The 12 topic groups (in order) are:
 12. Recursion and Revision — recursive algorithms, base cases, comprehensive review
 
 To mark a topic as complete, open the topic page and click the "Mark as Complete" button. A green tick will appear on the roadmap node.
+
+=== LEARNING ROADMAP (ENHANCED PATH) ===
+
+The Enhanced Java path is designed for students with programming experience or those who want a faster-paced learning track. It contains 26 subtopics organized into 8 main advanced topic groups that must also be completed in order.
+
+The 8 topic groups in the Enhanced path (in order) are:
+1. Advanced OOP — abstract classes, interface design patterns, generics and type parameters
+2. Collections Framework — List, Map, Set, and Queue implementations, choosing the right collection type
+3. Streams & Functional Programming — Stream API, lambda expressions, functional interfaces, method references
+4. Exception Handling & File I/O — checked vs unchecked exceptions, custom exceptions, file operations, streams
+5. Concurrency — threads, synchronization, thread lifecycle, concurrent utilities
+6. Data Structures — arrays, lists, stacks, queues, trees, hashing concepts
+7. Algorithms — sorting, searching, complexity analysis, optimization techniques
+8. Advanced Patterns — recursion optimization, design patterns, problem-solving strategies
+
+Like the Basic path, marking topics complete unlocks the next group. The Enhanced path assumes you already understand Java fundamentals (classes, methods, basic OOP) and focuses on advanced professional-level concepts.
+
+**Switching Between Paths:**
+If you started with Basic Java but want to switch to Enhanced Java (or vice versa), you can change your path anytime. Your progress in each path is tracked separately.
 
 === HOW TO NAVIGATE TOPICS ===
 
@@ -54,23 +95,49 @@ At the bottom of the chat panel, you can choose which knowledge sources the AI s
 
 The AI tutor initialises lazily on first use — if you see "Initializing AI tutor… first load may take 30s", please wait for it to warm up before sending questions.
 
-=== CODE PLAYGROUND ===
+=== CODE PLAYGROUND (LIGHTWEIGHT EDITOR) ===
 
-The Code Playground (accessible from the left sidebar navigation) provides a Monaco-based code editor with Java syntax highlighting. You can write, edit, and run Java code directly in the browser.
+The Code Playground (accessible from the left sidebar: 💻 Playground) provides a quick, lightweight Monaco-based code editor with Java syntax highlighting. Perfect for quick experiments and learning code snippets.
 
 Features:
-- Write Java code and click "Run" to execute it.
-- Code execution is powered by an external code execution API (Paiza).
-- Standard input/output is supported.
-- Your code is auto-saved per topic and persists across page reloads.
-- Click "Save to My Work" to permanently save a code snippet with a custom name.
-- The compiler tab shows any compilation errors or runtime output.
-- An "Explain Error" AI button appears when errors occur, explaining the error in plain English.
+- Write and run small Java code snippets quickly
+- Syntax highlighting for Java code
+- Code execution powered by Paiza API
+- Standard input/output support
+- Auto-saved per topic — persists across page reloads
+- "Save to My Work" button to permanently save snippets with a custom name
+- Error output displayed in a compiler tab
+- "Explain Error" AI button appears when errors occur — click to get a plain-English explanation powered by the AI tutor
+
+Typical use: Quick testing, learning single concepts, experimenting with code syntax.
+
+=== FULL IDE (COMPILER) ===
+
+In addition to the lightweight playground, CodeTutor includes a full-featured Integrated Development Environment (Full IDE/Compiler) for more comprehensive Java development. Access it from the main navigation or link on lesson pages.
+
+Full IDE Features:
+- Complete Monaco editor with advanced syntax highlighting and auto-completion
+- Multi-file project support (organize code into multiple files)
+- Real-time Java compilation and execution
+- Integrated console with standard input/output support
+- Debugging capabilities and enhanced error messages
+- Advanced code organization and project management
+- "Run" button to execute your complete Java program
+- Compiler tab showing detailed compilation errors and runtime output
+- "Explain Error" AI button for error clarification
+- Full-featured development environment for complex programs
+
+Typical use: Building complete Java applications, multi-file projects, testing larger programs, solving Practical Test challenges.
+
+=== WHEN TO USE PLAYGROUND VS IDE ===
+
+- **Use Playground** for: Quick snippets, learning syntax, experimenting with small code pieces, testing a single concept during a lesson
+- **Use Full IDE** for: Complete programs, multi-file projects, Practical Test challenges, larger applications, complex debugging
 
 === QUIZZES (EXERCISES) ===
 
 Quizzes test your understanding of Java topics. To take a quiz:
-1. Navigate to a topic page and click "Take Quiz" or go to the Quiz page from the sidebar.
+1. Navigate to a topic page and click "Take Quiz" or go to the Exercises page from the sidebar (📝 Exercises).
 2. Select the Java topics you want to be tested on.
 3. Choose the number of questions (5, 10, or 15).
 4. Answer each multiple-choice question.
@@ -83,7 +150,7 @@ Results are saved to "My Work" automatically.
 === CODING CHALLENGES (PRACTICAL TESTS) ===
 
 Coding Challenges test your ability to write complete Java programs. To take a challenge:
-1. Navigate to the Practical Tests page from the sidebar.
+1. Navigate to the Coding Challenges page from the sidebar (🎯 Coding Challenges).
 2. A problem specification is shown — read it carefully.
 3. Write your Java solution in the built-in editor.
 4. Click "Submit" to run automated test cases against your solution.
@@ -117,58 +184,438 @@ The My Work page (accessible from the sidebar) stores all your saved work:
 
 You can filter by type using the buttons at the top. Click on any item to expand and see your full answers and score. You can also delete individual work records.
 
-=== CONVERSATION HISTORY ===
+=== CHAT HISTORY ===
 
-The full Conversation History page (accessible by clicking "Expand" in the AI chat panel, or from the sidebar) shows all previous AI tutor conversations.
+The Chat History page (accessible by clicking "Expand" in the AI chat panel, or from the sidebar: 🕘 Chat History) shows all previous AI tutor conversations.
 
 Each conversation entry shows the first message title and can be re-opened to continue a session. You can also delete old conversations.
 
 === CLASSROOMS (FOR ENROLLED STUDENTS) ===
 
-If your teacher has created a classroom and given you a class code, you can join from the Classrooms page (sidebar). Once enrolled:
-- Your teacher can upload course-specific documents (PDFs, notes) to the classroom.
-- In the AI Tutor, you can toggle your classroom as a knowledge source — the AI will then answer questions using your teacher's uploaded materials.
-- The classroom page shows a list of uploaded documents you can browse.
+Classrooms allow you to learn in a structured group environment with teacher-provided materials and guidance. Your teacher can create a classroom and send you a class code to join.
+
+**Joining a Classroom**
+1. Navigate to the My Classrooms page from the left sidebar (🎓 My Classrooms)
+2. Click "Join a Classroom" 
+3. Enter the class code provided by your teacher
+4. Click "Join" — you're now enrolled!
+
+**Classroom Features**
+
+**1. Course Materials & Documents**
+Your teacher can upload course-specific documents (PDFs, notes, guides) to the classroom. To access them:
+- Open the Classrooms page and select your classroom
+- Browse all uploaded materials in the "Materials" or "Documents" section
+- Click on any document to view it
+- Materials are organized into sections/folders for easy navigation
+- The platform tracks your reading progress — documents show whether you've finished reading them
+
+**2. Material Read Tracking**
+To mark a document as read:
+- Open a document in the classroom
+- Scroll through and review the content
+- Click "Mark as Complete" or "Mark as Read" to record that you've finished
+- Your reading progress appears in the classroom dashboard (shows % of materials reviewed)
+- Teachers can see which students have reviewed which materials
+
+**3. Classroom-Specific AI Tutor**
+When you ask the ☕ Ask AI tutor questions while in a classroom, you can toggle "Classroom Mode" to have the AI search your teacher's uploaded materials first:
+- Open the AI chat panel (☕ Ask AI)
+- At the bottom, you'll see a toggle for your classroom name
+- Enable "Classroom Mode" to search classroom materials
+- The AI will answer using your teacher's materials plus the general Java knowledge base
+- Perfect for questions specific to your course's approach or materials
+
+**4. Classroom Quizzes**
+Your teacher can generate quizzes directly from classroom materials:
+- Navigate to the Quizzes section of your classroom
+- Your teacher may have auto-generated quizzes from the course materials
+- Click "Take Quiz" to start
+- Answer questions designed to test your understanding of the classroom content
+- Your scores are tracked and visible to your teacher
+- Passed quizzes count toward your overall progress
+
+**5. Classroom Progress & Communication**
+- Your teacher can see which materials you've reviewed, which quizzes you've passed, and your overall classroom progress
+- Some classrooms may have announcement sections or discussion threads (depends on your teacher's setup)
+
+**Switching Between Classrooms**
+If you're enrolled in multiple classrooms, switch between them by selecting the classroom from the My Classrooms page. Each classroom has independent content and progress tracking.
 
 === GETTING STARTED (NEW USERS) ===
 
 Recommended first steps:
-1. Register for an account (or use guest mode to explore).
-2. Click "Start Tour" to take the guided onboarding walkthrough.
-3. Start from the first roadmap node: "Syntax Comparison" in the Bridging from Python group.
-4. Read the topic content and reference materials.
-5. When ready, mark the topic complete and move to the next.
-6. After finishing a group of 2 chapters, you will be prompted to take a quiz to consolidate your learning.
-7. Use the AI Tutor (☕ Ask AI) whenever you have questions.
+
+1. **Register for an account** (or use guest mode to explore without logging in)
+   - Click "Register" on the login page
+   - Enter your email and create a password
+   - Or click "Login as Guest" to explore without creating an account
+
+2. **Choose your learning path**
+   - On your first visit, you'll be asked to choose between Basic Java or Enhanced Java
+   - New to Java? Choose **Basic Java** for a structured 12-step progression
+   - Experienced programmer? Choose **Enhanced Java** for a faster-paced 8-step track
+   - You can change this anytime from the Course Catalog
+
+3. **Take the optional onboarding tour**
+   - The platform offers a "Start Tour" guided walkthrough if you'd like an introduction
+   - Or skip it and jump directly to learning
+
+4. **Start your first lesson**
+   - View your chosen roadmap (visual map of topics)
+   - Start with the first unlocked topic
+   - Read the topic description and reference materials
+   - Use the ☕ Ask AI tutor to ask questions about concepts you don't understand
+
+5. **Practice with code**
+   - Click "Code Playground" or "Full IDE" to write and test Java code
+   - Try writing the examples from the lesson
+   - Use "Explain Error" if you get compilation errors
+
+6. **Mark topics as complete**
+   - After understanding the topic, open the topic page and click "Mark as Complete"
+   - A checkmark appears on the roadmap node
+   - The next topic unlocks automatically
+
+7. **Take quizzes to consolidate learning**
+   - After completing 2-3 related topics, take a quiz on those topics
+   - Navigate to the Exercises page from the sidebar (📝 Exercises)
+   - Select topics and choose your difficulty level
+   - Aim for 70%+ to pass and strengthen your weak areas
+
+8. **Track your progress**
+   - Click the progress percentage in the top navigation bar to see your overall progress
+   - Review "Weak Areas" to see topics where you scored below 70%
+   - Focus on weak areas to improve your understanding
+
+9. **Save your work**
+   - Click "Save to My Work" on code snippets you want to keep
+   - Access them anytime from the My Work page (📁 My Work)
+   - Your work is saved to your account and syncs across devices
+
+10. **Join a classroom (optional)**
+    - If your teacher has created a classroom and given you a class code:
+    - Go to My Classrooms page (🎓 My Classrooms) from the sidebar
+    - Click "Join a Classroom" and enter the code
+    - Access teacher-provided materials and classroom-specific quizzes
+
+Throughout your learning:
+- Use ☕ Ask AI frequently — it's powered by a comprehensive Java knowledge base and is ready to help
+- Re-attempt quizzes on weak topics to improve your score
+- Check your progress regularly to stay motivated
+
+=== FOR TEACHERS: CLASSROOM MANAGEMENT ===
+
+Teachers can create classrooms, upload course materials, generate quizzes, and monitor student progress. All teacher tools are accessible from the Teacher Dashboard.
+
+**Accessing the Teacher Dashboard**
+- Click 👑 Admin / Teacher Dashboard in the top-right menu (visible only to teacher accounts)
+- Or navigate to /teacher-dashboard from the main platform
+
+**Creating a New Classroom**
+1. In the Teacher Dashboard, click "Create Classroom"
+2. Enter a classroom name (e.g., "Java 101 - Day Class")
+3. Add an optional description
+4. Choose your course path (Basic Java or Enhanced Java)
+5. Click "Create" — students can now join using the class code
+
+**Sharing Your Classroom**
+- After creating a classroom, you'll receive a unique class code
+- Share this code with your students (e.g., via email, LMS, or handout)
+- Students enter this code to join your classroom
+- You can generate a new code anytime to invalidate old codes
+
+**Uploading Course Materials**
+
+Your uploaded materials become searchable by the AI tutor and appear in the classroom documents section.
+
+To upload materials:
+1. Open your classroom from the Teacher Dashboard
+2. Click "Upload Materials" or "Add Files"
+3. Select PDF or text files from your computer
+4. Optionally organize them into sections/folders (e.g., "Week 1", "Chapter 3")
+5. Click "Upload" — materials are indexed and ready for use
+
+The platform automatically:
+- Extracts text from PDFs
+- Creates searchable chunks (short passages ~600 characters)
+- Makes materials available for classroom-specific AI queries
+- Tracks which students have read each material
+
+**Managing Uploaded Materials**
+- View all materials in the "Materials" section of your classroom
+- Delete materials if needed (removes them from student access and AI search)
+- Reorganize into sections/folders for clearer navigation
+- Download original files if you need backup copies
+- Track read progress — see which students have reviewed which materials (helps identify who needs follow-up)
+
+**Auto-Generating Quizzes from Materials**
+
+The platform can automatically generate multiple-choice quizzes from your uploaded materials using AI:
+
+1. In your classroom, navigate to "Quizzes"
+2. Click "Generate Quiz from Materials"
+3. Select which materials to quiz on
+4. Choose number of questions (5, 10, or 15)
+5. Select difficulty level (easy, medium, hard)
+6. Click "Generate" — the system creates questions grounded in your materials
+7. Review and edit the generated questions if needed
+8. Click "Publish" to make the quiz available to students
+
+**Grading & Analytics**
+- View student quiz and test scores + which students passed/failed
+- See which questions students struggled with most
+- Track material read progress (% of students who've reviewed each document)
+- Identify weak topics at the class level
+- Export student work and scores for your gradebook
+
+**Monitoring Student Progress**
+1. Click "View Students" in your classroom
+2. See each student's:
+   - Materials reviewed (% completed)
+   - Quizzes attempted and scores
+   - Practical test scores
+   - Overall classroom progress
+3. Click on a student to see their full activity log
+
+**Class Code & Access Control**
+- Each classroom has a unique 6-8 digit class code
+- Only students with the code can join
+- You can regenerate the code anytime (old code stops working)
+- View list of enrolled students and remove if necessary
+
+---
+
+=== FOR ADMINS: PLATFORM MANAGEMENT ===
+
+Admins have system-wide access to manage users, classrooms, and platform settings.
+
+**Accessing the Admin Dashboard**
+- Click 👑 Admin / Teacher Dashboard in the top-right menu (visible only to admin accounts)
+- Select "Admin Console" or navigate to /admin-dashboard
+
+**User Management**
+- View all registered users (students, teachers, admins)
+- See each user's:
+  - Email and account creation date
+  - Role (student, teacher, admin)
+  - Associated classrooms
+  - Last login
+  - Account activity
+- Change user roles (promote a teacher to admin, demote an admin to teacher, etc.)
+- Search and filter users by email, role, or join date
+- Deactivate/reactivate accounts if needed
+
+**Classroom Oversight**
+- View all classrooms on the platform
+- See classroom details:
+  - Creator (teacher)
+  - Course path (Basic Java or Enhanced Java)
+  - Number of enrolled students
+  - Materials uploaded
+  - Last activity date
+- Monitor classroom creation trends
+- Delete a classroom if needed (removes all related data)
+
+**System Health & Monitoring**
+- View platform usage statistics:
+  - Total active users
+  - Total classrooms
+  - Average student progress
+  - AI tutor usage stats
+  - Code execution requests
+- Monitor system performance and error logs
+- View vectorstore status (RAG knowledge bases) and trigger re-indexing if needed
+
+**Content & RAG Management**
+- Rebuild the Java knowledge base from source materials
+- Rebuild the Platform Guide index
+- Trigger re-indexing of all classroom materials
+- View search stats and optimize retrieval parameters
+
+**Communication**
+- (Optional feature) Send platform-wide announcements to all users
+- Monitor support requests from users
+
+---
+
+=== TERMINAL INTEGRATION (ADVANCED FEATURE) ===
+
+CodeTutor includes an optional WebSocket-based interactive terminal for advanced users who want direct shell access alongside their code development.
+
+**Accessing the Terminal**
+- Available in the Full IDE under a "Terminal" tab
+- Requires JavaScript WebSocket support (standard in all modern browsers)
+- Only visible if enabled by platform configuration
+
+**What You Can Do**
+- Run shell commands (bash, zsh, or your system shell)
+- Compile Java from command line
+- Run JAR files and scripts
+- Manage files and directories
+- Install dependencies or tools
+- Run advanced debugging tools
+
+**Important Notes**
+- The terminal is sandboxed for security
+- Not all system commands may be available
+- Terminal sessions are specific to your browser session
+- Large file operations are limited to prevent overload
+- Terminal is optional — you can use the GUI code execution features instead
+
+---
 
 === NAVIGATION ===
 
-The left sidebar contains:
-- 🏠 Home — the main Java Learning Roadmap
-- 💻 Playground — the code editor and compiler
-- 📁 My Work — saved quizzes, tests, and code
-- 🏫 Classrooms — enrolled classrooms
-- 👑 Admin / Teacher Dashboard — only visible to admin and teacher accounts
+**Sidebar (Left Navigation)**
 
-The top navigation bar shows:
-- CodeTutor logo (click to go home)
-- Progress indicator (click to see detailed progress)
-- ☕ Ask AI button (click to open AI tutor)
-- Logged-in email / Logout
+The left sidebar gives you quick access to all major features:
 
-=== TIPS FOR LEARNING ===
+**For All Users:**
+- 📚 Courses — View your chosen Java Learning Roadmap (Basic or Enhanced path)
+- 💻 Playground — Quick code editor for snippets (lightweight)
+- 📝 Exercises — Take quizzes on Java topics (MCQ format)
+- 🎯 Coding Challenges — Attempt coding challenges (write complete programs)
+- 📁 My Work — Access all your saved code, quiz results, and test submissions
+- 🕘 Chat History — View and resume past AI tutor conversations
 
-- Complete topics in order — the roadmap enforces prerequisites so you always have the foundation needed for the next topic.
-- Use the AI Tutor to clarify any concept right when you encounter it — the AI knows the same materials you are studying.
-- Re-do quizzes on topics where your score is below 70% to improve your weak areas score.
-- Check your Weak Areas in the Progress panel regularly to know where to focus.
-- Save your playground code so you can refer back to your own examples later.
-- In classrooms, toggle your classroom knowledge source in the AI Tutor for teacher-specific explanations.
+**For Students (If enrolled in classrooms):**
+- 🎓 My Classrooms — Access teacher-provided materials and classroom quizzes
+
+**For Teachers:**
+- 🏫 Teacher Dashboard — Manage classrooms, upload materials, generate quizzes
+
+**For Admins:**
+- 🛡️ Admin Panel — Manage users, classrooms, and platform settings
+
+**Top Navigation Bar**
+
+The top bar shows:
+- CodeTutor logo (click to go Home)
+- Progress indicator (% pie chart) — click to see detailed breakdown (topics completed, quizzes passed, test scores, etc.)
+- ☕ Ask AI button — opens the AI tutor chat panel
+- Your email / Account menu — Click to see your profile, settings, or logout
+
+**Course Catalog**
+- If you need to switch between Basic Java and Enhanced Java paths, find the "Course Catalog" option in the Home page or account menu
+- Select your preferred path — progress is tracked separately for each
+
+---
+
+=== TIPS FOR LEARNING SUCCESS ===
+
+**For All Learners**
+- Start with your chosen path and complete topics in order — prerequisites ensure you have necessary foundations
+- Use the ☕ Ask AI tutor generously — it's powered by over 2000 Java knowledge chunks and is ready to answer any concept question
+- Practice frequently: alternate between reading, coding snippets in Playground, and taking quizzes
+- Re-attempt quizzes on weak topics — see "Weak Areas" in your Progress panel to identify where to focus first
+- Save code snippets you write to "My Work" — build a personal reference library as you learn
+- Track your progress weekly using the Progress indicator in the top bar
+- Don't rush — coding mastery takes time and repetition
+
+**For Students in Classrooms**
+- Review all classroom materials — your teacher uploaded them to support specific learning objectives
+- Toggle "Classroom Mode" in the AI Tutor to ask questions about classroom-specific content
+- Participate in classroom quizzes when assigned — they directly test your understanding of course materials
+- Reach out to your teacher if classroom-specific guidance is unclear
+
+**For Faster Learning**
+- If you already have programming experience, consider the Enhanced Java path for a faster pace
+- Focus on weak areas rather than reviewing strong topics
+- Try Practical Tests (coding challenges) to apply concepts in real problems
+- Use the AI Tutor's error explanations when you get stuck on a bug
+
+**Switching Between Paths**
+- You can switch between Basic Java and Enhanced Java anytime from the Course Catalog
+- Your progress in each path is tracked separately (switching doesn't erase prior work)
+- Choose whichever path matches your current needs
+
+---
+
+=== AI TUTOR SYSTEM ARCHITECTURE ===
+
+The AI tutor is powered by a sophisticated Retrieval-Augmented Generation (RAG) system with multiple knowledge sources:
+
+**Knowledge Sources:**
+1. **Java Knowledge Base** — Over 2000 chunks covering Java syntax, OOP concepts, standard library, best practices (sourced from W3Schools, Oracle documentation, GeeksForGeeks, Think Java textbook)
+
+2. **Platform Guide** — Documentation about CodeTutor itself (how to use features, navigate pages, etc.)
+
+3. **Classroom Materials** — Your teacher's uploaded documents (PDFs, notes) specific to your course (if in a classroom)
+
+**How the AI Routes Your Question:**
+- If your question is about CodeTutor platform features → searches Platform Guide
+- If you're in a classroom and have "Classroom Mode" enabled → searches classroom materials first, then Java KB
+- Otherwise → searches the Java Knowledge Base
+
+This routing ensures you get the most relevant, grounded answers from the right source.
+
+---
 
 === TECHNICAL NOTES ===
 
-- Backend: FastAPI (Python) with PostgreSQL database
-- AI: Retrieval-Augmented Generation (RAG) using FAISS vectorstore and LLM (qwen3-max)
-- Code execution: Paiza API (Java)
-- Frontend: React with Tailwind CSS
-- Authentication: JWT tokens stored in localStorage/sessionStorage
+**Technology Stack:**
+- **Backend:** FastAPI (Python) with async support and PostgreSQL database
+- **AI & Retrieval:** Retrieval-Augmented Generation (RAG) using FAISS vectorstore for semantic search, powered by LLM (Qwen3-Max via Azure OpenAI API)
+- **Code Execution:** Remote Java compilation and execution via Paiza API (sandboxed)
+- **Frontend:** React with Tailwind CSS, Monaco editor for code syntax highlighting
+- **Authentication:** JWT tokens with 7-day expiry, stored in localStorage/sessionStorage
+- **Real-time Features:** WebSocket support for interactive terminal (optional)
+
+**Knowledge Base Management:**
+- Java knowledge base rebuilt periodically from source materials
+- Classroom materials automatically indexed and embedded when uploaded
+- Admin dashboard allows manual re-indexing of all knowledge bases
+- Vector embeddings use text-embedding-3-small model
+
+**Performance & Limits:**
+- Code execution timeout: ~30 seconds per submission
+- Vector search: retrieves top 3 most relevant chunks (from pool of 15 candidates)
+- Conversation history: auto-pruned after 10+ turns to maintain context efficiency
+- Material upload: supports PDF and TXT formats, max file size configurable per deployment
+
+**Security:**
+- Code execution is sandboxed (no direct file system or network access)
+- JWT authentication required for all protected endpoints
+- Role-based access control (student/teacher/admin)
+- Classroom materials are scoped to enrolled students only
+- Database backups automated for data integrity
+
+---
+
+=== FREQUENTLY ASKED QUESTIONS ===
+
+**Q: Can I use CodeTutor offline?**
+A: No, CodeTutor requires an active internet connection. All code execution and AI tutor features run on our servers.
+
+**Q: How long do my code submissions persist?**
+A: Code saved to "My Work" persists indefinitely. Auto-saved playground code (per-topic) is kept for convenience but is not guaranteed to be permanent.
+
+**Q: Can I export my progress or quiz results?**
+A: Yes, from the "My Work" page you can view and download your quiz/test results. Teachers can export classroom progress from their dashboard.
+
+**Q: What if I can't join a classroom with the code provided?**
+A: Codes are case-sensitive. Double-check you've entered it exactly. If the code is expired or invalid, ask your teacher for a new one.
+
+**Q: How does the AI tutor know the answers?**
+A: The AI searches a Java knowledge base (textbooks, documentation) and generates answers grounded in retrieved passages. The sources are shown so you can verify its answers.
+
+**Q: Can I delete my account?**
+A: Contact your platform administrator to delete your account. You can delete individual work items from "My Work" anytime.
+
+**Q: Is there a limit to how many times I can take a quiz?**
+A: No — you can attempt quizzes as many times as you want to improve your score.
+
+**Q: What does "Weak Areas" mean?**
+A: Weak Areas are topics where your average quiz/test score is below 70%. The platform recommends focusing on these to strengthen your overall Java foundation.
+
+---
+
+=== SUPPORT & FEEDBACK ===
+
+If you encounter technical issues (code execution errors, AI tutor timeouts, etc.) or have suggestions for improving CodeTutor:
+- Contact your teacher (if in a classroom)
+- Email your platform administrator
+- Check the platform's help or support section (if available)
+
+We're committed to making CodeTutor a great learning experience. Your feedback helps us improve!

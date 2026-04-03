@@ -121,7 +121,7 @@ export default function CourseCatalogPage() {
       <div className="max-w-7xl mx-auto px-4 py-16 flex flex-col lg:flex-row gap-12 items-start">
 
         {/* LEFT: Courses + Progress */}
-        <div className="w-full lg:w-[56%] flex-shrink-0">
+        <div className="w-full lg:w-1/2 flex-shrink-0">
           {/* Section label */}
           <div className="mb-8">
             <h2 className="text-sm font-bold text-indigo-400 uppercase tracking-widest mb-3">Learning Paths</h2>
@@ -310,7 +310,7 @@ export default function CourseCatalogPage() {
             ];
 
             return (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 {displayList.map((cls, idx) => {
                   const grad = gradients[idx % gradients.length];
                   const initial = cls.name.trim()[0]?.toUpperCase() || '?';
@@ -318,51 +318,37 @@ export default function CourseCatalogPage() {
                   return (
                     <div key={cls.id} className="group bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl border border-gray-700/50 overflow-hidden hover:border-gray-600/50 transition-all duration-300 hover:shadow-2xl flex flex-col">
                       {/* Header */}
-                      <div className={`relative bg-gradient-to-br ${grad} p-6 text-white overflow-hidden`}>
-                        {/* Decorative circles */}
-                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 blur-3xl"></div>
-                        <div className="absolute -bottom-10 -left-10 w-28 h-28 rounded-full bg-white/10 blur-2xl"></div>
-                        <div className="relative flex items-start justify-between mb-4">
-                          <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-md">
+                      <div className={`relative bg-gradient-to-br ${grad} p-4 pt-3 text-white overflow-hidden`}>
+                        <div className="relative flex items-start justify-between mb-2 gap-2">
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-white/20 backdrop-blur-md flex-shrink-0 whitespace-nowrap">
                             {cls.category || 'Classroom'}
                           </span>
                           {classTab === 'latest' && idx === 0 && (
-                            <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-yellow-300/90 text-yellow-900">✨ New</span>
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-white/90 text-slate-900 flex-shrink-0">✨ New</span>
                           )}
                           {classTab === 'popular' && idx === 0 && (
-                            <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/30 text-white">🏆 Top</span>
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-white/30 text-white flex-shrink-0">🏆 Top</span>
                           )}
                         </div>
-                        <div className="relative flex items-center gap-3">
+                        <div className="relative flex items-center gap-2">
                           {/* Letter avatar */}
-                          <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-lg font-black shadow-lg flex-shrink-0 border border-white/30">
+                          <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center text-base font-black shadow-lg flex-shrink-0 border border-white/30">
                             {initial}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-black text-base leading-snug truncate">{cls.name}</h3>
-                            <div className="flex gap-1 flex-wrap mt-2">
-                              {(cls.enrolled_courses || ['basic']).slice(0, 2).map(c => (
-                                <span key={c} className="text-xs px-2 py-1 rounded-md bg-white/20 font-bold backdrop-blur-sm">
-                                  {c === 'basic' ? '☕' : '🚀'}
-                                </span>
-                              ))}
-                            </div>
+                            <h3 className="font-black text-sm leading-tight truncate">{cls.name}</h3>
+                            <div className="text-xs text-gray-100 mt-0.5">👥 {cls.member_count || 0} members</div>
                           </div>
                         </div>
                       </div>
                       {/* Body */}
-                      <div className="p-5 flex flex-col gap-4 flex-1">
+                      <div className="p-3.5 flex flex-col gap-3 flex-1">
                         <p className="text-sm text-gray-400 leading-relaxed line-clamp-2 min-h-[2.5rem] font-medium">
                           {cls.description || <span className="italic text-gray-500">No description provided.</span>}
                         </p>
-                        {/* Stat badges */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="flex items-center gap-1 text-xs font-bold text-gray-300 bg-gray-700/50 border border-gray-600/50 rounded-full px-3 py-1.5">
-                            👥 {cls.member_count || 0}
-                          </span>
-                          <span className="flex items-center gap-1 text-xs font-bold text-gray-300 bg-gray-700/50 border border-gray-600/50 rounded-full px-3 py-1.5">
-                            📅 {dateStr}
-                          </span>
+                        {/* Date info */}
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          📅 {dateStr}
                         </div>
                         <button
                           disabled={joiningId === cls.id}
@@ -380,13 +366,13 @@ export default function CourseCatalogPage() {
                               setJoiningId(null);
                             }
                           }}
-                          className={`w-full font-bold py-3 px-4 rounded-xl text-sm transition-all duration-200 disabled:opacity-60 text-white ${
+                          className={`w-full font-bold py-2.5 px-3.5 rounded-lg text-sm transition-all duration-200 disabled:opacity-60 text-white ${
                             !isAuthenticated
                               ? 'bg-gray-600/50 hover:bg-gray-600 cursor-pointer border border-gray-600/50'
                               : `bg-gradient-to-r ${grad} hover:shadow-lg hover:scale-105 active:scale-95 border border-${grad.split('-')[1]}-400/50`
                           }`}
                         >
-                          {!isAuthenticated ? '🔒 Log in' : joiningId === cls.id ? 'Joining...' : 'Join →'}
+                          {!isAuthenticated ? '🔒 Log in' : joiningId === cls.id ? 'Joining...' : 'Join Classroom'}
                         </button>
                       </div>
                     </div>

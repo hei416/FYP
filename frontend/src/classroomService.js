@@ -41,30 +41,25 @@ export async function getOfficialClassrooms() {
   return res.json();
 }
 
-export async function updateClassroomCategory(classroomId, category) {
+export async function updateClassroom(classroomId, updates) {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}`, {
     method: 'PATCH',
     headers: authHeaders(),
-    body: JSON.stringify({ category }),
+    body: JSON.stringify(updates),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || 'Failed to update category');
+    throw new Error(err.detail || 'Failed to update classroom');
   }
   return res.json();
 }
 
+export async function updateClassroomCategory(classroomId, category) {
+  return updateClassroom(classroomId, { category });
+}
+
 export async function toggleClassroomPublic(classroomId, is_public) {
-  const res = await fetch(`${API_BASE}/classrooms/${classroomId}`, {
-    method: 'PATCH',
-    headers: authHeaders(),
-    body: JSON.stringify({ is_public }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || 'Failed to update visibility');
-  }
-  return res.json();
+  return updateClassroom(classroomId, { is_public });
 }
 
 export async function getPublicClassrooms() {
@@ -97,8 +92,8 @@ export async function getClassroomStudentWork(classroomId, studentId, workType =
   return res.json();
 }
 
-export async function getOfficialAggregateCourseProgress() {
-  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress`, { headers: authHeaders() });
+export async function getOfficialAggregateCourseProgress(courseId = 'basic') {
+  const res = await fetch(`${API_BASE}/classrooms/official-aggregate/course-progress?course_id=${encodeURIComponent(courseId)}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load aggregate course progress');
   return res.json();
 }
@@ -356,15 +351,20 @@ export const moveFileToSection = async (classroomId, fileId, sectionId) => {
  * Generate MCQ draft questions using classroom RAG context.
  * Returns { questions: [...], context_chunks_used: n } — nothing is saved.
  */
-export const generateClassroomQuiz = async (classroomId, { topic_prompt, num_questions = 5, section_id = null, file_ids = null }) => {
+export const generateClassroomQuiz = async (classroomId, { topic_prompt, num_questions = 5, section_id = null, file_ids = null, source = 'classroom', course_path = null }) => {
   const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-    body: JSON.stringify({ topic_prompt, num_questions, section_id, file_ids: file_ids && file_ids.length > 0 ? file_ids : null }),
+    body: JSON.stringify({
+      topic_prompt, num_questions, section_id,
+      file_ids: source === 'classroom' && file_ids && file_ids.length > 0 ? file_ids : null,
+      source,
+      course_path: source === 'course' ? course_path : null,
+    }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || 'Failed to generate quiz');
+    throw new Error(err.detail || 'Failed to generate exercise');
   }
   return res.json();
 };
@@ -444,3 +444,71 @@ export async function getClassroomQuizzesWithProgress(classroomId) {
   if (!res.ok) throw new Error('Failed to load quizzes progress');
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Practical Challenge endpoints — Teacher-managed classroom coding challenges
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a practical coding challenge with model solution for teacher preview.
+ * Returns { question, base_code, model_solution, topic_prompt } — nothing is saved yet.
+ */
+export const generateClassroomPracticalChallenge = async (classroomId, { topic_prompt, section_id = null }) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ topic_prompt, section_id }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to generate challenge');
+  }
+  return res.json();
+};
+
+/** Save a practical challenge (draft or published). */
+export const saveClassroomPracticalChallenge = async (classroomId, { title, topic_prompt, question, base_code, model_solution, section_id, status }) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ title, topic_prompt, question, base_code, model_solution, section_id, status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to save challenge');
+  }
+  return res.json();
+};
+
+/** List practical challenges for a classroom (teachers: all; students: published only). */
+export const listClassroomPracticalChallenges = async (classroomId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+/** Update title, question, base_code, model_solution, section, or status of an existing challenge. */
+export const updateClassroomPracticalChallenge = async (classroomId, challengeId, updates) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Failed to update challenge');
+  }
+  return res.json();
+};
+
+/** Delete a practical challenge. */
+export const deleteClassroomPracticalChallenge = async (classroomId, challengeId) => {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/practical-challenges/${challengeId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};

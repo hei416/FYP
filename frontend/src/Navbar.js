@@ -53,7 +53,7 @@ export default function Navbar({ toggleChat }) {
                     position: 'fixed', top: 0, left: 0, right: 0,
                     height: navbar.height,
                     background: navbar.bg,
-                    borderBottom: `1px solid ${colors.border}`,
+                    borderBottom: `1px solid ${navbar.borderColor}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '0 24px', zIndex: 100, boxShadow: navbar.shadow
                 }}
@@ -63,11 +63,11 @@ export default function Navbar({ toggleChat }) {
                         onClick={toggleSidebar}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', transition: 'all 0.3s' }}
                     >
-                        <div style={{ width: '24px', height: '3px', background: colors.primary, borderRadius: '2px', transition, transform: isSidebarOpen ? 'rotate(45deg) translateY(7px)' : 'none' }} />
-                        <div style={{ width: '24px', height: '3px', background: colors.primary, borderRadius: '2px', transition, opacity: isSidebarOpen ? 0 : 1 }} />
-                        <div style={{ width: '24px', height: '3px', background: colors.primary, borderRadius: '2px', transition, transform: isSidebarOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' }} />
+                        <div style={{ width: '24px', height: '3px', background: navbar.text, borderRadius: '2px', transition, transform: isSidebarOpen ? 'rotate(45deg) translateY(7px)' : 'none' }} />
+                        <div style={{ width: '24px', height: '3px', background: navbar.text, borderRadius: '2px', transition, opacity: isSidebarOpen ? 0 : 1 }} />
+                        <div style={{ width: '24px', height: '3px', background: navbar.text, borderRadius: '2px', transition, transform: isSidebarOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' }} />
                     </button>
-                    <h1 data-tour="brand" style={{ margin: 0, fontSize: font.sizeXxl, color: colors.primary, fontWeight: font.weightBold }}>
+                    <h1 data-tour="brand" style={{ margin: 0, fontSize: font.sizeXxl, color: navbar.brand, fontWeight: font.weightBold }}>
                         ☕ CodeTutor
                     </h1>
                 </div>
@@ -89,9 +89,9 @@ export default function Navbar({ toggleChat }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div style={{
                                 display: 'flex', alignItems: 'center', gap: '8px',
-                                background: `${colors.primary}15`,
+                                background: 'rgba(255, 255, 255, 0.1)',
                                 padding: '6px 14px', borderRadius: '20px',
-                                border: `1px solid ${colors.primary}30`
+                                border: `1px solid rgba(255, 255, 255, 0.2)`
                             }}>
                                 <div style={{
                                     width: '28px', height: '28px',
@@ -105,19 +105,19 @@ export default function Navbar({ toggleChat }) {
                                     {(user?.full_name || 'U').charAt(0).toUpperCase()}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
-                                    <span style={{ fontSize: '11px', color: colors.textSecondary, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                                         Welcome Back
                                     </span>
-                                    <span style={{ fontSize: font.sizeSm, color: colors.primary, fontWeight: font.weightMedium, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <span style={{ fontSize: font.sizeSm, color: navbar.text, fontWeight: font.weightMedium, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {user?.full_name || 'User'}
                                     </span>
                                 </div>
                             </div>
                             <button
                                 onClick={() => { logout(); navigate('/'); }}
-                                style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, color: colors.textSecondary, fontSize: font.sizeSm, cursor: 'pointer', transition }}
-                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.error || '#ef4444'; e.currentTarget.style.color = colors.error || '#ef4444'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.textSecondary; }}
+                                style={{ padding: '8px 16px', background: '#E53935', border: 'none', borderRadius: radii.sm, color: '#FFFFFF', fontSize: font.sizeSm, fontWeight: font.weightBold, cursor: 'pointer', transition, boxShadow: '0 2px 8px rgba(229, 57, 53, 0.3)' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#D32F2F'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(229, 57, 53, 0.5)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = '#E53935'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(229, 57, 53, 0.3)'; }}
                             >Logout</button>
                         </div>
                     ) : (

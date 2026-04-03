@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './BasicJavaPage';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
+import { colors, radii, font, spacing, shadows } from './theme';
 import DocumentViewer from './DocumentViewer';
 
 // Maps each TOPIC_GROUPS index (0-based) to its quiz topic name
@@ -67,10 +68,10 @@ export default function TopicDetailPage() {
 
     if (contentLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" style={{ background: colors.bg }}>
                 <div className="text-center">
                     <div className="text-4xl mb-4" style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>📚</div>
-                    <p className="text-gray-500">Loading topic…</p>
+                    <p style={{ color: colors.textMuted }}>Loading topic…</p>
                 </div>
             </div>
         );
@@ -125,16 +126,17 @@ export default function TopicDetailPage() {
 
     if (!content) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+            <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: colors.bg }}>
                 <div className="text-center">
-                    <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.textMuted }}>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2">Topic Not Found</h1>
-                    <p className="text-gray-600 mb-6">The learning material for this topic is not available yet.</p>
+                    <h1 className="text-2xl font-bold mb-2" style={{ color: colors.text }}>Topic Not Found</h1>
+                    <p className="mb-6" style={{ color: colors.textSecondary }}>The learning material for this topic is not available yet.</p>
                     <button
                         onClick={() => navigate('/')}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition-colors inline-flex items-center"
+                        style={{ background: colors.primary, color: '#FFFFFF' }}
+                        className="font-medium py-2 px-6 rounded-lg transition-colors inline-flex items-center hover:opacity-90"
                     >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -147,14 +149,15 @@ export default function TopicDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen" style={{ background: colors.bg }}>
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
+            <div className="sticky top-0 z-10" style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}`, boxShadow: shadows.sm }}>
                 <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between mb-4">
                         <button
                             onClick={() => navigate('/')}
-                            className="flex items-center text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                            className="flex items-center font-medium transition-colors"
+                            style={{ color: colors.primary }}
                         >
                             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -164,18 +167,18 @@ export default function TopicDetailPage() {
                         
                         {currentGroup && (
                             <div className="text-center text-sm">
-                                <span className="text-gray-600">Topic {currentIndex + 1} of {orderedTopicIds.length}</span>
-                                <p className="text-gray-800 font-semibold text-xs">{currentGroup.label}</p>
-                            </div>
+                                <span style={{ color: colors.textSecondary }}>Topic {currentIndex + 1} of {orderedTopicIds.length}</span>
+                        <p className="font-semibold text-xs" style={{ color: colors.text }}>{currentGroup.label}</p>
+                    </div>
                         )}
 
                         <button
                             onClick={toggleCompletion}
-                            className={`font-medium py-2 px-4 rounded-lg transition-colors flex items-center text-sm ${
-                                isCompleted
-                                    ? 'bg-green-100 hover:bg-green-200 text-green-800'
-                                    : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-800'
-                            }`}
+                            style={{
+                                background: isCompleted ? colors.successLight : colors.primaryLight,
+                                color: isCompleted ? colors.successDark : colors.primaryDark
+                            }}
+                            className="font-medium py-2 px-4 rounded-lg transition-colors flex items-center text-sm hover:opacity-90"
                         >
                             {isCompleted ? (
                                 <>
@@ -195,24 +198,24 @@ export default function TopicDetailPage() {
                         </button>
                     </div>
 
-                    <h1 className="text-3xl font-bold text-gray-800">{content.title}</h1>
+                    <h1 className="font-bold" style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.text }}>{content.title}</h1>
                 </div>
             </div>
 
             {/* Main Content */}
             <div data-tour="topic-content" className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
                 {/* Overview */}
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg mb-8">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-3">Overview</h2>
-                    <p className="text-gray-700 leading-relaxed text-lg">
+                <div className="p-6 mb-8" style={{ background: colors.primaryLight, borderLeft: `4px solid ${colors.primary}`, borderRadius: radii.md }}>
+                    <h2 className="font-semibold mb-3" style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.text }}>Overview</h2>
+                    <p className="leading-relaxed" style={{ fontSize: font.sizeMd, color: colors.textSecondary }}>
                         {content.overview}
                     </p>
                 </div>
 
                 {/* Key Concepts */}
                 <div className="mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-800 mb-4">Key Concepts</h2>
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6 text-gray-700">
+                    <h2 className="font-semibold mb-4" style={{ fontSize: font.sizeXl, fontWeight: font.weightSemibold, color: colors.text }}>Key Concepts</h2>
+                    <div className="p-6 space-y-6" style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radii.md, color: colors.text }}>
                         <div 
                             className="prose prose-sm max-w-none"
                             dangerouslySetInnerHTML={{ __html: content.keyConceptsHtml }} 
@@ -223,15 +226,15 @@ export default function TopicDetailPage() {
                 {/* Code Examples */}
                 {content.codeExamples && content.codeExamples.length > 0 && (
                     <div className="mb-8">
-                        <h2 className="text-2xl font-semibold text-gray-800 mb-4">Code Examples</h2>
+                        <h2 className="text-2xl font-semibold mb-4" style={{ color: colors.text }}>Code Examples</h2>
                         <div className="space-y-6">
                             {content.codeExamples.map((example, idx) => (
                                 <div key={idx}>
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-2">{example.title}</h3>
+                                    <h3 className="text-lg font-semibold mb-2" style={{ color: colors.text }}>{example.title}</h3>
                                     {example.python && (
                                         <div className="mb-4">
-                                            <p className="text-sm font-medium text-gray-600 mb-2">Python:</p>
-                                            <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto border border-gray-700">
+                                            <p className="text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>Python:</p>
+                                            <div className="p-4 rounded-lg font-mono text-sm overflow-x-auto border" style={{ background: colors.surface, borderColor: colors.border, color: colors.text }}>
                                                 <pre className="whitespace-pre-wrap break-words">{example.python}</pre>
                                             </div>
                                         </div>

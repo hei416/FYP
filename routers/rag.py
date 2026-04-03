@@ -237,6 +237,7 @@ class QuizGenerateRequest(BaseModel):
     completed_topics: List[str]
     num_questions: int = 10
     user_id: Optional[int] = None
+    course: Optional[str] = "basic"  # "basic" | "enhanced"
 
 class MCQ(BaseModel):
     id: str
@@ -472,6 +473,7 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
             topics=req.completed_topics,
             num_questions=adjusted_num,
             existing_questions=db_questions,
+            course=req.course or "basic",
         )
 
         save_questions_to_db(new_questions)
@@ -548,6 +550,7 @@ async def stream_more_questions(req: QuizGenerateRequest):
                     context_text=context_text,
                     existing_questions=all_existing,
                     question_index=i,
+                    course=req.course or "basic",
                 )
                 if question:
                     save_questions_to_db([question])
@@ -701,6 +704,7 @@ async def _generate_new_questions(
     topics: List[str],
     num_questions: int,
     existing_questions: List[dict],
+    course: str = "basic",
 ) -> List[dict]:
     """Call AI to generate new unique questions, avoiding duplicates."""
     # ✅ lazy-init
@@ -747,12 +751,30 @@ async def _generate_new_questions(
 
     id_prefix = f"q{int(time.time())}_"
 
+    if course == "enhanced":
+        difficulty_instruction = (
+            "DIFFICULTY — ADVANCED LEVEL:\n"
+            "- Questions must require deep understanding, not surface recall\n"
+            "- Favour: code output prediction with edge cases, design trade-off reasoning, "
+            "performance/complexity implications, multi-concept interactions (e.g. generics + collections), "
+            "subtle pitfalls (thread-safety, hash contract violations, stream side-effects)\n"
+            "- Avoid trivial definition questions; every question should challenge an experienced Java developer\n"
+        )
+    else:
+        difficulty_instruction = (
+            "DIFFICULTY — BEGINNER/INTERMEDIATE LEVEL:\n"
+            "- Questions should test fundamental Java knowledge\n"
+            "- Favour: syntax rules, basic OOP concepts, simple code reading, common API usage\n"
+            "- Avoid complex multi-concept questions; focus on clear, unambiguous scenarios\n"
+        )
+
     prompt = f"""You are a Java tutor generating multiple-choice questions to test Java programming knowledge.
 
 The following study material covers these Java topics. Use it ONLY to understand what concepts to test — do NOT ask questions about the material itself:
 
 {context_text}
 
+{difficulty_instruction}
 Generate exactly {num_questions} NEW and UNIQUE multiple-choice questions.
 Distribute questions EVENLY across these topic IDs: {main_topics}
 
@@ -816,6 +838,7 @@ async def _generate_single_question(
     context_text: str,
     existing_questions: List[dict],
     question_index: int,
+    course: str = "basic",
 ) -> Optional[dict]:
     """Generate exactly ONE new question via a fast LLM call."""
     exclusion_block = ""
@@ -827,11 +850,26 @@ async def _generate_single_question(
 
     id_prefix = f"q{int(time.time())}_{question_index}"
 
+    if course == "enhanced":
+        difficulty_instruction = (
+            "DIFFICULTY — ADVANCED: Require deep understanding. "
+            "Favour edge-case output prediction, design trade-offs, performance/complexity implications, "
+            "subtle pitfalls (e.g. thread-safety, hash contract, stream reuse). "
+            "Avoid trivial recall questions."
+        )
+    else:
+        difficulty_instruction = (
+            "DIFFICULTY — BEGINNER/INTERMEDIATE: Test fundamental Java knowledge. "
+            "Favour syntax rules, basic OOP, simple code reading, and common API usage."
+        )
+
     prompt = f"""You are a Java tutor. Generate exactly 1 multiple-choice question to test Java programming knowledge.
 
 Use this study material ONLY to understand what concept to test — do NOT reference it in the question:
 
 {context_text}
+
+{difficulty_instruction}
 
 The question MUST:
 - Test Java syntax, behaviour, output prediction, or best practices

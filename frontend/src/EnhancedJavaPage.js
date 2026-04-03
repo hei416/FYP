@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { enhancedRagDocMapping } from './enhancedRagDocMapping';
 import { getSourceColor, formatSourceName } from './ragDocMapping';
+import { colors, radii, font, spacing, shadows } from './theme';
 import ReactFlow, {
   Controls,
   Background,
@@ -261,16 +262,16 @@ export default function EnhancedJavaPage() {
 
           if (completedTopics.includes(node.id) && unlocked) {
             const label = node.data.label;
-            return { ...node, data: { ...node.data, label: label.replace(/^⚠️ /, ''), originalBg, originalBorder }, style: { ...node.style, background: "#86EFAC", border: "2px solid #22C55E", opacity: 1, cursor: "pointer" } };
+            return { ...node, data: { ...node.data, label: `✓ ${label.replace(/^[✓⚠️] ?/, '')}`, originalBg, originalBorder }, style: { ...node.style, background: "#16A34A", border: "2px solid #14532D", color: "#ffffff", fontWeight: "600", opacity: 1, cursor: "pointer" } };
           } else if (completedTopics.includes(node.id) && !unlocked) {
             const label = node.data.label;
-            return { ...node, data: { ...node.data, label: label.replace(/^⚠️ /, ''), originalBg, originalBorder }, style: { ...node.style, background: "#DBEAFE", border: "2px solid #3B82F6", opacity: 1, cursor: "pointer" } };
+            return { ...node, data: { ...node.data, label: label.replace(/^[✓⚠️] ?/, ''), originalBg, originalBorder }, style: { ...node.style, background: "#DBEAFE", border: "2px solid #3B82F6", opacity: 1, cursor: "pointer" } };
           } else if (!unlocked) {
             const label = node.data.label;
-            return { ...node, data: { ...node.data, label: `⚠️ ${label.replace(/^⚠️ /, '')}`, originalBg, originalBorder }, style: { ...node.style, background: "#FEF3C7", border: "2px dashed #F59E0B", opacity: 0.85, cursor: "pointer" } };
+            return { ...node, data: { ...node.data, label: `⚠️ ${label.replace(/^[✓⚠️] ?/, '')}`, originalBg, originalBorder }, style: { ...node.style, background: "#FEF3C7", border: "2px dashed #F59E0B", opacity: 0.85, cursor: "pointer" } };
           } else {
             const label = node.data.label;
-            return { ...node, data: { ...node.data, label: label.replace(/^⚠️ /, ''), originalBg, originalBorder }, style: { ...node.style, background: originalBg, border: `2px solid ${originalBorder}`, opacity: 1, cursor: "pointer" } };
+            return { ...node, data: { ...node.data, label: label.replace(/^[✓⚠️] ?/, ''), originalBg, originalBorder }, style: { ...node.style, background: originalBg, border: `2px solid ${originalBorder}`, opacity: 1, cursor: "pointer" } };
           }
         }
         return node;
@@ -352,13 +353,13 @@ export default function EnhancedJavaPage() {
   const progressPercentage = Math.round((completedCount / totalTopics) * 100);
 
   return (
-    <div className="relative w-full h-screen bg-gray-50 overflow-auto">
+    <div className="relative w-full h-screen overflow-auto" style={{ background: colors.bg }}>
       {/* Header — matches site TopicDetailPage style */}
-      <div className="fixed top-16 left-0 right-0 z-20 bg-white border-b border-gray-200 shadow-sm">
+      <div className="fixed top-16 left-0 right-0 z-20" style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}`, boxShadow: shadows.sm }}>
         <div className="px-6 py-3 flex items-center justify-between">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-green-600 hover:text-green-800 text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium transition-colors" style={{ color: colors.success }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -366,14 +367,14 @@ export default function EnhancedJavaPage() {
             Courses
           </button>
           <div className="text-right">
-            <span className="text-sm font-semibold text-green-600">{completedCount} / {totalTopics}</span>
-            <p className="text-xs text-gray-400">{progressPercentage}% done</p>
+            <span className="text-sm font-semibold" style={{ color: colors.success }}>{completedCount} / {totalTopics}</span>
+            <p className="text-xs" style={{ color: colors.textMuted }}>{progressPercentage}% done</p>
           </div>
         </div>
-        <div className="h-1 bg-gray-100">
+        <div className="h-1" style={{ background: colors.divider }}>
           <div
-            className="h-1 bg-gradient-to-r from-emerald-400 to-green-600 transition-all duration-500"
-            style={{ width: `${progressPercentage}%` }}
+            className="h-1 transition-all duration-500"
+            style={{ width: `${progressPercentage}%`, background: `linear-gradient(to right, ${colors.success}, ${colors.accent})` }}
           />
         </div>
       </div>
@@ -414,12 +415,18 @@ export default function EnhancedJavaPage() {
 
       {/* Side Panel */}
       <div
-        className={`fixed top-[124px] right-0 z-30 w-96 transform bg-white shadow-xl border-l border-gray-200 transition-transform duration-300 ease-out flex flex-col ${selectedNode ? 'translate-x-0' : 'translate-x-full'}`}
-        style={{ height: 'calc(100vh - 124px)', maxHeight: 'calc(100vh - 124px)' }}
+        className={`fixed top-[124px] right-0 z-30 w-96 transform transition-transform duration-300 ease-out flex flex-col ${selectedNode ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ 
+            height: 'calc(100vh - 124px)', 
+            maxHeight: 'calc(100vh - 124px)',
+            background: colors.surface,
+            borderLeft: `1px solid ${colors.border}`,
+            boxShadow: shadows.lg
+        }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 flex-shrink-0">
-          <h2 className="text-xl font-bold text-gray-800">{content?.title || 'Details'}</h2>
-          <button onClick={closePanel} className="rounded-md p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors z-50" aria-label="Close">
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${colors.border}`, background: `linear-gradient(to right, ${colors.successLight}, ${colors.accentLight})` }}>
+          <h2 className="text-xl font-bold" style={{ color: colors.text }}>{content?.title || 'Details'}</h2>
+          <button onClick={closePanel} className="rounded-md p-2 transition-colors z-50" style={{ color: colors.textMuted }} aria-label="Close">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -431,26 +438,28 @@ export default function EnhancedJavaPage() {
             {content ? (
               <>
                 {isCompleted && !isSkippedComplete && (
-                  <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded-r flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                    <span className="text-base font-semibold text-green-800">Completed! 🎉</span>
+                  <div className="p-3 flex items-center" style={{ background: colors.successLight, borderLeft: `4px solid ${colors.success}`, borderRadius: radii.md }}>
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style={{ color: colors.success }}><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                    <span className="text-base font-semibold" style={{ color: colors.success }}>Completed! 🎉</span>
                   </div>
                 )}
                 {isSkippedComplete && (
-                  <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r">
+                  <div className="p-3" style={{ background: colors.warningLight, borderLeft: `4px solid ${colors.warning}`, borderRadius: radii.md }}>
                     <div className="flex items-center mb-1">
-                      <svg className="w-5 h-5 text-amber-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                      <span className="text-base font-semibold text-amber-800">Completed (prerequisites skipped)</span>
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style={{ color: colors.warning }}><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                      <span className="text-base font-semibold" style={{ color: colors.warning }}>Completed (prerequisites skipped)</span>
                     </div>
-                    <p className="text-sm text-amber-700 ml-7">Some earlier topics haven't been completed yet.</p>
+                    <p className="text-sm ml-7" style={{ color: colors.warning }}>Some earlier topics haven't been completed yet.</p>
                   </div>
                 )}
 
-                <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r">
-                  <p className="text-sm text-gray-700 mb-3">View the full learning material for this topic.</p>
+                <div className="p-4" style={{ background: colors.successLight, borderLeft: `4px solid ${colors.success}`, borderRadius: radii.md }}>
+                  <p className="text-sm mb-3" style={{ color: colors.textSecondary }}>View the full learning material for this topic.</p>
                   <button
                     onClick={() => navigate(`/enhanced-topic/${selectedNode.id}`)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
+                    className="w-full text-white font-medium py-2 px-4 transition-all flex items-center justify-center" style={{ background: colors.success, borderRadius: radii.md, boxShadow: shadows.md }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = colors.successHover}
+                    onMouseLeave={(e) => e.currentTarget.style.background = colors.success}
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                     View Full Learning Material
@@ -458,9 +467,9 @@ export default function EnhancedJavaPage() {
                 </div>
 
                 {content.hasSources ? (
-                  <div className="border-t border-gray-200 pt-4">
-                    <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                  <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: spacing.lg }}>
+                    <h3 className="flex items-center" style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.text, marginBottom: spacing.md }}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: spacing.sm, color: colors.success }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                       External Learning Resources ({content.sources.length})
                     </h3>
                     <div className="space-y-2 max-h-96 overflow-y-auto">

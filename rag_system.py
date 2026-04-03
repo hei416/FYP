@@ -118,6 +118,9 @@ def load_faiss_with_forced_embeddings(path: str, embeddings) -> FAISS:
     class PatchedFAISS(FAISS):
         def _embed_query(self, text: str) -> list:
             return embeddings.embed_query(text)
+        
+        def _embed_documents(self, texts):
+            return embeddings.embed_documents(texts)
 
     vs = FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
     vs.__class__ = PatchedFAISS
@@ -176,58 +179,55 @@ def tag_documents(docs, knowledge_base_name):
 
 
 def load_or_create_vectorstore(chunks, embeddings, vectorstore_path):
-    """Load an existing vectorstore or create a new one."""
-    if is_vectorstore_ready(vectorstore_path):
+    """Load an existing vectorstore or create a new one. Supports resume from checkpoint."""
+    import json as _json
+    batch_size = 20
+    total_batches = (len(chunks) + batch_size - 1) // batch_size
+    progress_file = os.path.join(vectorstore_path, "_build_progress.json")
+    os.makedirs(vectorstore_path, exist_ok=True)
+
+    # Check for partial build checkpoint
+    start_batch = 0
+    vectorstore = None
+    if is_vectorstore_ready(vectorstore_path) and os.path.exists(progress_file):
+        with open(progress_file) as _f:
+            _prog = _json.load(_f)
+        start_batch = _prog.get("batches_completed", 0)
+        if start_batch >= total_batches:
+            print(f"Vectorstore already complete ({start_batch}/{total_batches} batches). Loading...")
+            return load_faiss_with_forced_embeddings(vectorstore_path, embeddings)
+        vectorstore = load_faiss_with_forced_embeddings(vectorstore_path, embeddings)
+        print(f"Resuming from batch {start_batch + 1}/{total_batches} ({vectorstore.index.ntotal} vectors so far)...")
+    elif is_vectorstore_ready(vectorstore_path):
+        # No progress file — assume complete (e.g. built by old code), just load it
         print(f"Loading existing vectorstore from {vectorstore_path}...")
         try:
             vectorstore = load_faiss_with_forced_embeddings(vectorstore_path, embeddings)
             print(f"Loaded vectorstore with {vectorstore.index.ntotal} vectors")
             return vectorstore
         except Exception as e:
-            print(f"Error loading vectorstore: {e}")
-            print("Creating new vectorstore...")
+            print(f"Error loading vectorstore: {e}. Rebuilding from scratch...")
 
-    print(f"Creating vectorstore from {len(chunks)} chunks...")
-    batch_size = 20
-    vectorstore = None
-    os.makedirs(vectorstore_path, exist_ok=True)
+    if start_batch == 0:
+        print(f"Creating vectorstore from {len(chunks)} chunks...")
 
-    for i in range(0, len(chunks), batch_size):
+    for i in range(start_batch * batch_size, len(chunks), batch_size):
         batch = chunks[i:i + batch_size]
         batch_num = i // batch_size + 1
-        total_batches = (len(chunks) + batch_size - 1) // batch_size
         print(f"  Processing batch {batch_num}/{total_batches}...")
 
+        batch_store = FAISS.from_documents(batch, embeddings)
         if vectorstore is None:
-            vectorstore = FAISS.from_documents(batch, embeddings)
-            try:
-                vectorstore.embedding_function = embeddings
-            except Exception:
-                try:
-                    vectorstore._embedding_function = embeddings
-                except Exception:
-                    pass
+            vectorstore = batch_store
         else:
-            vectorstore.add_documents(batch)
-            try:
-                vectorstore.embedding_function = embeddings
-            except Exception:
-                try:
-                    vectorstore._embedding_function = embeddings
-                except Exception:
-                    pass
+            vectorstore.merge_from(batch_store)
 
         vectorstore.save_local(vectorstore_path)
-        time.sleep(1)
+        with open(progress_file, "w") as _f:
+            _json.dump({"batches_completed": batch_num}, _f)
+        time.sleep(3)
 
     print(f"Vectorstore created and saved at {vectorstore_path}!")
-    try:
-        vectorstore.embedding_function = embeddings
-    except Exception:
-        try:
-            vectorstore._embedding_function = embeddings
-        except Exception:
-            pass
     return vectorstore
 
 

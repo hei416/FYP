@@ -151,7 +151,7 @@ function AppContent() {
                 >?</button>
             )}
 
-            <div style={{ paddingTop: navbar.height }} className="bg-white min-h-screen">
+            <div style={{ paddingTop: navbar.height, background: colors.bg }} className="min-h-screen">
                 <Routes>
                     <Route path="/login"              element={<Auth />} />
                     <Route path="/"                   element={<CourseCatalogPage />} />

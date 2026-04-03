@@ -194,8 +194,8 @@ export default function Playground() {
             </div>
 
             {/* ── Learning resources ── */}
-            <div style={{ ...card.warning, marginTop: spacing.xl }}>
-                <h4 style={{ margin: `0 0 ${spacing.sm}px 0`, color: colors.warning, fontSize: font.sizeMd }}>
+            <div style={{ ...card.info, marginTop: spacing.xl }}>
+                <h4 style={{ margin: `0 0 ${spacing.sm}px 0`, color: colors.primary, fontSize: font.sizeMd }}>
                     📚 More Learning Resources:
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.sm }}>

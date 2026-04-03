@@ -2,23 +2,24 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useAuth } from './AuthContext';
 import { useLocation } from "react-router-dom";
 import { ProgressTracker, QUIZ_PASS_SCORE } from "./ProgressTracker";
-import { TOPIC_GROUPS } from "./BasicJavaPage";
+import { getTopicGroupsForPath } from "./learningPathUtils";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
-const DEFAULT_TOPICS = [
-    "Bridging from Python",
-    "Problem Solving with Java",
-    "String",
-    "Array",
-    "Methods",
-    "Exception Handling and File IO",
-    "Class - constructor/attributes/methods",
-    "Class - access modifier/static",
-    "Inheritance",
-    "Polymorphism",
-    "Interface and Lambda expression",
-    "Recursion and Revision"
-];
+// Enhanced Java subtopic ID prefixes and main topic names
+const ENHANCED_SUBTOPIC_PREFIXES = ["adv_", "col_", "stream_", "exc_", "thread_", "ds_", "algo_"];
+const ENHANCED_MAIN_TOPICS = new Set([
+    "Advanced OOP", "Collections Framework", "Streams & Functional",
+    "Exception & I/O", "Concurrency", "Data Structures", "Algorithms", "Advanced Patterns",
+]);
+
+function detectCourse(topics) {
+    if (!topics || topics.length === 0) return "basic";
+    for (const t of topics) {
+        if (ENHANCED_MAIN_TOPICS.has(t)) return "enhanced";
+        if (ENHANCED_SUBTOPIC_PREFIXES.some(prefix => t.startsWith(prefix))) return "enhanced";
+    }
+    return "basic";
+}
 
 function shuffleArray(array) {
     return array.sort(() => Math.random() - 0.5);
@@ -37,10 +38,12 @@ export default function Quiz() {
     const [allUserAnswers, setAllUserAnswers] = useState({});
     const [showExplanation, setShowExplanation] = useState(false);
     const [openExplanations, setOpenExplanations] = useState({});
+    const [topicGroups, setTopicGroups] = useState([]);
 
     // Topic selection state
     const [showTopicSelect, setShowTopicSelect] = useState(true);
     const [selectedTopics, setSelectedTopics] = useState([]);
+    const [selectedPath, setSelectedPath] = useState(null);
 
     // AI quiz state
     const isFetchingRef = useRef(false);
@@ -75,6 +78,17 @@ export default function Quiz() {
             setSelectedTopics(preSelected);
         }
     }, [location.state]);
+
+    // Load topic groups when a path is explicitly selected
+    useEffect(() => {
+        if (!selectedPath) { setTopicGroups([]); return; }
+        getTopicGroupsForPath(selectedPath).then(groups => {
+            setTopicGroups(groups);
+        }).catch(err => {
+            console.error('Failed to load topic groups:', err);
+            setTopicGroups([]);
+        });
+    }, [selectedPath]);
 
    const generateAIQuiz = useCallback(async (topicsOverride = null) => {
         if (isFetchingRef.current) return; // ← block duplicate calls
@@ -114,6 +128,8 @@ export default function Quiz() {
 
             setLastTopics(topicsToUse);
 
+            const detectedCourse = detectCourse(topicsToUse);
+
             const res = await fetch(`${API_BASE}/api/quizzes/generate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -121,6 +137,7 @@ export default function Quiz() {
                     completed_topics: topicsToUse,
                     num_questions: 10,
                     user_id: userId || null,
+                    course: detectedCourse,
                 })
             });
 
@@ -182,8 +199,9 @@ export default function Quiz() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     completed_topics: lastTopics,
-                    num_questions: 5
-                    , user_id: userId || null
+                    num_questions: 5,
+                    user_id: userId || null,
+                    course: detectCourse(lastTopics),
                 })
             });
 
@@ -394,33 +412,68 @@ export default function Quiz() {
 
     // Topic Selection Screen
     if (showTopicSelect) {
+        // Step 1: choose course path
+        if (!selectedPath) {
+            return (
+                <div style={pageContainer(700)}>
+                    <h2 style={pageHeading}>📝 Exercises</h2>
+                    <p style={pageSubheading}>Choose which Java course to generate quiz questions for.</p>
+                    <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 32, flexWrap: 'wrap' }}>
+                        <button
+                            onClick={() => { setSelectedPath('basic'); setSelectedTopics([]); }}
+                            style={{
+                                padding: '32px 40px', borderRadius: radii.lg,
+                                border: `2px solid ${colors.border}`, background: colors.surface,
+                                cursor: 'pointer', textAlign: 'center', minWidth: 220,
+                                transition, boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                            }}
+                        >
+                            <div style={{ fontSize: 40, marginBottom: 10 }}>☕</div>
+                            <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>Basic Java</div>
+                            <div style={{ fontSize: font.sizeSm, color: colors.textSecondary, marginTop: 6 }}>12 topic groups · Beginner to intermediate</div>
+                        </button>
+                        <button
+                            onClick={() => { setSelectedPath('enhanced'); setSelectedTopics([]); }}
+                            style={{
+                                padding: '32px 40px', borderRadius: radii.lg,
+                                border: `2px solid ${colors.border}`, background: colors.surface,
+                                cursor: 'pointer', textAlign: 'center', minWidth: 220,
+                                transition, boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                            }}
+                        >
+                            <div style={{ fontSize: 40, marginBottom: 10 }}>🚀</div>
+                            <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>Enhanced Java</div>
+                            <div style={{ fontSize: font.sizeSm, color: colors.textSecondary, marginTop: 6 }}>8 topic groups · Advanced concepts</div>
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         const completedTopics = tracker.getCompletedTopics();
-        const topicGroupMap = {
-            "Bridging from Python": 0,
-            "Problem Solving with Java": 1,
-            "String": 2,
-            "Array": 3,
-            "Methods": 4,
-            "Exception Handling and File IO": 5,
-            "Class - constructor/attributes/methods": 6,
-            "Class - access modifier/static": 7,
-            "Inheritance": 8,
-            "Polymorphism": 9,
-            "Interface and Lambda expression": 10,
-            "Recursion and Revision": 11,
-        };
+
+        // Build topic group map dynamically from current learning path
+        const topicGroupMap = {};
+        topicGroups.forEach((group, idx) => {
+            topicGroupMap[group.label] = idx;
+        });
 
         const isTopicAvailable = (topic) => {
             const groupIdx = topicGroupMap[topic];
             if (groupIdx === undefined) return false;
-            const group = TOPIC_GROUPS[groupIdx];
+            const group = topicGroups[groupIdx];
             return Array.isArray(group?.subtopics) && group.subtopics.some((id) => completedTopics.includes(id));
         };
 
+        const DEFAULT_TOPICS = topicGroups.map(g => g.label);
         const availableTopics = DEFAULT_TOPICS.filter(isTopicAvailable);
 
         return (
             <div style={pageContainer(800)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                    <button onClick={() => { setSelectedPath(null); setSelectedTopics([]); }} style={{ ...btn.ghost, fontSize: font.sizeSm, padding: '4px 10px' }}>← Change Course</button>
+                    <span style={{ fontSize: font.sizeSm, color: colors.textSecondary }}>{selectedPath === 'enhanced' ? '🚀 Enhanced Java' : '☕ Basic Java'}</span>
+                </div>
                 <h2 style={pageHeading}>🎯 Select Exercise Topics</h2>
                 <p style={pageSubheading}>
                     {availableTopics.length > 0
@@ -459,12 +512,12 @@ export default function Quiz() {
                         textAlign: "left",
                     }}
                 >
-                    {DEFAULT_TOPICS.map((topic, idx) => {
+                    {(topicGroups.map(g => g.label) || []).map((topic, idx) => {
                         const groupIdx = topicGroupMap[topic];
                         if (groupIdx === undefined) {
                             return null;
                         }
-                        const group = TOPIC_GROUPS[groupIdx];
+                        const group = topicGroups[groupIdx];
                         const anyDone = Array.isArray(group?.subtopics) && group.subtopics.some((id) => completedTopics.includes(id));
                         const allDone = Array.isArray(group?.subtopics) && group.subtopics.every((id) => completedTopics.includes(id));
 

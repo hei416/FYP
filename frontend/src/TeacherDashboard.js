@@ -456,6 +456,27 @@ export default function TeacherDashboard() {
   const [classroomWorkLoading,       setClassroomWorkLoading]       = useState({});
   const [classroomExpandedWork,      setClassroomExpandedWork]      = useState({});
 
+  // ── Enhanced Java Official Classroom panel state ──────────────────────────
+  const [officialEnhPanelOpen,       setOfficialEnhPanelOpen]       = useState(false);
+  const [officialEnhAggData,         setOfficialEnhAggData]         = useState(null);
+  const [officialEnhAggLoading,      setOfficialEnhAggLoading]      = useState(false);
+  const [officialEnhExpandedStudent, setOfficialEnhExpandedStudent] = useState(null);
+  const [officialEnhSortKey,         setOfficialEnhSortKey]         = useState('full_name');
+  const [officialEnhSortAsc,         setOfficialEnhSortAsc]         = useState(true);
+  const [officialEnhStudentWork,     setOfficialEnhStudentWork]     = useState({});
+  const [officialEnhWorkLoading,     setOfficialEnhWorkLoading]     = useState({});
+  const [officialEnhExpandedWork,    setOfficialEnhExpandedWork]    = useState({});
+  const [officialEnhViewMode,        setOfficialEnhViewMode]        = useState('aggregate');
+  const [enhClassroomList,           setEnhClassroomList]           = useState(null);
+  const [enhClassroomListLoading,    setEnhClassroomListLoading]    = useState(false);
+  const [enhExpandedClassroom,       setEnhExpandedClassroom]       = useState(null);
+  const [enhClassroomDetailData,     setEnhClassroomDetailData]     = useState({});
+  const [enhClassroomDetailLoading,  setEnhClassroomDetailLoading]  = useState({});
+  const [enhClassroomExpandedStudent,setEnhClassroomExpandedStudent]= useState({});
+  const [enhClassroomStudentWork,    setEnhClassroomStudentWork]    = useState({});
+  const [enhClassroomWorkLoading,    setEnhClassroomWorkLoading]    = useState({});
+  const [enhClassroomExpandedWork,   setEnhClassroomExpandedWork]   = useState({});
+
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isTeacher)) navigate('/home');
   }, [loading, isAuthenticated, isTeacher, navigate]);
@@ -575,6 +596,78 @@ export default function TeacherDashboard() {
     });
   }
 
+  function sortedEnhOfficialStudents(students) {
+    return [...students].sort((a, b) => {
+      let av, bv;
+      const k = officialEnhSortKey;
+      if (k === 'status') { av = _studentStatus(a).label; bv = _studentStatus(b).label; }
+      else if (k === 'quiz_pass_rate') { av = a.quizzes_attempted > 0 ? a.quizzes_passed / a.quizzes_attempted : -1; bv = b.quizzes_attempted > 0 ? b.quizzes_passed / b.quizzes_attempted : -1; }
+      else if (k === 'test_pass_rate') { av = a.tests_attempted > 0 ? a.tests_passed / a.tests_attempted : -1; bv = b.tests_attempted > 0 ? b.tests_passed / b.tests_attempted : -1; }
+      else if (k === 'weak_count') { av = a.weak_topics?.length; bv = b.weak_topics?.length; }
+      else if (k === 'last_active') { av = a.last_active ? new Date(a.last_active).getTime() : 0; bv = b.last_active ? new Date(b.last_active).getTime() : 0; }
+      else { av = a[k]; bv = b[k]; }
+      if (av == null) return 1; if (bv == null) return -1;
+      const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+      return officialEnhSortAsc ? cmp : -cmp;
+    });
+  }
+
+  async function handleSwitchEnhViewMode(mode) {
+    setOfficialEnhViewMode(mode);
+    if (!officialEnhPanelOpen) setOfficialEnhPanelOpen(true);
+    if (mode === 'aggregate' && !officialEnhAggData && !officialEnhAggLoading) {
+      setOfficialEnhAggLoading(true);
+      try { setOfficialEnhAggData(await getOfficialAggregateCourseProgress('enhanced')); }
+      catch (e) { console.error(e); }
+      finally { setOfficialEnhAggLoading(false); }
+    }
+    if (mode === 'by-classroom' && !enhClassroomList && !enhClassroomListLoading) {
+      setEnhClassroomListLoading(true);
+      try { setEnhClassroomList(await getOfficialClassroomList()); }
+      catch (e) { console.error(e); }
+      finally { setEnhClassroomListLoading(false); }
+    }
+  }
+
+  async function toggleEnhOfficialStudentRow(studentId) {
+    if (officialEnhExpandedStudent === studentId) { setOfficialEnhExpandedStudent(null); return; }
+    setOfficialEnhExpandedStudent(studentId);
+    if (!officialEnhStudentWork[studentId] && !officialEnhWorkLoading[studentId]) {
+      setOfficialEnhWorkLoading(p => ({ ...p, [studentId]: true }));
+      try {
+        const data = await getOfficialAggregateStudentWork(studentId);
+        setOfficialEnhStudentWork(p => ({ ...p, [studentId]: data.items }));
+      } catch (e) { console.error(e); }
+      finally { setOfficialEnhWorkLoading(p => ({ ...p, [studentId]: false })); }
+    }
+  }
+
+  async function toggleEnhClassroomRow(classroomId) {
+    if (enhExpandedClassroom === classroomId) { setEnhExpandedClassroom(null); return; }
+    setEnhExpandedClassroom(classroomId);
+    if (!enhClassroomDetailData[classroomId] && !enhClassroomDetailLoading[classroomId]) {
+      setEnhClassroomDetailLoading(p => ({ ...p, [classroomId]: true }));
+      try {
+        const data = await getClassroomCourseProgress(classroomId, 'enhanced');
+        setEnhClassroomDetailData(p => ({ ...p, [classroomId]: data }));
+      } catch (e) { console.error(e); }
+      finally { setEnhClassroomDetailLoading(p => ({ ...p, [classroomId]: false })); }
+    }
+  }
+
+  async function toggleEnhClassroomStudentRow(classroomId, studentId) {
+    setEnhClassroomExpandedStudent(p => ({ ...p, [classroomId]: p[classroomId] === studentId ? null : studentId }));
+    const key = `${classroomId}_${studentId}`;
+    if (!enhClassroomStudentWork[key] && !enhClassroomWorkLoading[key]) {
+      setEnhClassroomWorkLoading(p => ({ ...p, [key]: true }));
+      try {
+        const data = await getClassroomStudentWork(classroomId, studentId);
+        setEnhClassroomStudentWork(p => ({ ...p, [key]: data.items }));
+      } catch (e) { console.error(e); }
+      finally { setEnhClassroomWorkLoading(p => ({ ...p, [key]: false })); }
+    }
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted }}>Loading…</div>;
 
   const inputStyle = {
@@ -608,6 +701,16 @@ export default function TeacherDashboard() {
       <th onClick={() => { if (officialCourseSortKey === sortKeyName) setOfficialCourseSortAsc(!officialCourseSortAsc); else { setOfficialCourseSortKey(sortKeyName); setOfficialCourseSortAsc(true); } }}
         style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: center ? 'center' : 'left', color: isActive ? colors.primary : colors.textSecondary, fontWeight: isActive ? font.weightBold : font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
         {label}<span style={{ marginLeft: 4, opacity: isActive ? 1 : 0.3 }}>{isActive ? (officialCourseSortAsc ? '↑' : '↓') : '↕'}</span>
+      </th>
+    );
+  };
+
+  const EnhancedSortTh = ({ label, sortKeyName, center = false }) => {
+    const isActive = officialEnhSortKey === sortKeyName;
+    return (
+      <th onClick={() => { if (officialEnhSortKey === sortKeyName) setOfficialEnhSortAsc(!officialEnhSortAsc); else { setOfficialEnhSortKey(sortKeyName); setOfficialEnhSortAsc(true); } }}
+        style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: center ? 'center' : 'left', color: isActive ? colors.primary : colors.textSecondary, fontWeight: isActive ? font.weightBold : font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+        {label}<span style={{ marginLeft: 4, opacity: isActive ? 1 : 0.3 }}>{isActive ? (officialEnhSortAsc ? '↑' : '↓') : '↕'}</span>
       </th>
     );
   };
@@ -1159,6 +1262,358 @@ export default function TeacherDashboard() {
                 </div>
               </>
             ))}
+          </div>
+        )}
+
+        {/* Enhanced Java card */}
+        <div style={{ ...card.base, padding: 20, marginTop: 16, borderBottomLeftRadius: officialEnhPanelOpen ? 0 : undefined, borderBottomRightRadius: officialEnhPanelOpen ? 0 : undefined, borderBottom: officialEnhPanelOpen ? 'none' : undefined }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h4 style={{ margin: 0, color: '#059669', fontSize: font.sizeLg, fontWeight: font.weightBold }}>🚀 Enhanced Java</h4>
+                <span style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>Official Lessons</span>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary }}>
+                Aggregate course analysis · {officialClassrooms.length} classroom{officialClassrooms.length !== 1 ? 's' : ''}
+                {officialEnhAggData ? ` · ${officialEnhAggData.total_students} student${officialEnhAggData.total_students !== 1 ? 's' : ''}` : ''}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                onClick={() => handleSwitchEnhViewMode('aggregate')}
+                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialEnhViewMode === 'aggregate' && officialEnhPanelOpen ? '#059669' : 'transparent', color: officialEnhViewMode === 'aggregate' && officialEnhPanelOpen ? '#fff' : '#059669', border: `1px solid #059669`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                👥 All Students
+              </button>
+              <button
+                onClick={() => handleSwitchEnhViewMode('by-classroom')}
+                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialEnhViewMode === 'by-classroom' && officialEnhPanelOpen ? '#059669' : 'transparent', color: officialEnhViewMode === 'by-classroom' && officialEnhPanelOpen ? '#fff' : '#059669', border: `1px solid #059669`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                📋 By Classroom
+              </button>
+              {officialEnhPanelOpen && (
+                <button onClick={() => setOfficialEnhPanelOpen(false)}
+                  style={{ ...btn.secondary, ...btn.small, whiteSpace: 'nowrap' }}>
+                  ✕ Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Java analysis panel */}
+        {officialEnhPanelOpen && (
+          <div style={{ ...card.base, padding: 28, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: `1px solid ${colors.border}` }}>
+            {officialEnhViewMode === 'by-classroom' ? (
+              enhClassroomListLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+                  <div>Loading classroom list…</div>
+                </div>
+              ) : !enhClassroomList || enhClassroomList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🏛</div>
+                  <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No official classrooms found</div>
+                  <div style={{ fontSize: font.sizeSm }}>Create classrooms with an "Official Lessons" category to see them here.</div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 32, padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                        {['Classroom', 'Students', 'Avg Completion', 'Avg Quiz', 'Avg Test', 'Quiz Pass Rate', 'Test Pass Rate', 'Common Weak Topics'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: h === 'Classroom' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {enhClassroomList.map((cls, idx) => {
+                        const isExp = enhExpandedClassroom === cls.classroom_id;
+                        const detail = enhClassroomDetailData[cls.classroom_id];
+                        const detailLoading = Boolean(enhClassroomDetailLoading[cls.classroom_id]);
+                        const rowBg = isExp ? colors.primaryLight : (idx % 2 === 0 ? colors.surface : colors.bg);
+                        const s = cls.class_summary;
+                        return (
+                          <React.Fragment key={`enhclsc_${cls.classroom_id}`}>
+                            <tr onClick={() => toggleEnhClassroomRow(cls.classroom_id)}
+                              style={{ cursor: 'pointer', background: rowBg }}
+                              onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = colors.primaryLight; }}
+                              onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = rowBg; }}>
+                              <td style={{ ...tdS, textAlign: 'center', color: '#059669', fontWeight: 700, fontSize: 16 }}>{isExp ? '▾' : '▸'}</td>
+                              <td style={tdS}><span style={{ fontWeight: font.weightSemibold }}>{cls.classroom_name}</span></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}>{cls.total_students}</td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_completion_percentage} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_quiz_score} /></td>
+                              <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_test_score} /></td>
+                              <td style={{ ...tdS, textAlign: 'center', color: s.quiz_pass_rate != null ? _rateColor(s.quiz_pass_rate) : colors.textMuted, fontWeight: 600 }}>{s.quiz_pass_rate != null ? `${s.quiz_pass_rate}%` : '—'}</td>
+                              <td style={{ ...tdS, textAlign: 'center', color: s.test_pass_rate != null ? _rateColor(s.test_pass_rate) : colors.textMuted, fontWeight: 600 }}>{s.test_pass_rate != null ? `${s.test_pass_rate}%` : '—'}</td>
+                              <td style={{ ...tdS }}>
+                                {s.most_common_weak_topics?.length > 0
+                                  ? s.most_common_weak_topics.slice(0, 3).map(t => (
+                                      <span key={t} style={{ display: 'inline-block', marginRight: 4, marginBottom: 2, fontSize: 11, background: '#fde68a', color: '#92400e', borderRadius: 9999, padding: '1px 7px' }}>{t}</span>
+                                    ))
+                                  : <span style={{ color: colors.textMuted }}>—</span>}
+                              </td>
+                            </tr>
+                            {isExp && (
+                              <tr>
+                                <td colSpan={9} style={{ padding: '16px 24px 24px 48px', background: colors.primaryLight, borderBottom: `2px solid #6ee7b7` }}>
+                                  {detailLoading ? (
+                                    <div style={{ color: colors.textMuted, padding: '20px 0' }}>⏳ Loading students…</div>
+                                  ) : !detail || detail.students.length === 0 ? (
+                                    <div style={{ color: colors.textMuted }}>No student data for this classroom yet.</div>
+                                  ) : (
+                                    <>
+                                      <_CourseSummaryBar summary={detail.class_summary} />
+                                      <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                                          <thead>
+                                            <tr>
+                                              <th style={{ width: 32, padding: '8px 12px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                                              {['Status', 'Name', 'Completion', 'Quiz Pass', 'Avg Quiz', 'Test Pass', 'Avg Test', 'Weak', 'Last Active'].map(h => (
+                                                <th key={h} style={{ padding: '8px 12px', borderBottom: `2px solid ${colors.border}`, background: colors.bg, textAlign: h === 'Name' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>{h}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {detail.students.map((stu, si) => {
+                                              const stuExp = enhClassroomExpandedStudent[cls.classroom_id] === stu.student_id;
+                                              const stuStatus = _studentStatus(stu);
+                                              const stuBg = stuExp ? '#d1fae5' : (si % 2 === 0 ? colors.surface : colors.bg);
+                                              const wkey = `${cls.classroom_id}_${stu.student_id}`;
+                                              const stuWork = enhClassroomStudentWork[wkey] || [];
+                                              const stuWorkLoading = Boolean(enhClassroomWorkLoading[wkey]);
+                                              return (
+                                                <React.Fragment key={`enhclsstu_${cls.classroom_id}_${stu.student_id}`}>
+                                                  <tr onClick={() => toggleEnhClassroomStudentRow(cls.classroom_id, stu.student_id)}
+                                                    style={{ cursor: 'pointer', background: stuBg }}
+                                                    onMouseEnter={e => { if (!stuExp) e.currentTarget.style.background = '#d1fae5'; }}
+                                                    onMouseLeave={e => { if (!stuExp) e.currentTarget.style.background = stuBg; }}>
+                                                    <td style={{ ...tdS, textAlign: 'center', color: '#059669', fontWeight: 700 }}>{stuExp ? '▾' : '▸'}</td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}>
+                                                      <span title={stuStatus.label} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: stuStatus.bg, color: stuStatus.fg, whiteSpace: 'nowrap' }}>{stuStatus.dot} {stuStatus.label}</span>
+                                                    </td>
+                                                    <td style={tdS}>
+                                                      <div style={{ fontWeight: font.weightSemibold }}>{stu.full_name || '—'}</div>
+                                                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{stu.email}</div>
+                                                    </td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={stu.completion_percentage} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={stu.quizzes_passed} attempted={stu.quizzes_attempted} tooltip={`${stu.quizzes_passed}/${stu.quizzes_attempted} quizzes ≥70`} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={stu.avg_quiz_score} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={stu.tests_passed} attempted={stu.tests_attempted} tooltip={`${stu.tests_passed}/${stu.tests_attempted} tests ≥60`} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={stu.avg_test_score} /></td>
+                                                    <td style={{ ...tdS, textAlign: 'center' }}>{stu.weak_topics?.length || 0}</td>
+                                                    <td style={{ ...tdS, textAlign: 'center', color: colors.textMuted, fontSize: font.sizeXs }}>{stu.last_active ? new Date(stu.last_active).toLocaleDateString() : '—'}</td>
+                                                  </tr>
+                                                  {stuExp && (
+                                                    <tr>
+                                                      <td colSpan={10} style={{ padding: '12px 20px 18px 44px', background: '#ecfdf5', borderBottom: `2px solid #6ee7b7` }}>
+                                                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+                                                          <div style={{ fontSize: font.sizeSm }}><strong>Subtopics Read:</strong> {stu.completed_topics}</div>
+                                                          <div style={{ fontSize: font.sizeSm }}><strong>Weak Topics:</strong> {stu.weak_topics?.length ? stu.weak_topics.join(', ') : 'None'}</div>
+                                                        </div>
+                                                        {stu.topic_stats?.length > 0 && (
+                                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeXs, marginBottom: 14 }}>
+                                                            <thead>
+                                                              <tr style={{ background: colors.bg }}>
+                                                                {['Topic', 'Quiz Attempts', 'Quiz Avg', 'Quiz Pass', 'Test Attempts', 'Test Avg', 'Test Pass'].map(h => (
+                                                                  <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Topic' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                                                                ))}
+                                                              </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                              {stu.topic_stats.map(ts => (
+                                                                <tr key={ts.topic} style={{ background: ts.is_weak ? '#fff7ed' : 'transparent' }}>
+                                                                  <td style={{ padding: '5px 8px', borderBottom: `1px solid ${colors.border}` }}>{ts.is_weak && <span style={{ marginRight: 4 }}>⚠️</span>}{ts.topic}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.quiz_attempts || '—'}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.quiz_avg_score} /></td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.quiz_pass_rate != null ? `${ts.quiz_pass_rate}%` : '—'}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.test_attempts || '—'}</td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.test_avg_score} /></td>
+                                                                  <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.test_pass_rate != null ? `${ts.test_pass_rate}%` : '—'}</td>
+                                                                </tr>
+                                                              ))}
+                                                            </tbody>
+                                                          </table>
+                                                        )}
+                                                        <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 10 }}>
+                                                          <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, marginBottom: 8 }}>Student Work Details</div>
+                                                          {stuWorkLoading && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>Loading…</div>}
+                                                          {!stuWorkLoading && stuWork.length === 0 && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>No saved work yet.</div>}
+                                                          {!stuWorkLoading && stuWork.map(item => {
+                                                            const wexp = Boolean(enhClassroomExpandedWork[item.id]);
+                                                            const score = item.result_data?.score;
+                                                            const hasDetails = (item.work_type === 'quiz' && item.result_data?.review?.length > 0) || (item.work_type === 'test' && (item.result_data?.question?.description || item.content));
+                                                            return (
+                                                              <div key={item.id} style={{ border: `1px solid ${colors.border}`, borderRadius: radii.md, background: colors.surface, padding: '10px 12px', marginBottom: 8 }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                                                  <div>
+                                                                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold }}>{item.title}</div>
+                                                                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{item.work_type.toUpperCase()} · {item.topic_id || 'No topic'} · {new Date(item.created_at).toLocaleDateString()}</div>
+                                                                  </div>
+                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    {score != null && <_ScoreBadge score={score} />}
+                                                                    {hasDetails && (
+                                                                      <button onClick={() => setEnhClassroomExpandedWork(p => ({ ...p, [item.id]: !p[item.id] }))}
+                                                                        style={{ ...btn.secondary, padding: '4px 10px', fontSize: 12 }}>{wexp ? 'Hide' : 'View Details'}</button>
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                            );
+                                                          })}
+                                                        </div>
+                                                      </td>
+                                                    </tr>
+                                                  )}
+                                                </React.Fragment>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (
+              /* ── Enhanced Java Aggregate view ── */
+              officialEnhAggLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
+                  <div>Loading aggregate data…</div>
+                </div>
+              ) : !officialEnhAggData || officialEnhAggData.students.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textMuted }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>👩‍🎓</div>
+                  <div style={{ fontWeight: font.weightSemibold, marginBottom: 6 }}>No student data yet</div>
+                  <div style={{ fontSize: font.sizeSm }}>Share official classroom join codes with students to get started.</div>
+                </div>
+              ) : (
+                <>
+                  <_CourseSummaryBar summary={officialEnhAggData.class_summary} />
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 32, padding: '10px 14px', borderBottom: `2px solid ${colors.border}`, background: colors.bg }} />
+                          <EnhancedSortTh label="Status"      sortKeyName="status"               center />
+                          <EnhancedSortTh label="Name"        sortKeyName="full_name" />
+                          <EnhancedSortTh label="Completion"  sortKeyName="completion_percentage" center />
+                          <EnhancedSortTh label="Quiz Pass"   sortKeyName="quiz_pass_rate"        center />
+                          <EnhancedSortTh label="Avg Quiz"    sortKeyName="avg_quiz_score"        center />
+                          <EnhancedSortTh label="Test Pass"   sortKeyName="test_pass_rate"        center />
+                          <EnhancedSortTh label="Avg Test"    sortKeyName="avg_test_score"        center />
+                          <EnhancedSortTh label="Weak Topics" sortKeyName="weak_count"            center />
+                          <EnhancedSortTh label="Last Active" sortKeyName="last_active"           center />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedEnhOfficialStudents(officialEnhAggData.students).map((s, idx) => {
+                          const isExp = officialEnhExpandedStudent === s.student_id;
+                          const status = _studentStatus(s);
+                          const rowBg = isExp ? '#d1fae5' : (idx % 2 === 0 ? colors.surface : colors.bg);
+                          const work = officialEnhStudentWork[s.student_id] || [];
+                          const workLoading = Boolean(officialEnhWorkLoading[s.student_id]);
+                          return (
+                            <React.Fragment key={`enhagg_${s.student_id}`}>
+                              <tr onClick={() => toggleEnhOfficialStudentRow(s.student_id)}
+                                style={{ cursor: 'pointer', background: rowBg, transition: 'background 0.15s' }}
+                                onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = '#d1fae5'; }}
+                                onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = rowBg; }}>
+                                <td style={{ ...tdS, textAlign: 'center', color: '#059669', fontWeight: 700, fontSize: 16 }}>{isExp ? '▾' : '▸'}</td>
+                                <td style={{ ...tdS, textAlign: 'center' }}>
+                                  <span title={status.label} style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: status.bg, color: status.fg, whiteSpace: 'nowrap' }}>{status.dot} {status.label}</span>
+                                </td>
+                                <td style={tdS}>
+                                  <div style={{ fontWeight: font.weightSemibold }}>{s.full_name || '—'}</div>
+                                  <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{s.email}</div>
+                                </td>
+                                <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.completion_percentage} /></td>
+                                <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={s.quizzes_passed} attempted={s.quizzes_attempted} tooltip={`${s.quizzes_passed}/${s.quizzes_attempted} quizzes ≥70`} /></td>
+                                <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_quiz_score} /></td>
+                                <td style={{ ...tdS, textAlign: 'center' }}><_PassRateBadge passed={s.tests_passed} attempted={s.tests_attempted} tooltip={`${s.tests_passed}/${s.tests_attempted} tests ≥60`} /></td>
+                                <td style={{ ...tdS, textAlign: 'center' }}><_ScoreBadge score={s.avg_test_score} /></td>
+                                <td style={{ ...tdS, textAlign: 'center' }}>{s.weak_topics?.length || 0}</td>
+                                <td style={{ ...tdS, textAlign: 'center', color: colors.textMuted, fontSize: font.sizeXs }}>{s.last_active ? new Date(s.last_active).toLocaleDateString() : '—'}</td>
+                              </tr>
+                              {isExp && (
+                                <tr>
+                                  <td colSpan={10} style={{ padding: '12px 24px 20px 48px', background: '#d1fae5', borderBottom: `2px solid #6ee7b7` }}>
+                                    <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 8 }}>
+                                      <div style={{ fontSize: font.sizeSm }}><strong>Subtopics Read:</strong> {s.completed_topics}</div>
+                                      <div style={{ fontSize: font.sizeSm }}><strong>Weak Topics:</strong> {s.weak_topics?.length ? s.weak_topics.join(', ') : 'None'}</div>
+                                    </div>
+                                    {s.topic_stats?.length > 0 && (
+                                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeXs, marginBottom: 14 }}>
+                                        <thead>
+                                          <tr style={{ background: colors.bg }}>
+                                            {['Topic', 'Quiz Attempts', 'Quiz Avg', 'Quiz Pass', 'Test Attempts', 'Test Avg', 'Test Pass'].map(h => (
+                                              <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Topic' ? 'left' : 'center', color: colors.textSecondary, fontWeight: font.weightSemibold, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {s.topic_stats.map(ts => (
+                                            <tr key={ts.topic} style={{ background: ts.is_weak ? '#fff7ed' : 'transparent' }}>
+                                              <td style={{ padding: '6px 10px', color: colors.text, borderBottom: `1px solid ${colors.border}` }}>{ts.is_weak && <span style={{ marginRight: 4 }}>⚠️</span>}{ts.topic}</td>
+                                              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.quiz_attempts || '—'}</td>
+                                              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.quiz_avg_score} /></td>
+                                              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.quiz_pass_rate != null ? `${ts.quiz_pass_rate}%` : '—'}</td>
+                                              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}`, color: colors.textMuted }}>{ts.test_attempts || '—'}</td>
+                                              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}><_ScoreBadge score={ts.test_avg_score} /></td>
+                                              <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: `1px solid ${colors.border}` }}>{ts.test_pass_rate != null ? `${ts.test_pass_rate}%` : '—'}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                    <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 10 }}>
+                                      <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, marginBottom: 8, color: colors.text }}>Student Work Details</div>
+                                      {workLoading && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>Loading…</div>}
+                                      {!workLoading && work.length === 0 && <div style={{ color: colors.textMuted, fontSize: font.sizeSm }}>No saved work yet.</div>}
+                                      {!workLoading && work.map(item => {
+                                        const exp = Boolean(officialEnhExpandedWork[item.id]);
+                                        const score = item.result_data?.score;
+                                        const hasDetails = (item.work_type === 'quiz' && item.result_data?.review?.length > 0) || (item.work_type === 'test' && (item.result_data?.question?.description || item.content));
+                                        return (
+                                          <div key={item.id} style={{ border: `1px solid ${colors.border}`, borderRadius: radii.md, background: colors.surface, padding: '10px 12px', marginBottom: 8 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                                              <div>
+                                                <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold }}>{item.title}</div>
+                                                <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{item.work_type.toUpperCase()} · {item.topic_id || 'No topic'} · {new Date(item.created_at).toLocaleDateString()}</div>
+                                              </div>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                {score != null && <_ScoreBadge score={score} />}
+                                                {hasDetails && (
+                                                  <button onClick={() => setOfficialEnhExpandedWork(p => ({ ...p, [item.id]: !p[item.id] }))}
+                                                    style={{ ...btn.secondary, padding: '4px 10px', fontSize: 12 }}>{exp ? 'Hide' : 'View Details'}</button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )
+            )}
           </div>
         )}
       </div>

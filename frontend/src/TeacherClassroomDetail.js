@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { getTopicGroupsForPath } from './learningPathUtils';
 import {
   getClassroomAnalytics,
   getClassroomMaterialsWithProgress,
@@ -14,7 +15,13 @@ import {
   listSections,
   listClassroomFiles,
   updateClassroomCategory,
+  updateClassroom,
   getClassroomCourseProgress,
+  generateClassroomPracticalChallenge,
+  saveClassroomPracticalChallenge,
+  listClassroomPracticalChallenges,
+  updateClassroomPracticalChallenge,
+  deleteClassroomPracticalChallenge,
 } from './classroomService';
 import { ClassroomSections } from './TeacherDashboard';
 import { radii, font, card, shadows } from './theme';
@@ -284,6 +291,10 @@ function ClassroomQuizManager({ classroomId }) {
   const [genNumQ, setGenNumQ] = useState(5);
   const [genSectionId, setGenSectionId] = useState('');
   const [genFileIds, setGenFileIds] = useState([]);   // selected file IDs for context
+  const [genSource, setGenSource] = useState('classroom'); // 'classroom' | 'course'
+  const [genCoursePath, setGenCoursePath] = useState('basic_java'); // 'basic_java' | 'enhanced_java'
+  const [genTopicGroups, setGenTopicGroups] = useState([]);   // topic groups for selected course
+  const [genSelectedTopics, setGenSelectedTopics] = useState([]); // selected topic labels
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
   const DEFAULT_PROMPT = 'Java programming concepts, OOP principles (classes, inheritance, polymorphism, encapsulation, abstraction), data structures, exception handling, and algorithms';
@@ -319,6 +330,23 @@ function ClassroomQuizManager({ classroomId }) {
 
   useEffect(() => { load(); }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load topic groups when source='course' and course path changes
+  useEffect(() => {
+    if (genSource !== 'course') return;
+    const pathKey = genCoursePath === 'enhanced_java' ? 'enhanced' : 'basic';
+    getTopicGroupsForPath(pathKey).then(groups => {
+      setGenTopicGroups(groups);
+      setGenSelectedTopics([]);
+      setGenPrompt(DEFAULT_PROMPT);
+    }).catch(() => setGenTopicGroups([]));
+  }, [genSource, genCoursePath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-fill prompt from selected topics
+  useEffect(() => {
+    if (genSource !== 'course' || genSelectedTopics.length === 0) return;
+    setGenPrompt(genSelectedTopics.join(', '));
+  }, [genSelectedTopics, genSource]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleGenerate = async () => {
     if (!genPrompt.trim()) { setGenError('Please enter a topic or prompt.'); return; }
     if (!genTitle.trim()) { setGenError('Please enter a quiz title.'); return; }
@@ -329,7 +357,9 @@ function ClassroomQuizManager({ classroomId }) {
         topic_prompt: genPrompt.trim(),
         num_questions: genNumQ,
         section_id: genSectionId !== '' ? Number(genSectionId) : null,
-        file_ids: genFileIds.length > 0 ? genFileIds : null,
+        file_ids: genSource === 'classroom' && genFileIds.length > 0 ? genFileIds : null,
+        source: genSource,
+        course_path: genSource === 'course' ? genCoursePath : null,
       });
       setDraftQuestions(res.questions);
       setEditQuestions(res.questions.map(q => ({ ...q })));
@@ -374,6 +404,10 @@ function ClassroomQuizManager({ classroomId }) {
       setGenTitle('');
       setGenSectionId('');
       setGenFileIds([]);
+      setGenSource('classroom');
+      setGenCoursePath('basic_java');
+      setGenTopicGroups([]);
+      setGenSelectedTopics([]);
       setEditingQuizId(null);
       setShowGenForm(false);
       await load();
@@ -395,7 +429,7 @@ function ClassroomQuizManager({ classroomId }) {
   };
 
   const handleDelete = async (quiz) => {
-    if (!window.confirm(`Delete quiz "${quiz.title}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete exercise "${quiz.title}"? This cannot be undone.`)) return;
     try {
       await deleteClassroomQuiz(classroomId, quiz.id);
       await load();
@@ -501,13 +535,13 @@ function ClassroomQuizManager({ classroomId }) {
           <span style={{ fontSize: 12, color: colors.textMuted }}>{isOpen ? '▼' : '▶'}</span>
           <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, flex: 1, color: colors.text }}>{title}</span>
           <span style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
-            {quizList.length} quiz{quizList.length !== 1 ? 'zes' : ''}
+            {quizList.length} exercise{quizList.length !== 1 ? 's' : ''}
           </span>
         </button>
         {isOpen && (
           <div style={{ padding: '8px 12px 12px' }}>
             {quizList.length === 0
-              ? <p style={{ color: colors.textMuted, fontSize: font.sizeSm, margin: '8px 4px' }}>No quizzes in this section.</p>
+              ? <p style={{ color: colors.textMuted, fontSize: font.sizeSm, margin: '8px 4px' }}>No exercises in this section.</p>
               : quizList.map(renderQuizCard)
             }
           </div>
@@ -516,7 +550,7 @@ function ClassroomQuizManager({ classroomId }) {
     );
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted }}>Loading quizzes…</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted }}>Loading exercises…</div>;
   if (error) return <div style={{ padding: 20, color: '#dc2626' }}>Error: {error}</div>;
 
   return (
@@ -524,7 +558,7 @@ function ClassroomQuizManager({ classroomId }) {
       {/* Header + generate button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h3 style={{ margin: 0, fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>
-          Classroom Quizzes
+          Classroom Exercises
         </h3>
         {!draftQuestions && (
           <button
@@ -535,7 +569,7 @@ function ClassroomQuizManager({ classroomId }) {
               fontSize: font.sizeSm, fontWeight: font.weightSemibold,
             }}
           >
-            ✨ Generate New Quiz
+            ✨ Generate New Exercise
           </button>
         )}
       </div>
@@ -547,17 +581,123 @@ function ClassroomQuizManager({ classroomId }) {
           border: `1px solid ${colors.primary}`, background: '#f0f7ff',
         }}>
           <h4 style={{ margin: '0 0 16px', fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.primary }}>
-            ✨ Generate Quiz from Classroom Documents
+            ✨ Generate New Exercise
           </h4>
+
+          {/* Source selector */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 6 }}>
+              Generate From
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { value: 'classroom', label: '📁 Classroom Documents' },
+                { value: 'course',    label: '📚 Course Content' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGenSource(opt.value)}
+                  style={{
+                    padding: '6px 14px', fontSize: font.sizeXs, fontWeight: font.weightSemibold,
+                    border: `1.5px solid ${genSource === opt.value ? colors.primary : colors.border}`,
+                    borderRadius: radii.sm, cursor: 'pointer',
+                    background: genSource === opt.value ? '#eff6ff' : colors.bg,
+                    color: genSource === opt.value ? colors.primary : colors.textSecondary,
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+            {genSource === 'course' && (
+              <div style={{ marginTop: 10 }}>
+                {/* Course toggle */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: font.sizeXs, color: colors.textSecondary, fontWeight: font.weightSemibold }}>Course:</span>
+                  {[
+                    { value: 'basic_java',    label: '☕ Basic Java' },
+                    { value: 'enhanced_java', label: '🚀 Enhanced Java' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setGenCoursePath(opt.value)}
+                      style={{
+                        padding: '4px 12px', fontSize: font.sizeXs, fontWeight: font.weightSemibold,
+                        border: `1.5px solid ${genCoursePath === opt.value ? '#7c3aed' : colors.border}`,
+                        borderRadius: radii.sm, cursor: 'pointer',
+                        background: genCoursePath === opt.value ? '#f5f3ff' : colors.bg,
+                        color: genCoursePath === opt.value ? '#7c3aed' : colors.textSecondary,
+                      }}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+
+                {/* Topic selector */}
+                {genTopicGroups.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <span style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>
+                        Topics <span style={{ fontWeight: 400, color: colors.textMuted }}>(select to filter; leaves prompt auto-filled)</span>
+                      </span>
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                        <button type="button"
+                          onClick={() => setGenSelectedTopics(genTopicGroups.map(g => g.label))}
+                          style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}
+                        >All</button>
+                        <button type="button"
+                          onClick={() => setGenSelectedTopics([])}
+                          style={{ fontSize: 11, padding: '2px 8px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.textSecondary }}
+                        >Clear</button>
+                      </div>
+                    </div>
+                    <div style={{
+                      maxHeight: 160, overflowY: 'auto',
+                      border: `1px solid ${colors.border}`, borderRadius: radii.sm,
+                      background: colors.bg, padding: '4px 8px',
+                    }}>
+                      {genTopicGroups.map(g => {
+                        const checked = genSelectedTopics.includes(g.label);
+                        return (
+                          <label key={g.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '5px 4px', borderRadius: radii.sm, cursor: 'pointer',
+                            background: checked ? '#eff6ff' : 'transparent', marginBottom: 1,
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => setGenSelectedTopics(prev =>
+                                prev.includes(g.label) ? prev.filter(t => t !== g.label) : [...prev, g.label]
+                              )}
+                              style={{ accentColor: colors.primary, flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: font.sizeXs, color: checked ? colors.primary : colors.text, fontWeight: checked ? font.weightSemibold : 'normal' }}>
+                              {g.label}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {genSelectedTopics.length > 0 && (
+                      <div style={{ marginTop: 4, fontSize: font.sizeXs, color: colors.primary, fontWeight: font.weightSemibold }}>
+                        ✓ {genSelectedTopics.length} topic{genSelectedTopics.length !== 1 ? 's' : ''} selected
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
-                Quiz Title *
+                Exercise Title *
               </label>
               <input
                 value={genTitle}
                 onChange={e => setGenTitle(e.target.value)}
-                placeholder="e.g. Week 3 Quiz"
+                placeholder="e.g. Week 3 Exercises"
                 style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
               />
             </div>
@@ -575,7 +715,7 @@ function ClassroomQuizManager({ classroomId }) {
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
-              Topic / Prompt * <span style={{ fontWeight: 400, color: colors.textMuted }}>(what should the quiz cover?)</span>
+              Topic / Prompt * <span style={{ fontWeight: 400, color: colors.textMuted }}>(what should the exercise cover?)</span>
             </label>
             <textarea
               value={genPrompt}
@@ -599,8 +739,8 @@ function ClassroomQuizManager({ classroomId }) {
             </select>
           </div>
 
-          {/* File picker */}
-          <div style={{ marginBottom: 16 }}>
+          {/* File picker — only shown for classroom document source */}
+          {genSource === 'classroom' && <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <label style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>
                 Source Files (optional)
@@ -661,7 +801,7 @@ function ClassroomQuizManager({ classroomId }) {
                 ✓ Using {genFileIds.length} of {allFiles.length} file{allFiles.length !== 1 ? 's' : ''}
               </div>
             )}
-          </div>
+          </div>}
 
           {genError && (
             <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: radii.sm, fontSize: font.sizeSm, color: '#dc2626' }}>
@@ -695,7 +835,7 @@ function ClassroomQuizManager({ classroomId }) {
         <div style={{ ...card.base, padding: 20, marginBottom: 28, border: `2px solid ${colors.primary}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h4 style={{ margin: 0, fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.primary }}>
-              {editingQuizId != null ? '✏️ Edit Quiz' : '🔍 Preview & Edit Generated Questions'}
+              {editingQuizId != null ? '✏️ Edit Exercise' : '🔍 Preview & Edit Generated Questions'}
             </h4>
             <button
               onClick={() => { setDraftQuestions(null); setEditQuestions([]); setEditingQuizId(null); }}
@@ -706,7 +846,7 @@ function ClassroomQuizManager({ classroomId }) {
           {/* Title & section row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 20 }}>
             <div>
-              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Quiz Title *</label>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Exercise Title *</label>
               <input
                 value={editTitle}
                 onChange={e => setEditTitle(e.target.value)}
@@ -859,11 +999,18 @@ export default function TeacherClassroomDetail() {
 
   const classroomName = state?.name || `Classroom #${classroomId}`;
   const classCode     = state?.class_code;
+  const classroomDescription = state?.description || '';
   const [classroomCategory, setClassroomCategory] = useState(state?.category || 'Official Lessons');
   const [editingCategory,   setEditingCategory]   = useState(false);
   const [categoryInput,     setCategoryInput]     = useState(state?.category || 'Official Lessons');
   const [categoryLoading,   setCategoryLoading]   = useState(false);
   const [categoryError,     setCategoryError]     = useState('');
+
+  const [editingDescription,   setEditingDescription]   = useState(false);
+  const [descriptionInput,     setDescriptionInput]     = useState(classroomDescription);
+  const [descriptionLoading,   setDescriptionLoading]   = useState(false);
+  const [descriptionError,     setDescriptionError]     = useState('');
+  const [currentDescription,   setCurrentDescription]   = useState(classroomDescription);
 
   const [analytics,        setAnalytics]        = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
@@ -927,6 +1074,21 @@ export default function TeacherClassroomDetail() {
       setCategoryError(e.message || 'Failed to update category');
     } finally {
       setCategoryLoading(false);
+    }
+  }
+
+  async function handleSaveDescription() {
+    const trimmed = descriptionInput.trim();
+    setDescriptionLoading(true);
+    setDescriptionError('');
+    try {
+      const updated = await updateClassroom(classroomId, { description: trimmed || null });
+      setCurrentDescription(updated.description || '');
+      setEditingDescription(false);
+    } catch (e) {
+      setDescriptionError(e.message || 'Failed to update description');
+    } finally {
+      setDescriptionLoading(false);
     }
   }
 
@@ -1040,13 +1202,110 @@ export default function TeacherClassroomDetail() {
             </button>
           )}
         </div>
+
+        {/* Description section */}
+        <div style={{ marginTop: 16 }}>
+          {editingDescription ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary }}>Classroom Description</label>
+              <textarea
+                value={descriptionInput}
+                onChange={e => setDescriptionInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') { 
+                    setEditingDescription(false); 
+                    setDescriptionError(''); 
+                    setDescriptionInput(currentDescription); 
+                  }
+                }}
+                placeholder="Add a description for your classroom (optional)..."
+                rows={3}
+                style={{
+                  padding: '8px 10px',
+                  fontSize: font.sizeSm,
+                  border: `1px solid ${descriptionError ? '#ef4444' : colors.border}`,
+                  borderRadius: radii.sm,
+                  outline: 'none',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  maxHeight: 200,
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button onClick={handleSaveDescription} disabled={descriptionLoading}
+                  style={{ ...btn.primary, padding: '6px 12px', fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>
+                  {descriptionLoading ? '…' : '✓ Save'}
+                </button>
+                <button onClick={() => { setEditingDescription(false); setDescriptionError(''); setDescriptionInput(currentDescription); }}
+                  style={{ ...btn.secondary, padding: '6px 12px', fontSize: font.sizeXs, whiteSpace: 'nowrap' }}>
+                  ✕ Cancel
+                </button>
+                {descriptionError && <span style={{ color: '#ef4444', fontSize: font.sizeXs }}>{descriptionError}</span>}
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                {currentDescription ? (
+                  <div style={{
+                    padding: '10px 12px',
+                    background: colors.surface,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: radii.sm,
+                    fontSize: font.sizeSm,
+                    color: colors.text,
+                    lineHeight: 1.5,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}>
+                    {currentDescription}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '10px 12px',
+                    background: colors.bg,
+                    border: `1px dashed ${colors.border}`,
+                    borderRadius: radii.sm,
+                    fontSize: font.sizeSm,
+                    color: colors.textMuted,
+                    fontStyle: 'italic',
+                  }}>
+                    No description yet. Click Edit to add one.
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => { setEditingDescription(true); setDescriptionInput(currentDescription); }}
+                style={{
+                  padding: '6px 10px',
+                  background: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: radii.sm,
+                  cursor: 'pointer',
+                  fontSize: font.sizeXs,
+                  fontWeight: font.weightSemibold,
+                  color: colors.primary,
+                  whiteSpace: 'nowrap',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.target.style.background = colors.bg}
+                onMouseLeave={e => e.target.style.background = colors.surface}
+                title="Click to edit description"
+              >
+                ✏️ Edit
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: `2px solid ${colors.border}`, marginBottom: 24 }}>
         {[
-          { key: 'materials', label: '📁 Learning Materials' },
-          { key: 'quizzes',   label: '📝 Quizzes & Tests' },
+          { key: 'materials',   label: '📁 Learning Materials' },
+          { key: 'quizzes',     label: '📝 Exercises' },
+          { key: 'challenges',  label: '🎯 Coding Challenges' },
           { key: 'official-lessons', label: '📊 Classroom Analysis' },
         ].map(tab => (
           <button
@@ -1075,6 +1334,11 @@ export default function TeacherClassroomDetail() {
       {/* Quizzes & Tests tab */}
       {activeTab === 'quizzes' && (
         <ClassroomQuizManager classroomId={classroomId} />
+      )}
+
+      {/* Coding Challenges tab */}
+      {activeTab === 'challenges' && (
+        <ClassroomPracticalChallengeManager classroomId={classroomId} />
       )}
 
       {/* Official Lessons category header */}
@@ -1474,6 +1738,518 @@ export default function TeacherClassroomDetail() {
               <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: 8 }}>No students have started this course yet.</div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Classroom Practical Challenge Manager ────────────────────────────────────
+function ClassroomPracticalChallengeManager({ classroomId }) {
+  const [sections, setSections] = useState([]);
+  const [challenges, setChallenges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Generate form state
+  const [showGenForm, setShowGenForm] = useState(false);
+  const [genTitle, setGenTitle] = useState('');
+  const [genPrompt, setGenPrompt] = useState('');
+  const [genSectionId, setGenSectionId] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState(null);
+
+  // Draft preview / editor state
+  const [draftData, setDraftData] = useState(null);       // generated but unsaved { question, base_code, model_solution }
+  const [editingChallengeId, setEditingChallengeId] = useState(null); // null=new, number=existing
+  const [editTitle, setEditTitle] = useState('');
+  const [editSectionId, setEditSectionId] = useState('');
+  const [editQuestion, setEditQuestion] = useState(null);
+  const [editBaseCode, setEditBaseCode] = useState(null);
+  const [editSolution, setEditSolution] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // Model answer preview modal (view published challenge's solution)
+  const [previewChallenge, setPreviewChallenge] = useState(null);
+
+  // Collapsed section groups
+  const [collapsedSections, setCollapsedSections] = useState({});
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [challengeData, secData] = await Promise.all([
+        listClassroomPracticalChallenges(classroomId),
+        listSections(classroomId),
+      ]);
+      setChallenges(challengeData);
+      setSections(secData.filter(s => s.id !== 0));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [classroomId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGenerate = async () => {
+    if (!genPrompt.trim()) { setGenError('Please enter a topic or prompt.'); return; }
+    if (!genTitle.trim()) { setGenError('Please enter a challenge title.'); return; }
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res = await generateClassroomPracticalChallenge(classroomId, {
+        topic_prompt: genPrompt.trim(),
+        section_id: genSectionId !== '' ? Number(genSectionId) : null,
+      });
+      setDraftData(res);
+      setEditQuestion(JSON.parse(JSON.stringify(res.question)));
+      setEditBaseCode(JSON.parse(JSON.stringify(res.base_code)));
+      setEditSolution(JSON.parse(JSON.stringify(res.model_solution)));
+      setEditTitle(genTitle.trim());
+      setEditSectionId(genSectionId);
+      setEditingChallengeId(null);
+    } catch (e) {
+      setGenError(e.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleEditExisting = (challenge) => {
+    setEditingChallengeId(challenge.id);
+    setEditTitle(challenge.title);
+    setEditQuestion(JSON.parse(JSON.stringify(challenge.question)));
+    setEditBaseCode(JSON.parse(JSON.stringify(challenge.base_code)));
+    setEditSolution(JSON.parse(JSON.stringify(challenge.model_solution)));
+    setEditSectionId(challenge.section_id != null ? String(challenge.section_id) : '');
+    setDraftData(challenge);
+    setShowGenForm(false);
+  };
+
+  const handleSaveChallenge = async (publishStatus) => {
+    setSaving(true);
+    try {
+      const payload = {
+        title: editTitle,
+        topic_prompt: genPrompt.trim() || null,
+        question: editQuestion,
+        base_code: editBaseCode,
+        model_solution: editSolution,
+        section_id: editSectionId !== '' ? Number(editSectionId) : null,
+        status: publishStatus,
+      };
+      if (editingChallengeId != null) {
+        await updateClassroomPracticalChallenge(classroomId, editingChallengeId, payload);
+      } else {
+        await saveClassroomPracticalChallenge(classroomId, payload);
+      }
+      setDraftData(null);
+      setEditQuestion(null);
+      setEditBaseCode(null);
+      setEditSolution(null);
+      setEditTitle('');
+      setGenPrompt('');
+      setGenTitle('');
+      setGenSectionId('');
+      setEditingChallengeId(null);
+      setShowGenForm(false);
+      await load();
+    } catch (e) {
+      alert('Save failed: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTogglePublish = async (challenge) => {
+    const newStatus = challenge.status === 'published' ? 'draft' : 'published';
+    try {
+      await updateClassroomPracticalChallenge(classroomId, challenge.id, { status: newStatus });
+      await load();
+    } catch (e) {
+      alert('Failed to update status: ' + e.message);
+    }
+  };
+
+  const handleDelete = async (challenge) => {
+    if (!window.confirm(`Delete "${challenge.title}"? This cannot be undone.`)) return;
+    try {
+      await deleteClassroomPracticalChallenge(classroomId, challenge.id);
+      await load();
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  };
+
+  // Build a formatted Java code string from solution methods for display
+  const buildSolutionCode = (solution) => {
+    if (!solution) return '';
+    const cls = solution.class || solution.class_name || 'Main';
+    const helpers = solution.helperClasses || '';
+    const methods = solution.methods || {};
+    let body = '';
+    for (const [name, lines] of Object.entries(methods)) {
+      if (name === 'runApp') continue;
+      if (Array.isArray(lines)) {
+        body += `    // ${name}\n    ${lines.join('\n    ')}\n\n`;
+      }
+    }
+    const runApp = methods.runApp;
+    if (runApp && Array.isArray(runApp)) {
+      body += `    void runApp() {\n        ${runApp.join('\n        ')}\n    }\n`;
+    }
+    return `${helpers ? helpers + '\n\n' : ''}public class ${cls} {\n${body}}`;
+  };
+
+  // Group challenges by section
+  const challengesBySection = {};
+  const unsectionedChallenges = [];
+  challenges.forEach(c => {
+    if (c.section_id != null) {
+      (challengesBySection[c.section_id] = challengesBySection[c.section_id] || []).push(c);
+    } else {
+      unsectionedChallenges.push(c);
+    }
+  });
+
+  const renderChallengeCard = (challenge) => (
+    <div key={challenge.id} style={{
+      ...card.base, padding: '12px 16px', marginBottom: 10,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, color: colors.text }}>
+            {challenge.title}
+          </span>
+          <span style={{
+            fontSize: 11, fontWeight: font.weightSemibold, padding: '1px 8px', borderRadius: 99,
+            background: challenge.status === 'published' ? '#dcfce7' : '#f3f4f6',
+            color: challenge.status === 'published' ? '#16a34a' : colors.textMuted,
+          }}>
+            {challenge.status === 'published' ? '✓ Published' : 'Draft'}
+          </span>
+        </div>
+        <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+          {challenge.question?.methods?.length || 0} method(s) to implement
+          {challenge.topic_prompt && <span> · <em>{challenge.topic_prompt.slice(0, 60)}{challenge.topic_prompt.length > 60 ? '…' : ''}</em></span>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+        <button onClick={() => setPreviewChallenge(challenge)} style={{
+          padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
+          borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
+        }}>👁 Solution</button>
+        <button onClick={() => handleEditExisting(challenge)} style={{
+          padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
+          borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
+        }}>✏️ Edit</button>
+        <button onClick={() => handleTogglePublish(challenge)} style={{
+          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+          background: challenge.status === 'published' ? '#fef9c3' : '#dcfce7',
+          color: challenge.status === 'published' ? '#ca8a04' : '#16a34a',
+        }}>
+          {challenge.status === 'published' ? '↩ Unpublish' : '📤 Publish'}
+        </button>
+        <button onClick={() => handleDelete(challenge)} style={{
+          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+          background: '#fee2e2', color: '#dc2626',
+        }}>🗑 Delete</button>
+      </div>
+    </div>
+  );
+
+  const renderSectionGroup = (label, key, items) => {
+    const collapsed = collapsedSections[key];
+    return (
+      <div key={key} style={{ marginBottom: 20 }}>
+        <div
+          onClick={() => setCollapsedSections(s => ({ ...s, [key]: !s[key] }))}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: collapsed ? 0 : 10 }}
+        >
+          <span style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.textSecondary }}>{label}</span>
+          <span style={{ fontSize: font.sizeXs, color: colors.textMuted }}>({items.length})</span>
+          <span style={{ fontSize: 12, color: colors.textMuted, marginLeft: 'auto' }}>{collapsed ? '▶' : '▼'}</span>
+        </div>
+        {!collapsed && items.map(renderChallengeCard)}
+      </div>
+    );
+  };
+
+  if (loading) return <div style={{ padding: 32, textAlign: 'center', color: colors.textMuted }}>Loading…</div>;
+  if (error)   return <div style={{ padding: 32, color: '#dc2626' }}>Error: {error}</div>;
+
+  return (
+    <div>
+      {/* Header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h3 style={{ margin: 0, fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.text }}>
+          Classroom Coding Challenges
+        </h3>
+        {!draftData && (
+          <button
+            onClick={() => { setShowGenForm(v => !v); setGenError(null); }}
+            style={{
+              padding: '8px 18px', background: colors.primary, color: '#fff',
+              border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+              fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+            }}
+          >
+            ✨ Generate New Challenge
+          </button>
+        )}
+      </div>
+
+      {/* Generate form */}
+      {showGenForm && !draftData && (
+        <div style={{ ...card.base, padding: 20, marginBottom: 24, border: `1px solid ${colors.primary}`, background: '#f0f7ff' }}>
+          <h4 style={{ margin: '0 0 16px', fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.primary }}>
+            ✨ Generate Coding Challenge with AI Model Solution
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+                Challenge Title *
+              </label>
+              <input
+                value={genTitle}
+                onChange={e => setGenTitle(e.target.value)}
+                placeholder="e.g. Week 4 — Inheritance Challenge"
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+                Section (optional)
+              </label>
+              <select
+                value={genSectionId}
+                onChange={e => setGenSectionId(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm }}
+              >
+                <option value="">— No section —</option>
+                {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>
+              Topic / Prompt * <span style={{ fontWeight: 400, color: colors.textMuted }}>(Java concept(s) to cover)</span>
+            </label>
+            <textarea
+              value={genPrompt}
+              onChange={e => setGenPrompt(e.target.value)}
+              placeholder="e.g. Inheritance and method overriding, or OOP with polymorphism…"
+              rows={2}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            />
+          </div>
+          {genError && (
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: radii.sm, fontSize: font.sizeSm, color: '#dc2626' }}>
+              ❌ {genError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              style={{ padding: '9px 20px', background: generating ? '#93c5fd' : colors.primary, color: '#fff', border: 'none', borderRadius: radii.sm, cursor: generating ? 'not-allowed' : 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold }}
+            >
+              {generating ? '⏳ Generating…' : '✨ Generate Challenge'}
+            </button>
+            <button onClick={() => { setShowGenForm(false); setGenError(null); }} style={{ padding: '9px 14px', background: 'none', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', fontSize: font.sizeSm, color: colors.textSecondary }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Preview / Edit panel */}
+      {draftData && editQuestion && editSolution && (
+        <div style={{ ...card.base, padding: 24, marginBottom: 28, border: `1px solid ${colors.primary}`, background: '#f8fbff' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h4 style={{ margin: 0, fontSize: font.sizeSm, fontWeight: font.weightBold, color: colors.primary }}>
+              {editingChallengeId != null ? '✏️ Edit Challenge' : '🔍 Preview & Edit Generated Challenge'}
+            </h4>
+            <button
+              onClick={() => { setDraftData(null); setEditQuestion(null); setEditBaseCode(null); setEditSolution(null); setEditingChallengeId(null); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: colors.textMuted }}
+            >✕</button>
+          </div>
+
+          {/* Title & section */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 20 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Challenge Title *</label>
+              <input
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Section</label>
+              <select
+                value={editSectionId}
+                onChange={e => setEditSectionId(e.target.value)}
+                style={{ padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, minWidth: 160 }}
+              >
+                <option value="">— No section —</option>
+                {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* Left: Question details */}
+            <div>
+              <div style={{ fontSize: font.sizeXs, fontWeight: font.weightBold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+                📋 Question
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: font.sizeXs, color: colors.textSecondary, marginBottom: 4 }}>Title</label>
+                <input
+                  value={editQuestion.title || ''}
+                  onChange={e => setEditQuestion(q => ({ ...q, title: e.target.value }))}
+                  style={{ width: '100%', padding: '7px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: font.sizeXs, color: colors.textSecondary, marginBottom: 4 }}>Description</label>
+                <textarea
+                  value={editQuestion.description || ''}
+                  onChange={e => setEditQuestion(q => ({ ...q, description: e.target.value }))}
+                  rows={4}
+                  style={{ width: '100%', padding: '7px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: font.sizeXs, color: colors.textSecondary, marginBottom: 4 }}>
+                  Expected Output <span style={{ color: colors.textMuted }}>(one line per entry)</span>
+                </label>
+                <textarea
+                  value={(editQuestion.expectedOutput || []).join('\n')}
+                  onChange={e => setEditQuestion(q => ({ ...q, expectedOutput: e.target.value.split('\n') }))}
+                  rows={4}
+                  style={{ width: '100%', padding: '7px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            {/* Right: Model Solution */}
+            <div>
+              <div style={{ fontSize: font.sizeXs, fontWeight: font.weightBold, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+                🔑 Model Solution <span style={{ fontSize: 10, color: colors.textMuted, textTransform: 'none', fontWeight: 400 }}>(visible to students post-submission)</span>
+              </div>
+              {Object.entries(editSolution.methods || {}).map(([methodName, lines]) => {
+                if (methodName === 'runApp') return null;
+                const lineStr = Array.isArray(lines) ? lines.join('\n') : String(lines);
+                return (
+                  <div key={methodName} style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: font.sizeXs, color: colors.textSecondary, marginBottom: 4 }}>
+                      Method: <code style={{ background: '#f3f0ff', padding: '1px 6px', borderRadius: 4, color: '#7c3aed' }}>{methodName}</code>
+                    </label>
+                    <textarea
+                      value={lineStr}
+                      onChange={e => {
+                        const updated = { ...editSolution, methods: { ...editSolution.methods, [methodName]: e.target.value.split('\n') } };
+                        setEditSolution(updated);
+                      }}
+                      rows={6}
+                      spellCheck={false}
+                      style={{ width: '100%', padding: '7px 10px', border: `1px solid #d8b4fe`, borderRadius: radii.sm, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', background: '#faf5ff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                );
+              })}
+              {/* Helper classes */}
+              {editSolution.helperClasses !== undefined && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: font.sizeXs, color: colors.textSecondary, marginBottom: 4 }}>Helper Classes (non-public)</label>
+                  <textarea
+                    value={editSolution.helperClasses || ''}
+                    onChange={e => setEditSolution(s => ({ ...s, helperClasses: e.target.value }))}
+                    rows={4}
+                    spellCheck={false}
+                    style={{ width: '100%', padding: '7px 10px', border: `1px solid #d8b4fe`, borderRadius: radii.sm, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', background: '#faf5ff', boxSizing: 'border-box' }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => handleSaveChallenge('draft')}
+              disabled={saving || !editTitle.trim()}
+              style={{ padding: '9px 20px', background: '#f3f4f6', color: colors.text, border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: saving ? 'not-allowed' : 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? '⏳ Saving…' : '💾 Save as Draft'}
+            </button>
+            <button
+              onClick={() => handleSaveChallenge('published')}
+              disabled={saving || !editTitle.trim()}
+              style={{ padding: '9px 20px', background: saving ? '#86efac' : '#16a34a', color: '#fff', border: 'none', borderRadius: radii.sm, cursor: saving ? 'not-allowed' : 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? '⏳ Publishing…' : '📤 Save & Publish'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Challenge list */}
+      {challenges.length === 0 && !draftData ? (
+        <div style={{ ...card.base, textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎯</div>
+          <div style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>
+            No coding challenges yet
+          </div>
+          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+            Generate a coding challenge with an AI model solution, review &amp; edit, then publish it for students.
+          </div>
+        </div>
+      ) : (
+        <>
+          {sections.map(sec => {
+            const secChallenges = challengesBySection[sec.id] || [];
+            return renderSectionGroup(`📂 ${sec.name}`, String(sec.id), secChallenges);
+          })}
+          {unsectionedChallenges.length > 0 && renderSectionGroup('📎 Unsectioned', '__unsectioned', unsectionedChallenges)}
+        </>
+      )}
+
+      {/* Model solution preview modal */}
+      {previewChallenge && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }} onClick={() => setPreviewChallenge(null)}>
+          <div style={{
+            background: '#fff', borderRadius: radii.lg, padding: 28, maxWidth: 700, width: '100%',
+            maxHeight: '85vh', overflowY: 'auto', boxShadow: shadows?.lg || '0 20px 60px rgba(0,0,0,0.2)',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: font.sizeMd, color: '#7c3aed' }}>🔑 Model Solution — {previewChallenge.title}</h3>
+              <button onClick={() => setPreviewChallenge(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: colors.textMuted }}>✕</button>
+            </div>
+            <div style={{ fontSize: font.sizeSm, color: colors.textSecondary, marginBottom: 16 }}>
+              <strong>Expected Output:</strong>
+              <pre style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: radii.sm, padding: '8px 12px', margin: '8px 0 0', fontFamily: 'monospace', fontSize: 13 }}>
+                {(previewChallenge.question?.expectedOutput || []).join('\n') || '(none)'}
+              </pre>
+            </div>
+            <div style={{ fontSize: font.sizeXs, fontWeight: font.weightBold, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Solution Code</div>
+            <pre style={{
+              background: '#faf5ff', border: '1px solid #d8b4fe', borderRadius: radii.sm,
+              padding: '12px 16px', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6,
+              overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>
+              {buildSolutionCode(previewChallenge.model_solution)}
+            </pre>
+          </div>
         </div>
       )}
     </div>

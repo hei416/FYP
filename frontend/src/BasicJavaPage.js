@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
+import { colors, radii, font, spacing, shadows } from './theme';
 // topicContent.json is lazy-loaded in TopicDetailPage — not needed here
 import ReactFlow, {
   Controls,
@@ -946,13 +947,13 @@ export default function JavaRoadmap() {
   const progressPercentage = Math.round((completedCount / totalTopics) * 100);
 
   return (
-    <div className="relative w-full h-screen bg-gray-50 overflow-auto">
+    <div className="relative w-full h-screen overflow-auto" style={{ background: colors.bg }}>
       {/* Header — matches site TopicDetailPage style */}
-      <div className="fixed top-16 left-0 right-0 z-20 bg-white border-b border-gray-200 shadow-sm">
+      <div className="fixed top-16 left-0 right-0 z-20" style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}`, boxShadow: shadows.sm }}>
         <div className="px-6 py-3 flex items-center justify-between">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium transition-colors" style={{ color: colors.primary }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -960,14 +961,14 @@ export default function JavaRoadmap() {
             Courses
           </button>
           <div className="text-right">
-            <span className="text-sm font-semibold text-indigo-600">{completedCount} / {totalTopics}</span>
-            <p className="text-xs text-gray-400">{progressPercentage}% done</p>
+            <span className="text-sm font-semibold" style={{ color: colors.primary }}>{completedCount} / {totalTopics}</span>
+            <p className="text-xs" style={{ color: colors.textMuted }}>{progressPercentage}% done</p>
           </div>
         </div>
-        <div className="h-1 bg-gray-100">
+        <div className="h-1" style={{ background: colors.divider }}>
           <div
-            className="h-1 bg-gradient-to-r from-blue-400 to-indigo-600 transition-all duration-500"
-            style={{ width: `${progressPercentage}%` }}
+            className="h-1 transition-all duration-500"
+            style={{ width: `${progressPercentage}%`, background: `linear-gradient(to right, ${colors.primary}, ${colors.accent})` }}
           />
         </div>
       </div>
@@ -1014,22 +1015,25 @@ export default function JavaRoadmap() {
 
       {/* Side Panel */}
       <div
-        className={`fixed top-[124px] right-0 z-30 w-96 transform bg-white shadow-xl border-l border-gray-200 transition-transform duration-300 ease-out flex flex-col ${
+        className={`fixed top-[124px] right-0 z-30 w-96 transform transition-transform duration-300 ease-out flex flex-col ${
             selectedNode ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ 
             height: 'calc(100vh - 124px)', 
-            maxHeight: 'calc(100vh - 124px)'
+            maxHeight: 'calc(100vh - 124px)',
+            background: colors.surface,
+            borderLeft: `1px solid ${colors.border}`,
+            boxShadow: shadows.lg
         }}
         >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${colors.border}`, background: `linear-gradient(to right, ${colors.primaryLight}, ${colors.accentLight})` }}>
             <h2 className="text-xl font-bold text-gray-800">
             {content?.title || 'Details'}
             </h2>
             <button
             onClick={closePanel}
-            className="rounded-md p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors z-50"
+            className="rounded-md p-2 transition-colors z-50" style={{ color: colors.textMuted, ':hover': { color: colors.text, background: colors.divider } }}
             aria-label="Close"
             >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1046,35 +1050,37 @@ export default function JavaRoadmap() {
 
                 {/* Completion Badge */}
                 {isCompleted && !isSkippedComplete && (
-                    <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded-r flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="p-3 flex items-center" style={{ background: colors.successLight, borderLeft: `4px solid ${colors.success}`, borderRadius: radii.md }}>
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style={{ color: colors.success }}>
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-base font-semibold text-green-800">Completed! 🎉</span>
+                    <span className="text-base font-semibold" style={{ color: colors.success }}>Completed! 🎉</span>
                     </div>
                 )}
                 {isSkippedComplete && (
-                    <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r">
+                    <div className="p-3" style={{ background: colors.warningLight, borderLeft: `4px solid ${colors.warning}`, borderRadius: radii.md }}>
                     <div className="flex items-center mb-1">
-                        <svg className="w-5 h-5 text-amber-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" style={{ color: colors.warning }}>
                             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                        <span className="text-base font-semibold text-amber-800">Completed (prerequisites skipped)</span>
+                        <span className="text-base font-semibold" style={{ color: colors.warning }}>Completed (prerequisites skipped)</span>
                     </div>
-                    <p className="text-sm text-amber-700 ml-7">Some earlier topics haven't been completed yet. Consider reviewing them to fill any gaps.</p>
+                    <p className="text-sm ml-7" style={{ color: colors.warning }}>Some earlier topics haven't been completed yet. Consider reviewing them to fill any gaps.</p>
                     </div>
                 )}
 
                 {/* Main Learning Material - Link to Full Screen */}
-                <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r">
-                  <p className="text-sm text-gray-700 mb-3">
+                <div className="p-4" style={{ background: colors.primaryLight, borderLeft: `4px solid ${colors.primary}`, borderRadius: radii.md }}>
+                  <p className="text-sm mb-3" style={{ color: colors.textSecondary }}>
                     Read the full learning material for this topic in a dedicated page with full-screen experience.
                   </p>
                   <button
                     onClick={() => {
                       window.location.href = `/learn/${selectedNode.id}`;
                     }}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
+                    className="w-full text-white font-medium py-2 px-4 transition-all flex items-center justify-center" style={{ background: colors.primary, borderRadius: radii.md, boxShadow: shadows.md }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = colors.primaryHover}
+                    onMouseLeave={(e) => e.currentTarget.style.background = colors.primary}
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -1085,9 +1091,9 @@ export default function JavaRoadmap() {
 
               {/* External Learning Resources - Secondary Material */}
               {content.hasSources ? (
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: spacing.lg }}>
+                  <h3 className="flex items-center" style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.text, marginBottom: spacing.md }}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: spacing.sm, color: colors.primary }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                     External Learning Resources ({content.sources.length})
@@ -1102,10 +1108,19 @@ export default function JavaRoadmap() {
                         <div key={idx} className="group">
                           <button
                             onClick={() => handleViewDocument(source.file, source.source)}
-                            className="w-full flex items-start p-3 rounded-lg border border-gray-200 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition-all text-left"
+                            className="w-full flex items-start p-3 transition-all text-left" 
+                            style={{ borderRadius: radii.md, border: `1px solid ${colors.border}`, background: colors.surface }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = colors.primary;
+                              e.currentTarget.style.background = colors.primaryLight;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = colors.border;
+                              e.currentTarget.style.background = colors.surface;
+                            }}
                           >
-                            <div className="flex-shrink-0 mr-3 mt-0.5">
-                              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="flex-shrink-0 mt-0.5" style={{ marginRight: spacing.md }}>
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.primary }}>
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                             </div>
@@ -1132,12 +1147,28 @@ export default function JavaRoadmap() {
                     })}
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${colors.border}` }}>
                     <a 
                       href="/ragAI" 
-                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-all flex items-center justify-center group"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        background: `linear-gradient(135deg, ${colors.accent} 0%, ${colors.accentDark} 100%)`,
+                        color: '#FFFFFF',
+                        fontWeight: '500',
+                        padding: '12px 16px',
+                        borderRadius: radii.md,
+                        transition: 'all 0.3s',
+                        gap: spacing.sm,
+                        textDecoration: 'none',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
                     >
-                      <svg className="w-5 h-5 mr-2 group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                       </svg>
                       Ask AI Tutor About This Topic
@@ -1145,9 +1176,9 @@ export default function JavaRoadmap() {
                   </div>
                 </div>
               ) : content.fallbackLinks.length > 0 ? (
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="border-t pt-4" style={{ borderColor: colors.border }}>
+                  <h3 className="text-md font-semibold mb-3 flex items-center" style={{ color: colors.text }}>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.textSecondary }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
                     External Learning Resources
@@ -1159,16 +1190,19 @@ export default function JavaRoadmap() {
                           href={link.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-start p-3 rounded-lg border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+                          className="flex items-start p-3 rounded-lg border transition-all group"
+                          style={{ borderColor: colors.border, color: colors.text }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.background = colors.primaryLight; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.background = 'transparent'; }}
                         >
-                          <svg className="w-5 h-5 mr-3 mt-0.5 text-indigo-600 group-hover:text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.primary }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                           <div className="flex-1">
-                            <div className="text-base font-medium text-gray-900 group-hover:text-indigo-700">
+                            <div className="text-base font-medium" style={{ color: colors.text }}>
                               {link.label}
                             </div>
-                            <div className="text-sm text-gray-500 mt-1 break-all">
+                            <div className="text-sm mt-1 break-all" style={{ color: colors.textSecondary }}>
                               {new URL(link.href).hostname}
                             </div>
                           </div>
@@ -1179,14 +1213,26 @@ export default function JavaRoadmap() {
                 </div>
               ) : null}
 
-              <div className="pt-4 border-t border-gray-200">
+              <div style={{ paddingTop: spacing.lg, borderTop: `1px solid ${colors.border}` }}>
                 <button 
                   onClick={toggleCompletion}
-                  className={`w-full font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center ${
-                    isCompleted 
-                      ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' 
-                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                  }`}
+                  style={{
+                    width: '100%',
+                    fontWeight: '500',
+                    padding: `${spacing.md} ${spacing.lg}`,
+                    borderRadius: radii.md,
+                    backgroundColor: isCompleted ? colors.textMuted : colors.primary,
+                    color: isCompleted ? colors.text : '#FFFFFF',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: spacing.sm,
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
                 >
                   {isCompleted ? (
                     <>

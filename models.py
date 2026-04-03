@@ -50,25 +50,61 @@ class HKBUEmbeddings:
 
         # Minimal HTTP fallback using the HKBU direct REST embeddings route
         import requests
+        import time as _time
         url = (
             f"{(self.base_url or '').rstrip('/')}"
             f"/deployments/{self.model}/embeddings?api-version={self.api_version}"
         )
-        resp = requests.post(
-            url,
-            headers={
-                'api-key': self.api_key,
-                'Content-Type': 'application/json'
-            },
-            json={'input': text}
-        )
+        max_retries = 6
+        for attempt in range(max_retries):
+            resp = requests.post(
+                url,
+                headers={
+                    'api-key': self.api_key,
+                    'Content-Type': 'application/json'
+                },
+                json={'input': text}
+            )
+            if resp.status_code in (429, 403):
+                wait = 2 ** attempt * 10
+                print(f"  ⏳ HTTP {resp.status_code}, retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                _time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp.json()['data'][0]['embedding']
         resp.raise_for_status()
-        return resp.json()['data'][0]['embedding']
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         if self._impl:
             return self._impl.embed_documents(texts)
-        return [self.embed_query(t) for t in texts]
+
+        # Batch all texts in a single API call (OpenAI accepts input as a list)
+        import requests
+        import time as _time
+        url = (
+            f"{(self.base_url or '').rstrip('/')}"
+            f"/deployments/{self.model}/embeddings?api-version={self.api_version}"
+        )
+        max_retries = 6
+        for attempt in range(max_retries):
+            resp = requests.post(
+                url,
+                headers={
+                    'api-key': self.api_key,
+                    'Content-Type': 'application/json'
+                },
+                json={'input': texts}
+            )
+            if resp.status_code in (429, 403):
+                wait = 2 ** attempt * 10  # 10s, 20s, 40s, 80s, 160s, 320s
+                print(f"  ⏳ HTTP {resp.status_code}, retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                _time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            data = resp.json()['data']
+            # data is sorted by index
+            return [item['embedding'] for item in sorted(data, key=lambda x: x['index'])]
+        resp.raise_for_status()
 
 
 class HKBULLM:

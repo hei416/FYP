@@ -10,7 +10,7 @@ import shutil, uuid, os, time, json
 import httpx
 
 from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, MaterialRead
+from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, ClassroomPracticalChallenge, MaterialRead
 from routers.auth import get_current_user, require_role, get_optional_user
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
@@ -254,6 +254,8 @@ class GenerateClassroomQuizRequest(BaseModel):
     num_questions: int = 5
     section_id: Optional[int] = None
     file_ids: Optional[List[int]] = None  # if set, restrict context to these files
+    source: str = "classroom"             # 'classroom' | 'course'
+    course_path: Optional[str] = None     # 'basic_java' | 'enhanced_java' (used when source='course')
 
 
 class SaveClassroomQuizRequest(BaseModel):
@@ -462,10 +464,9 @@ async def list_official_classrooms(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
-    """Return all 'official' classrooms (category starts with 'official') owned by this teacher."""
+    """Return all classrooms owned by this teacher."""
     query = db.query(Classroom).filter(
-        Classroom.teacher_id == current_user.id,
-        Classroom.category.ilike("official%")
+        Classroom.teacher_id == current_user.id
     )
     return query.order_by(Classroom.created_at.desc()).all()
 
@@ -738,15 +739,31 @@ async def get_classroom_analytics(
 
 @router.get("/official-aggregate/course-progress", response_model=ClassroomCourseProgressAnalytics)
 async def get_official_aggregate_course_progress(
+    course_id: str = Query(default="basic"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
     """Aggregate course-progress across all Official Lessons classrooms owned by this teacher."""
+    if course_id not in VALID_COURSES:
+        course_id = "basic"
+
+    if course_id == "enhanced":
+        valid_subtopics = _VALID_ENHANCED_SUBTOPIC_IDS
+        num_main = NUM_ENHANCED_MAIN_TOPICS
+        total_acts = TOTAL_ENHANCED_ACTIVITIES
+        course_label = "Enhanced Java"
+        subtopic_map = ENHANCED_SUBTOPIC_TO_MAIN_TOPIC
+    else:
+        valid_subtopics = _VALID_SUBTOPIC_IDS
+        num_main = NUM_MAIN_TOPICS
+        total_acts = TOTAL_ACTIVITIES
+        course_label = "Basic Java"
+        subtopic_map = SUBTOPIC_TO_MAIN_TOPIC
+
     official_classrooms = (
         db.query(Classroom)
         .filter(
             Classroom.teacher_id == current_user.id,
-            Classroom.category.ilike("official%"),
         )
         .all()
     )
@@ -754,7 +771,7 @@ async def get_official_aggregate_course_progress(
     if not official_classrooms:
         return ClassroomCourseProgressAnalytics(
             classroom_id=None,
-            classroom_name="Basic Java",
+            classroom_name=course_label,
             total_students=0,
             class_summary=CourseClassSummary(
                 avg_completion_percentage=None, avg_quiz_score=None, avg_test_score=None,
@@ -788,15 +805,19 @@ async def get_official_aggregate_course_progress(
     weak_topic_freq: Dict[str, int] = {}
 
     for _, student in unique_members:
-        progress = db.query(UserProgress).filter(UserProgress.user_id == student.id).first()
+        progress = (
+            db.query(UserProgress)
+            .filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id)
+            .first()
+        )
         works = (
             db.query(SavedWork)
             .filter(SavedWork.user_id == student.id)
             .order_by(SavedWork.created_at.desc())
             .all()
         )
-        quiz_works = [w for w in works if w.work_type == "quiz"]
-        test_works = [w for w in works if w.work_type == "test"]
+        quiz_works = [w for w in works if w.work_type == "quiz" and any(t in valid_subtopics for t in _topics_of(w))]
+        test_works = [w for w in works if w.work_type == "test" and any(t in valid_subtopics for t in _topics_of(w))]
         quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
         test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
 
@@ -805,26 +826,26 @@ async def get_official_aggregate_course_progress(
         tests_attempted = len(test_works)
         tests_passed = sum(1 for s in test_scores if s >= 60)
 
-        topic_stats = _build_course_topic_stats(works)
+        topic_stats = _build_course_topic_stats(quiz_works + test_works)
         weak_topics = [t.topic for t in topic_stats if t.is_weak]
 
-        subtopics_read = len(set(progress.completed_topics or []) & _VALID_SUBTOPIC_IDS) if progress else 0
+        subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
         passed_quiz_main = {
-            to_main_topic(t)
+            subtopic_map.get(t, t)
             for w in quiz_works
             if (_score_of(w.result_data) or 0) >= 70
             for t in _topics_of(w)
         }
         passed_test_main = {
-            to_main_topic(t)
+            subtopic_map.get(t, t)
             for w in test_works
             if (_score_of(w.result_data) or 0) >= 60
             for t in _topics_of(w)
         }
         completed_topics_count = subtopics_read
         completion_percentage = round(
-            (subtopics_read + min(len(passed_quiz_main), NUM_MAIN_TOPICS) + min(len(passed_test_main), NUM_MAIN_TOPICS)) / TOTAL_ACTIVITIES * 100, 1
-        )
+            (subtopics_read + min(len(passed_quiz_main), num_main) + min(len(passed_test_main), num_main)) / total_acts * 100, 1
+        ) if total_acts > 0 else 0.0
 
         sp = StudentCourseProgress(
             student_id=student.id,
@@ -863,7 +884,7 @@ async def get_official_aggregate_course_progress(
     )
     return ClassroomCourseProgressAnalytics(
         classroom_id=None,
-        classroom_name="Basic Java",
+        classroom_name=course_label,
         total_students=len(students),
         class_summary=class_summary,
         students=students,
@@ -875,12 +896,11 @@ async def get_official_aggregate_by_classroom(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin"))
 ):
-    """Return a lightweight per-classroom summary for all official classrooms owned by this teacher."""
+    """Return a lightweight per-classroom summary for all classrooms owned by this teacher."""
     official_classrooms = (
         db.query(Classroom)
         .filter(
             Classroom.teacher_id == current_user.id,
-            Classroom.category.ilike("official%"),
         )
         .order_by(Classroom.name)
         .all()
@@ -978,11 +998,11 @@ async def get_official_aggregate_student_work(
     """Fetch a student's work for teachers via the aggregate official-classroom path."""
     official_classrooms = (
         db.query(Classroom)
-        .filter(Classroom.teacher_id == current_user.id, Classroom.category.ilike("official%"))
+        .filter(Classroom.teacher_id == current_user.id)
         .all()
     )
     if not official_classrooms:
-        raise HTTPException(status_code=404, detail="No official classrooms found")
+        raise HTTPException(status_code=404, detail="No classrooms found")
 
     membership = db.query(ClassroomMember).filter(
         ClassroomMember.classroom_id.in_([c.id for c in official_classrooms]),
@@ -1076,8 +1096,8 @@ async def get_classroom_course_progress(
             .all()
         )
 
-        quiz_works = [w for w in works if w.work_type == "quiz"]
-        test_works = [w for w in works if w.work_type == "test"]
+        quiz_works = [w for w in works if w.work_type == "quiz" and any(t in valid_subtopics for t in _topics_of(w))]
+        test_works = [w for w in works if w.work_type == "test" and any(t in valid_subtopics for t in _topics_of(w))]
 
         quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
         test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
@@ -1087,7 +1107,7 @@ async def get_classroom_course_progress(
         tests_attempted = len(test_works)
         tests_passed = sum(1 for s in test_scores if s >= 60)
 
-        topic_stats = _build_course_topic_stats(works)
+        topic_stats = _build_course_topic_stats(quiz_works + test_works)
         weak_topics = [t.topic for t in topic_stats if t.is_weak]
 
         subtopics_read = len(set(progress.completed_topics or []) & valid_subtopics) if progress else 0
@@ -1938,36 +1958,54 @@ async def generate_classroom_quiz_questions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Generate MCQ draft questions using classroom RAG context. Returns questions for teacher preview — nothing is saved yet."""
+    """Generate MCQ draft questions using classroom RAG context or course content. Returns questions for teacher preview — nothing is saved yet."""
     _verify_teacher_access(classroom_id, current_user, db)
 
     if not data.topic_prompt.strip():
         raise HTTPException(400, "topic_prompt cannot be empty")
 
     num_q = max(1, min(data.num_questions, 20))
+    context_chunks_raw = []
 
-    # Choose context source: specific files (direct chunk fetch) or global RAG search
-    if data.file_ids:
-        # Validate all file_ids belong to this classroom
-        valid_ids = [
-            f.id for f in db.query(ClassroomFile)
-                           .filter(ClassroomFile.classroom_id == classroom_id,
-                                   ClassroomFile.id.in_(data.file_ids))
-                           .all()
-        ]
-        if not valid_ids:
-            raise HTTPException(404, "None of the selected files were found in this classroom.")
-        context_chunks_raw = get_chunks_for_files(classroom_id, valid_ids, db)
+    if data.source == "course":
+        # Use the course java_knowledge vectorstore
+        valid_paths = {"basic_java", "enhanced_java"}
+        course_path = data.course_path or "basic_java"
+        if course_path not in valid_paths:
+            raise HTTPException(400, f"course_path must be one of {valid_paths}")
+        try:
+            from routers.rag import get_retriever
+            retriever = await get_retriever()
+            docs = retriever.invoke(data.topic_prompt)
+            context_chunks_raw = [{"text": d.page_content} for d in docs]
+        except Exception as exc:
+            raise HTTPException(503, f"Course content unavailable: {str(exc)}")
+        if not context_chunks_raw:
+            raise HTTPException(400, "No course content found for the given topic. Try a different topic.")
+        context_source_label = f"{course_path.replace('_', ' ').title()} course content"
     else:
-        context_chunks_raw = search_classroom_context(
-            classroom_id=classroom_id,
-            query=data.topic_prompt,
-            db=db,
-            top_k=10,
-        )
-
-    if not context_chunks_raw:
-        raise HTTPException(400, "No classroom documents found. Upload documents first, then generate a quiz.")
+        # Choose context source: specific files (direct chunk fetch) or global RAG search
+        if data.file_ids:
+            # Validate all file_ids belong to this classroom
+            valid_ids = [
+                f.id for f in db.query(ClassroomFile)
+                               .filter(ClassroomFile.classroom_id == classroom_id,
+                                       ClassroomFile.id.in_(data.file_ids))
+                               .all()
+            ]
+            if not valid_ids:
+                raise HTTPException(404, "None of the selected files were found in this classroom.")
+            context_chunks_raw = get_chunks_for_files(classroom_id, valid_ids, db)
+        else:
+            context_chunks_raw = search_classroom_context(
+                classroom_id=classroom_id,
+                query=data.topic_prompt,
+                db=db,
+                top_k=10,
+            )
+        if not context_chunks_raw:
+            raise HTTPException(400, "No classroom documents found. Upload documents first, then generate an exercise.")
+        context_source_label = "classroom materials"
 
     # context chunks are dicts with "text" key
     texts = [c["text"] if isinstance(c, dict) else str(c) for c in context_chunks_raw]
@@ -1978,13 +2016,13 @@ async def generate_classroom_quiz_questions(
     id_prefix = f"cq{classroom_id}_{int(time.time())}_"
 
     prompt = (
-        f"You are an educational quiz generator. A teacher wants to create a quiz based on classroom materials.\n\n"
-        f"CLASSROOM MATERIAL:\n{context_str}\n\n"
-        f"QUIZ TOPIC: {data.topic_prompt}\n\n"
-        f"Generate exactly {num_q} multiple-choice questions based strictly on the classroom material above.\n"
+        f"You are an educational exercise generator. A teacher wants to create a Java programming exercise based on {context_source_label}.\n\n"
+        f"REFERENCE MATERIAL:\n{context_str}\n\n"
+        f"TOPIC: {data.topic_prompt}\n\n"
+        f"Generate exactly {num_q} multiple-choice questions based on the reference material above.\n"
         f"Each question MUST:\n"
         f"- Test understanding of the topic: \"{data.topic_prompt}\"\n"
-        f"- Be answerable from the classroom material above\n"
+        f"- Be answerable from the reference material above\n"
         f"- Have exactly 4 answer options (A, B, C, D)\n"
         f"- Have EXACTLY ONE correct answer (correct_index is 0-based)\n"
         f"- Include a brief explanation for the correct answer\n\n"
@@ -2315,4 +2353,212 @@ def get_classroom_quizzes_with_progress(
         })
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Practical Challenge endpoints — Teacher-managed coding challenges
+# ---------------------------------------------------------------------------
+
+class PracticalChallengeQuestion(BaseModel):
+    title: str
+    description: str
+    note: Optional[str] = ""
+    methods: List[Dict[str, Any]] = []
+    expectedOutput: List[str] = []
+
+
+class PracticalChallengeCode(BaseModel):
+    """Base/starter code or model solution structure."""
+    # class name is stored as "class" in JSON, use alias
+    class_name: str = "Main"
+    helperClasses: str = ""
+    methods: Dict[str, Any] = {}
+
+
+class PracticalChallengeResponse(BaseModel):
+    id: int
+    classroom_id: int
+    section_id: Optional[int]
+    title: str
+    topic_prompt: Optional[str]
+    question: Dict[str, Any]
+    base_code: Dict[str, Any]
+    model_solution: Dict[str, Any]
+    status: str
+    created_by: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class GeneratePracticalChallengeRequest(BaseModel):
+    topic_prompt: str           # e.g. "Inheritance and Polymorphism"
+    section_id: Optional[int] = None
+
+
+class SavePracticalChallengeRequest(BaseModel):
+    title: str
+    topic_prompt: Optional[str] = None
+    question: Dict[str, Any]
+    base_code: Dict[str, Any]
+    model_solution: Dict[str, Any]
+    section_id: Optional[int] = None
+    status: str = "draft"       # "draft" | "published"
+
+
+class UpdatePracticalChallengeRequest(BaseModel):
+    title: Optional[str] = None
+    topic_prompt: Optional[str] = None
+    question: Optional[Dict[str, Any]] = None
+    base_code: Optional[Dict[str, Any]] = None
+    model_solution: Optional[Dict[str, Any]] = None
+    section_id: Optional[int] = None
+    status: Optional[str] = None
+
+
+@router.post("/{classroom_id}/practical-challenges/generate")
+async def generate_classroom_practical_challenge(
+    classroom_id: int,
+    data: GeneratePracticalChallengeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a practical coding challenge with model solution for teacher preview.
+    Nothing is saved — teacher reviews/edits, then calls the save endpoint."""
+    _verify_teacher_access(classroom_id, current_user, db)
+
+    if not data.topic_prompt.strip():
+        raise HTTPException(400, "topic_prompt cannot be empty")
+
+    # Import the existing generator to reuse its battle-tested prompt + validation logic
+    from routers.practical_tests import _generate_practical_question
+    try:
+        result = await _generate_practical_question(data.topic_prompt.strip(), [])
+    except Exception as exc:
+        raise HTTPException(502, f"AI generation failed: {str(exc)}")
+
+    return {
+        "question":       result.get("question", {}),
+        "base_code":      result.get("baseCode", {}),
+        "model_solution": result.get("solution", {}),
+        "topic_prompt":   data.topic_prompt.strip(),
+    }
+
+
+@router.post("/{classroom_id}/practical-challenges", response_model=PracticalChallengeResponse, status_code=status.HTTP_201_CREATED)
+def save_classroom_practical_challenge(
+    classroom_id: int,
+    data: SavePracticalChallengeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save a practical challenge (draft or published) for a classroom."""
+    _verify_teacher_access(classroom_id, current_user, db)
+
+    if not data.title.strip():
+        raise HTTPException(400, "title cannot be empty")
+    if data.status not in ("draft", "published"):
+        raise HTTPException(400, "status must be 'draft' or 'published'")
+
+    challenge = ClassroomPracticalChallenge(
+        classroom_id=classroom_id,
+        section_id=data.section_id,
+        title=data.title.strip(),
+        topic_prompt=data.topic_prompt,
+        question=data.question,
+        base_code=data.base_code,
+        model_solution=data.model_solution,
+        status=data.status,
+        created_by=current_user.id,
+    )
+    db.add(challenge)
+    db.commit()
+    db.refresh(challenge)
+    return challenge
+
+
+@router.get("/{classroom_id}/practical-challenges", response_model=List[PracticalChallengeResponse])
+def list_classroom_practical_challenges(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List practical challenges. Teachers see all (draft + published); students see published only."""
+    _verify_classroom_access(classroom_id, current_user, db)
+
+    q = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.classroom_id == classroom_id
+    )
+    if current_user.role == "student":
+        q = q.filter(ClassroomPracticalChallenge.status == "published")
+    challenges = q.order_by(ClassroomPracticalChallenge.created_at.desc()).all()
+    return challenges
+
+
+@router.get("/{classroom_id}/practical-challenges/{challenge_id}", response_model=PracticalChallengeResponse)
+def get_classroom_practical_challenge(
+    classroom_id: int,
+    challenge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single practical challenge. Students only see published ones."""
+    _verify_classroom_access(classroom_id, current_user, db)
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found")
+    if current_user.role == "student" and challenge.status != "published":
+        raise HTTPException(404, "Challenge not found")
+    return challenge
+
+
+@router.patch("/{classroom_id}/practical-challenges/{challenge_id}", response_model=PracticalChallengeResponse)
+def update_classroom_practical_challenge(
+    classroom_id: int,
+    challenge_id: int,
+    data: UpdatePracticalChallengeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update title, question, base_code, model_solution, section, or status."""
+    _verify_teacher_access(classroom_id, current_user, db)
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found")
+
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(challenge, field, value)
+
+    challenge.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(challenge)
+    return challenge
+
+
+@router.delete("/{classroom_id}/practical-challenges/{challenge_id}")
+def delete_classroom_practical_challenge(
+    classroom_id: int,
+    challenge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a practical challenge."""
+    _verify_teacher_access(classroom_id, current_user, db)
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found")
+    db.delete(challenge)
+    db.commit()
+    return {"ok": True}
 

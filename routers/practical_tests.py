@@ -39,6 +39,7 @@ except Exception as e:
 router = APIRouter()
 
 TOPIC_HINTS = {
+    # ===== BASIC JAVA TOPICS =====
     "Polymorphism": (
         "Define a non-public abstract class or interface, then 2-3 non-public subclasses that override a method. "
         "The Main class should use these classes in its methods. "
@@ -72,6 +73,56 @@ TOPIC_HINTS = {
     "Exception Handling & File IO": (
         "Use try-catch to handle at least one specific exception type (e.g., NumberFormatException, ArrayIndexOutOfBoundsException). "
         "The Main methods should demonstrate proper exception handling."
+    ),
+    
+    # ===== ENHANCED JAVA TOPICS =====
+    "Advanced OOP": (
+        "Demonstrate advanced OOP concepts: use at least one abstract class or interface with generic type parameters. "
+        "Implement 2+ classes that extend/implement these with specific type parameters. "
+        "Show polymorphic behavior with type-safe collections or generics. "
+        "Use only non-public classes (except Main). Do NOT use raw types."
+    ),
+    "Collections Framework": (
+        "Use at least 2 different Collection types (e.g., List, Map, Set, Queue) in your solution. "
+        "Demonstrate appropriate iteration or lookup patterns for each collection type. "
+        "Show practical usage like storing, filtering, or searching data. "
+        "Use only non-public helper classes."
+    ),
+    "Streams & Functional": (
+        "Use Java Streams API (stream(), filter(), map(), collect(), etc.) to solve the problem. "
+        "Include at least one lambda expression or method reference. "
+        "Use functional operations instead of loops (for, while). "
+        "Demonstrate chaining multiple stream operations."
+    ),
+    "Exception & I/O": (
+        "Demonstrate proper exception handling with multiple catch blocks for different exception types (checked or unchecked). "
+        "Show proper resource management (try-with-resources if applicable). "
+        "Include custom exception handling logic where appropriate. "
+        "Use only non-public helper classes."
+    ),
+    "Concurrency": (
+        "Create and manage at least 2 threads in your solution. "
+        "Demonstrate thread synchronization or thread-safe operations (e.g., synchronized block, atomic operations, or shared data). "
+        "Show proper thread lifecycle management (create, start, join). "
+        "Avoid race conditions or data corruption."
+    ),
+    "Data Structures": (
+        "Implement or use an appropriate data structure (stack, queue, linked list, tree, or hash-based structure) to solve the problem efficiently. "
+        "Demonstrate operations like insertion, deletion, and search on the data structure. "
+        "Show why this data structure is more efficient than alternatives. "
+        "Include proper encapsulation with non-public members."
+    ),
+    "Algorithms": (
+        "Implement an algorithm (sorting, searching, or graph traversal) as the core solution. "
+        "Include complexity analysis considerations in your code (comment on time/space complexity). "
+        "Demonstrate the algorithm correctly handling various input cases. "
+        "Use non-public helper methods for algorithm steps."
+    ),
+    "Advanced Patterns": (
+        "Solve using an advanced technique: recursion with memoization, design pattern (strategy/decorator/factory), or dynamic programming. "
+        "Show optimization compared to a naive approach. "
+        "Document the pattern or technique used. "
+        "Use non-public helper classes and methods appropriately."
     ),
 }
 
@@ -196,35 +247,35 @@ async def _generate_practical_question(topic: str, existing_titles: List[str]) -
             f"- {t}" for t in existing_titles[-10:]
         )
 
-        # Support multi-topic prompts. `topic` may contain multiple main topics joined by " and ".
-        topics_list = [t.strip() for t in topic.split(" and ")]
-        is_multi = len(topics_list) > 1
+    # Support multi-topic prompts. `topic` may contain multiple main topics joined by " and ".
+    topics_list = [t.strip() for t in topic.split(" and ")]
+    is_multi = len(topics_list) > 1
 
-        if is_multi:
-                hints = [TOPIC_HINTS[t] for t in topics_list if t in TOPIC_HINTS]
-                hint_block = (
-                        "\nTOPIC HINTS — your solution MUST demonstrate ALL of the following:\n"
-                        + "\n".join(f"- {h}" for h in hints)
-                ) if hints else ""
-                complexity_block = """COMPLEXITY:
+    if is_multi:
+        hints = [TOPIC_HINTS[t] for t in topics_list if t in TOPIC_HINTS]
+        hint_block = (
+            "\nTOPIC HINTS — your solution MUST demonstrate ALL of the following:\n"
+            + "\n".join(f"- {h}" for h in hints)
+        ) if hints else ""
+        complexity_block = """COMPLEXITY:
 - 2 to 3 methods
 - Each method should relate to a different topic listed above
 - Use only basic Java but DO demonstrate all required concepts
 - Expected output should be 3–6 lines"""
-        else:
-                topic_hint = TOPIC_HINTS.get(topic, "")
-                hint_block = f"\nTOPIC HINT: {topic_hint}" if topic_hint else ""
-                complexity_block = """KEEP IT SIMPLE:
+    else:
+        topic_hint = TOPIC_HINTS.get(topic, "")
+        hint_block = f"\nTOPIC HINT: {topic_hint}" if topic_hint else ""
+        complexity_block = """KEEP IT SIMPLE:
 - 1 to 2 methods only
 - A single clear sentence describing what each method does
 - Use only basic Java (int, String, arrays, loops) — no generics, no complex data structures
 - Expected output should be 3–6 lines at most
 - No puzzles, no grids, no complex scenarios"""
 
-        id_val = f"pt_{int(time.time())}_{random.randint(1000, 9999)}"
-        class_name = "Main"
+    id_val = f"pt_{int(time.time())}_{random.randint(1000, 9999)}"
+    class_name = "Main"
 
-        prompt = f"""You are a Java instructor. Create a beginner-friendly coding exercise covering: "{topic}".
+    prompt = f"""You are a Java instructor. Create a beginner-friendly coding exercise covering: "{topic}".
 {exclusion}{hint_block}
 
 {complexity_block}
@@ -549,4 +600,19 @@ def evaluate_ai(req: AiCodeRequest):
     except Exception:
         stdin_value = None
 
-    return _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes, stdin=stdin_value)
+    result = _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes, stdin=stdin_value)
+
+    # Attach model solution from DB if available (shown to student post-submission)
+    if row is not None and hasattr(row, 'solution_methods') and row.solution_methods:
+        result["model_solution"] = {
+            "class": getattr(row, 'base_class', 'Main'),
+            "helperClasses": getattr(row, 'solution_helper_classes', '') or '',
+            "methods": row.solution_methods,
+        }
+    elif req.question_data:
+        # question came from client payload (not yet persisted) — include solution if present
+        sol = req.question_data.get("solution")
+        if sol:
+            result["model_solution"] = sol
+
+    return result

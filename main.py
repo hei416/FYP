@@ -199,7 +199,7 @@ async def startup():
                     conn.commit()
                     print(f"✅ Migration: added column '{col}' to practical_test_questions")
                 except Exception:
-                    pass  # Column already exists
+                    conn.rollback()  # Column already exists — reset transaction state
 
             # conversation_history table (PostgreSQL-compatible)
             try:
@@ -224,6 +224,7 @@ async def startup():
                 print("✅ Migration: conversation_history table ready")
             except Exception as e:
                 print(f"⚠️ conversation_history migration: {e}")
+                conn.rollback()
 
             # conversation_summaries table (PostgreSQL-compatible)
             try:
@@ -249,6 +250,7 @@ async def startup():
                 print("✅ Migration: conversation_summaries table ready")
             except Exception as e:
                 print(f"⚠️ conversation_summaries migration: {e}")
+                conn.rollback()
 
             # quiz_attempts table
             try:
@@ -266,6 +268,7 @@ async def startup():
                 print("✅ Migration: quiz_attempts table ready")
             except Exception as e:
                 print(f"⚠️ quiz_attempts migration: {e}")
+                conn.rollback()
 
             # page_number column for classroom_chunks (PDF page tracking)
             try:
@@ -277,6 +280,7 @@ async def startup():
                 print("✅ Migration: page_number column ensured on classroom_chunks")
             except Exception as e:
                 print(f"⚠️ page_number migration: {e}")
+                conn.rollback()
 
             # classroom_sections table
             try:
@@ -294,6 +298,7 @@ async def startup():
                 print("✅ Migration: classroom_sections table ready")
             except Exception as e:
                 print(f"⚠️ classroom_sections migration: {e}")
+                conn.rollback()
 
             # section_id column on classroom_files
             try:
@@ -306,6 +311,7 @@ async def startup():
                 print("✅ Migration: section_id column ensured on classroom_files")
             except Exception as e:
                 print(f"⚠️ section_id migration: {e}")
+                conn.rollback()
 
     except Exception as e:
         print(f"⚠️ Startup migration warning: {e}")
