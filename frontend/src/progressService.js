@@ -43,6 +43,22 @@ export function getCourseKeys(courseId = 'basic') {
   };
 }
 
+// All localStorage keys that belong to progress (both courses + tour flag)
+export const ALL_PROGRESS_LOCAL_KEYS = [
+  BASIC_ROADMAP_KEY,
+  ENHANCED_ROADMAP_KEY,
+  BASIC_PROGRESS_KEY,
+  ENHANCED_PROGRESS_KEY,
+  BASIC_MILESTONES_KEY,
+  ENHANCED_MILESTONES_KEY,
+  'hasSeenDemoTour',
+];
+
+// Clear all progress-related localStorage keys (used on logout and page unload)
+export function clearAllProgressLocalData() {
+  ALL_PROGRESS_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
+}
+
 /**
  * Fetch user progress from backend and merge with localStorage
  */
@@ -100,6 +116,17 @@ export const pullProgressFromBackend = async (courseId = 'basic') => {
 export async function syncProgressToBackend(localProgress, roadmapCompleted, courseId = 'basic') {
   if (!isAuthenticated()) return;
 
+  // Skip push when localStorage was just cleared (e.g. after a page-unload clear);
+  // let the pull-from-backend step restore data instead of overwriting with empty.
+  const hasData =
+    (roadmapCompleted && roadmapCompleted.length > 0) ||
+    (localProgress?.quizzes?.attempted > 0) ||
+    (localProgress?.aiInteractions > 0);
+  if (!hasData) {
+    console.warn('[ProgressService] syncProgressToBackend: skipping — data appears empty');
+    return;
+  }
+
   try {
     const payload = {
       completed_topics: roadmapCompleted || [],
@@ -122,8 +149,10 @@ export async function syncProgressToBackend(localProgress, roadmapCompleted, cou
   }
 }
 
-// Push localStorage progress up to backend
-export const pushProgressToBackend = async (courseId = 'basic') => {
+// Push localStorage progress up to backend.
+// Pass { keepalive: true } when calling from a beforeunload/pagehide handler so
+// the browser completes the request even after the page is torn down.
+export const pushProgressToBackend = async (courseId = 'basic', { keepalive = false } = {}) => {
   if (!isAuthenticated()) return;
 
   try {
@@ -153,7 +182,8 @@ export const pushProgressToBackend = async (courseId = 'basic') => {
     await fetch(`${API_BASE}/progress/sync?course_id=${courseId}`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      keepalive,
     });
   } catch (e) {
     console.warn('[ProgressService] pushProgressToBackend failed', e);

@@ -1,18 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { pullProgressFromBackend, pushProgressToBackend } from './progressService';
+import { pullProgressFromBackend, pushProgressToBackend, clearAllProgressLocalData } from './progressService';
 
 const AuthContext = createContext(null);
-
-const PROGRESS_LOCAL_KEYS = [
-  'codetutor_learning_progress',
-  'java-roadmap-completed',
-  'dismissed_milestones',
-  'hasSeenDemoTour',
-];
-
-const clearProgressLocalData = () => {
-  PROGRESS_LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
-};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -86,7 +75,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       // Clear stale progress before loading new user's data
-      clearProgressLocalData();
+      clearAllProgressLocalData();
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,8 +103,8 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     // Push progress to backend before clearing
     try { await pushProgressToBackend(); } catch (_) {}
-    clearProgressLocalData();
-    localStorage.removeItem('authToken');
+      clearAllProgressLocalData();
+      localStorage.removeItem('authToken');
     // Hard reload to /login — resets ALL in-memory React state to zero
     window.location.href = '/login';
   }, []);

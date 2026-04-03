@@ -45,8 +45,12 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const [errorExplanations, setErrorExplanations] = useState({}); // { idx: "explanation text" }
+    const [wsRunning, setWsRunning] = useState(false);
+    const [stdinInput, setStdinInput] = useState('');
     const decorationIdsRef = useRef([]);
+    const wsRef = useRef(null);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const TERMINAL_WS = process.env.REACT_APP_TERMINAL_WS;
 
     const filesRef = useRef(files);
     useEffect(() => { filesRef.current = files; }, [files]);
@@ -96,6 +100,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         return () => {
             clearTimeout(debounceRef.current);
             clearTimeout(filenameDebounceRef.current);
+            if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
         };
     }, []);
 
@@ -309,16 +314,17 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         }
     };
 
-    const handleInternalRun = async () => {
-        setLoading(true);
-        setLocalOutput("Running code...");
+    const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[mGKHF]/g, '');
 
-        const filesToSend = files.map(file => ({
+    const handleHttpRun = async () => {
+        setLoading(true);
+        setLocalOutput('Running code...');
+        const filesToSend = filesRef.current.map(file => ({
             filename: file.filename,
             content: file.content,
         }));
-        const mainClass = activeFile ? extractClassName(activeFile.content) : 'Main';
-
+        const activeFileCurrent = filesRef.current.find(f => f.id === activeFileIdRef.current);
+        const mainClass = activeFileCurrent ? extractClassName(activeFileCurrent.content) : 'Main';
         try {
             const res = await fetch(`${API_BASE}/api/run-code`, {
                 method: 'POST',
@@ -326,19 +332,94 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
                 body: JSON.stringify({ files: filesToSend, main_class: mainClass }),
             });
             const data = await res.json();
-
             if (data.error && data.error.trim()) {
                 setLocalOutput(`Error:\n${data.error}`);
             } else if (data.output && data.output !== 'No output') {
                 setLocalOutput(data.output);
             } else {
-                setLocalOutput("(no output)");
+                setLocalOutput('(no output)');
             }
         } catch (e) {
             setLocalOutput(`Failed to run code: ${e.message}`);
         } finally {
             setLoading(false);
             window.dispatchEvent(new CustomEvent('demo-code-output'));
+        }
+    };
+
+    const handleWsRun = () => {
+        if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+        setLoading(true);
+        setWsRunning(true);
+        setLocalOutput('');
+        setStdinInput('');
+        const activeFileCurrent = filesRef.current.find(f => f.id === activeFileIdRef.current);
+        const mainClassName = activeFileCurrent ? extractClassName(activeFileCurrent.content) : 'Main';
+        const filename = activeFileCurrent?.filename || `${mainClassName}.java`;
+        const code = activeFileCurrent?.content || '';
+        let ws;
+        try {
+            ws = new WebSocket(TERMINAL_WS);
+        } catch (e) {
+            setWsRunning(false);
+            setLoading(false);
+            handleHttpRun();
+            return;
+        }
+        wsRef.current = ws;
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ type: 'run', code, className: mainClassName, filename }));
+        };
+        ws.onmessage = (evt) => {
+            try {
+                const msg = JSON.parse(evt.data);
+                if (msg.type === 'output') {
+                    setLocalOutput(prev => prev + stripAnsi(msg.data));
+                } else if (msg.type === 'exit') {
+                    setWsRunning(false);
+                    setLoading(false);
+                    if (wsRef.current === ws) wsRef.current = null;
+                    window.dispatchEvent(new CustomEvent('demo-code-output'));
+                }
+            } catch (e) {}
+        };
+        ws.onerror = () => {
+            setLocalOutput(prev => (prev ? prev + '\n' : '') + '[WebSocket error — retrying via HTTP]');
+            ws.close();
+            if (wsRef.current === ws) wsRef.current = null;
+            setWsRunning(false);
+            setLoading(false);
+            handleHttpRun();
+        };
+        ws.onclose = () => {
+            if (wsRef.current === ws) {
+                wsRef.current = null;
+                setWsRunning(false);
+                setLoading(false);
+            }
+        };
+    };
+
+    const stopRun = () => {
+        if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+        setWsRunning(false);
+        setLoading(false);
+        setLocalOutput(prev => prev + '\n[Stopped]');
+    };
+
+    const sendStdin = (e) => {
+        e.preventDefault();
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({ type: 'input', data: stdinInput + '\n' }));
+        setLocalOutput(prev => prev + stdinInput + '\n');
+        setStdinInput('');
+    };
+
+    const handleInternalRun = () => {
+        if (TERMINAL_WS) {
+            handleWsRun();
+        } else {
+            handleHttpRun();
         }
     };
 
@@ -519,9 +600,9 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
                 </div>
             )}
 
-            {/* ── Run button ── */}
+            {/* ── Run / Stop buttons ── */}
             {!hideRunButton && (
-                <div style={{ marginTop: spacing.sm }}>
+                <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.xs, alignItems: 'center' }}>
                     <button
                         data-tour="run-button"
                         onClick={handleRun}
@@ -530,7 +611,34 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
                     >
                         {loading ? 'Running...' : '▶ Run Code'}
                     </button>
+                    {wsRunning && (
+                        <button onClick={stopRun} style={btn.danger}>
+                            ■ Stop
+                        </button>
+                    )}
                 </div>
+            )}
+
+            {/* ── stdin input (shown while program awaits input) ── */}
+            {wsRunning && !hideRunButton && (
+                <form onSubmit={sendStdin} style={{ display: 'flex', gap: spacing.xs, marginTop: spacing.xs }}>
+                    <input
+                        type="text"
+                        value={stdinInput}
+                        onChange={e => setStdinInput(e.target.value)}
+                        placeholder="Type input and press Enter…"
+                        autoFocus
+                        style={{
+                            flex: 1,
+                            padding: '4px 8px',
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: radii.sm,
+                            fontFamily: font.mono,
+                            fontSize: font.sizeSm,
+                        }}
+                    />
+                    <button type="submit" style={{ ...btn.primary, ...btn.small }}>Send</button>
+                </form>
             )}
 
             {/* ── Output panel ── */}

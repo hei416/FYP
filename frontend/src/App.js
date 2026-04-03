@@ -23,7 +23,7 @@ import TextHighlightButton from "./components/TextHighlightButton";
 import { colors, radii, font, spacing, btn, shadows, navbar, transition } from './theme';
 import { useAuth } from './AuthContext';
 import Auth from './Auth';
-import { loadProgressFromBackend, mergeProgressWithLocal, syncProgressToBackend } from './progressService';
+import { loadProgressFromBackend, mergeProgressWithLocal, syncProgressToBackend, pushProgressToBackend, clearAllProgressLocalData } from './progressService';
 
 const resizeObserverErrHandler = (e) => {
     if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
@@ -53,6 +53,29 @@ function AppContent() {
             }, 100);
         }
     };
+
+    useEffect(() => {
+        // Sync progress to backend and clear local cache whenever the page/tab
+        // is about to be torn down (close, refresh, navigate away).
+        // - Uses fetch keepalive so the request completes after page unload.
+        // - Both beforeunload (desktop) and pagehide (mobile/bfcache) are covered.
+        // - Auth is checked via localStorage to avoid stale React-state closures.
+        // - During logout the auth token is removed before navigation fires these
+        //   events, so pushProgressToBackend skips (token missing) — no double sync.
+        const handleUnload = () => {
+            if (!localStorage.getItem('authToken')) return;
+            pushProgressToBackend('basic', { keepalive: true });
+            pushProgressToBackend('enhanced', { keepalive: true });
+            clearAllProgressLocalData();
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('pagehide', handleUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('pagehide', handleUnload);
+        };
+    }, []);
 
     useEffect(() => {
         if (isAuthenticated) {
