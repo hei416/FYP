@@ -46,7 +46,8 @@ jobs:
               ENABLE_ORYX_BUILD=true \
               SCM_NO_BUILD_CACHE=true \
               WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
-            "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+            "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            "SECRET_KEY=${{ secrets.SECRET_KEY }}"
 
       - name: Create deployment zip
         run: |

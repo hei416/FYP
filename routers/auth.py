@@ -12,7 +12,9 @@ from typing import Optional
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise ValueError("SECRET_KEY environment variable is not set. Please set it in your .env or environment.")
+    import sys
+    print("⚠️ WARNING: SECRET_KEY environment variable is not set — auth endpoints will raise 500 at request time.", file=sys.stderr)
+    SECRET_KEY = "UNSET_SECRET_KEY_REPLACE_ME"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 7 * 24 * 60  # 7 days
 
@@ -58,6 +60,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(user_id: int, email: str, role: str) -> str:
     """Create JWT access token"""
+    if SECRET_KEY == "UNSET_SECRET_KEY_REPLACE_ME":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server misconfiguration: SECRET_KEY is not set"
+        )
     expires = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "user_id": user_id,

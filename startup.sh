@@ -43,6 +43,19 @@ python -c "import httpx; import requests; print('✓ practical_tests deps OK')" 
 export DATABASE_URL="${DATABASE_URL:-sqlite:////home/learning_platform.db}"
 echo "DATABASE_URL type: ${DATABASE_URL%%:*}"
 
+# Validate critical environment variables
+STARTUP_ERROR=0
+if [ -z "$SECRET_KEY" ]; then
+    echo "❌ FATAL: SECRET_KEY environment variable is not set — auth routes will be misconfigured."
+    STARTUP_ERROR=1
+fi
+if [ "${DATABASE_URL%%:*}" = "sqlite" ]; then
+    echo "⚠️ WARNING: Using SQLite fallback — set DATABASE_URL to a Postgres URL for production."
+fi
+if [ "$STARTUP_ERROR" = "1" ]; then
+    echo ">> Set the missing env vars in Azure App Service → Configuration → Application Settings"
+fi
+
 echo "[1/3] DB init skipped (lazy initialization)"
 echo "[2/3] Seed skipped (lazy initialization)"
 echo "[3/3] Java install skipped (not required)"

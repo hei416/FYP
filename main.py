@@ -32,7 +32,7 @@ async def test_alive():
 
 print("\n🔧 Importing routers...")
 try:
-    from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress, my_work, conversation, classroom, admin
+    from routers import code_execution, lessons, pdfs, practical_tests, rag, auth, progress, my_work, conversation, classroom, admin, terminal
     import routers.rag as rag_router
     ROUTERS_IMPORTED = True
     print("✅ All routers imported\n")
@@ -335,6 +335,7 @@ if ROUTERS_IMPORTED:
             (conversation.router, "Conversation", None),
             (classroom.router, "Classroom", None),
             (admin.router, "Admin", None),
+            (terminal.router, "Terminal", None),
         ]
         for router_obj, router_name, prefix in routers_to_include:
             try:
@@ -347,6 +348,13 @@ if ROUTERS_IMPORTED:
                 print(f"  ❌ {router_name} router FAILED: {e}", file=sys.stderr)
                 traceback.print_exc(file=sys.stderr)
         print(f"\n✅ Router inclusion complete! Total routes: {len([r for r in app.routes if hasattr(r, 'path')])}\n")
+        mounted = sorted(set(
+            f"  {m} {r.path}"
+            for r in app.routes
+            if hasattr(r, 'path') and hasattr(r, 'methods')
+            for m in (r.methods or [])
+        ))
+        print("Registered routes:\n" + "\n".join(mounted) + "\n")
     except Exception as e:
         print(f"ERROR including routers: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
