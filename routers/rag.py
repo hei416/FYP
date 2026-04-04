@@ -13,13 +13,14 @@ import random
 import requests
 import difflib
 import re
+import logging
 from sqlalchemy import func
 from database import SessionLocal
 from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork, Classroom, ClassroomMember
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-
+from core.rate_limiter import limiter
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
 from services.classroom_rag import query_classroom_rag
 from routers.auth import get_current_user
@@ -33,6 +34,8 @@ from services.rag_helpers import (
     save_rag_conversation,
     clean_chunk_for_display
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 # ==================== CLASSROOM-SCOPED RAG ENDPOINT ====================
@@ -953,7 +956,8 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 # ==================== RAG ====================
 
 @router.post("/ragAI")
-async def rag_ai(req: ExplainRequest):
+@limiter.limit("30/minute")
+async def rag_ai(req: ExplainRequest, request: Request):
     try:
         global rag_chain, retriever
 
