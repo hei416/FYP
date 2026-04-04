@@ -2312,19 +2312,17 @@ def get_classroom_quiz_student_results(
         attempts = db.query(ClassroomQuizAttempt).filter(
             ClassroomQuizAttempt.quiz_id == quiz_id,
             ClassroomQuizAttempt.student_id == current_user.id,
-        ).order_by(ClassroomQuizAttempt.submitted_at.desc()).all()
+        ).order_by(ClassroomQuizAttempt.submitted_at.asc()).all()
+        
+        all_scores = [float(a.score) for a in attempts]
+        best_score = max(all_scores) if all_scores else 0
         
         return {
             "quiz_id": quiz_id,
             "student_id": current_user.id,
-            "attempts": [
-                {
-                    "id": a.id,
-                    "score": a.score,
-                    "submitted_at": a.submitted_at.isoformat(),
-                }
-                for a in attempts
-            ],
+            "all_scores": all_scores,
+            "best_score": best_score,
+            "attempt_count": len(attempts),
         }
     else:
         # Teacher view: return all students' results

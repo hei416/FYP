@@ -352,13 +352,13 @@ export default function ConversationHistoryPage() {
         <div style={{ display: 'flex', height: 'calc(100vh - 64px)', background: colors.bg, overflow: 'hidden' }}>
 
             {/* Sidebar */}
-            <div style={{ width: sidebarOpen ? 280 : 0, minWidth: sidebarOpen ? 280 : 0, overflow: 'hidden', transition: 'width 0.25s ease, min-width 0.25s ease', background: colors.surface, borderRight: `1px solid ${colors.divider}`, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '20px 16px 12px', borderBottom: `1px solid ${colors.divider}` }}>
+            <div style={{ width: sidebarOpen ? 280 : 0, minWidth: sidebarOpen ? 280 : 0, overflow: 'hidden', transition: 'width 0.25s ease, min-width 0.25s ease', background: '#E0F2FE', borderRight: `2px solid ${colors.primaryBorder}`, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '20px 16px 12px', borderBottom: `2px solid ${colors.primaryBorder}`, background: '#FFFFFF' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <span style={{ fontWeight: font.weightBold, fontSize: font.sizeMd, color: colors.text }}>Conversations</span>
+                        <span style={{ fontWeight: font.weightBold, fontSize: font.sizeMd, color: colors.primary }}>💬 Conversations</span>
                     </div>
                     <button onClick={createNewSession}
-                        style={{ width: '100%', padding: '9px 12px', background: colors.primary, color: colors.surface, border: 'none', borderRadius: radii.md, cursor: 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
+                        style={{ width: '100%', padding: '11px 12px', background: colors.primary, color: '#FFFFFF', border: 'none', borderRadius: radii.md, cursor: 'pointer', fontSize: font.sizeSm, fontWeight: font.weightSemibold, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', boxShadow: shadows.sm, transition, hover: { opacity: 0.95 } }}
                     >
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
                         New Chat
@@ -373,10 +373,10 @@ export default function ConversationHistoryPage() {
                     )}
                     {sessions.map(session => (
                         <div key={session.id} onClick={() => setActiveId(session.id)}
-                            style={{ padding: '10px 12px', borderRadius: radii.md, cursor: 'pointer', marginBottom: 2, background: activeId === session.id ? colors.primaryLight : 'transparent', border: activeId === session.id ? `1px solid ${colors.primaryBorder}` : '1px solid transparent', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, transition }}
+                            style={{ padding: '11px 12px', borderRadius: radii.md, cursor: 'pointer', marginBottom: 6, background: activeId === session.id ? '#FFFFFF' : '#F0F9FF', border: activeId === session.id ? `2px solid ${colors.primary}` : `1px solid ${colors.primaryBorder}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, transition, boxShadow: activeId === session.id ? shadows.sm : 'none' }}
                         >
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: activeId === session.id ? colors.primary : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{session.title || 'Untitled'}</div>
+                                <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: activeId === session.id ? colors.primary : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{activeId === session.id ? '→ ' : '  '}{session.title || 'Untitled'}</div>
                                 <div style={{ fontSize: '11px', color: colors.textMuted, marginTop: 2 }}>{formatDate(session.createdAt)} · {session.turnCount ?? (session.messages?.length / 2 | 0)} msgs</div>
                             </div>
                             <button onClick={(e) => deleteSession(session.id, e)}

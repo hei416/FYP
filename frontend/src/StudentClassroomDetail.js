@@ -453,7 +453,14 @@ export default function StudentClassroomDetail() {
       </div>
 
       {tab === 'materials' && (
-        <div>
+        <div style={{
+          padding: '20px',
+          background: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          minHeight: 'calc(100vh - 250px)',
+        }}>
           {filesError && (
             <div style={{ padding: '12px 16px', background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#991B1B' }}>
               ❌ Error loading materials: {filesError}
@@ -586,7 +593,14 @@ export default function StudentClassroomDetail() {
       {/* Ask AI tab and panel removed */}
 
       {tab === 'sections' && (
-        <div>
+        <div style={{
+          padding: '20px',
+          background: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          minHeight: 'calc(100vh - 250px)',
+        }}>
           {sectionsLoading ? (
             <p style={styles.empty}>Loading sections…</p>
           ) : sections.length === 0 ? (
@@ -688,7 +702,14 @@ export default function StudentClassroomDetail() {
 
       {/* ── Quizzes tab ──────────────────────────────────────────────────── */}
       {tab === 'quizzes' && (
-        <div>
+        <div style={{
+          padding: '20px',
+          background: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          minHeight: 'calc(100vh - 250px)',
+        }}>
           {quizzesLoading ? (
             <p style={styles.empty}>Loading quizzes…</p>
           ) : !activeQuiz ? (
@@ -912,7 +933,14 @@ export default function StudentClassroomDetail() {
 
       {/* ── Challenges tab ─────────────────────────────────────────────── */}
       {tab === 'challenges' && (
-        <div>
+        <div style={{
+          padding: '20px',
+          background: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          minHeight: 'calc(100vh - 250px)',
+        }}>
           {activeChallenge ? (
             (() => {
               console.log(`📍 [StudentClassroomDetail] Rendering CodingChallengePlayer:`, {
