@@ -109,6 +109,7 @@ export default function AdminDashboard() {
   const [classrooms, setClassrooms]             = useState([]);
   const [classroomsLoading, setClassroomsLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm]       = useState(null); // classroom id to confirm
+  const [deleteLoading, setDeleteLoading]       = useState(null); // classroom id being deleted
   // REMOVED expandedFilesId and file manager logic (now handled in classroom detail page)
   const [expandedStudentsId, setExpandedStudentsId] = useState(null); // classroom id for students panel
   const [classroomStudents, setClassroomStudents] = useState({}); // { [classroomId]: students[] from analytics }
@@ -119,6 +120,9 @@ export default function AdminDashboard() {
   const [roleEditing, setRoleEditing] = useState(null); // { userId, newRole }
   const [userSearch, setUserSearch] = useState('');
   const [userEditing, setUserEditing] = useState(null); // { id, full_name, email, newPassword: '' }
+  const [userEditLoading, setUserEditLoading] = useState(false);
+  const [userEditError, setUserEditError] = useState(null);
+  const [userEditSuccess, setUserEditSuccess] = useState(false);
   // Load students for a classroom
   const loadClassroomStudents = useCallback(async (classroomId) => {
     try {
@@ -161,20 +165,39 @@ export default function AdminDashboard() {
 
   // Delete classroom
   async function deleteClassroom(id) {
-    await fetch(`${API_BASE}/admin/classrooms/${id}`, { method: 'DELETE', headers: authHeader() });
-    setDeleteConfirm(null);
-    loadClassrooms();
+    try {
+      setDeleteLoading(id);
+      const res = await fetch(`${API_BASE}/admin/classrooms/${id}`, { method: 'DELETE', headers: authHeader() });
+      if (!res.ok) {
+        throw new Error('Failed to delete classroom');
+      }
+      setDeleteConfirm(null);
+      loadClassrooms();
+    } catch (err) {
+      alert('Error: ' + (err.message || 'Failed to delete classroom'));
+    } finally {
+      setDeleteLoading(null);
+    }
   }
 
   // Update user role
   async function updateRole(userId, newRole) {
-    await fetch(`${API_BASE}/admin/users/${userId}/role`, {
-      method: 'PATCH',
-      headers: authHeader(),
-      body: JSON.stringify({ role: newRole }),
-    });
-    setRoleEditing(null);
-    loadUsers();
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: authHeader(),
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Error: ' + (err.detail || 'Failed to update role'));
+        return;
+      }
+      setRoleEditing(null);
+      loadUsers();
+    } catch (err) {
+      alert('Error: ' + (err.message || 'Failed to update role'));
+    }
   }
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted }}>Loading...</div>;
@@ -295,9 +318,18 @@ export default function AdminDashboard() {
                           {deleteConfirm === cls.id ? (
                             <span style={{ display: 'inline-flex', gap: 4 }}>
                               <button onClick={() => deleteClassroom(cls.id)}
-                                style={{ padding: '3px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}>Confirm</button>
+                                disabled={deleteLoading === cls.id}
+                                style={{ padding: '3px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: radii.sm, cursor: deleteLoading === cls.id ? 'not-allowed' : 'pointer', fontSize: 12, opacity: deleteLoading === cls.id ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                {deleteLoading === cls.id ? (
+                                  <>
+                                    <span style={{ display: 'inline-block', width: 10, height: 10, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                    Deleting...
+                                  </>
+                                ) : 'Confirm'}
+                              </button>
                               <button onClick={() => setDeleteConfirm(null)}
-                                style={{ padding: '3px 8px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                                disabled={deleteLoading === cls.id}
+                                style={{ padding: '3px 8px', background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: deleteLoading === cls.id ? 'not-allowed' : 'pointer', fontSize: 12, opacity: deleteLoading === cls.id ? 0.5 : 1 }}>Cancel</button>
                             </span>
                           ) : (
                             <button onClick={() => setDeleteConfirm(cls.id)}
@@ -520,38 +552,83 @@ export default function AdminDashboard() {
           {/* User Edit Modal */}
           {userEditing && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => setUserEditing(null)}>
+              onClick={() => !userEditLoading && setUserEditing(null)}>
               <div style={{ background: '#fff', borderRadius: radii.lg, padding: 28, width: 400, boxShadow: shadows.lg }}
                 onClick={e => e.stopPropagation()}>
                 <h3 style={{ margin: '0 0 16px', fontSize: font.sizeLg }}>Edit User</h3>
+                
+                {/* Success message */}
+                {userEditSuccess && (
+                  <div style={{ padding: '8px 12px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: radii.sm, marginBottom: 16, fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>✅</span>
+                    <span>User saved successfully!</span>
+                  </div>
+                )}
+                
+                {/* Error message */}
+                {userEditError && (
+                  <div style={{ padding: '8px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: radii.sm, marginBottom: 16, fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>❌</span>
+                    <span>{userEditError}</span>
+                  </div>
+                )}
+                
                 <label style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, display: 'block', marginBottom: 4 }}>Full Name</label>
                 <input value={userEditing.full_name} onChange={e => setUserEditing(p => ({ ...p, full_name: e.target.value }))}
-                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 12, boxSizing: 'border-box' }} />
+                  disabled={userEditLoading}
+                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 12, boxSizing: 'border-box', opacity: userEditLoading ? 0.6 : 1 }} />
                 <label style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, display: 'block', marginBottom: 4 }}>Email</label>
                 <input value={userEditing.email} onChange={e => setUserEditing(p => ({ ...p, email: e.target.value }))}
-                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 12, boxSizing: 'border-box' }} />
+                  disabled={userEditLoading}
+                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 12, boxSizing: 'border-box', opacity: userEditLoading ? 0.6 : 1 }} />
                 <label style={{ fontSize: 12, fontWeight: 600, color: colors.textMuted, display: 'block', marginBottom: 4 }}>New Password <span style={{ fontWeight: 400 }}>(leave blank to keep current)</span></label>
                 <input type="password" value={userEditing.newPassword} onChange={e => setUserEditing(p => ({ ...p, newPassword: e.target.value }))}
+                  disabled={userEditLoading}
                   placeholder="Enter new password..."
-                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 20, boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm, marginBottom: 20, boxSizing: 'border-box', opacity: userEditLoading ? 0.6 : 1 }} />
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setUserEditing(null)}
-                    style={{ padding: '8px 16px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: 'pointer', background: 'transparent', fontSize: font.sizeSm }}>
+                  <button onClick={() => !userEditLoading && setUserEditing(null)}
+                    disabled={userEditLoading}
+                    style={{ padding: '8px 16px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, cursor: userEditLoading ? 'not-allowed' : 'pointer', background: 'transparent', fontSize: font.sizeSm, opacity: userEditLoading ? 0.5 : 1 }}>
                     Cancel
                   </button>
                   <button onClick={async () => {
-                    const body = { full_name: userEditing.full_name, email: userEditing.email };
-                    if (userEditing.newPassword) body.password = userEditing.newPassword;
-                    await fetch(`${API_BASE}/admin/users/${userEditing.id}`, {
-                      method: 'PATCH', headers: authHeader(), body: JSON.stringify(body),
-                    });
-                    setUserEditing(null);
-                    loadUsers();
+                    setUserEditError(null);
+                    setUserEditSuccess(false);
+                    setUserEditLoading(true);
+                    try {
+                      const body = { full_name: userEditing.full_name, email: userEditing.email };
+                      if (userEditing.newPassword) body.password = userEditing.newPassword;
+                      const res = await fetch(`${API_BASE}/admin/users/${userEditing.id}`, {
+                        method: 'PATCH', headers: authHeader(), body: JSON.stringify(body),
+                      });
+                      if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Failed to save user');
+                      }
+                      setUserEditSuccess(true);
+                      setTimeout(() => {
+                        setUserEditing(null);
+                        setUserEditSuccess(false);
+                        loadUsers();
+                      }, 1200);
+                    } catch (err) {
+                      setUserEditError(err.message || 'Error saving user');
+                    } finally {
+                      setUserEditLoading(false);
+                    }
                   }}
-                    style={{ padding: '8px 16px', background: colors.primary, color: '#fff', border: 'none', borderRadius: radii.sm, cursor: 'pointer', fontSize: font.sizeSm, fontWeight: 700 }}>
-                    Save Changes
+                    disabled={userEditLoading}
+                    style={{ padding: '8px 16px', background: colors.primary, color: '#fff', border: 'none', borderRadius: radii.sm, cursor: userEditLoading ? 'not-allowed' : 'pointer', fontSize: font.sizeSm, fontWeight: 700, opacity: userEditLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {userEditLoading ? (
+                      <>
+                        <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                        Saving...
+                      </>
+                    ) : 'Save Changes'}
                   </button>
                 </div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             </div>
           )}

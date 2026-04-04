@@ -476,6 +476,9 @@ export default function TeacherDashboard() {
   const [enhClassroomStudentWork,    setEnhClassroomStudentWork]    = useState({});
   const [enhClassroomWorkLoading,    setEnhClassroomWorkLoading]    = useState({});
   const [enhClassroomExpandedWork,   setEnhClassroomExpandedWork]   = useState({});
+  
+  // Official Classroom cards layout state
+  const [officialCardsExpanded,      setOfficialCardsExpanded]       = useState(false);
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isTeacher)) navigate('/home');
@@ -862,17 +865,51 @@ export default function TeacherDashboard() {
         {formError && <p style={{ color: '#ef4444', marginTop: 10, fontSize: font.sizeSm }}>{formError}</p>}
       </div>
 
-      {/* Official Classroom — Basic Java card + aggregate analysis panel */}
+      {/* Official Classroom — Basic Java & Enhanced Java cards with toggle */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
           <h3 style={{ fontSize: font.sizeLg, color: colors.text, margin: 0 }}>🎓 Official Classroom</h3>
+          <button
+            onClick={() => setOfficialCardsExpanded(!officialCardsExpanded)}
+            style={{
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radii.md,
+              background: colors.surface,
+              color: colors.text,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              transition: 'all 0.2s ease',
+            }}
+            title={officialCardsExpanded ? 'Collapse to 2-column layout' : 'Expand to full width'}
+          >
+            {officialCardsExpanded ? '⤫ Collapse' : '⤢ Expand'}
+          </button>
         </div>
         <p style={{ marginTop: 0, marginBottom: 14, color: colors.textMuted, fontSize: font.sizeSm }}>
           Core Java course analysis across all Official Lessons classrooms.
         </p>
 
-        {/* Basic Java card */}
-        <div style={{ ...card.base, padding: 20, borderBottomLeftRadius: officialPanelOpen ? 0 : undefined, borderBottomRightRadius: officialPanelOpen ? 0 : undefined, borderBottom: officialPanelOpen ? 'none' : undefined }}>
+        {/* Cards wrapper - flex container for 2-column or 1-column layout */}
+        <div style={{
+          display: 'flex',
+          gap: 16,
+          flexWrap: officialCardsExpanded ? 'wrap' : 'nowrap',
+        }}>
+          {/* Basic Java card */}
+          <div style={{
+            flex: officialCardsExpanded ? '1 1 100%' : '1 1 calc(50% - 8px)',
+            minWidth: 0,
+            ...card.base,
+            padding: 20,
+            borderBottomLeftRadius: officialPanelOpen ? 0 : undefined,
+            borderBottomRightRadius: officialPanelOpen ? 0 : undefined,
+            borderBottom: officialPanelOpen ? 'none' : undefined,
+          }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -905,7 +942,50 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Inline analysis panel */}
+        {/* Enhanced Java card */}
+        <div style={{
+          flex: officialCardsExpanded ? '1 1 100%' : '1 1 calc(50% - 8px)',
+          minWidth: 0,
+          ...card.base,
+          padding: 20,
+          borderBottomLeftRadius: officialEnhPanelOpen ? 0 : undefined,
+          borderBottomRightRadius: officialEnhPanelOpen ? 0 : undefined,
+          borderBottom: officialEnhPanelOpen ? 'none' : undefined,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h4 style={{ margin: 0, color: '#059669', fontSize: font.sizeLg, fontWeight: font.weightBold }}>🚀 Enhanced Java</h4>
+                <span style={{ background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: radii.full, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>Official Lessons</span>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: font.sizeSm, color: colors.textSecondary }}>
+                Aggregate course analysis · {officialClassrooms.length} classroom{officialClassrooms.length !== 1 ? 's' : ''}
+                {officialEnhAggData ? ` · ${officialEnhAggData.total_students} student${officialEnhAggData.total_students !== 1 ? 's' : ''}` : ''}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                onClick={() => handleSwitchEnhViewMode('aggregate')}
+                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialEnhViewMode === 'aggregate' && officialEnhPanelOpen ? '#059669' : 'transparent', color: officialEnhViewMode === 'aggregate' && officialEnhPanelOpen ? '#fff' : '#059669', border: `1px solid #059669`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                👥 All Students
+              </button>
+              <button
+                onClick={() => handleSwitchEnhViewMode('by-classroom')}
+                style={{ ...btn.small, whiteSpace: 'nowrap', background: officialEnhViewMode === 'by-classroom' && officialEnhPanelOpen ? '#059669' : 'transparent', color: officialEnhViewMode === 'by-classroom' && officialEnhPanelOpen ? '#fff' : '#059669', border: `1px solid #059669`, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                📋 By Classroom
+              </button>
+              {officialEnhPanelOpen && (
+                <button onClick={() => setOfficialEnhPanelOpen(false)}
+                  style={{ ...btn.secondary, ...btn.small, whiteSpace: 'nowrap' }}>
+                  ✕ Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        </div> {/* Close flexWrapper for cards */}
+
+        {/* Basic Java analysis panel - outside flex container */}
         {officialPanelOpen && (
           <div style={{ ...card.base, padding: 28, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: `1px solid ${colors.border}` }}>
             {officialViewMode === 'by-classroom' ? (
@@ -1266,7 +1346,15 @@ export default function TeacherDashboard() {
         )}
 
         {/* Enhanced Java card */}
-        <div style={{ ...card.base, padding: 20, marginTop: 16, borderBottomLeftRadius: officialEnhPanelOpen ? 0 : undefined, borderBottomRightRadius: officialEnhPanelOpen ? 0 : undefined, borderBottom: officialEnhPanelOpen ? 'none' : undefined }}>
+        <div style={{
+          flex: officialCardsExpanded ? '1 1 100%' : '1 1 calc(50% - 8px)',
+          minWidth: 0,
+          ...card.base,
+          padding: 20,
+          borderBottomLeftRadius: officialEnhPanelOpen ? 0 : undefined,
+          borderBottomRightRadius: officialEnhPanelOpen ? 0 : undefined,
+          borderBottom: officialEnhPanelOpen ? 'none' : undefined,
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1298,6 +1386,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
         </div>
+        </div> {/* Close flexWrapper for cards */}
 
         {/* Enhanced Java analysis panel */}
         {officialEnhPanelOpen && (

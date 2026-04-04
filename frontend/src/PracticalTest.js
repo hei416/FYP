@@ -17,6 +17,7 @@ export default function PracticalTest() {
     const [activeTestTopics, setActiveTestTopics] = useState([]);
     const [generating, setGenerating]             = useState(false);
     const [genError, setGenError]                 = useState('');
+    const [genSuccess, setGenSuccess]             = useState(false);
     // Normalized challenge passed to CodingChallengePlayer
     const [currentChallenge, setCurrentChallenge] = useState(null);
 
@@ -67,6 +68,7 @@ export default function PracticalTest() {
         if (selectedTopics.length === 0) { alert("Please select at least one topic first."); return; }
         setGenerating(true);
         setGenError('');
+        setGenSuccess(false);
         const topicsForQuestion = [...selectedTopics];
         try {
             const res = await fetch(`${API_BASE}/api/practical-tests/generate`, {
@@ -90,7 +92,8 @@ export default function PracticalTest() {
             setActiveTestTopics(topicsForQuestion);
             setScreen('active');
         } catch (e) {
-            setGenError(`Failed to generate question: ${e.message}`);
+            const msg = e.message || 'Unknown error';
+            setGenError(`❌ ${msg}`);
         } finally {
             setGenerating(false);
         }

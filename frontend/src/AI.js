@@ -54,9 +54,11 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const [history, setHistory] = useState([]);
     const [userInput, setUserInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [expandedChunk, setExpandedChunk] = useState(null);
     const [chunkContext, setChunkContext] = useState(null);
     const [loadingContext, setLoadingContext] = useState(false);
+    const [contextError, setContextError] = useState(null);
     const [showHistoryPanel, setShowHistoryPanel] = useState(false);
     // Multi-source RAG state
     const [selectedSources, setSelectedSources] = useState({ general: true }); // { general: bool, [classroomId]: bool }
@@ -390,21 +392,30 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
 
     const fetchChunkContext = async (sourceFile, chunkContent) => {
         setLoadingContext(true);
+        setContextError(null);
         try {
             const res = await fetch(`${API_BASE}/api/get-chunk-context`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ source_file: sourceFile, chunk_content: chunkContent }),
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch context`);
             setChunkContext(await res.json());
-        } catch (e) { console.error('Error fetching context:', e); }
+        } catch (e) { 
+            console.error('Error fetching context:', e);
+            setContextError(e.message || 'Failed to load context');
+        }
         setLoadingContext(false);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!userInput.trim()) return;
-        await submitQuery(userInput);
+        setError(null);
+        try {
+            await submitQuery(userInput);
+        } catch (err) {
+            setError(err.message || 'Failed to send message');
+        }
     };
 
     const renderAIMessage = (msg, msgIndex) => (
@@ -455,10 +466,21 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                                             <div style={{ marginTop: spacing.sm, padding: spacing.lg, backgroundColor: colors.warningLight, borderRadius: radii.md, border: `2px solid ${colors.warningBorder}`, fontSize: font.sizeMd, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'Georgia, serif' }}>
                                                 <div style={{ fontSize: 14, color: '#92400e', marginBottom: 12, fontWeight: 'bold', fontFamily: 'system-ui', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <span>📄 Retrieved Paragraph:</span>
-                                                    <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 5, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
-                                                        onClick={() => { if (hasContext) setChunkContext(null); else fetchChunkContext(m.file, m.snippet); }}
+                                                    <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 5, fontSize: 13, cursor: loadingContext ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, opacity: loadingContext ? 0.7 : 1 }}
+                                                        onClick={() => { if (hasContext) { setChunkContext(null); setContextError(null); } else fetchChunkContext(m.file, m.snippet); }}
                                                         disabled={loadingContext}
-                                                    >{loadingContext ? '⏳ Loading...' : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
+                                                    >{loadingContext ? (
+                                                        <>
+                                                            <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                            Loading...
+                                                        </>
+                                                    ) : hasContext ? 'Hide Context' : '🔍 Show Context'}</button>
+                                                    {contextError && (
+                                                        <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                            <span>❌</span>
+                                                            <span>{contextError}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 {cleanSnippet(m.display_snippet || m.snippet)}
                                             </div>
@@ -713,11 +735,24 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                                                 <TextareaAutosize value={userInput} onChange={e => setUserInput(e.target.value)}
                                                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
                                                         placeholder="Ask anything about Java..." minRows={2} maxRows={6}
-                                                        style={{ width: '100%', padding: spacing.sm, marginBottom: spacing.sm, borderRadius: radii.sm, border: `2px solid ${colors.border}`, fontSize: font.sizeMd, fontFamily: font.family }}
+                                                        disabled={loading}
+                                                        style={{ width: '100%', padding: spacing.sm, marginBottom: spacing.sm, borderRadius: radii.sm, border: `2px solid ${colors.border}`, fontSize: font.sizeMd, fontFamily: font.family, opacity: loading ? 0.6 : 1 }}
                                                 />
-                                                <button type="submit" disabled={loading} style={loading ? btn.disabled : btn.accent}>
-                                                        {loading ? '⏳ Thinking...' : '📤 Send'}
+                                                {error && (
+                                                    <div style={{ padding: '8px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: radii.sm, marginBottom: 8, fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <span>❌</span>
+                                                        <span>{error}</span>
+                                                    </div>
+                                                )}
+                                                <button type="submit" disabled={loading} style={{...(loading ? btn.disabled : btn.accent), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}>
+                                                        {loading ? (
+                                                            <>
+                                                                <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid currentColor', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                                Thinking...
+                                                            </>
+                                                        ) : '📤 Send'}
                                                 </button>
+                                                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                                         </form>
                 </div>
             )}

@@ -49,6 +49,8 @@ export default function Quiz() {
     const isFetchingRef = useRef(false);
     const [quizData, setQuizData] = useState([]);
     const [loadingQuiz, setLoadingQuiz] = useState(false);
+    const [quizError, setQuizError] = useState(null);
+    const [quizSuccess, setQuizSuccess] = useState(false);
     const [quizSource, setQuizSource] = useState("");
     const [generatingMore, setGeneratingMore] = useState(false);
     const [moreProgress, setMoreProgress] = useState({ received: 0, total: 5 });
@@ -95,6 +97,8 @@ export default function Quiz() {
         isFetchingRef.current = true;
 
         setLoadingQuiz(true);
+        setQuizError(null);
+        setQuizSuccess(false);
         setQuizData([]);
         setCurrentIndex(0);
         setScore(0);
@@ -596,6 +600,12 @@ export default function Quiz() {
                 </div>
 
                 <div>
+                    {quizError && (
+                        <div style={{ padding: '8px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: radii.sm, marginBottom: 12, fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>❌</span>
+                            <span>{quizError}</span>
+                        </div>
+                    )}
                     <button
                         onClick={() => {
                             if (selectedTopics.length === 0) {
@@ -609,10 +619,17 @@ export default function Quiz() {
                             ...(selectedTopics.length > 0 ? btn.accent : btn.disabled),
                             ...btn.large,
                             marginRight: 10,
+                            opacity: (loadingQuiz || selectedTopics.length === 0) ? 0.6 : 1
                         }}
                     >
-                        {loadingQuiz ? "Generating..." : `🚀 Start Quiz (${selectedTopics.length} topics)`}
+                        {loadingQuiz ? (
+                            <>
+                                <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid currentColor', borderRadius: '50%', animation: 'spin 0.6s linear infinite', marginRight: 6 }} />
+                                Generating...
+                            </>
+                        ) : `🚀 Start Quiz (${selectedTopics.length} topics)`}
                     </button>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
 
                 </div>

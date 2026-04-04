@@ -445,14 +445,14 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     const handleRun = onRun || handleInternalRun;
 
     return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#FFFFFF', borderRadius: '12px', border: `1px solid ${colors.border}`, boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)', padding: spacing.md, marginTop: spacing.sm }}>
             {/* ── Header ── */}
-            <h3 style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.text, margin: `${spacing.sm}px 0 ${spacing.xs}px 0` }}>
-                Java Editor
+            <h3 style={{ fontSize: font.sizeMd, fontWeight: font.weightSemibold, color: colors.primary, margin: `0 0 ${spacing.sm}px 0`, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                💻 Java Editor
             </h3>
 
             {/* ── Tab bar ── */}
-            <div style={{ display: 'flex', marginBottom: spacing.xs, borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ display: 'flex', marginBottom: spacing.sm, borderBottom: `2px solid ${colors.primaryBorder}`, paddingBottom: spacing.xs }}>
                 {files.map((file) => (
                     <div
                         key={file.id}
@@ -539,36 +539,37 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
             {/* ── Monaco Editor ── */}
             {activeFile && (
                 <Suspense fallback={<div style={{ padding: 12 }}>Loading editor…</div>}>
-                    <Editor
-                        height="220px"
-                        language="java"
-                        theme="vs-light"
-                        value={activeFile.content}
-                        onMount={handleEditorDidMount}
-                        onChange={(value) => updateFileContent(activeFile.id, value || '')}
-                        options={{ fontSize: 13, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true, scrollBeyondLastLine: false, readOnly: readOnly }}
-                        path={activeFile.filename}
-                    />
+                    <div style={{ border: `1px solid ${colors.border}`, borderRadius: radii.md, overflow: 'hidden', marginBottom: spacing.sm }}>
+                        <Editor
+                            height="220px"
+                            language="java"
+                            theme="vs-light"
+                            value={activeFile.content}
+                            onMount={handleEditorDidMount}
+                            onChange={(value) => updateFileContent(activeFile.id, value || '')}
+                            options={{ fontSize: 13, minimap: { enabled: false }, wordWrap: 'on', automaticLayout: true, scrollBeyondLastLine: false, readOnly: readOnly }}
+                            path={activeFile.filename}
+                        />
+                    </div>
                 </Suspense>
             )}
 
             {/* ── Problems panel ── */}
             {syntaxErrors.length > 0 && (
                 <div style={{
-                    marginTop: spacing.xs,
+                    marginBottom: spacing.sm,
                     border: `1px solid ${colors.dangerBorder}`,
-                    borderRadius: radii.sm,
+                    borderRadius: radii.md,
                     backgroundColor: colors.dangerLight,
                     maxHeight: '240px',
                     overflowY: 'auto',
                     fontSize: font.sizeSm,
-                    paddingBottom: spacing.sm,
                 }}>
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: spacing.xs,
-                        padding: `4px ${spacing.sm}px`,
+                        padding: `${spacing.xs}px ${spacing.sm}px`,
                         borderBottom: `1px solid ${colors.dangerBorder}`,
                         fontWeight: font.weightSemibold,
                         color: colors.danger,
@@ -621,14 +622,14 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
 
             {/* ── Run / Stop buttons ── */}
             {!hideRunButton && (
-                <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.xs, alignItems: 'center' }}>
+                <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm, alignItems: 'center', paddingTop: spacing.sm, borderTop: `1px solid ${colors.border}` }}>
                     <button
                         data-tour="run-button"
                         onClick={handleRun}
                         disabled={loading}
-                        style={loading ? btn.disabled : btn.primary}
+                        style={{ ...btn.primary, minWidth: '120px' }}
                     >
-                        {loading ? 'Running...' : '▶ Run Code'}
+                        {loading ? '⏳ Running...' : '▶ Run Code'}
                     </button>
                     {wsRunning && (
                         <button onClick={stopRun} style={btn.danger}>
@@ -662,9 +663,14 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
 
             {/* ── Output panel ── */}
             {(output || localOutput) && !hideRunButton && (
-                <pre style={{ ...codeOutput, marginTop: spacing.sm }}>
-                    {output || localOutput}
-                </pre>
+                <div style={{ marginTop: spacing.sm, paddingTop: spacing.sm, borderTop: `1px solid ${colors.border}` }}>
+                    <div style={{ fontSize: font.sizeSm, fontWeight: font.weightSemibold, color: colors.primary, marginBottom: spacing.sm, display: 'flex', alignItems: 'center', gap: spacing.xs }}>
+                        💬 Output
+                    </div>
+                    <pre style={{ ...codeOutput, marginTop: 0 }}>
+                        {output || localOutput}
+                    </pre>
+                </div>
             )}
         </div>
     );

@@ -783,6 +783,8 @@ export default function JavaRoadmap() {
   });
   const [selectedNode, setSelectedNode] = useState(null);
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [togglingCompletion, setTogglingCompletion] = useState(false);
+  const [toggleError, setToggleError] = useState(null);
 
   const [showQuizReminder, setShowQuizReminder] = useState(false);
   const [reminderChapterCount, setReminderChapterCount] = useState(0);
@@ -883,10 +885,13 @@ export default function JavaRoadmap() {
 
   const closePanel = () => setSelectedNode(null);
 
-  const toggleCompletion = () => {
+  const toggleCompletion = async () => {
     if (!selectedNode) return;
-    const nodeId = selectedNode.id;
-    setCompletedTopics((prev) => {
+    setTogglingCompletion(true);
+    setToggleError(null);
+    try {
+      const nodeId = selectedNode.id;
+      setCompletedTopics((prev) => {
         const isNowCompleted = !prev.includes(nodeId);
         const next = isNowCompleted
             ? [...prev, nodeId]
@@ -919,7 +924,12 @@ export default function JavaRoadmap() {
         }
 
         return next;
-    });
+      });
+    } catch (err) {
+      setToggleError(err.message || 'Failed to toggle completion');
+    } finally {
+      setTogglingCompletion(false);
+    }
   };
 
   const getTopicContent = (nodeId) => {
@@ -1214,8 +1224,15 @@ export default function JavaRoadmap() {
               ) : null}
 
               <div style={{ paddingTop: spacing.lg, borderTop: `1px solid ${colors.border}` }}>
+                {toggleError && (
+                  <div style={{ padding: '8px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: radii.sm, marginBottom: 12, fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>❌</span>
+                    <span>{toggleError}</span>
+                  </div>
+                )}
                 <button 
                   onClick={toggleCompletion}
+                  disabled={togglingCompletion}
                   style={{
                     width: '100%',
                     fontWeight: '500',
@@ -1224,17 +1241,23 @@ export default function JavaRoadmap() {
                     backgroundColor: isCompleted ? colors.textMuted : colors.primary,
                     color: isCompleted ? colors.text : '#FFFFFF',
                     border: 'none',
-                    cursor: 'pointer',
+                    cursor: togglingCompletion ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: spacing.sm,
-                    transition: 'opacity 0.2s'
+                    transition: 'opacity 0.2s',
+                    opacity: togglingCompletion ? 0.6 : 1
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                  onMouseEnter={(e) => { if (!togglingCompletion) e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = togglingCompletion ? '0.6' : '1'; }}
                 >
-                  {isCompleted ? (
+                  {togglingCompletion ? (
+                    <>
+                      <span style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                      Saving...
+                    </>
+                  ) : isCompleted ? (
                     <>
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1250,6 +1273,7 @@ export default function JavaRoadmap() {
                     </>
                   )}
                 </button>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             </>
           ) : (
