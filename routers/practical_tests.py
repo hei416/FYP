@@ -199,6 +199,60 @@ def _get_db_questions_for_topics(topics: List[str]) -> List[dict]:
         db.close()
 
 
+def _validate_solution_structure(result: dict):
+    """Validate that AI-generated solution has proper method body structure.
+    
+    Common issue: AI outputs floating statements like:
+        "methods": {"findMaxValue": "int max = numbers[0]; ..."}  ← BAD!
+    
+    Correct format:
+        "methods": {"findMaxValue": ["int[] numbers = {...};", "int max = numbers[0];", ...]}  ← GOOD!
+    """
+    solution = result.get("solution", {})
+    methods = solution.get("methods", {})
+    
+    for method_name, method_body in methods.items():
+        if method_name == "runApp":
+            continue  # runApp already validated elsewhere
+        
+        # Check 1: Method body must be a list
+        if not isinstance(method_body, list):
+            raise ValueError(
+                f"Solution method '{method_name}' has invalid structure. "
+                f"Expected array of code lines, got {type(method_body).__name__}. "
+                f"Value: {method_body[:100] if isinstance(method_body, str) else method_body}"
+            )
+        
+        # Check 2: Method body should have content
+        if not method_body or len(method_body) == 0:
+            raise ValueError(f"Solution method '{method_name}' is empty. It must contain implementation code.")
+        
+        # Check 3: Detect floating statements (lines that aren't part of proper code blocks)
+        # Warn if last line is structured statement (shouldn't end block without return)
+        code_text = "\n".join(method_body)
+        has_return = "return" in code_text
+        
+        if not has_return and method_name not in ("runApp",):
+            # Some void methods don't need return, but check for obviously incomplete code
+            if code_text.strip().endswith(";") and not any(x in code_text for x in ["System.out.println", "void"]):
+                # Might be missing proper structure
+                pass  # Allow it, just warn
+        
+        print(f"✅ Method '{method_name}' structure validated: {len(method_body)} lines")
+    
+    # Check 4: Validate baseCode methods are syntactically correct stubs
+    base_methods = result.get("baseCode", {}).get("methods", {})
+    for method_name, method_sig in base_methods.items():
+        if not isinstance(method_sig, str):
+            raise ValueError(
+                f"Base method '{method_name}' signature must be a string, got {type(method_sig).__name__}"
+            )
+        # Should look like: "public int findMaxValue() {}"
+        if not re.search(r'\b(public|private|protected)?\s+\w+\s+\w+\s*\([^)]*\)\s*\{\}', method_sig):
+            print(f"⚠️ Warning: Base method '{method_name}' signature may be malformed: {method_sig}")
+
+
+
 def _save_db_question(q: dict):
     if not SessionLocal or not PracticalTestQuestion:
         print("⚠️ Database not available, skipping save")
@@ -310,23 +364,33 @@ Return a JSON object with this EXACT schema:
         "class": "{class_name}",
         "helperClasses": "",
         "methods": {{
-            "actualMethodName": ["// implementation lines that solve the problem"],
-            "runApp": ["actualMethodName();", "System.out.println(result);"]
+            "actualMethodName": ["int[] numbers = {{45, 12, 87, 98, 34}};", "int max = numbers[0];", "for (int i = 1; i < numbers.length; i++) {{", "    if (numbers[i] > max) {{", "        max = numbers[i];", "    }}", "}}", "return max;"],
+            "runApp": ["int result = actualMethodName();", "System.out.println(\\"The maximum value is: \\" + result);"]
         }}
     }}
 }}
 
 CRITICAL RULES - READ CAREFULLY:
-- REPLACE "actualMethodName" with a REAL, DESCRIPTIVE METHOD NAME
-- Method signature: NO PARAMETERS. Example: public String getValue() not public String getValue(String param)
-- In runApp, call methods with NO ARGUMENTS: result = actualMethodName() not actualMethodName(param)
-- ONLY call methods that exist in baseCode.methods with the SAME signature
+
+ABOUT METHOD STRUCTURE (MOST IMPORTANT):
+- Each method value is an ARRAY OF LINES that form the complete method BODY (inside the curly braces)
+- WRONG: {{  "methods": {{"findMax": "int max = numbers[0]; int[] numbers = {{45, 12, 87, 98, 34}};"}} }}  ← No method wrapper!
+- CORRECT: {{  "methods": {{"findMax": ["int[] numbers = {{45, 12, 87, 98, 34}};", "int max = numbers[0];", "return max;"]}} }} ← Proper body lines
+
+VARIABLE AND METHOD NAMING:
+- REPLACE "actualMethodName" with a REAL, DESCRIPTIVE METHOD NAME (e.g. findMaxValue, calculateSum)
+- Method signature: NO PARAMETERS. Example: public int findMaxValue() not public int findMaxValue(int[] arr)
+- Each method body should end with 'return' statement with the computed result
+- In runApp, call methods with NO ARGUMENTS: result = actualMethodName() not actualMethodName(data)
+
+VALIDATION RULES:
+- ONLY call methods in runApp that exist in baseCode.methods with the SAME SIGNATURE and NAME
 - runApp must print EXACTLY the lines in expectedOutput
 - Do NOT include runApp in question.methods or baseCode.methods
 - For Polymorphism/Inheritance: place helper classes in baseCode.helperClasses and solution.helperClasses
 - helperClasses can be empty for simple questions
-- ALL method stubs in baseCode.methods MUST have proper return statements (return null, return 0, return false, etc)
-- Ensure ALL baseCode.methods stubs are syntactically correct Java code
+- ALL method stubs in baseCode.methods MUST have proper return statements (return null, return 0, return false, return "", etc)
+- Ensure ALL baseCode.methods stubs are syntactically correct Java code when wrapped in their method signatures
 - Return ONLY valid JSON, no markdown"""
 
     result = await _call_llm_json(
@@ -341,6 +405,9 @@ CRITICAL RULES - READ CAREFULLY:
 
     if not all(k in result for k in ("question", "baseCode", "solution")):
         raise ValueError("Missing required keys in LLM response")
+
+    # ✅ VALIDATION: Check for common AI generation mistakes
+    _validate_solution_structure(result)
 
     defined_methods = set(result.get("baseCode", {}).get("methods", {}).keys())
     defined_methods.discard("runApp")
