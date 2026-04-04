@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 
 from database import get_db
 from db_models import User, Classroom, ClassroomMember
-from routers.auth import require_role
+from routers.auth import require_role, hash_password
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -30,6 +30,12 @@ class UserOut(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: str  # 'student' | 'teacher' | 'admin'
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
 
 
 class ClassroomAdminOut(BaseModel):
@@ -76,6 +82,34 @@ async def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.role = data.role
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+async def update_user(
+    user_id: int,
+    data: UserUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role("admin"))
+):
+    """Update user details: full_name, email, or password (admin only)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if data.full_name is not None:
+        user.full_name = data.full_name
+    if data.email is not None:
+        # Check if email is already taken
+        existing = db.query(User).filter(User.email == data.email, User.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        user.email = data.email
+    if data.password is not None:
+        user.password_hash = hash_password(data.password)
+    
     db.commit()
     db.refresh(user)
     return user
