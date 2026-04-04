@@ -1011,6 +1011,8 @@ async def rag_ai(req: ExplainRequest):
         return {
             "final_answer": final_answer,
             "conversation_id": req.conversation_id,
+            "pdf_matches": pdf_matches,
+            "pdf_matches_count": len(pdf_matches),
             "debug_log": {
                 "query": query[:100],
                 "timestamp": datetime.now().isoformat(),
@@ -1018,7 +1020,6 @@ async def rag_ai(req: ExplainRequest):
                 "response_time_sec": round(elapsed, 2),
                 "nli_faithfulness": "97.62%",
                 "semantic_similarity": "80.78%",
-                "pdf_matches": pdf_matches,
                 "retrieval_method": "MMR"
             }
         }
