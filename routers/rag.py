@@ -81,8 +81,7 @@ async def ask_classroom_rag(
 
     context = "\n\n".join(d.get("page_content", "") for d in docs)
     chain = await get_rag_chain()
-    answer = chain(f"Context from classroom materials:\n{context}\n\nQuestion: {request.question}")
-    
+    answer = await asyncio.to_thread(chain, f"Context from classroom materials:\n{context}\n\nQuestion: {request.question}")
     # Get the base URL for absolute iframe URLs
     base_url = str(http_request.base_url).rstrip('/')
     
@@ -992,8 +991,8 @@ async def rag_ai(req: ExplainRequest, request: Request, background_tasks: Backgr
                 query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
 
-        final_answer = rag_chain(query)
-        docs = retriever.invoke(query)
+        final_answer = await asyncio.to_thread(rag_chain, query)
+        docs = await asyncio.to_thread(retriever.invoke, query)
         
         # Build PDF matches using helper with base URL for iframe links
         base_url = f"{request.url.scheme}://{request.url.netloc}"
@@ -1022,14 +1021,15 @@ async def rag_ai(req: ExplainRequest, request: Request, background_tasks: Backgr
         # Generate unique query ID for this response
         query_id = str(uuid.uuid4())
         
-        # Schedule async NLI faithfulness check in background (non-blocking)
-        background_tasks.add_task(
-                _monitor_nli_faithfulness_async,
+        # Schedule NLI check fully detached from request lifecycle
+        asyncio.create_task(
+            _monitor_nli_faithfulness_async(
                 query_id,
                 req.user_id,
                 docs,
                 final_answer
             )
+        )
 
         return {
             "final_answer": final_answer,
