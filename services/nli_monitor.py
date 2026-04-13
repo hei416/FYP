@@ -207,4 +207,4 @@ def get_nli_monitor() -> NLIMonitor:
             instance = NLIMonitor()
             instance.initialize()
             _nli_monitor = instance
-    return _nli_monitorßß
+    return _nli_monitor
