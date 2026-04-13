@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -37,7 +37,7 @@ from services.rag_helpers import (
     clean_chunk_for_display
 )
 from services.nli_monitor import get_nli_monitor
-_nli_bg_executor = ThreadPoolExecutor(max_workers=1)
+
 
 
 logger = logging.getLogger(__name__)
@@ -1143,7 +1143,7 @@ async def generate_progressive_hint(req: HintRequest):
             except Exception:
                 pass
 
-        relevant_docs = ret.invoke(f"Java {req.problem_description}")
+        relevant_docs = await asyncio.to_thread(ret.invoke, f"Java {req.problem_description}")
         context_snippets = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:500]}"
             for i, doc in enumerate(relevant_docs[:2])
@@ -1701,7 +1701,6 @@ class MultiAskRequest(BaseModel):
 async def ask_multi_classroom(
     body: MultiAskRequest,
     request: Request,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -1826,6 +1825,8 @@ async def ask_multi_classroom(
 # All blocking work (model init, inference, DB writes) runs here —
 # never on the asyncio event loop.
 
+_nli_bg_executor = ThreadPoolExecutor(max_workers=1)
+
 
 def _run_nli_and_save(
     query_id: str,
@@ -1833,30 +1834,17 @@ def _run_nli_and_save(
     chunk_texts: list,
     llm_response: str
 ) -> None:
-    """
-    Pure synchronous function - runs inside _nli_bg_executor thread.
-
-    Three blocking operations that must NEVER run in async context:
-      1. get_nli_monitor()    - may call initialize() on first use
-      2. _run_inference()     - CPU-bound torch forward pass
-      3. db.commit()          - synchronous SQLAlchemy I/O
-
-    Called via run_in_executor from _monitor_nli_faithfulness_async.
-    """
+    """Pure sync — runs inside _nli_bg_executor thread."""
     db = None
     try:
-        # Step 1: get (and if needed, initialize) NLI monitor — safe in thread
         monitor = get_nli_monitor()
 
-        # Step 2: run inference directly (skip async wrapper — we're in a thread)
         chunk_dicts = [{"text": t} for t in chunk_texts]
         if not chunk_dicts or not (llm_response or "").strip():
             nli_result = {
-                "score": 0.0,
-                "is_faithful": False,
+                "score": 0.0, "is_faithful": False,
                 "threshold": getattr(monitor, "threshold", 0.65),
-                "status": "ALERT",
-                "reason": "empty_context_or_response"
+                "status": "ALERT", "reason": "empty_context_or_response"
             }
         else:
             premise = " ".join([c["text"] for c in chunk_dicts])[:1024]
@@ -1873,14 +1861,11 @@ def _run_nli_and_save(
                 }
             except Exception as e:
                 nli_result = {
-                    "score": 0.0,
-                    "is_faithful": False,
+                    "score": 0.0, "is_faithful": False,
                     "threshold": getattr(monitor, "threshold", 0.65),
-                    "status": "ERROR",
-                    "reason": str(e)
+                    "status": "ERROR", "reason": str(e)
                 }
 
-        # Step 3: persist to DB — sync SQLAlchemy, safe in thread
         try:
             db = SessionLocal()
             log_entry = NLIMonitoringLog(
@@ -1894,15 +1879,10 @@ def _run_nli_and_save(
             )
             db.add(log_entry)
             db.commit()
-
             if nli_result.get("status") != "PASS":
-                logger.warning(
-                    f"⚠️ NLI Alert: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}, "
-                    f"status={nli_result.get('status')}, user_id={user_id}"
-                )
+                logger.warning(f"⚠️ NLI Alert: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}, status={nli_result.get('status')}")
             else:
                 logger.debug(f"✅ NLI Pass: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}")
-
         except Exception as db_err:
             logger.error(f"❌ DB write failed for {query_id}: {db_err}")
             try:
@@ -1924,7 +1904,6 @@ def _run_nli_and_save(
 
     except Exception as e:
         logger.error(f"❌ NLI monitoring failed for {query_id}: {e}", exc_info=True)
-        # Ensure an ERROR record exists so frontend polling stops
         try:
             if db is None:
                 db = SessionLocal()
@@ -1941,7 +1920,6 @@ def _run_nli_and_save(
                 db.commit()
         except Exception as db_err:
             logger.error(f"❌ Failed to log NLI error for {query_id}: {db_err}", exc_info=True)
-
     finally:
         if db:
             try:
@@ -1956,13 +1934,7 @@ async def _monitor_nli_faithfulness_async(
     retrieved_chunks: list,
     llm_response: str
 ) -> None:
-    """
-    Async shell only — contains ZERO blocking code.
-
-    Extracts chunk text then immediately hands ALL work to
-    _run_nli_and_save via run_in_executor. Event loop never blocked.
-    """
-    # Extract plain text from LangChain Documents or dicts
+    """Async shell only — zero blocking code. Hands ALL work to thread."""
     chunk_texts = []
     for doc in retrieved_chunks:
         if hasattr(doc, 'page_content'):
@@ -1972,7 +1944,6 @@ async def _monitor_nli_faithfulness_async(
         else:
             chunk_texts.append(str(doc))
 
-    # Dispatch ALL blocking work to background thread
     loop = asyncio.get_event_loop()
     try:
         await loop.run_in_executor(
@@ -1985,7 +1956,6 @@ async def _monitor_nli_faithfulness_async(
         )
     except Exception as e:
         logger.error(f"❌ NLI executor failed for {query_id}: {e}", exc_info=True)
-
 
 # ==================== NLI STATUS POLLING ENDPOINT ====================
 
