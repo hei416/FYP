@@ -961,7 +961,7 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 
 @router.post("/ragAI")
 @limiter.limit("30/minute")
-async def rag_ai(req: ExplainRequest, request: Request, background_tasks: BackgroundTasks):
+async def rag_ai(req: ExplainRequest, request: Request):
     try:
         global rag_chain, retriever
 
@@ -1796,13 +1796,14 @@ async def ask_multi_classroom(
         
         # Spawn background NLI validation task for multi-classroom responses
         try:
-            background_tasks.add_task(
-                _monitor_nli_faithfulness_async,
-                query_id,
-                user_id,
-                [{"text": chunk} for chunk in all_chunks],  # Convert to dict format
-                answer
-            )
+            asyncio.create_task(
+                _monitor_nli_faithfulness_async(
+                    query_id,
+                    user_id,
+                    [{"text": chunk} for chunk in all_chunks],
+                    answer
+                )
+        )
         except Exception as e:
             print(f"⚠️ NLI monitoring not available for multi-classroom: {e}")
 
