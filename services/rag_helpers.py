@@ -189,18 +189,20 @@ def build_pdf_matches_from_docs(
 def build_pdf_matches_from_langchain_docs(
     docs: List[Any],
     extract_url_from_content: bool = True,
-    max_matches: int = 3
+    max_matches: int = 3,
+    base_url: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Build PDF matches from LangChain document objects (for general RAG).
     
     Args:
         docs: List of LangChain document objects
-        extract_url_from_content: Whether to extract URL from content
+        extract_url_from_content: Whether to extract URL from content (fallback only)
         max_matches: Maximum number of matches to return
+        base_url: Base URL for building iframe links (e.g., http://localhost:8000)
         
     Returns:
-        List of PDF match dictionaries
+        List of PDF match dictionaries with iframeUrl when available
     """
     def extract_url(content: str) -> Optional[str]:
         """Extract URL from document content if present."""
@@ -214,14 +216,29 @@ def build_pdf_matches_from_langchain_docs(
     
     for doc in docs[:max_matches]:
         text = doc.page_content
-        iframe_url = extract_url(text) if extract_url_from_content else None
+        metadata = doc.metadata or {}
+        
+        # Try to build iframe URL from metadata if available
+        iframe_url = None
+        classroom_id = metadata.get('classroom_id')
+        file_id = metadata.get('file_id')
+        page_num = metadata.get('page', 1)
+        
+        if base_url and classroom_id and file_id:
+            # Build proper iframe URL for classroom files
+            iframe_url = build_iframe_url(base_url, classroom_id, file_id, page_num)
+        elif extract_url_from_content:
+            # Fallback: try to extract URL from content
+            iframe_url = extract_url(text)
         
         pdf_matches.append({
-            "file": doc.metadata.get('source', 'Unknown').split('/')[-1],
+            "file": metadata.get('source', 'Unknown').split('/')[-1],
             "snippet": text,
             "display_snippet": clean_chunk_for_display(text),
-            "page": doc.metadata.get('page', 1),
-            "iframeUrl": iframe_url
+            "page": page_num,
+            "iframeUrl": iframe_url,
+            "classroom_id": classroom_id,
+            "file_id": file_id,
         })
     
     return pdf_matches

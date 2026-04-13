@@ -468,6 +468,22 @@ export async function getClassroomQuizzesWithProgress(classroomId) {
   return res.json();
 }
 
+export async function getClassroomChallengesWithProgress(classroomId) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/challenges-with-progress`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load challenges progress');
+  return res.json();
+}
+
+export async function getClassroomQuizDetailedResults(classroomId, quizId) {
+  const res = await fetch(`${API_BASE}/classrooms/${classroomId}/quizzes/${quizId}/detailed-results`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to load quiz detailed results');
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Practical Challenge endpoints — Teacher-managed classroom coding challenges
 // ---------------------------------------------------------------------------

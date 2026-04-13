@@ -178,3 +178,83 @@ async def get_classroom_students(
         db=db,
         current_user=current_user,
     )
+
+
+# ---------------------------------------------------------------------------
+# NLI Faithfulness Monitoring
+# ---------------------------------------------------------------------------
+
+class NLIStatsOut(BaseModel):
+    """NLI monitoring dashboard statistics."""
+    total_queries: int
+    low_faithfulness_count: int
+    faithfulness_rate: float  # 0.0 to 1.0
+    avg_nli_score: float
+    period: str
+    recent_alerts: List[Dict[str, Any]]  # Last 5 low-faithfulness responses
+
+
+@router.get("/nli-monitoring/stats")
+async def get_nli_monitoring_stats(
+    hours: int = 24,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+) -> NLIStatsOut:
+    """
+    Get NLI faithfulness monitoring statistics for the admin dashboard.
+    
+    Returns summary stats and recent alerts for responses with low NLI scores.
+    """
+    from db_models import NLIMonitoringLog
+    from datetime import datetime, timedelta
+    
+    # Time window
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    
+    # Query stats
+    total_queries = db.query(NLIMonitoringLog).filter(
+        NLIMonitoringLog.checked_at >= cutoff
+    ).count()
+    
+    low_faith = db.query(NLIMonitoringLog).filter(
+        NLIMonitoringLog.checked_at >= cutoff,
+        NLIMonitoringLog.is_faithful == False
+    ).count()
+    
+    avg_score = db.query(func.avg(NLIMonitoringLog.nli_score)).filter(
+        NLIMonitoringLog.checked_at >= cutoff
+    ).scalar() or 0.0
+    
+    faithfulness_rate = (1.0 - (low_faith / total_queries)) if total_queries > 0 else 1.0
+    
+    # Recent alerts (last 5 low-faithfulness responses)
+    recent_alerts_query = db.query(
+        NLIMonitoringLog.query_id,
+        NLIMonitoringLog.nli_score,
+        NLIMonitoringLog.status,
+        NLIMonitoringLog.checked_at
+    ).filter(
+        NLIMonitoringLog.checked_at >= cutoff,
+        NLIMonitoringLog.is_faithful == False
+    ).order_by(
+        NLIMonitoringLog.checked_at.desc()
+    ).limit(5).all()
+    
+    recent_alerts = [
+        {
+            "query_id": row.query_id,
+            "score": round(row.nli_score, 3),
+            "status": row.status,
+            "checked_at": row.checked_at.isoformat()
+        }
+        for row in recent_alerts_query
+    ]
+    
+    return NLIStatsOut(
+        total_queries=total_queries,
+        low_faithfulness_count=low_faith,
+        faithfulness_rate=round(faithfulness_rate, 3),
+        avg_nli_score=round(float(avg_score), 3),
+        period=f"last {hours} hours",
+        recent_alerts=recent_alerts
+    )

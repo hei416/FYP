@@ -1,4 +1,11 @@
 import os
+import logging
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logger = logging.getLogger(__name__)
+
 # API Configuration
 # ============================================
 API_KEY = os.environ.get("API_KEY")
@@ -48,6 +55,24 @@ FAISS_MAX_TOKENS = 400
 
 # Embedding Settings
 FAISS_EMBEDDING_MODEL = "text-embedding-3-small"
+
+# ============================================================================
+# FILE UPLOAD CONFIGURATION
+# ============================================================================
+MAX_UPLOAD_SIZE_MB = 50  # Max file size in megabytes
+MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "text/plain",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+    "application/msword",  # .doc (legacy)
+}
+
+# ============================================================================
+# DEBUG MODE
+# ============================================================================
+DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
 FAISS_EMBEDDING_API_VERSION = "2024-05-01-preview"  # ← Changed from "2024-02-01"
 
 # Retrieval Settings

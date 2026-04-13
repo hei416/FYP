@@ -382,3 +382,31 @@ class MaterialRead(Base):
     marked_at    = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint('file_id', 'student_id', name='uq_file_student_read'),)
+
+
+class NLIMonitoringLog(Base):
+    """Log NLI faithfulness checks for RAG responses.
+    
+    Async background monitoring task records whether LLM responses are grounded
+    in retrieved context. Used for quality assurance and RAG pipeline tuning.
+    """
+    __tablename__ = "nli_monitoring_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    query_id = Column(String(255), unique=True, nullable=False, index=True)  # Unique ID from /ragAI response
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    
+    # NLI faithfulness score and result
+    nli_score = Column(Float, nullable=False)  # 0.0 to 1.0 (entailment probability)
+    is_faithful = Column(Boolean, nullable=False)  # True if score >= 0.65 threshold
+    threshold = Column(Float, default=0.65, nullable=False)  # NLI threshold used
+    status = Column(String(50), nullable=False)  # "PASS", "ALERT", "ERROR"
+    detail = Column(String(255), nullable=True)  # "entailment_ok", "low_entailment", "empty_context", etc.
+    
+    # Timing and tracking
+    checked_at = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    __table_args__ = (
+        Index('idx_user_checked', 'user_id', 'checked_at'),
+        Index('idx_status_checked', 'status', 'checked_at'),
+    )

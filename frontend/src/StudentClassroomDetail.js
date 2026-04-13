@@ -35,9 +35,10 @@ export default function StudentClassroomDetail() {
   const [expandedAttempts, setExpandedAttempts] = useState({}); // quizId -> true/false
   const [activeQuiz, setActiveQuiz] = useState(null);    // quiz being taken
   const [quizCurrentQ, setQuizCurrentQ] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState({});    // questionId → selectedIndex
+  const [quizAnswers, setQuizAnswers] = useState({});    // questionId → selectedIndex (shuffled position)
   const [quizChecked, setQuizChecked] = useState({});    // questionId → true/false
   const [quizDone, setQuizDone] = useState(false);
+  const [shuffledQuestions, setShuffledQuestions] = useState([]); // questions with shuffled options
   // Challenges tab state
   const [challenges, setChallenges] = useState([]);
   const [challengesLoading, setChallengesLoading] = useState(false);
@@ -67,11 +68,18 @@ export default function StudentClassroomDetail() {
 
   // Submit quiz attempt when finished
   useEffect(() => {
-    if (quizDone && activeQuiz) {
-      const questions = activeQuiz.questions;
+    if (quizDone && activeQuiz && shuffledQuestions.length > 0) {
+      const questions = shuffledQuestions;
       const correct = questions.filter(q => quizAnswers[q.id] === q.correct_index).length;
       const score = Math.round((correct / questions.length) * 100);
       
+      // Convert shuffled display indices back to original option indices
+      const originalAnswers = {};
+      for (const sq of shuffledQuestions) {
+        const displayIdx = quizAnswers[sq.id];
+        originalAnswers[sq.id] = displayIdx != null ? sq._shuffleMap[displayIdx] : displayIdx;
+      }
+
       console.log(`📝 [StudentClassroomDetail] Quiz completed - submitting:`, {
         quizId: activeQuiz.id,
         score,
@@ -80,7 +88,7 @@ export default function StudentClassroomDetail() {
 
       submitClassroomQuizAttempt(parseInt(classroomId, 10), activeQuiz.id, {
         score,
-        answers: quizAnswers,
+        answers: originalAnswers,
       })
         .then(result => {
           console.log(`✅ [StudentClassroomDetail] Quiz attempt saved:`, result);
@@ -89,7 +97,7 @@ export default function StudentClassroomDetail() {
           console.warn(`⚠️ [StudentClassroomDetail] Failed to save quiz attempt:`, err.message);
         });
     }
-  }, [quizDone, activeQuiz, quizAnswers, classroomId]);
+  }, [quizDone, activeQuiz, quizAnswers, classroomId, shuffledQuestions]);
 
   // Refresh sections when classroom changes
   useEffect(() => {
@@ -234,35 +242,13 @@ export default function StudentClassroomDetail() {
   // Load source PDF from RAG results
   const [sourceBlob, setSourceBlob] = useState(null);
   useEffect(() => {
-    if (!answer?.sources?.[selectedSourceIndex] || !token) {
-      setSourceBlob(null);
-      return;
-    }
-    
-    const source = answer.sources[selectedSourceIndex];
-    if (source.mime_type?.includes('pdf')) {
-      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-      console.log(`📄 Loading source PDF: ${source.filename}`);
-      fetch(`${API_BASE}/classrooms/${classroomId}/files/${source.file_id}/view`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.blob();
-        })
-        .then((blob) => {
-          console.log(`✅ Source PDF loaded (${blob.size} bytes)`);
-          const url = URL.createObjectURL(blob);
-          setSourceBlob(url);
-        })
-        .catch((err) => {
-          console.error('❌ Error loading source PDF:', err);
-          setSourceBlob(null);
-        });
-    } else {
-      setSourceBlob(null);
-    }
-  }, [answer?.sources, selectedSourceIndex, token, classroomId]);
+    // No longer need to fetch blob - will use direct iframe URL instead
+    return () => {
+      if (sourceBlob && sourceBlob.startsWith('blob:')) {
+        URL.revokeObjectURL(sourceBlob);
+      }
+    };
+  }, [sourceBlob]);
 
   const handleAsk = async (e) => {
     e.preventDefault();
@@ -450,6 +436,15 @@ export default function StudentClassroomDetail() {
         >
           💻 Challenges
         </button>
+        <button
+          style={styles.tab(tab === 'ask-ai')}
+          onClick={() => { 
+            console.log(`👆 [StudentClassroomDetail] Switching to ASK AI tab`);
+            setTab('ask-ai'); 
+          }}
+        >
+          💬 Ask AI
+        </button>
       </div>
 
       {tab === 'materials' && (
@@ -539,7 +534,7 @@ export default function StudentClassroomDetail() {
             </div>
             <div style={{
               width: '100%',
-              height: 600,
+              height: 450,
               border: '1px solid #D1D5DB',
               borderRadius: 8,
               background: '#fff',
@@ -590,7 +585,220 @@ export default function StudentClassroomDetail() {
         </div>
       )}
 
-      {/* Ask AI tab and panel removed */}
+      {/* Ask AI tab - Improved RAG with PDF display */}
+      {tab === 'ask-ai' && (
+        <div style={{
+          padding: '20px',
+          background: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          minHeight: 'calc(100vh - 250px)',
+        }}>
+          {/* Question Input Form */}
+          <div style={{
+            padding: '20px',
+            background: '#F0F9FF',
+            borderRadius: '10px',
+            border: '2px solid #0EA5E9',
+            marginBottom: '24px',
+          }}>
+            <form style={styles.form} onSubmit={handleAsk}>
+              <label style={{ fontWeight: 600, fontSize: 15, color: '#0C4A6E' }}>
+                💬 Ask about this classroom's materials
+              </label>
+              <textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="e.g., What is polymorphism? or Explain the factory pattern..."
+                style={{
+                  ...styles.textarea,
+                  minHeight: 80,
+                }}
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                style={{
+                  ...styles.askBtn,
+                  background: loading ? '#9CA3AF' : '#0EA5E9',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                }}
+                disabled={loading}
+              >
+                {loading ? '⏳ Searching documents...' : '🔍 Ask AI'}
+              </button>
+            </form>
+          </div>
+
+          {/* AI Response Section */}
+          {answer && (
+            <div style={{
+              padding: '20px',
+              background: '#F8FAFC',
+              borderRadius: '12px',
+              border: '1px solid #E2E8F0',
+              marginBottom: '24px',
+            }}>
+              {/* Main Answer */}
+              <div style={{
+                marginBottom: '24px',
+                padding: '16px',
+                background: '#FFFFFF',
+                borderRadius: '10px',
+                border: '1px solid #E2E8F0',
+              }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: 16, fontWeight: 700, color: '#1E293B' }}>
+                  🤖 Answer
+                </h3>
+                <div style={{
+                  fontSize: 15,
+                  lineHeight: 1.7,
+                  color: '#334155',
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {answer.answer}
+                </div>
+                {answer.has_context && answer.sources_count > 0 && (
+                  <div style={{
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: '1px solid #E2E8F0',
+                    fontSize: 13,
+                    color: '#64748B',
+                  }}>
+                    ✓ Based on {answer.sources_count} source{answer.sources_count > 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+
+              {/* PDF Matches / Sources Section */}
+              {answer.sources && answer.sources.length > 0 && (
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '16px',
+                  background: '#ECFDF5',
+                  borderRadius: '10px',
+                  border: '2px solid #86EFAC',
+                }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#166534' }}>
+                    📚 Retrieved Sources ({answer.sources.length})
+                  </h3>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                    gap: 12,
+                  }}>
+                    {answer.sources.map((source, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedSourceIndex(idx)}
+                        style={{
+                          padding: '12px 16px',
+                          background: selectedSourceIndex === idx ? '#22C55E' : '#FFFFFF',
+                          border: selectedSourceIndex === idx ? '2px solid #16A34A' : '1px solid #D1E7DD',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.2s',
+                          fontSize: 14,
+                          fontWeight: 500,
+                          color: selectedSourceIndex === idx ? '#FFF' : '#166534',
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                          📄 {source.filename}
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.8 }}>
+                          Page {source.page_number || 1}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Source Display */}
+              {answer.sources && answer.sources[selectedSourceIndex] && (
+                <div style={{
+                  padding: '16px',
+                  background: '#FFFFFF',
+                  borderRadius: '10px',
+                  border: '2px solid #0EA5E9',
+                }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: '#0369A1' }}>
+                    📖 Source Detail: {answer.sources[selectedSourceIndex].filename}
+                  </h3>
+
+                  {/* PDF Viewer */}
+                  {answer.sources[selectedSourceIndex].mime_type?.includes('pdf') && (
+                    <div style={{
+                      marginBottom: '20px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      border: '1px solid #D1D5DB',
+                    }}>
+                      <iframe
+                        src={(() => {
+                          const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                          const url = `${API_BASE}/classrooms/${classroomId}/files/${answer.sources[selectedSourceIndex].file_id}/view`;
+                          // Add page number as anchor if available
+                          const page = answer.sources[selectedSourceIndex].page_number || 1;
+                          return `${url}#page=${page}`;
+                        })()}
+                        style={{
+                          width: '100%',
+                          height: 450,
+                          border: 'none',
+                        }}
+                        title={answer.sources[selectedSourceIndex].filename}
+                      />
+                    </div>
+                  )}
+
+                  {/* Text Snippet */}
+                  <div style={{
+                    padding: '12px 16px',
+                    background: '#FEF3C7',
+                    borderRadius: '8px',
+                    border: '1px solid #FCD34D',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#92400E', marginBottom: 8 }}>
+                      📌 Retrieved Excerpt (Page {answer.sources[selectedSourceIndex].page_number || 1}):
+                    </div>
+                    <div style={{
+                      fontSize: 13,
+                      color: '#542C07',
+                      lineHeight: 1.6,
+                      maxHeight: 300,
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'Georgia, serif',
+                    }}>
+                      {answer.sources[selectedSourceIndex].text}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!answer && !loading && (
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              color: '#9CA3AF',
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🤔</div>
+              <p style={{ fontSize: 15, margin: 0 }}>Ask a question about this classroom's materials</p>
+              <p style={{ fontSize: 13, marginTop: 6, color: '#D1D5DB' }}>
+                The AI will search through uploaded documents to find relevant answers
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === 'sections' && (
         <div style={{
@@ -681,7 +889,7 @@ export default function StudentClassroomDetail() {
                   style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6B7280' }}
                 >✕</button>
               </div>
-              <div style={{ width: '100%', height: 600, border: '1px solid #D1D5DB', borderRadius: 8, background: '#fff', overflow: 'auto' }}>
+              <div style={{ width: '100%', height: 450, border: '1px solid #D1D5DB', borderRadius: 8, background: '#fff', overflow: 'auto' }}>
                 {viewerFile.mime_type?.includes('pdf') ? (
                   <iframe key={pdfBlobUrl} src={pdfBlobUrl || 'about:blank'}
                     style={{ width: '100%', height: '100%', border: 'none', borderRadius: 8 }}
@@ -724,6 +932,8 @@ export default function StudentClassroomDetail() {
               quizzes.map(quiz => {
                 const attempts = quizAttempts[quiz.id];
                 const isExpanded = expandedAttempts[quiz.id];
+                const attemptsUsed = attempts?.attempt_count ?? 0;
+                const atLimit = quiz.attempt_limit != null && attemptsUsed >= quiz.attempt_limit;
                 return (
                   <div key={quiz.id} style={{
                     border: '1px solid #E5E7EB', borderRadius: 10, marginBottom: 10, background: '#FAFAFA', overflow: 'hidden'
@@ -751,6 +961,17 @@ export default function StudentClassroomDetail() {
                             )}
                           </div>
                         )}
+                        {quiz.attempt_limit != null && (
+                          <div style={{ marginTop: 4 }}>
+                            <span style={{
+                              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 9999,
+                              background: atLimit ? '#fee2e2' : '#f3f4f6',
+                              color: atLimit ? '#dc2626' : '#6B7280',
+                            }}>
+                              {attemptsUsed}/{quiz.attempt_limit} attempts used
+                            </span>
+                          </div>
+                        )}
                         {isExpanded && attempts && attempts.all_scores.length > 0 && (
                           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {attempts.all_scores.map((score, idx) => (
@@ -765,18 +986,38 @@ export default function StudentClassroomDetail() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => {
-                          setActiveQuiz(quiz);
-                          setQuizCurrentQ(0);
-                          setQuizAnswers({});
-                          setQuizChecked({});
-                          setQuizDone(false);
-                        }}
-                        style={styles.downloadBtn}
-                      >
-                        Start Exercise →
-                      </button>
+                      {atLimit ? (
+                        <button disabled style={{ ...styles.downloadBtn, opacity: 0.5, cursor: 'not-allowed', background: '#9CA3AF', border: 'none' }}>
+                          Limit Reached
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActiveQuiz(quiz);
+                            setQuizCurrentQ(0);
+                            setQuizAnswers({});
+                            setQuizChecked({});
+                            setQuizDone(false);
+                            // Shuffle options for each question using Fisher-Yates
+                            setShuffledQuestions(quiz.questions.map(q => {
+                              const indices = [...Array(q.options.length).keys()];
+                              for (let i = indices.length - 1; i > 0; i--) {
+                                const j = Math.floor(Math.random() * (i + 1));
+                                [indices[i], indices[j]] = [indices[j], indices[i]];
+                              }
+                              return {
+                                ...q,
+                                options: indices.map(origIdx => q.options[origIdx]),
+                                correct_index: indices.indexOf(q.correct_index),
+                                _shuffleMap: indices,  // _shuffleMap[newPos] = originalPos
+                              };
+                            }));
+                          }}
+                          style={styles.downloadBtn}
+                        >
+                          Start Exercise →
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -785,7 +1026,7 @@ export default function StudentClassroomDetail() {
           ) : quizDone ? (
             /* Results screen */
             (() => {
-              const questions = activeQuiz.questions;
+              const questions = shuffledQuestions;
               const correct = questions.filter(q => quizAnswers[q.id] === q.correct_index).length;
               const pct = Math.round((correct / questions.length) * 100);
               return (
@@ -830,7 +1071,7 @@ export default function StudentClassroomDetail() {
           ) : (
             /* Quiz player — one question at a time */
             (() => {
-              const questions = activeQuiz.questions;
+              const questions = shuffledQuestions;
               const q = questions[quizCurrentQ];
               const selectedIdx = quizAnswers[q.id];
               const checked = quizChecked[q.id];

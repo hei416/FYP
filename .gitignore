@@ -59,3 +59,8 @@ __pycache__/
 .VSCodeCounter/
 *.iml
 
+# HuggingFace & sentence-transformers model cache (local development only)
+.cache/
+~/.cache/huggingface/
+sentence_transformers_cache/
+

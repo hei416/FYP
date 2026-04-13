@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
 import httpx
@@ -14,9 +15,10 @@ import requests
 import difflib
 import re
 import logging
+import uuid
 from sqlalchemy import func
 from database import SessionLocal
-from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork, Classroom, ClassroomMember
+from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork, Classroom, ClassroomMember, NLIMonitoringLog
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,9 @@ from services.rag_helpers import (
     save_rag_conversation,
     clean_chunk_for_display
 )
+from services.nli_monitor import get_nli_monitor
+_nli_bg_executor = ThreadPoolExecutor(max_workers=1)
+
 
 logger = logging.getLogger(__name__)
 
@@ -957,7 +962,7 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 
 @router.post("/ragAI")
 @limiter.limit("30/minute")
-async def rag_ai(req: ExplainRequest, request: Request):
+async def rag_ai(req: ExplainRequest, request: Request, background_tasks: BackgroundTasks):
     try:
         global rag_chain, retriever
 
@@ -990,11 +995,13 @@ async def rag_ai(req: ExplainRequest, request: Request):
         final_answer = rag_chain(query)
         docs = retriever.invoke(query)
         
-        # Build PDF matches using helper
+        # Build PDF matches using helper with base URL for iframe links
+        base_url = f"{request.url.scheme}://{request.url.netloc}"
         pdf_matches = build_pdf_matches_from_langchain_docs(
             docs=docs,
             extract_url_from_content=True,
-            max_matches=3
+            max_matches=3,
+            base_url=base_url
         )
         elapsed = (datetime.now() - start_time).total_seconds()
 
@@ -1012,9 +1019,22 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 output_tokens=len(final_answer.split())
             )
 
+        # Generate unique query ID for this response
+        query_id = str(uuid.uuid4())
+        
+        # Schedule async NLI faithfulness check in background (non-blocking)
+        background_tasks.add_task(
+                _monitor_nli_faithfulness_async,
+                query_id,
+                req.user_id,
+                docs,
+                final_answer
+            )
+
         return {
             "final_answer": final_answer,
             "conversation_id": req.conversation_id,
+            "query_id": query_id,
             "pdf_matches": pdf_matches,
             "pdf_matches_count": len(pdf_matches),
             "debug_log": {
@@ -1022,8 +1042,7 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 "timestamp": datetime.now().isoformat(),
                 "model": "qwen3-max (FAISS)",
                 "response_time_sec": round(elapsed, 2),
-                "nli_faithfulness": "97.62%",
-                "semantic_similarity": "80.78%",
+                "nli_monitoring": "async_background",
                 "retrieval_method": "MMR"
             }
         }
@@ -1682,6 +1701,7 @@ class MultiAskRequest(BaseModel):
 async def ask_multi_classroom(
     body: MultiAskRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -1692,6 +1712,9 @@ async def ask_multi_classroom(
     from services.classroom_rag import search_classroom_context
     from models import HKBULLM
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
+
+    # Generate unique ID for NLI monitoring
+    query_id = str(uuid.uuid4())
 
     # Get the backend base URL from the request
     api_base_url = f"{request.url.scheme}://{request.url.netloc}"
@@ -1770,6 +1793,18 @@ async def ask_multi_classroom(
             pdf_matches=pdf_matches,
             code_snippet=None
         )
+        
+        # Spawn background NLI validation task for multi-classroom responses
+        try:
+            background_tasks.add_task(
+                _monitor_nli_faithfulness_async,
+                query_id,
+                user_id,
+                [{"text": chunk} for chunk in all_chunks],  # Convert to dict format
+                answer
+            )
+        except Exception as e:
+            print(f"⚠️ NLI monitoring not available for multi-classroom: {e}")
 
     return {
         "answer": answer,
@@ -1777,7 +1812,254 @@ async def ask_multi_classroom(
         "sources_count": len(all_chunks),
         "classrooms_searched": body.classroom_ids,
         "general_included": body.include_general,
+        "query_id": query_id,  # Return query_id for NLI polling
         "debug_log": {
             "pdf_matches": pdf_matches,
         }
     }
+
+
+# ==================== NLI BACKGROUND MONITORING ====================
+
+# Dedicated single-worker thread pool for NLI background tasks.
+# All blocking work (model init, inference, DB writes) runs here —
+# never on the asyncio event loop.
+
+
+def _run_nli_and_save(
+    query_id: str,
+    user_id: Optional[int],
+    chunk_texts: list,
+    llm_response: str
+) -> None:
+    """
+    Pure synchronous function - runs inside _nli_bg_executor thread.
+
+    Three blocking operations that must NEVER run in async context:
+      1. get_nli_monitor()    - may call initialize() on first use
+      2. _run_inference()     - CPU-bound torch forward pass
+      3. db.commit()          - synchronous SQLAlchemy I/O
+
+    Called via run_in_executor from _monitor_nli_faithfulness_async.
+    """
+    db = None
+    try:
+        # Step 1: get (and if needed, initialize) NLI monitor — safe in thread
+        monitor = get_nli_monitor()
+
+        # Step 2: run inference directly (skip async wrapper — we're in a thread)
+        chunk_dicts = [{"text": t} for t in chunk_texts]
+        if not chunk_dicts or not (llm_response or "").strip():
+            nli_result = {
+                "score": 0.0,
+                "is_faithful": False,
+                "threshold": getattr(monitor, "threshold", 0.65),
+                "status": "ALERT",
+                "reason": "empty_context_or_response"
+            }
+        else:
+            premise = " ".join([c["text"] for c in chunk_dicts])[:1024]
+            hypothesis = (llm_response or "")[:512]
+            try:
+                entailment_score = monitor._run_inference(premise, hypothesis)
+                is_faithful = entailment_score >= getattr(monitor, "threshold", 0.65)
+                nli_result = {
+                    "score": round(entailment_score, 3),
+                    "is_faithful": is_faithful,
+                    "threshold": getattr(monitor, "threshold", 0.65),
+                    "status": "PASS" if is_faithful else "ALERT",
+                    "detail": "entailment_ok" if is_faithful else "low_entailment"
+                }
+            except Exception as e:
+                nli_result = {
+                    "score": 0.0,
+                    "is_faithful": False,
+                    "threshold": getattr(monitor, "threshold", 0.65),
+                    "status": "ERROR",
+                    "reason": str(e)
+                }
+
+        # Step 3: persist to DB — sync SQLAlchemy, safe in thread
+        try:
+            db = SessionLocal()
+            log_entry = NLIMonitoringLog(
+                query_id=query_id,
+                user_id=user_id,
+                nli_score=nli_result.get("score", 0.0),
+                is_faithful=nli_result.get("is_faithful", False),
+                threshold=nli_result.get("threshold", 0.65),
+                status=nli_result.get("status", "ERROR"),
+                detail=nli_result.get("detail") or nli_result.get("reason")
+            )
+            db.add(log_entry)
+            db.commit()
+
+            if nli_result.get("status") != "PASS":
+                logger.warning(
+                    f"⚠️ NLI Alert: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}, "
+                    f"status={nli_result.get('status')}, user_id={user_id}"
+                )
+            else:
+                logger.debug(f"✅ NLI Pass: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}")
+
+        except Exception as db_err:
+            logger.error(f"❌ DB write failed for {query_id}: {db_err}")
+            try:
+                if db:
+                    db.rollback()
+                existing = db.query(NLIMonitoringLog).filter(
+                    NLIMonitoringLog.query_id == query_id
+                ).first()
+                if not existing:
+                    db.add(NLIMonitoringLog(
+                        query_id=query_id, user_id=user_id,
+                        nli_score=0.0, is_faithful=False,
+                        threshold=0.65, status="ERROR",
+                        detail=str(db_err)[:255]
+                    ))
+                    db.commit()
+            except Exception:
+                pass
+
+    except Exception as e:
+        logger.error(f"❌ NLI monitoring failed for {query_id}: {e}", exc_info=True)
+        # Ensure an ERROR record exists so frontend polling stops
+        try:
+            if db is None:
+                db = SessionLocal()
+            existing = db.query(NLIMonitoringLog).filter(
+                NLIMonitoringLog.query_id == query_id
+            ).first()
+            if not existing:
+                db.add(NLIMonitoringLog(
+                    query_id=query_id, user_id=user_id,
+                    nli_score=0.0, is_faithful=False,
+                    threshold=0.65, status="ERROR",
+                    detail=str(e)[:255]
+                ))
+                db.commit()
+        except Exception as db_err:
+            logger.error(f"❌ Failed to log NLI error for {query_id}: {db_err}", exc_info=True)
+
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception:
+                pass
+
+
+async def _monitor_nli_faithfulness_async(
+    query_id: str,
+    user_id: Optional[int],
+    retrieved_chunks: list,
+    llm_response: str
+) -> None:
+    """
+    Async shell only — contains ZERO blocking code.
+
+    Extracts chunk text then immediately hands ALL work to
+    _run_nli_and_save via run_in_executor. Event loop never blocked.
+    """
+    # Extract plain text from LangChain Documents or dicts
+    chunk_texts = []
+    for doc in retrieved_chunks:
+        if hasattr(doc, 'page_content'):
+            chunk_texts.append(doc.page_content)
+        elif isinstance(doc, dict):
+            chunk_texts.append(doc.get("text", ""))
+        else:
+            chunk_texts.append(str(doc))
+
+    # Dispatch ALL blocking work to background thread
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(
+            _nli_bg_executor,
+            _run_nli_and_save,
+            query_id,
+            user_id,
+            chunk_texts,
+            llm_response
+        )
+    except Exception as e:
+        logger.error(f"❌ NLI executor failed for {query_id}: {e}", exc_info=True)
+
+
+# ==================== NLI STATUS POLLING ENDPOINT ====================
+
+@router.get("/ragAI/status/{query_id}")
+async def get_nli_status(query_id: str):
+    """
+    Polling endpoint: Check the status of NLI faithfulness validation for a RAG response.
+    
+    Frontend polls this endpoint to get real-time updates on NLI validation progress.
+    
+    Args:
+        query_id: Unique identifier returned in the /ragAI response
+        
+    Returns:
+        {
+            "status": "pending" | "pass" | "alert" | "error",
+            "query_id": "uuid",
+            "nli_score": 0.927,
+            "is_faithful": true,
+            "message": "Response validated ✓ (92.7% grounded)"
+        }
+    """
+    try:
+        db = SessionLocal()
+        try:
+            # Query NLI monitoring log for this query_id
+            log_entry = db.query(NLIMonitoringLog).filter(
+                NLIMonitoringLog.query_id == query_id
+            ).first()
+            
+            if not log_entry:
+                # Not yet validated (still pending or not computed)
+                return {
+                    "status": "pending",
+                    "query_id": query_id,
+                    "nli_score": None,
+                    "is_faithful": None,
+                    "message": "Validation in progress..."
+                }
+            
+            # Return validated result
+            status = log_entry.status  # Should be "PASS" or "ALERT"
+            status_lower = status.lower() if status else "error"
+            
+            # Map status to badge color
+            if status_lower == "pass":
+                badge_status = "pass"
+                score_msg = f"{log_entry.nli_score:.1%} grounded" if log_entry.nli_score else "validated"
+                message = f"Response validated ✓ ({score_msg})"
+            elif status_lower == "alert":
+                badge_status = "alert"
+                score_msg = f"{log_entry.nli_score:.1%}" if log_entry.nli_score else "low confidence"
+                message = f"⚠️ Low confidence ({score_msg}) — check sources"
+            else:
+                badge_status = "error"
+                message = f"Validation error: {log_entry.detail or 'unknown'}"
+            
+            return {
+                "status": badge_status,
+                "query_id": query_id,
+                "nli_score": float(log_entry.nli_score) if log_entry.nli_score else None,
+                "is_faithful": log_entry.is_faithful,
+                "message": message,
+                "checked_at": log_entry.checked_at.isoformat() if log_entry.checked_at else None
+            }
+        
+        finally:
+            db.close()
+    
+    except Exception as e:
+        logger.error(f"❌ Failed to fetch NLI status for {query_id}: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "query_id": query_id,
+            "nli_score": None,
+            "is_faithful": None,
+            "message": f"Error checking validation: {str(e)}"
+        }

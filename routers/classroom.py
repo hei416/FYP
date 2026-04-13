@@ -1888,6 +1888,7 @@ async def ask_classroom(
     """
     Students ask a question scoped to this classroom's uploaded documents.
     Falls back gracefully if no documents are uploaded yet.
+    Returns answer + sources with metadata for PDF display.
     """
     from services.classroom_rag import search_classroom_context
     from models import HKBULLM
@@ -1903,9 +1904,23 @@ async def ask_classroom(
     if not context_chunks:
         context_str = ""
         system_note = "No classroom documents are available yet. Answer from general Java knowledge."
+        sources = []
     else:
-        context_str = "\n\n---\n\n".join(context_chunks)
+        # Build context string from chunks
+        context_str = "\n\n---\n\n".join([c.get("text", "") for c in context_chunks])
         system_note = "Use the provided classroom document excerpts to answer the question."
+        
+        # Transform chunks into source list with metadata
+        sources = [
+            {
+                "file_id": c.get("file_id"),
+                "filename": c.get("filename", "Unknown"),
+                "mime_type": c.get("mime_type", "application/pdf"),
+                "page_number": c.get("page_number", 1),
+                "text": c.get("text", ""),
+            }
+            for c in context_chunks
+        ]
 
     prompt = (
         f"You are a Java programming tutor. {system_note}\n\n"
@@ -1927,6 +1942,7 @@ async def ask_classroom(
         "answer": answer,
         "has_context": len(context_chunks) > 0,
         "sources_count": len(context_chunks),
+        "sources": sources,
     }
 
 
@@ -2254,6 +2270,16 @@ def submit_classroom_quiz_attempt(
     if not quiz:
         raise HTTPException(404, "Quiz not found or not yet published")
     
+    # Enforce attempt limit if set
+    if quiz.attempt_limit is not None:
+        from db_models import ClassroomQuizAttempt as _CQA
+        existing_count = db.query(_CQA).filter(
+            _CQA.quiz_id == quiz_id,
+            _CQA.student_id == current_user.id,
+        ).count()
+        if existing_count >= quiz.attempt_limit:
+            raise HTTPException(403, f"Attempt limit reached ({quiz.attempt_limit} max)")
+
     # Create and save attempt
     from db_models import ClassroomQuizAttempt
     attempt = ClassroomQuizAttempt(
@@ -2364,6 +2390,81 @@ def get_classroom_quiz_student_results(
             "total_students": len(members),
             "student_results": student_results,
         }
+
+
+@router.get("/{classroom_id}/quizzes/{quiz_id}/detailed-results")
+def get_classroom_quiz_detailed_results(
+    classroom_id: int,
+    quiz_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Teacher-only: full per-student per-question breakdown for a quiz."""
+    if current_user.role != "teacher":
+        raise HTTPException(403, "Only teachers can view detailed results")
+
+    quiz = db.query(ClassroomQuiz).filter(
+        ClassroomQuiz.id == quiz_id,
+        ClassroomQuiz.classroom_id == classroom_id,
+    ).first()
+    if not quiz:
+        raise HTTPException(404, "Quiz not found")
+    # Build question lookup: id -> question dict
+    questions_by_id = {str(q["id"]): q for q in (quiz.questions or [])}
+
+    from db_models import ClassroomQuizAttempt, User as UserModel
+    members = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id
+    ).all()
+
+    result = []
+    for member in members:
+        student = db.query(UserModel).filter(UserModel.id == member.student_id).first()
+        if not student:
+            continue
+        attempts = db.query(ClassroomQuizAttempt).filter(
+            ClassroomQuizAttempt.quiz_id == quiz_id,
+            ClassroomQuizAttempt.student_id == member.student_id,
+        ).order_by(ClassroomQuizAttempt.submitted_at.asc()).all()
+
+        attempt_list = []
+        for attempt in attempts:
+            answers = attempt.answers or {}
+            q_breakdown = []
+            for q in (quiz.questions or []):
+                qid = str(q.get("id", ""))
+                student_idx = answers.get(qid)
+                correct_idx = q.get("correct_index")
+                options = q.get("options", [])
+                student_text = options[student_idx] if student_idx is not None and student_idx < len(options) else None
+                correct_text = options[correct_idx] if correct_idx is not None and correct_idx < len(options) else None
+                q_breakdown.append({
+                    "question_text": q.get("question", ""),
+                    "options": options,
+                    "student_answer_index": student_idx,
+                    "student_answer_text": student_text,
+                    "correct_index": correct_idx,
+                    "correct_answer_text": correct_text,
+                    "is_correct": student_idx == correct_idx,
+                    "explanation": q.get("explanation", ""),
+                })
+            attempt_list.append({
+                "attempt_id": attempt.id,
+                "submitted_at": attempt.submitted_at.isoformat(),
+                "score": float(attempt.score),
+                "questions": q_breakdown,
+            })
+
+        result.append({
+            "student_id": member.student_id,
+            "student_name": student.full_name,
+            "student_email": student.email,
+            "attempt_count": len(attempts),
+            "best_score": max((a["score"] for a in attempt_list), default=None),
+            "attempts": attempt_list,
+        })
+
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2528,6 +2629,72 @@ def get_classroom_quizzes_with_progress(
             "title": quiz.title,
             "status": quiz.status,
             "created_at": quiz.created_at,
+            "attempt_count": attempt_count,
+            "total_students": total_students,
+            "attempt_percentage": round((attempt_count / total_students * 100) if total_students > 0 else 0, 1),
+            "student_progress": student_progress,
+        })
+
+    return result
+
+
+@router.get("/{classroom_id}/challenges-with-progress")
+def get_classroom_challenges_with_progress(
+    classroom_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all teacher-created coding challenges in classroom with attempt status per student."""
+    _verify_teacher_access(classroom_id, current_user, db)
+
+    challenges = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+        ClassroomPracticalChallenge.created_by == current_user.id,
+    ).order_by(ClassroomPracticalChallenge.created_at.desc()).all()
+
+    members = db.query(ClassroomMember).filter(
+        ClassroomMember.classroom_id == classroom_id
+    ).all()
+
+    result = []
+    for challenge in challenges:
+        attempts = db.query(ClassroomPracticalChallengeAttempt).filter(
+            ClassroomPracticalChallengeAttempt.challenge_id == challenge.id
+        ).all()
+
+        attempt_user_ids = {a.student_id for a in attempts}
+        student_progress = []
+
+        for member in members:
+            student = db.query(User).filter(User.id == member.student_id).first()
+            if student:
+                student_attempts = db.query(ClassroomPracticalChallengeAttempt).filter(
+                    ClassroomPracticalChallengeAttempt.challenge_id == challenge.id,
+                    ClassroomPracticalChallengeAttempt.student_id == member.student_id,
+                ).order_by(ClassroomPracticalChallengeAttempt.submitted_at.asc()).all()
+
+                attempts_count = len(student_attempts)
+                passed_count = sum(1 for a in student_attempts if a.passed)
+                passed = any(a.passed for a in student_attempts)
+
+                student_progress.append({
+                    "student_id": member.student_id,
+                    "student_name": student.full_name,
+                    "student_email": student.email,
+                    "attempted": member.student_id in attempt_user_ids,
+                    "attempts_count": attempts_count,
+                    "passed_count": passed_count,
+                    "passed": passed,
+                })
+
+        attempt_count = len(attempt_user_ids)
+        total_students = len(members)
+
+        result.append({
+            "challenge_id": challenge.id,
+            "title": challenge.title,
+            "status": challenge.status,
+            "created_at": challenge.created_at,
             "attempt_count": attempt_count,
             "total_students": total_students,
             "attempt_percentage": round((attempt_count / total_students * 100) if total_students > 0 else 0, 1),
@@ -2872,7 +3039,16 @@ def submit_practical_challenge_attempt(
     ).first()
     if not challenge:
         raise HTTPException(404, "Challenge not found or not yet published")
-    
+
+    # Enforce attempt limit if set
+    if challenge.attempt_limit is not None:
+        existing_count = db.query(ClassroomPracticalChallengeAttempt).filter(
+            ClassroomPracticalChallengeAttempt.challenge_id == challenge_id,
+            ClassroomPracticalChallengeAttempt.student_id == current_user.id,
+        ).count()
+        if existing_count >= challenge.attempt_limit:
+            raise HTTPException(403, f"Attempt limit reached ({challenge.attempt_limit} max)")
+
     # Determine if passed based on execution output
     passed = False
     if data.execution_output:

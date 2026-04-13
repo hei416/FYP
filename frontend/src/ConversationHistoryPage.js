@@ -5,6 +5,7 @@ import TextareaAutosize from 'react-textarea-autosize';
 import { colors, radii, font, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 import PdfPageViewer from './components/PdfPageViewer';
+import NLIStatusBadge from './components/NLIStatusBadge';
 
 // Helper to get token from storage
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
@@ -149,8 +150,19 @@ export default function ConversationHistoryPage() {
     const deleteSession = async (id, e) => {
         e.stopPropagation();
         try {
-            await fetch(`${API_BASE}/conversation/session/${id}`, { method: 'DELETE', headers: authHeaders });
-        } catch (_) {}
+            const res = await fetch(`${API_BASE}/session/${id}`, { 
+                method: 'DELETE', 
+                headers: authHeaders 
+            });
+            if (!res.ok) {
+                console.error(`❌ Delete failed: HTTP ${res.status}`, await res.text());
+                return;
+            }
+            console.log(`✅ Session ${id} deleted`);
+        } catch (err) {
+            console.error('❌ Delete error:', err);
+            return;
+        }
         setSessions(prev => prev.filter(s => s.id !== id));
         if (activeId === id) {
             const rem = sessions.filter(s => s.id !== id);
@@ -219,11 +231,13 @@ export default function ConversationHistoryPage() {
                     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
                 }
                 const data = await res.json();
+                const queryId = data.query_id || null; // Capture NLI query ID
                 aiMsg = {
                     role: 'assistant',
                     content: data.answer + (data.sources_count > 0 ? `\n\n*✓ Based on ${data.sources_count} classroom source(s)*` : ''),
                     pdf_matches: [],
                     debug_log: null,
+                    query_id: queryId  // Store query_id for NLI badge polling
                 };
             } else {
                 const res = await fetch(`${API_BASE}/ragAI`, {
@@ -237,11 +251,13 @@ export default function ConversationHistoryPage() {
                     }),
                 });
                 const data = await res.json();
+                const queryId = data.query_id || null; // Capture NLI query ID
                 aiMsg = {
                     role: 'assistant',
                     content: data.final_answer || 'No response.',
                     pdf_matches: data.debug_log?.pdf_matches || [],
                     debug_log: data.debug_log,
+                    query_id: queryId  // Store query_id for NLI badge polling
                 };
             }
 
@@ -277,6 +293,9 @@ export default function ConversationHistoryPage() {
                     {msg.debug_log && (
                         <div style={{ fontSize: '11px', color: colors.textMuted, marginTop: 6, paddingLeft: 4 }}>⚡ {msg.debug_log.response_time_sec}s</div>
                     )}
+                    {msg.query_id && (
+                        <NLIStatusBadge queryId={msg.query_id} apiBase={API_BASE} />
+                    )}
                     {msg.pdf_matches && msg.pdf_matches.length > 0 && (
                         <div style={{ marginTop: 12 }}>
                             <div style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 6, paddingLeft: 4 }}>📚 Sources ({msg.pdf_matches.length})</div>
@@ -304,7 +323,7 @@ export default function ConversationHistoryPage() {
                                                         return `${baseUrl}${sep}token=${token}`;
                                                     })()}
                                                     initialPage={m.page || 1}
-                                                    height={800}
+                                                    height={450}
                                                 />
                                             </div>
                                         )}

@@ -16,10 +16,24 @@ const btnStyle = (disabled) => ({
     fontSize: 13,
 });
 
-export default function PdfPageViewer({ url, initialPage = 1, height = 600 }) {
+export default function PdfPageViewer({ url, initialPage = 1, height = 450 }) {
     const [numPages, setNumPages] = useState(null);
     const [currentPage, setCurrentPage] = useState(initialPage);
     const [error, setError] = useState(null);
+    const containerRef = React.useRef(null);
+    const [containerWidth, setContainerWidth] = useState(700);
+
+    React.useEffect(() => {
+        const measure = () => {
+            if (!containerRef.current) return;
+            const w = containerRef.current.clientWidth || 700;
+            // Keep width within reasonable bounds
+            setContainerWidth(Math.max(300, Math.min(w - 20, 900)));
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => window.removeEventListener('resize', measure);
+    }, []);
 
     const onLoadSuccess = useCallback(({ numPages: total }) => {
         setNumPages(total);
@@ -67,7 +81,7 @@ export default function PdfPageViewer({ url, initialPage = 1, height = 600 }) {
             </div>
 
             {/* PDF page */}
-            <div style={{
+            <div ref={containerRef} style={{
                 height, overflowY: 'auto', border: '1px solid #d1d5db',
                 borderRadius: '0 0 6px 6px', backgroundColor: '#f9fafb',
                 display: 'flex', justifyContent: 'center',
@@ -84,7 +98,7 @@ export default function PdfPageViewer({ url, initialPage = 1, height = 600 }) {
                 >
                     <Page
                         pageNumber={currentPage}
-                        width={700}
+                        width={containerWidth}
                         loading={
                             <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
                                 Rendering page…

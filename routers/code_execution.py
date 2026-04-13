@@ -2,12 +2,16 @@ import os
 import re
 import httpx
 import asyncio
+import logging
 from fastapi import APIRouter, Request, Depends
 from database import get_db
 from sqlalchemy.orm import Session
 from services.error_explainer import get_cached_explanation, store_explanation, build_explain_prompt
 from routers.rag import call_llm
+from core.rate_limiter import limiter
 from typing import List, Dict
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -113,6 +117,7 @@ def parse_javac_errors(build_stderr: str, filename: str) -> list[dict]:
 
 
 @router.post("/api/run-code")
+@limiter.limit("20/minute")
 async def run_code(request: Request):
     data = await request.json()
     files = data.get("files", [])
@@ -136,7 +141,9 @@ async def run_code(request: Request):
     class_name = extract_class_name(source)
 
     # Inject runner if no main() but runApp() exists
-    if "public static void main" not in source and ("runApp(" in source or "public void runApp" in source):
+    # Supports both 'public void runApp()' and package-private 'void runApp()'
+    has_runapp = re.search(r'\bvoid\s+runApp\s*\(', source) is not None
+    if "public static void main" not in source and (has_runapp or "runApp(" in source):
         runner = f"\n\nclass Runner {{\n    public static void main(String[] args) {{\n        new {class_name}().runApp();\n    }}\n}}\n"
         source = source.rstrip() + "\n\n" + runner
 

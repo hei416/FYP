@@ -43,7 +43,9 @@ export function getCourseKeys(courseId = 'basic') {
   };
 }
 
-// All localStorage keys that belong to progress (both courses + tour flag)
+// All localStorage keys that belong to progress (both courses)
+// NOTE: 'hasSeenDemoTour' is intentionally excluded — it's a persistent user preference
+// and should survive login/logout/refresh cycles to avoid showing the tour too frequently.
 export const ALL_PROGRESS_LOCAL_KEYS = [
   BASIC_ROADMAP_KEY,
   ENHANCED_ROADMAP_KEY,
@@ -51,7 +53,6 @@ export const ALL_PROGRESS_LOCAL_KEYS = [
   ENHANCED_PROGRESS_KEY,
   BASIC_MILESTONES_KEY,
   ENHANCED_MILESTONES_KEY,
-  'hasSeenDemoTour',
   'codetutor_chat_history',
   'codetutor_active_sessions',
   'codetutor_active_session',
@@ -401,4 +402,42 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
   };
 
   localStorage.setItem(localStorageKey, JSON.stringify(merged));
+}
+
+/**
+ * Fetch progress for a specific course (including weak topics calculation)
+ * Used by StudentClassrooms to display progress analysis per classroom
+ */
+export async function getCourseProgress(courseId = 'basic') {
+  if (!isAuthenticated()) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/progress/me?course_id=${courseId}`, {
+      headers: authHeaders()
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem('authToken');
+      }
+      return null;
+    }
+
+    const progress = await res.json();
+    
+    // TODO: Calculate weak_topics on backend based on quiz attempt scores
+    // For now, return basic progress data
+    return {
+      completion_percentage: progress.completion_percentage || 0,
+      quizzes_attempted: progress.quizzes_attempted || 0,
+      quizzes_completed: progress.quizzes_completed || [],
+      tests_attempted: progress.tests_attempted || 0,
+      tests_passed: progress.tests_passed || [],
+      weak_topics: [], // Will be populated from backend calculation or saved work analysis
+      updated_at: progress.updated_at || new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error('[ProgressService] Failed to get course progress:', err);
+    return null;
+  }
 }

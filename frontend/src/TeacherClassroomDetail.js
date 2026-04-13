@@ -6,6 +6,7 @@ import {
   getClassroomAnalytics,
   getClassroomMaterialsWithProgress,
   getClassroomQuizzesWithProgress,
+  getClassroomChallengesWithProgress,
   getClassroomStudentWork,
   generateClassroomQuiz,
   saveClassroomQuiz,
@@ -24,6 +25,8 @@ import {
   deleteClassroomPracticalChallenge,
   getClassroomPracticalChallengeStudentResults,
   getClassroomQuizStudentResults,
+  getClassroomQuizDetailedResults,
+  getClassroomPracticalChallengeAttempts,
 } from './classroomService';
 import { ClassroomSections } from './TeacherDashboard';
 import { radii, font, card, shadows } from './theme';
@@ -279,12 +282,16 @@ function TopicBreakdown({ student }) {
 }
 
 // ─── Classroom Quiz Manager ───────────────────────────────────────────────────
-function ClassroomQuizManager({ classroomId }) {
+function ClassroomQuizManager({ classroomId, analysisData }) {
   const [sections, setSections] = useState([]);
   const [allFiles, setAllFiles] = useState([]);   // all classroom files for file picker
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedQuizId, setExpandedQuizId] = useState(null);
+  const [quizDetailResults, setQuizDetailResults] = useState({});   // quizId → detailed results array
+  const [quizDetailLoading, setQuizDetailLoading] = useState({});   // quizId → bool
+  const [expandedStudentId, setExpandedStudentId] = useState({});   // `${quizId}_${studentId}` → bool
 
   // Generate form
   const [showGenForm, setShowGenForm] = useState(false);
@@ -482,49 +489,170 @@ function ClassroomQuizManager({ classroomId }) {
     }
   });
 
-  const renderQuizCard = (quiz) => (
-    <div key={quiz.id} style={{
-      border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '14px 16px',
-      marginBottom: 10, background: colors.surface, display: 'flex', alignItems: 'flex-start',
-      gap: 12, flexWrap: 'wrap',
-    }}>
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, color: colors.text }}>
-            📝 {quiz.title}
-          </span>
-          <span style={{
-            padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600,
-            background: quiz.status === 'published' ? '#dcfce7' : '#f3f4f6',
-            color: quiz.status === 'published' ? '#16a34a' : colors.textMuted,
-          }}>
-            {quiz.status === 'published' ? '✓ Published' : 'Draft'}
-          </span>
+  const renderQuizCard = (quiz) => {
+    const isExpanded = expandedQuizId === quiz.id;
+    const perfData = analysisData?.find(q => q.quiz_id === quiz.id);
+    const sortedProgress = perfData ? [...perfData.student_progress].sort((a, b) => {
+      if (a.attempted && !b.attempted) return -1;
+      if (!a.attempted && b.attempted) return 1;
+      return (b.best_score ?? -1) - (a.best_score ?? -1);
+    }) : [];
+
+    return (
+      <div key={quiz.id} style={{
+        border: `1px solid ${colors.border}`, borderRadius: radii.md,
+        marginBottom: 10, background: colors.surface, overflow: 'hidden',
+      }}>
+        <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, color: colors.text }}>
+                📝 {quiz.title}
+              </span>
+              <span style={{
+                padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600,
+                background: quiz.status === 'published' ? '#dcfce7' : '#f3f4f6',
+                color: quiz.status === 'published' ? '#16a34a' : colors.textMuted,
+              }}>
+                {quiz.status === 'published' ? '✓ Published' : 'Draft'}
+              </span>
+            </div>
+            <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+              {quiz.questions.length} question{quiz.questions.length !== 1 ? 's' : ''}
+              {quiz.topic_prompt && <span> · <em>{quiz.topic_prompt.slice(0, 60)}{quiz.topic_prompt.length > 60 ? '…' : ''}</em></span>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            {quiz.status === 'published' && (
+              <button onClick={() => setExpandedQuizId(isExpanded ? null : quiz.id)} style={{
+                padding: '5px 12px', fontSize: 12, border: `1px solid ${isExpanded ? colors.primary : colors.border}`,
+                borderRadius: radii.sm, cursor: 'pointer',
+                background: isExpanded ? colors.primaryLight : colors.bg,
+                color: isExpanded ? colors.primary : colors.text,
+              }}>📊 Performance</button>
+            )}
+            <button onClick={() => handleEditExisting(quiz)} style={{
+              padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
+              borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
+            }}>✏️ Edit</button>
+            <button onClick={() => handleTogglePublish(quiz)} style={{
+              padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+              background: quiz.status === 'published' ? '#fef9c3' : '#dcfce7',
+              color: quiz.status === 'published' ? '#ca8a04' : '#16a34a',
+            }}>
+              {quiz.status === 'published' ? '↩ Unpublish' : '📤 Publish'}
+            </button>
+            <button onClick={() => handleDelete(quiz)} style={{
+              padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+              background: '#fee2e2', color: '#dc2626',
+            }}>🗑️ Delete</button>
+          </div>
         </div>
-        <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
-          {quiz.questions.length} question{quiz.questions.length !== 1 ? 's' : ''}
-          {quiz.topic_prompt && <span> · <em>{quiz.topic_prompt.slice(0, 60)}{quiz.topic_prompt.length > 60 ? '…' : ''}</em></span>}
-        </div>
+
+        {isExpanded && (
+          <div style={{ borderTop: `1px solid ${colors.border}`, padding: '12px 16px', background: colors.bg }}>
+            {/* Fetch detail on first open */}
+            {isExpanded && !quizDetailResults[quiz.id] && !quizDetailLoading[quiz.id] && (() => {
+              setQuizDetailLoading(l => ({ ...l, [quiz.id]: true }));
+              getClassroomQuizDetailedResults(classroomId, quiz.id)
+                .then(data => setQuizDetailResults(r => ({ ...r, [quiz.id]: data })))
+                .catch(() => setQuizDetailResults(r => ({ ...r, [quiz.id]: [] })))
+                .finally(() => setQuizDetailLoading(l => ({ ...l, [quiz.id]: false })));
+              return null;
+            })()}
+
+            {quizDetailLoading[quiz.id] ? (
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>Loading detail…</div>
+            ) : !quizDetailResults[quiz.id] ? (
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>Loading performance data…</div>
+            ) : quizDetailResults[quiz.id].length === 0 ? (
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>No students enrolled.</div>
+            ) : (
+              <>
+                <div style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 10 }}>
+                  Student Performance — {quizDetailResults[quiz.id].filter(s => s.attempt_count > 0).length}/{quizDetailResults[quiz.id].length} attempted
+                </div>
+                <div style={{ maxHeight: 440, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {quizDetailResults[quiz.id].map(sr => {
+                    const key = `${quiz.id}_${sr.student_id}`;
+                    const isStudentExpanded = expandedStudentId[key];
+                    const { bg: sBg, fg: sFg } = scoreColor(sr.best_score);
+                    return (
+                      <div key={sr.student_id} style={{
+                        border: `1px solid ${sr.attempt_count > 0 ? '#bbf7d0' : '#fca5a5'}`,
+                        borderRadius: radii.sm, background: colors.surface, overflow: 'hidden',
+                      }}>
+                        <button
+                          onClick={() => sr.attempt_count > 0 && setExpandedStudentId(s => ({ ...s, [key]: !s[key] }))}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '8px 12px', background: 'none', border: 'none',
+                            cursor: sr.attempt_count > 0 ? 'pointer' : 'default', textAlign: 'left',
+                          }}
+                        >
+                          <span style={{ fontSize: 11, color: colors.textMuted }}>{sr.attempt_count > 0 ? (isStudentExpanded ? '▼' : '▶') : ' '}</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sr.student_name}</span>
+                            <span style={{ fontSize: 11, color: colors.textMuted, marginLeft: 6 }}>{sr.student_email}</span>
+                          </div>
+                          {sr.attempt_count > 0 ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>{sr.attempt_count} attempt{sr.attempt_count !== 1 ? 's' : ''}</span>
+                              {sr.best_score != null && (
+                                <span style={{ padding: '2px 8px', borderRadius: radii.full, background: sBg, color: sFg, fontSize: 11, fontWeight: 700 }}>
+                                  Best: {Math.round(sr.best_score)}%
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>○ Not attempted</span>
+                          )}
+                        </button>
+
+                        {isStudentExpanded && sr.attempts.map((attempt, ai) => (
+                          <div key={attempt.attempt_id} style={{ borderTop: `1px solid ${colors.border}`, padding: '10px 14px', background: '#fafafa' }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, marginBottom: 8 }}>
+                              Attempt {ai + 1} — {Math.round(attempt.score)}% — {new Date(attempt.submitted_at).toLocaleString()}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {attempt.questions.map((q, qi) => (
+                                <div key={qi} style={{
+                                  padding: '8px 10px', borderRadius: 6,
+                                  border: `1px solid ${q.is_correct ? '#bbf7d0' : '#fecaca'}`,
+                                  background: q.is_correct ? '#f0fdf4' : '#fff1f2',
+                                }}>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: '#1F2937', marginBottom: 4 }}>
+                                    Q{qi + 1}: {q.question_text}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: q.is_correct ? '#16a34a' : '#dc2626', marginBottom: q.is_correct ? 0 : 2 }}>
+                                    {q.is_correct
+                                      ? `✓ ${q.student_answer_text ?? '(no answer)'}`
+                                      : `✗ Answered: ${q.student_answer_text ?? '(no answer)'}`}
+                                  </div>
+                                  {!q.is_correct && (
+                                    <div style={{ fontSize: 11, color: '#16a34a' }}>
+                                      ✓ Correct: {q.correct_answer_text}
+                                    </div>
+                                  )}
+                                  {q.explanation && (
+                                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>💡 {q.explanation}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-        <button onClick={() => handleEditExisting(quiz)} style={{
-          padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
-          borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
-        }}>✏️ Edit</button>
-        <button onClick={() => handleTogglePublish(quiz)} style={{
-          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
-          background: quiz.status === 'published' ? '#fef9c3' : '#dcfce7',
-          color: quiz.status === 'published' ? '#ca8a04' : '#16a34a',
-        }}>
-          {quiz.status === 'published' ? '↩ Unpublish' : '📤 Publish'}
-        </button>
-        <button onClick={() => handleDelete(quiz)} style={{
-          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
-          background: '#fee2e2', color: '#dc2626',
-        }}>🗑️ Delete</button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderSectionGroup = (title, sectionKey, quizList) => {
     const isOpen = !collapsedSections[sectionKey];
@@ -1047,7 +1175,19 @@ export default function TeacherClassroomDetail() {
   const [studentWorkLoading, setStudentWorkLoading] = useState({});
   const [expandedWorkItem, setExpandedWorkItem] = useState({});
   const [activeTab,        setActiveTab]        = useState(state?.initialTab || 'materials');
-  const [classroomView,    setClassroomView]    = useState(state?.initialClassroomView || 'materials');
+  const [classroomView,    setClassroomView]    = useState(state?.initialClassroomView || 'overview');
+  const [challengesData,   setChallengesData]   = useState(null);
+  const [challengesLoading, setChallengesLoading] = useState(true);
+
+  // Analysis sub-view detail expand state
+  const [analysisExpandedQuizId, setAnalysisExpandedQuizId] = useState(null);
+  const [analysisQuizDetails, setAnalysisQuizDetails] = useState({});          // quizId → detailed results
+  const [analysisQuizDetailsLoading, setAnalysisQuizDetailsLoading] = useState({});
+  const [analysisQuizStudentExpanded, setAnalysisQuizStudentExpanded] = useState({}); // `${qid}_${sid}` → bool
+  const [analysisExpandedChallengeId, setAnalysisExpandedChallengeId] = useState(null);
+  const [analysisChallengeDetails, setAnalysisChallengeDetails] = useState({});   // challengeId → attempts array
+  const [analysisChallengeDetailsLoading, setAnalysisChallengeDetailsLoading] = useState({});
+  const [analysisChallengeStudentExpanded, setAnalysisChallengeStudentExpanded] = useState({});
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isTeacher)) navigate('/');
@@ -1078,6 +1218,15 @@ export default function TeacherClassroomDetail() {
       .then(setQuizzesData)
       .catch(console.error)
       .finally(() => setQuizzesLoading(false));
+  }, [classroomId, isTeacher]);
+
+  useEffect(() => {
+    if (!isTeacher) return;
+    setChallengesLoading(true);
+    getClassroomChallengesWithProgress(classroomId)
+      .then(setChallengesData)
+      .catch(console.error)
+      .finally(() => setChallengesLoading(false));
   }, [classroomId, isTeacher]);
 
   async function handleSaveCategory() {
@@ -1352,82 +1501,50 @@ export default function TeacherClassroomDetail() {
 
       {/* Quizzes & Tests tab */}
       {activeTab === 'quizzes' && (
-        <ClassroomQuizManager classroomId={classroomId} />
+        <ClassroomQuizManager classroomId={classroomId} analysisData={quizzesData} />
       )}
 
       {/* Coding Challenges tab */}
       {activeTab === 'challenges' && (
-        <ClassroomPracticalChallengeManager classroomId={classroomId} />
+        <ClassroomPracticalChallengeManager classroomId={classroomId} analysisData={challengesData} />
       )}
 
-      {/* Official Lessons category header */}
+      {/* Classroom Analysis sub-nav */}
       {activeTab === 'official-lessons' && (
-        <div style={{ ...card.base, padding: 18, marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text }}>Classroom Analysis</div>
-              <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
-                <strong>{classroomName}</strong> ({classCode || classroomId}) · Category: <strong>{classroomCategory}</strong>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setClassroomView('materials')}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: radii.sm,
-                  border: classroomView === 'materials' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
-                  background: classroomView === 'materials' ? colors.primaryLight : colors.surface,
-                  color: classroomView === 'materials' ? colors.primary : colors.textSecondary,
-                  fontSize: font.sizeSm,
-                  fontWeight: font.weightSemibold,
-                  cursor: 'pointer',
-                }}
-              >
-                📚 Materials
-              </button>
-              <button
-                onClick={() => setClassroomView('quizzes')}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: radii.sm,
-                  border: classroomView === 'quizzes' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
-                  background: classroomView === 'quizzes' ? colors.primaryLight : colors.surface,
-                  color: classroomView === 'quizzes' ? colors.primary : colors.textSecondary,
-                  fontSize: font.sizeSm,
-                  fontWeight: font.weightSemibold,
-                  cursor: 'pointer',
-                }}
-              >
-                📝 Quizzes
-              </button>
-              <button
-                onClick={async () => {
-                  setClassroomView('course-progress');
-                  if (!courseProgressData[courseProgressCourse]) {
-                    setCourseProgressLoading(true);
-                    try {
-                      const d = await getClassroomCourseProgress(classroomId, courseProgressCourse);
-                      setCourseProgressData(p => ({ ...p, [courseProgressCourse]: d }));
-                    } catch (e) { console.error(e); }
-                    finally { setCourseProgressLoading(false); }
-                  }
-                }}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: radii.sm,
-                  border: classroomView === 'course-progress' ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
-                  background: classroomView === 'course-progress' ? colors.primaryLight : colors.surface,
-                  color: classroomView === 'course-progress' ? colors.primary : colors.textSecondary,
-                  fontSize: font.sizeSm,
-                  fontWeight: font.weightSemibold,
-                  cursor: 'pointer',
-                }}
-              >
-                🗺️ Roadmap Progress
-              </button>
-            </div>
-          </div>
+        <div style={{ display: 'flex', gap: 4, borderBottom: `2px solid ${colors.border}`, marginBottom: 24, overflowX: 'auto' }}>
+          {[
+            { key: 'overview',       label: '📊 Student Overview' },
+            { key: 'quizzes',        label: '📝 Exercises' },
+            { key: 'challenges',     label: '🎯 Coding Challenges' },
+            { key: 'materials',      label: '📚 Materials' },
+            { key: 'course-progress', label: '🗺️ Roadmap Progress' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={async () => {
+                setClassroomView(key);
+                if (key === 'course-progress' && !courseProgressData[courseProgressCourse]) {
+                  setCourseProgressLoading(true);
+                  try {
+                    const d = await getClassroomCourseProgress(classroomId, courseProgressCourse);
+                    setCourseProgressData(p => ({ ...p, [courseProgressCourse]: d }));
+                  } catch (e) { console.error(e); }
+                  finally { setCourseProgressLoading(false); }
+                }
+              }}
+              style={{
+                padding: '10px 18px',
+                fontSize: font.sizeSm, fontWeight: font.weightSemibold,
+                background: 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                color: classroomView === key ? colors.primary : colors.textMuted,
+                borderBottom: classroomView === key ? `2px solid ${colors.primary}` : '2px solid transparent',
+                marginBottom: -2,
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
 
@@ -1502,78 +1619,411 @@ export default function TeacherClassroomDetail() {
 
       {activeTab === 'official-lessons' && classroomView === 'quizzes' && !quizzesLoading && quizzesData && quizzesData.length > 0 && (
         <div>
-          {quizzesData.map((quiz, idx) => (
-            <div key={quiz.quiz_id} style={{ ...card.base, padding: 18, marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.text }}>{quiz.title}</div>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: quiz.status === 'published' ? '#dcfce7' : '#f3f4f6', color: quiz.status === 'published' ? '#16a34a' : colors.textMuted, borderRadius: radii.full, padding: '2px 8px' }}>
-                      {quiz.status}
-                    </span>
+          {/* Aggregate summary row */}
+          {(() => {
+            const totalEx = quizzesData.length;
+            const publishedEx = quizzesData.filter(q => q.status === 'published').length;
+            const studentsWhoAttempted = quizzesData.reduce((acc, q) => acc + q.attempt_count, 0);
+            const totalSlots = quizzesData.reduce((acc, q) => acc + q.total_students, 0);
+            const overallAttemptRate = totalSlots > 0 ? Math.round((studentsWhoAttempted / totalSlots) * 100) : 0;
+            const allBestScores = quizzesData.flatMap(q =>
+              q.student_progress.filter(sp => sp.best_score != null).map(sp => sp.best_score)
+            );
+            const classAvgBest = allBestScores.length > 0
+              ? Math.round(allBestScores.reduce((a, b) => a + b, 0) / allBestScores.length)
+              : null;
+            const { bg: avgBg, fg: avgFg } = scoreColor(classAvgBest);
+            return (
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Total Exercises', value: totalEx, sub: `${publishedEx} published` },
+                  { label: 'Overall Attempt Rate', value: `${overallAttemptRate}%`, sub: `${studentsWhoAttempted} of ${totalSlots} slots` },
+                  { label: 'Class Avg Best Score', value: classAvgBest != null ? `${classAvgBest}%` : '—', sub: 'across all exercises', valueBg: avgBg, valueFg: avgFg },
+                ].map(s => (
+                  <div key={s.label} style={{ flex: '1 1 140px', background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '12px 16px', boxShadow: shadows.sm }}>
+                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: s.valueFg || colors.text, background: s.valueBg, borderRadius: s.valueBg ? radii.sm : undefined, display: 'inline-block', padding: s.valueBg ? '1px 8px' : 0 }}>{s.value}</div>
+                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginTop: 2 }}>{s.sub}</div>
                   </div>
-                  <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
-                    Created {new Date(quiz.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.primary }}>
-                    {quiz.attempt_count}/{quiz.total_students}
-                  </div>
-                  <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{quiz.attempt_percentage}% attempted</div>
-                </div>
+                ))}
               </div>
+            );
+          })()}
 
-              <div style={{ background: colors.bg, borderRadius: radii.sm, padding: 12, fontSize: font.sizeXs }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
-                  {quiz.student_progress.map(sp => (
-                    <div key={sp.student_id} style={{ padding: '8px 10px', background: colors.surface, borderRadius: radii.sm, border: `1px solid ${sp.attempted ? '#bbf7d0' : colors.border}` }}>
-                      <div style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</div>
-                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{sp.student_email}</div>
-                      <div style={{ marginTop: 4 }}>
-                        {sp.attempted ? (
-                          <div>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>✓ {sp.attempt_count} attempt{sp.attempt_count === 1 ? '' : 's'}</div>
-                            {sp.all_scores && sp.all_scores.length > 0 && (
-                              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                {sp.all_scores.map((score, idx) => (
-                                  <div key={idx} style={{
-                                    padding: '2px 6px',
-                                    background: score >= 70 ? '#dcfce7' : score >= 50 ? '#fef3c7' : '#fee2e2',
-                                    color: score >= 70 ? '#166534' : score >= 50 ? '#92400e' : '#991b1b',
-                                    borderRadius: 4,
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    textAlign: 'center'
-                                  }}>
-                                    Attempt {idx + 1}: {Math.round(score)}%
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted }}>○ Not attempted</div>
-                        )}
-                      </div>
+          {quizzesData.map((quiz) => {
+            // Sort: attempted first (best score desc), not-attempted last
+            const sortedProgress = [...quiz.student_progress].sort((a, b) => {
+              if (a.attempted && !b.attempted) return -1;
+              if (!a.attempted && b.attempted) return 1;
+              const aMax = a.best_score ?? -1;
+              const bMax = b.best_score ?? -1;
+              return bMax - aMax;
+            });
+            const isDetailExpanded = analysisExpandedQuizId === quiz.quiz_id;
+            return (
+              <div key={quiz.quiz_id} style={{ ...card.base, padding: 18, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.text }}>{quiz.title}</div>
+                      <span style={{ fontSize: 11, fontWeight: 700, background: quiz.status === 'published' ? '#dcfce7' : '#f3f4f6', color: quiz.status === 'published' ? '#16a34a' : colors.textMuted, borderRadius: radii.full, padding: '2px 8px' }}>
+                        {quiz.status}
+                      </span>
                     </div>
-                  ))}
+                    <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+                      Created {new Date(quiz.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.primary }}>
+                        {quiz.attempt_count}/{quiz.total_students}
+                      </div>
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{quiz.attempt_percentage}% attempted</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newId = isDetailExpanded ? null : quiz.quiz_id;
+                        setAnalysisExpandedQuizId(newId);
+                        if (newId && !analysisQuizDetails[newId] && !analysisQuizDetailsLoading[newId]) {
+                          setAnalysisQuizDetailsLoading(l => ({ ...l, [newId]: true }));
+                          getClassroomQuizDetailedResults(classroomId, newId)
+                            .then(data => setAnalysisQuizDetails(d => ({ ...d, [newId]: data })))
+                            .catch(() => setAnalysisQuizDetails(d => ({ ...d, [newId]: [] })))
+                            .finally(() => setAnalysisQuizDetailsLoading(l => ({ ...l, [newId]: false })));
+                        }
+                      }}
+                      style={{
+                        padding: '5px 12px', fontSize: 12,
+                        border: `1px solid ${isDetailExpanded ? colors.primary : colors.border}`,
+                        borderRadius: radii.sm, cursor: 'pointer',
+                        background: isDetailExpanded ? colors.primaryLight : colors.bg,
+                        color: isDetailExpanded ? colors.primary : colors.text,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >📋 Details</button>
+                  </div>
                 </div>
+
+                <div style={{ background: colors.bg, borderRadius: radii.sm, padding: 12, fontSize: font.sizeXs }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
+                    {sortedProgress.map(sp => {
+                      const bestScore = sp.best_score ?? null;
+                      const { bg: bBg, fg: bFg } = scoreColor(bestScore);
+                      const borderCol = sp.attempted ? '#bbf7d0' : '#fca5a5';
+                      return (
+                        <div key={sp.student_id} style={{ padding: '10px 12px', background: colors.surface, borderRadius: radii.sm, border: `1px solid ${borderCol}` }}>
+                          {sp.attempted && bestScore != null && (
+                            <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: radii.full, background: bBg, color: bFg, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                              Best: {Math.round(bestScore)}%
+                            </div>
+                          )}
+                          <div style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</div>
+                          <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 4 }}>{sp.student_email}</div>
+                          {sp.attempted ? (
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>✓ {sp.attempt_count} attempt{sp.attempt_count === 1 ? '' : 's'}</div>
+                              {sp.all_scores && sp.all_scores.length > 0 && (
+                                <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                  {sp.all_scores.map((score, i) => (
+                                    <div key={i} style={{
+                                      padding: '2px 6px',
+                                      background: score >= 70 ? '#dcfce7' : score >= 50 ? '#fef3c7' : '#fee2e2',
+                                      color: score >= 70 ? '#166534' : score >= 50 ? '#92400e' : '#991b1b',
+                                      borderRadius: 4, fontSize: 11, fontWeight: 600, textAlign: 'center',
+                                    }}>
+                                      Attempt {i + 1}: {Math.round(score)}%
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>○ Not attempted</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Per-question detail expand */}
+                {isDetailExpanded && (
+                  <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 12, paddingTop: 12 }}>
+                    {analysisQuizDetailsLoading[quiz.quiz_id] ? (
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>Loading detail…</div>
+                    ) : !analysisQuizDetails[quiz.quiz_id] || analysisQuizDetails[quiz.quiz_id].length === 0 ? (
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>No data available.</div>
+                    ) : (
+                      <div style={{ maxHeight: 440, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {analysisQuizDetails[quiz.quiz_id].map(sr => {
+                          const aKey = `${quiz.quiz_id}_${sr.student_id}`;
+                          const isStudOpen = analysisQuizStudentExpanded[aKey];
+                          const { bg: sBg, fg: sFg } = scoreColor(sr.best_score);
+                          return (
+                            <div key={sr.student_id} style={{ border: `1px solid ${sr.attempt_count > 0 ? '#bbf7d0' : '#fca5a5'}`, borderRadius: radii.sm, overflow: 'hidden', background: colors.surface }}>
+                              <button
+                                onClick={() => sr.attempt_count > 0 && setAnalysisQuizStudentExpanded(s => ({ ...s, [aKey]: !s[aKey] }))}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'none', border: 'none', cursor: sr.attempt_count > 0 ? 'pointer' : 'default', textAlign: 'left' }}
+                              >
+                                <span style={{ fontSize: 11, color: colors.textMuted }}>{sr.attempt_count > 0 ? (isStudOpen ? '▼' : '▶') : ' '}</span>
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sr.student_name}</span>
+                                  <span style={{ fontSize: 11, color: colors.textMuted, marginLeft: 6 }}>{sr.student_email}</span>
+                                </div>
+                                {sr.attempt_count > 0 ? (
+                                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>{sr.attempt_count} attempt{sr.attempt_count !== 1 ? 's' : ''}</span>
+                                    {sr.best_score != null && <span style={{ padding: '2px 8px', borderRadius: radii.full, background: sBg, color: sFg, fontSize: 11, fontWeight: 700 }}>Best: {Math.round(sr.best_score)}%</span>}
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>○ Not attempted</span>
+                                )}
+                              </button>
+                              {isStudOpen && sr.attempts.map((attempt, ai) => (
+                                <div key={attempt.attempt_id} style={{ borderTop: `1px solid ${colors.border}`, padding: '10px 14px', background: '#fafafa' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, marginBottom: 8 }}>
+                                    Attempt {ai + 1} — {Math.round(attempt.score)}% — {new Date(attempt.submitted_at).toLocaleString()}
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {attempt.questions.map((q, qi) => (
+                                      <div key={qi} style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${q.is_correct ? '#bbf7d0' : '#fecaca'}`, background: q.is_correct ? '#f0fdf4' : '#fff1f2' }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1F2937', marginBottom: 4 }}>Q{qi + 1}: {q.question_text}</div>
+                                        <div style={{ fontSize: 11, color: q.is_correct ? '#16a34a' : '#dc2626', marginBottom: q.is_correct ? 0 : 2 }}>
+                                          {q.is_correct ? `✓ ${q.student_answer_text ?? '(no answer)'}` : `✗ Answered: ${q.student_answer_text ?? '(no answer)'}`}
+                                        </div>
+                                        {!q.is_correct && <div style={{ fontSize: 11, color: '#16a34a' }}>✓ Correct: {q.correct_answer_text}</div>}
+                                        {q.explanation && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>💡 {q.explanation}</div>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Coding Challenges Analysis View */}
+      {activeTab === 'official-lessons' && classroomView === 'challenges' && challengesLoading && (
+        <div style={{ textAlign: 'center', padding: '64px 0', color: colors.textMuted }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+          <div style={{ fontSize: font.sizeMd }}>Loading challenges…</div>
+        </div>
+      )}
+
+      {activeTab === 'official-lessons' && classroomView === 'challenges' && !challengesLoading && (!challengesData || challengesData.length === 0) && (
+        <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+          <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No coding challenges created yet</div>
+          <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>Create challenges in the Coding Challenges tab</div>
+        </div>
+      )}
+
+      {activeTab === 'official-lessons' && classroomView === 'challenges' && !challengesLoading && challengesData && challengesData.length > 0 && (
+        <div>
+          {/* Aggregate summary row */}
+          {(() => {
+            const totalCh = challengesData.length;
+            const publishedCh = challengesData.filter(c => c.status === 'published').length;
+            const studentsAttempted = challengesData.reduce((acc, c) => acc + c.attempt_count, 0);
+            const totalSlots = challengesData.reduce((acc, c) => acc + c.total_students, 0);
+            const overallAttemptRate = totalSlots > 0 ? Math.round((studentsAttempted / totalSlots) * 100) : 0;
+            const allPassedSlots = challengesData.reduce((acc, c) =>
+              acc + c.student_progress.filter(sp => sp.passed).length, 0);
+            const overallPassRate = studentsAttempted > 0 ? Math.round((allPassedSlots / studentsAttempted) * 100) : null;
+            const { bg: pBg, fg: pFg } = scoreColor(overallPassRate);
+            return (
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Total Challenges', value: totalCh, sub: `${publishedCh} published` },
+                  { label: 'Overall Attempt Rate', value: `${overallAttemptRate}%`, sub: `${studentsAttempted} of ${totalSlots} slots` },
+                  { label: 'Class Pass Rate', value: overallPassRate != null ? `${overallPassRate}%` : '—', sub: 'among attempted', valueBg: overallPassRate != null ? pBg : undefined, valueFg: overallPassRate != null ? pFg : undefined },
+                ].map(s => (
+                  <div key={s.label} style={{ flex: '1 1 140px', background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '12px 16px', boxShadow: shadows.sm }}>
+                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: s.valueFg || colors.text, background: s.valueBg, borderRadius: s.valueBg ? radii.sm : undefined, display: 'inline-block', padding: s.valueBg ? '1px 8px' : 0 }}>{s.value}</div>
+                    <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginTop: 2 }}>{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {challengesData.map((challenge) => {
+            const sortedProgress = [...challenge.student_progress].sort((a, b) => {
+              if (a.attempted && !b.attempted) return -1;
+              if (!a.attempted && b.attempted) return 1;
+              if (a.passed && !b.passed) return -1;
+              if (!a.passed && b.passed) return 1;
+              return b.passed_count - a.passed_count;
+            });
+            const isChalDetailExpanded = analysisExpandedChallengeId === challenge.challenge_id;
+            return (
+              <div key={challenge.challenge_id} style={{ ...card.base, padding: 18, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontSize: font.sizeMd, fontWeight: font.weightBold, color: colors.text }}>{challenge.title}</div>
+                      <span style={{ fontSize: 11, fontWeight: 700, background: challenge.status === 'published' ? '#dcfce7' : '#f3f4f6', color: challenge.status === 'published' ? '#16a34a' : colors.textMuted, borderRadius: radii.full, padding: '2px 8px' }}>
+                        {challenge.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: font.sizeSm, color: colors.textMuted }}>
+                      Created {new Date(challenge.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.primary }}>
+                        {challenge.attempt_count}/{challenge.total_students}
+                      </div>
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>{challenge.attempt_percentage}% attempted</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newId = isChalDetailExpanded ? null : challenge.challenge_id;
+                        setAnalysisExpandedChallengeId(newId);
+                        if (newId && !analysisChallengeDetails[newId] && !analysisChallengeDetailsLoading[newId]) {
+                          setAnalysisChallengeDetailsLoading(l => ({ ...l, [newId]: true }));
+                          getClassroomPracticalChallengeAttempts(classroomId, newId)
+                            .then(data => setAnalysisChallengeDetails(d => ({ ...d, [newId]: data })))
+                            .catch(() => setAnalysisChallengeDetails(d => ({ ...d, [newId]: [] })))
+                            .finally(() => setAnalysisChallengeDetailsLoading(l => ({ ...l, [newId]: false })));
+                        }
+                      }}
+                      style={{
+                        padding: '5px 12px', fontSize: 12,
+                        border: `1px solid ${isChalDetailExpanded ? colors.primary : colors.border}`,
+                        borderRadius: radii.sm, cursor: 'pointer',
+                        background: isChalDetailExpanded ? colors.primaryLight : colors.bg,
+                        color: isChalDetailExpanded ? colors.primary : colors.text,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >📋 Details</button>
+                  </div>
+                </div>
+
+                <div style={{ background: colors.bg, borderRadius: radii.sm, padding: 12, fontSize: font.sizeXs }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
+                    {sortedProgress.map(sp => {
+                      const borderCol = !sp.attempted ? '#fca5a5' : sp.passed ? '#bbf7d0' : '#fde68a';
+                      const statusLabel = !sp.attempted ? '○ Not attempted' : sp.passed ? `✓ Passed` : '✗ Not passed yet';
+                      const statusColor = !sp.attempted ? '#b91c1c' : sp.passed ? '#16a34a' : '#92400e';
+                      return (
+                        <div key={sp.student_id} style={{ padding: '10px 12px', background: colors.surface, borderRadius: radii.sm, border: `1px solid ${borderCol}` }}>
+                          {sp.attempted && (
+                            <div style={{ display: 'inline-block', padding: '2px 8px', borderRadius: radii.full, background: sp.passed ? '#dcfce7' : '#fef3c7', color: sp.passed ? '#166534' : '#92400e', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                              {sp.passed_count}/{sp.attempts_count} passed
+                            </div>
+                          )}
+                          <div style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</div>
+                          <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 4 }}>{sp.student_email}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: statusColor }}>{statusLabel}</div>
+                          {sp.attempted && sp.attempts_count > 0 && (
+                            <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                              {sp.attempts_count} attempt{sp.attempts_count === 1 ? '' : 's'}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Per-attempt detail expand */}
+                {isChalDetailExpanded && (
+                  <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 12, paddingTop: 12 }}>
+                    {analysisChallengeDetailsLoading[challenge.challenge_id] ? (
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>Loading attempts…</div>
+                    ) : !analysisChallengeDetails[challenge.challenge_id] || analysisChallengeDetails[challenge.challenge_id].length === 0 ? (
+                      <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>No attempts yet.</div>
+                    ) : (
+                      <div style={{ maxHeight: 440, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {sortedProgress.map(sp => {
+                          const cKey = `ac_${challenge.challenge_id}_${sp.student_id}`;
+                          const isStudOpen = analysisChallengeStudentExpanded[cKey];
+                          const studentAttempts = (analysisChallengeDetails[challenge.challenge_id] || []).filter(a => a.student_id === sp.student_id);
+                          const borderCol = !sp.attempted ? '#fca5a5' : sp.passed ? '#bbf7d0' : '#fde68a';
+                          return (
+                            <div key={sp.student_id} style={{ border: `1px solid ${borderCol}`, borderRadius: radii.sm, background: colors.surface, overflow: 'hidden' }}>
+                              <button
+                                onClick={() => sp.attempted && setAnalysisChallengeStudentExpanded(s => ({ ...s, [cKey]: !s[cKey] }))}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'none', border: 'none', cursor: sp.attempted ? 'pointer' : 'default', textAlign: 'left' }}
+                              >
+                                <span style={{ fontSize: 11, color: colors.textMuted }}>{sp.attempted ? (isStudOpen ? '▼' : '▶') : ' '}</span>
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</span>
+                                  <span style={{ fontSize: 11, color: colors.textMuted, marginLeft: 6 }}>{sp.student_email}</span>
+                                </div>
+                                {sp.attempted ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>{sp.attempts_count} attempt{sp.attempts_count !== 1 ? 's' : ''}</span>
+                                    <span style={{ padding: '2px 8px', borderRadius: radii.full, background: sp.passed ? '#dcfce7' : '#fef3c7', color: sp.passed ? '#166534' : '#92400e', fontSize: 11, fontWeight: 700 }}>
+                                      {sp.passed ? '✓ Passed' : '✗ Not passed'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>○ Not attempted</span>
+                                )}
+                              </button>
+                              {isStudOpen && studentAttempts.map((att, ai) => {
+                                const out = att.execution_output || {};
+                                const stdout = (out.stdout || '').slice(0, 300);
+                                const stderr = out.stderr || out.build_stderr || '';
+                                return (
+                                  <div key={att.id} style={{ borderTop: `1px solid ${colors.border}`, padding: '10px 14px', background: '#fafafa' }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span>Attempt {ai + 1} — {new Date(att.submitted_at).toLocaleString()}</span>
+                                      <span style={{ padding: '2px 6px', borderRadius: 4, background: att.passed ? '#dcfce7' : '#fee2e2', color: att.passed ? '#166534' : '#dc2626', fontSize: 11 }}>
+                                        {att.passed ? '✓ Passed' : '✗ Failed'}
+                                      </span>
+                                    </div>
+                                    {stdout && (
+                                      <div style={{ marginBottom: 6 }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: colors.textMuted, marginBottom: 2 }}>OUTPUT</div>
+                                        <pre style={{ margin: 0, padding: '6px 8px', background: '#1e1e1e', color: '#d4d4d4', borderRadius: 4, fontSize: 11, overflowX: 'auto' }}>{stdout}{out.stdout?.length > 300 ? '\n…' : ''}</pre>
+                                      </div>
+                                    )}
+                                    {stderr && (
+                                      <div>
+                                        <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 2 }}>ERROR</div>
+                                        <pre style={{ margin: 0, padding: '6px 8px', background: '#fff1f2', color: '#dc2626', borderRadius: 4, fontSize: 11, overflowX: 'auto' }}>{stderr.slice(0, 300)}{stderr.length > 300 ? '\n…' : ''}</pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Analytics tab - kept for reference */}
-      {activeTab === 'official-lessons' && classroomView === 'analytics' && analyticsLoading && (
+      {activeTab === 'official-lessons' && classroomView === 'overview' && analyticsLoading && (
         <div style={{ textAlign: 'center', padding: '64px 0', color: colors.textMuted }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
           <div style={{ fontSize: font.sizeMd }}>Loading student data…</div>
         </div>
       )}
 
-      {activeTab === 'official-lessons' && classroomView === 'analytics' && !analyticsLoading && analytics && analytics.students.length === 0 && (
+      {activeTab === 'official-lessons' && classroomView === 'overview' && !analyticsLoading && analytics && analytics.students.length === 0 && (
         <div style={{ ...card.base, textAlign: 'center', padding: '56px 32px' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>👩‍🎓</div>
           <div style={{ fontSize: font.sizeLg, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 8 }}>No students yet</div>
@@ -1585,9 +2035,12 @@ export default function TeacherClassroomDetail() {
         </div>
       )}
 
-      {activeTab === 'official-lessons' && classroomView === 'analytics' && !analyticsLoading && analytics && analytics.students.length > 0 && (
+      {activeTab === 'official-lessons' && classroomView === 'overview' && !analyticsLoading && analytics && analytics.students.length > 0 && (
         <div style={{ ...card.base, padding: 28 }}>
           <ClassSummaryBar summary={analytics.class_summary} />
+          <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginBottom: 20, fontStyle: 'italic' }}>
+            ℹ️ Student Overview reflects activity from the course-wide quiz and challenge system, not classroom-specific exercises or coding challenges.
+          </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.sizeSm }}>
@@ -1776,13 +2229,17 @@ export default function TeacherClassroomDetail() {
 }
 
 // ─── Classroom Practical Challenge Manager ────────────────────────────────────
-function ClassroomPracticalChallengeManager({ classroomId }) {
+function ClassroomPracticalChallengeManager({ classroomId, analysisData }) {
   const [sections, setSections] = useState([]);
   const [allFiles, setAllFiles] = useState([]);   // classroom files for file picker
   const [challenges, setChallenges] = useState([]);
   const [challengeAttempts, setChallengeAttempts] = useState({}); // challengeId -> { totalAttempts, passedCount, studentResults }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedChallengePerf, setExpandedChallengePerf] = useState(null);
+  const [challengeAttemptDetails, setChallengeAttemptDetails] = useState({});   // challengeId → attempts array
+  const [challengeAttemptDetailsLoading, setChallengeAttemptDetailsLoading] = useState({});
+  const [expandedChallengeStudentId, setExpandedChallengeStudentId] = useState({}); // `${cid}_${sid}` → bool
 
   // Generate form state
   const [showGenForm, setShowGenForm] = useState(false);
@@ -1802,6 +2259,7 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
   const [editingChallengeId, setEditingChallengeId] = useState(null); // null=new, number=existing
   const [editTitle, setEditTitle] = useState('');
   const [editSectionId, setEditSectionId] = useState('');
+  const [editAttemptLimit, setEditAttemptLimit] = useState(null);
   const [editQuestion, setEditQuestion] = useState(null);
   const [editBaseCode, setEditBaseCode] = useState(null);
   const [editSolution, setEditSolution] = useState(null);
@@ -1925,6 +2383,7 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
     setEditBaseCode(JSON.parse(JSON.stringify(challenge.base_code)));
     setEditSolution(JSON.parse(JSON.stringify(challenge.model_solution)));
     setEditSectionId(challenge.section_id != null ? String(challenge.section_id) : '');
+    setEditAttemptLimit(challenge.attempt_limit ?? null);
     setDraftData(challenge);
     setShowGenForm(false);
   };
@@ -1939,6 +2398,7 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
         base_code: editBaseCode,
         model_solution: editSolution,
         section_id: editSectionId !== '' ? Number(editSectionId) : null,
+        attempt_limit: editAttemptLimit,
         status: publishStatus,
       };
       if (editingChallengeId != null) {
@@ -1959,6 +2419,7 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
       setGenFileIds([]);
       setGenTopicGroups([]);
       setGenSelectedTopics([]);
+      setEditAttemptLimit(null);
       setEditingChallengeId(null);
       setShowGenForm(false);
       await load();
@@ -2020,68 +2481,178 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
     }
   });
 
-  const renderChallengeCard = (challenge) => (
-    <div key={challenge.id} style={{
-      ...card.base, padding: '12px 16px', marginBottom: 10,
-      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
-    }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, color: colors.text }}>
-            {challenge.title}
-          </span>
-          <span style={{
-            fontSize: 11, fontWeight: font.weightSemibold, padding: '1px 8px', borderRadius: 99,
-            background: challenge.status === 'published' ? '#dcfce7' : '#f3f4f6',
-            color: challenge.status === 'published' ? '#16a34a' : colors.textMuted,
-          }}>
-            {challenge.status === 'published' ? '✓ Published' : 'Draft'}
-          </span>
-        </div>
-        <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
-          {challenge.question?.methods?.length || 0} method(s) to implement
-          {challenge.topic_prompt && <span> · <em>{challenge.topic_prompt.slice(0, 60)}{challenge.topic_prompt.length > 60 ? '…' : ''}</em></span>}
-          {challenge.status === 'published' && (
-            <div style={{ marginTop: 6 }}>
-              {(() => {
-                const attData = challengeAttempts[challenge.id];
-                if (!attData) return <span>Loading attempts…</span>;
-                const { studentResults } = attData;
-                // Count students who have attempted (teacher view returns array of students)
-                const studentsAttempted = Array.isArray(studentResults) ? studentResults.length : 0;
-                return (
-                  <span style={{ color: studentsAttempted > 0 ? colors.text : colors.textMuted }}>
-                    {studentsAttempted}/1 attempted {studentsAttempted > 0 && `· ${studentResults.filter(s => s.passed).length} passed`}
-                  </span>
-                );
-              })()}
+  const renderChallengeCard = (challenge) => {
+    const isExpanded = expandedChallengePerf === challenge.id;
+    const perfData = analysisData?.find(c => c.challenge_id === challenge.id);
+    const sortedProgress = perfData ? [...perfData.student_progress].sort((a, b) => {
+      if (a.attempted && !b.attempted) return -1;
+      if (!a.attempted && b.attempted) return 1;
+      if (a.passed && !b.passed) return -1;
+      if (!a.passed && b.passed) return 1;
+      return b.passed_count - a.passed_count;
+    }) : [];
+
+    return (
+      <div key={challenge.id} style={{ ...card.base, marginBottom: 10, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: font.weightSemibold, fontSize: font.sizeSm, color: colors.text }}>
+                {challenge.title}
+              </span>
+              <span style={{
+                fontSize: 11, fontWeight: font.weightSemibold, padding: '1px 8px', borderRadius: 99,
+                background: challenge.status === 'published' ? '#dcfce7' : '#f3f4f6',
+                color: challenge.status === 'published' ? '#16a34a' : colors.textMuted,
+              }}>
+                {challenge.status === 'published' ? '✓ Published' : 'Draft'}
+              </span>
             </div>
-          )}
+            <div style={{ fontSize: font.sizeXs, color: colors.textMuted }}>
+              {challenge.question?.methods?.length || 0} method(s) to implement
+              {challenge.topic_prompt && <span> · <em>{challenge.topic_prompt.slice(0, 60)}{challenge.topic_prompt.length > 60 ? '…' : ''}</em></span>}
+              {challenge.status === 'published' && (
+                <div style={{ marginTop: 6 }}>
+                  {(() => {
+                    const attData = challengeAttempts[challenge.id];
+                    if (!attData) return <span>Loading attempts…</span>;
+                    const { studentResults } = attData;
+                    const studentsAttempted = Array.isArray(studentResults) ? studentResults.length : 0;
+                    return (
+                      <span style={{ color: studentsAttempted > 0 ? colors.text : colors.textMuted }}>
+                        {studentsAttempted}/1 attempted {studentsAttempted > 0 && `· ${studentResults.filter(s => s.passed).length} passed`}
+                      </span>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+            {challenge.status === 'published' && (
+              <button onClick={() => setExpandedChallengePerf(isExpanded ? null : challenge.id)} style={{
+                padding: '5px 12px', fontSize: 12,
+                border: `1px solid ${isExpanded ? colors.primary : colors.border}`,
+                borderRadius: radii.sm, cursor: 'pointer',
+                background: isExpanded ? colors.primaryLight : colors.bg,
+                color: isExpanded ? colors.primary : colors.text,
+              }}>📊 Performance</button>
+            )}
+            <button onClick={() => setPreviewChallenge(challenge)} style={{
+              padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
+              borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
+            }}>👁 Solution</button>
+            <button onClick={() => handleEditExisting(challenge)} style={{
+              padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
+              borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
+            }}>✏️ Edit</button>
+            <button onClick={() => handleTogglePublish(challenge)} style={{
+              padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+              background: challenge.status === 'published' ? '#fef9c3' : '#dcfce7',
+              color: challenge.status === 'published' ? '#ca8a04' : '#16a34a',
+            }}>
+              {challenge.status === 'published' ? '↩ Unpublish' : '📤 Publish'}
+            </button>
+            <button onClick={() => handleDelete(challenge)} style={{
+              padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
+              background: '#fee2e2', color: '#dc2626',
+            }}>🗑 Delete</button>
+          </div>
         </div>
+
+        {isExpanded && (
+          <div style={{ borderTop: `1px solid ${colors.border}`, padding: '12px 16px', background: colors.bg }}>
+            {/* Fetch detail on first open */}
+            {isExpanded && !challengeAttemptDetails[challenge.id] && !challengeAttemptDetailsLoading[challenge.id] && (() => {
+              setChallengeAttemptDetailsLoading(l => ({ ...l, [challenge.id]: true }));
+              getClassroomPracticalChallengeAttempts(classroomId, challenge.id)
+                .then(data => setChallengeAttemptDetails(d => ({ ...d, [challenge.id]: data })))
+                .catch(() => setChallengeAttemptDetails(d => ({ ...d, [challenge.id]: [] })))
+                .finally(() => setChallengeAttemptDetailsLoading(l => ({ ...l, [challenge.id]: false })));
+              return null;
+            })()}
+
+            {challengeAttemptDetailsLoading[challenge.id] ? (
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>Loading attempts…</div>
+            ) : !perfData ? (
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>Loading performance data…</div>
+            ) : sortedProgress.length === 0 ? (
+              <div style={{ fontSize: font.sizeXs, color: colors.textMuted, fontStyle: 'italic' }}>No students enrolled.</div>
+            ) : (
+              <>
+                <div style={{ fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 10 }}>
+                  Student Performance — {perfData.attempt_count}/{perfData.total_students} attempted ({perfData.attempt_percentage}%)
+                </div>
+                <div style={{ maxHeight: 440, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {sortedProgress.map(sp => {
+                    const cKey = `${challenge.id}_${sp.student_id}`;
+                    const isStudExpanded = expandedChallengeStudentId[cKey];
+                    const studentAttempts = (challengeAttemptDetails[challenge.id] || []).filter(a => a.student_id === sp.student_id);
+                    const borderCol = !sp.attempted ? '#fca5a5' : sp.passed ? '#bbf7d0' : '#fde68a';
+                    return (
+                      <div key={sp.student_id} style={{ border: `1px solid ${borderCol}`, borderRadius: radii.sm, background: colors.surface, overflow: 'hidden' }}>
+                        <button
+                          onClick={() => sp.attempted && setExpandedChallengeStudentId(s => ({ ...s, [cKey]: !s[cKey] }))}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '8px 12px', background: 'none', border: 'none',
+                            cursor: sp.attempted ? 'pointer' : 'default', textAlign: 'left',
+                          }}
+                        >
+                          <span style={{ fontSize: 11, color: colors.textMuted }}>{sp.attempted ? (isStudExpanded ? '▼' : '▶') : ' '}</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontWeight: 600, fontSize: font.sizeXs }}>{sp.student_name}</span>
+                            <span style={{ fontSize: 11, color: colors.textMuted, marginLeft: 6 }}>{sp.student_email}</span>
+                          </div>
+                          {sp.attempted ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>{sp.attempts_count} attempt{sp.attempts_count !== 1 ? 's' : ''}</span>
+                              <span style={{ padding: '2px 8px', borderRadius: radii.full, background: sp.passed ? '#dcfce7' : '#fef3c7', color: sp.passed ? '#166534' : '#92400e', fontSize: 11, fontWeight: 700 }}>
+                                {sp.passed ? '✓ Passed' : '✗ Not passed'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>○ Not attempted</span>
+                          )}
+                        </button>
+                        {isStudExpanded && studentAttempts.map((att, ai) => {
+                          const out = att.execution_output || {};
+                          const stdout = (out.stdout || '').slice(0, 300);
+                          const stderr = out.stderr || out.build_stderr || '';
+                          return (
+                            <div key={att.id} style={{ borderTop: `1px solid ${colors.border}`, padding: '10px 14px', background: '#fafafa' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span>Attempt {ai + 1} — {new Date(att.submitted_at).toLocaleString()}</span>
+                                <span style={{ padding: '2px 6px', borderRadius: 4, background: att.passed ? '#dcfce7' : '#fee2e2', color: att.passed ? '#166534' : '#dc2626', fontSize: 11 }}>
+                                  {att.passed ? '✓ Passed' : '✗ Failed'}
+                                </span>
+                              </div>
+                              {stdout && (
+                                <div style={{ marginBottom: 6 }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: colors.textMuted, marginBottom: 2 }}>OUTPUT</div>
+                                  <pre style={{ margin: 0, padding: '6px 8px', background: '#1e1e1e', color: '#d4d4d4', borderRadius: 4, fontSize: 11, overflowX: 'auto' }}>{stdout}{out.stdout?.length > 300 ? '\n…(truncated)' : ''}</pre>
+                                </div>
+                              )}
+                              {stderr && (
+                                <div>
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 2 }}>ERROR</div>
+                                  <pre style={{ margin: 0, padding: '6px 8px', background: '#fff1f2', color: '#dc2626', borderRadius: 4, fontSize: 11, overflowX: 'auto' }}>{stderr.slice(0, 300)}{stderr.length > 300 ? '\n…' : ''}</pre>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-        <button onClick={() => setPreviewChallenge(challenge)} style={{
-          padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
-          borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
-        }}>👁 Solution</button>
-        <button onClick={() => handleEditExisting(challenge)} style={{
-          padding: '5px 12px', fontSize: 12, border: `1px solid ${colors.border}`,
-          borderRadius: radii.sm, cursor: 'pointer', background: colors.bg, color: colors.text,
-        }}>✏️ Edit</button>
-        <button onClick={() => handleTogglePublish(challenge)} style={{
-          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
-          background: challenge.status === 'published' ? '#fef9c3' : '#dcfce7',
-          color: challenge.status === 'published' ? '#ca8a04' : '#16a34a',
-        }}>
-          {challenge.status === 'published' ? '↩ Unpublish' : '📤 Publish'}
-        </button>
-        <button onClick={() => handleDelete(challenge)} style={{
-          padding: '5px 12px', fontSize: 12, border: 'none', borderRadius: radii.sm, cursor: 'pointer',
-          background: '#fee2e2', color: '#dc2626',
-        }}>🗑 Delete</button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderSectionGroup = (label, key, items) => {
     const collapsed = collapsedSections[key];
@@ -2342,8 +2913,8 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
             >✕</button>
           </div>
 
-          {/* Title & section */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 20 }}>
+          {/* Title & section & attempt limit */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, marginBottom: 20 }}>
             <div>
               <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Challenge Title *</label>
               <input
@@ -2362,6 +2933,17 @@ function ClassroomPracticalChallengeManager({ classroomId }) {
                 <option value="">— No section —</option>
                 {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: font.sizeXs, fontWeight: font.weightSemibold, color: colors.textSecondary, marginBottom: 4 }}>Attempt Limit</label>
+              <input
+                type="number"
+                min="1"
+                placeholder="No limit"
+                value={editAttemptLimit === null ? '' : editAttemptLimit}
+                onChange={e => setEditAttemptLimit(e.target.value === '' ? null : Number(e.target.value))}
+                style={{ width: 96, padding: '8px 10px', border: `1px solid ${colors.border}`, borderRadius: radii.sm, fontSize: font.sizeSm }}
+              />
             </div>
           </div>
 

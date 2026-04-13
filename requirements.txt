@@ -72,6 +72,7 @@ tzlocal==5.3.1
 urllib3==2.5.0
 beautifulsoup4==4.13.4
 gunicorn==23.0.0
+slowapi==0.1.8
 uvicorn==0.35.0
 httptools==0.6.4
 uvloop==0.21.0
@@ -94,3 +95,5 @@ six==1.17.0
 soupsieve==2.5
 PyMuPDF==1.26.3
 python-docx==1.2.0
+transformers==4.40.2
+torch==2.2.2

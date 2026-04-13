@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 import PdfPageViewer from './components/PdfPageViewer';
+import NLIStatusBadge from './components/NLIStatusBadge';
 
 
 // Add getToken helper for fetching classrooms
@@ -99,7 +100,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                                 currentQuery = msg.content;
                             } else if (msg.role === 'assistant' && currentQuery) {
                                 try {
-                                    await fetch(`${API_BASE}/conversation/save`, {
+                                    await fetch(`${API_BASE}/save`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                                         body: JSON.stringify({
@@ -234,7 +235,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
             try {
                 const session = sessions.find(s => s.id === id);
                 if (session && session.conversationId) {
-                    await fetch(`${API_BASE}/conversation/session/${session.conversationId}`, {
+                    await fetch(`${API_BASE}/session/${session.conversationId}`, {
                         method: 'DELETE',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
@@ -311,10 +312,12 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     let finalAnswer = '';
                     let totalSources = 0;
                     let pdfMatches = [];
+                    let queryId = null;
+                    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
                     if (classroomIds.length > 0) {
                         // Call multi-classroom RAG endpoint
-                        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                        console.log('[Submit] Using multi-classroom RAG with classrooms:', classroomIds);
                         const res = await fetch(`${API_BASE}/ask-multi`, {
                             method: 'POST',
                             headers: {
@@ -339,41 +342,57 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                         finalAnswer = data.answer;
                         totalSources = data.sources_count || 0;
                         pdfMatches = data.debug_log?.pdf_matches || [];
+                        queryId = data.query_id || null;
                         console.log('[DEBUG] pdf_matches from response:', JSON.stringify(pdfMatches, null, 2));
                     } else {
-                        // General RAG only
+                        // Call general RAG endpoint (no specific classrooms selected)
+                        console.log('[Submit] Using general RAG knowledge base');
                         const res = await fetch(`${API_BASE}/ragAI`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${getToken()}`,
+                            },
                             body: JSON.stringify({
                                 user_input: questionText,
-                                history: [],
+                                code_snippet: '',
                                 user_id: user?.id || null,
                                 conversation_id: conversationIdRef.current,
                             }),
                         });
+                        if (!res.ok) {
+                            const text = await res.text();
+                            console.error(`❌ [RAG] HTTP ${res.status}: ${text.substring(0, 200)}`);
+                            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                        }
                         const data = await res.json();
                         if (data.conversation_id) conversationIdRef.current = data.conversation_id;
-                        finalAnswer = data.final_answer || 'No response.';
-                        const aiMsg = { role: 'assistant', content: finalAnswer, pdf_matches: data.debug_log?.pdf_matches || [], debug_log: data.debug_log };
-                        const finalHistory = [...newHistory, aiMsg];
-                        setHistory(finalHistory);
-                        saveCurrentSession(finalHistory, conversationIdRef.current);
-                        setLoading(false);
-                        return;
+                        finalAnswer = data.final_answer;
+                        totalSources = data.pdf_matches_count || 0;
+                        pdfMatches = data.pdf_matches || [];
+                        queryId = data.query_id || null;
+                        console.log('[DEBUG] General RAG response:', { finalAnswer: finalAnswer.substring(0, 50), totalSources });
                     }
 
                     const sourceBadge = totalSources > 0
                         ? `\n\n*✓ Based on ${totalSources} source(s)*`
                         : '';
-                    const aiMsg = { role: 'assistant', content: finalAnswer + sourceBadge, pdf_matches: pdfMatches, debug_log: { pdf_matches: pdfMatches } };
+                    const aiMsg = { 
+                        role: 'assistant', 
+                        content: finalAnswer + sourceBadge, 
+                        pdf_matches: pdfMatches, 
+                        debug_log: { pdf_matches: pdfMatches },
+                        query_id: queryId
+                    };
                     const finalHistory = [...newHistory, aiMsg];
                     setHistory(finalHistory);
                     saveCurrentSession(finalHistory, conversationIdRef.current);
+                    setLoading(false);
                 } catch (err) {
+                    console.error('[Submit] Error:', err);
                     setHistory([...newHistory, { role: 'assistant', content: 'Error: ' + err.message }]);
+                    setLoading(false);
                 }
-                setLoading(false);
             }, [selectedSources, user, API_BASE, saveCurrentSession]);
 
     // Expose setUserInput and submitQuery via externalInputRef
@@ -426,11 +445,15 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     ⚡ {msg.debug_log.response_time_sec}s
                 </div>
             )}
+            {msg.query_id && (
+                <NLIStatusBadge queryId={msg.query_id} apiBase={process.env.REACT_APP_API_BASE || 'http://localhost:8000'} />
+            )}
             {console.log(`📊 [AI] Message ${msgIndex}:`, { 
                 content: msg.content?.substring(0, 50), 
                 pdf_matches_count: msg.pdf_matches?.length,
                 pdf_matches: msg.pdf_matches,
-                debug_log: msg.debug_log 
+                debug_log: msg.debug_log,
+                query_id: msg.query_id
             })}
             {msg.pdf_matches && msg.pdf_matches.length > 0 && (
                 <div style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTop: `1px solid ${colors.border}` }}>
@@ -459,7 +482,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                                                         return `${baseUrl}${sep}token=${getToken()}`;
                                                     })()}
                                                     initialPage={m.page || 1}
-                                                    height={800}
+                                                    height={450}
                                                 />
                                             </div>
                                         ) : (

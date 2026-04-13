@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { joinClassroom, getEnrolledClassrooms } from './classroomService';
+import { getCourseProgress } from './progressService';
+import ProgressAnalysisCard from './ProgressAnalysisCard';
 import { colors, radii, font, spacing, card, btn } from './theme';
 
 export default function StudentClassrooms() {
@@ -14,6 +16,8 @@ export default function StudentClassrooms() {
   const [joinError, setJoinError] = useState('');
   const [joinSuccess, setJoinSuccess] = useState('');
   const [classSearch, setClassSearch] = useState('');
+  const [progressMap, setProgressMap] = useState({}); // Map of classroomId -> progress data
+  const [loadingProgress, setLoadingProgress] = useState(false);
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || !isStudent)) {
@@ -29,8 +33,31 @@ export default function StudentClassrooms() {
     try {
       const data = await getEnrolledClassrooms();
       setClasses(data);
+      // Fetch progress for each classroom's course
+      await loadProgressForClassrooms(data);
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function loadProgressForClassrooms(classrooms) {
+    if (!isAuthenticated) return;
+    setLoadingProgress(true);
+    try {
+      const progressData = {};
+      for (const cls of classrooms) {
+        // Get the course ID for this classroom (e.g., 'basic' or 'enhanced')
+        const courseId = (cls.enrolled_courses && cls.enrolled_courses[0]) || 'basic';
+        const progress = await getCourseProgress(courseId);
+        if (progress) {
+          progressData[cls.id] = progress;
+        }
+      }
+      setProgressMap(progressData);
+    } catch (e) {
+      console.error('Failed to load progress for classrooms:', e);
+    } finally {
+      setLoadingProgress(false);
     }
   }
 
@@ -57,7 +84,49 @@ export default function StudentClassrooms() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
       <h2 style={{ fontSize: font.sizeXxl, fontWeight: font.weightBold, color: colors.primary, marginBottom: 4 }}>🎓 My Classrooms</h2>
-      <p style={{ color: colors.textMuted, marginBottom: 32, marginTop: 0 }}>Enter a class code from your teacher to join a classroom.</p>
+      <p style={{ color: colors.textMuted, marginBottom: 24, marginTop: 0 }}>Enter a class code from your teacher to join a classroom.</p>
+
+      {/* Quick Action Buttons: My Work & Chat History */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+        <button
+          onClick={() => navigate('/my-work')}
+          style={{
+            flex: 1,
+            ...btn.primary,
+            padding: '12px 16px',
+            fontSize: font.sizeSm,
+            fontWeight: font.weightMedium,
+          }}
+        >
+          📋 My Work
+        </button>
+        <button
+          onClick={() => navigate('/chat-history')}
+          style={{
+            flex: 1,
+            ...btn.secondary,
+            padding: '12px 16px',
+            fontSize: font.sizeSm,
+            fontWeight: font.weightMedium,
+            backgroundColor: colors.background,
+            border: `2px solid ${colors.primary}`,
+            color: colors.primary,
+            cursor: 'pointer',
+            borderRadius: radii.md,
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colors.primary;
+            e.currentTarget.style.color = '#fff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = colors.background;
+            e.currentTarget.style.color = colors.primary;
+          }}
+        >
+          💬 Chat History
+        </button>
+      </div>
 
       {/* Join form */}
       <div style={{ ...card, padding: 24, marginBottom: 32 }}>
@@ -105,34 +174,41 @@ export default function StudentClassrooms() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {classes.filter(c => (c.name + ' ' + (c.description || '')).toLowerCase().includes(classSearch.toLowerCase())).map((cls) => (
-            <div 
-              key={cls.id} 
-              onClick={() => navigate(`/classrooms/${cls.id}`)}
-              style={{ 
-                ...card, 
-                padding: 20, 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = card.boxShadow || '0 1px 3px rgba(0, 0, 0, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <div>
-                <h4 style={{ margin: '0 0 4px 0', color: colors.primary }}>{cls.name}</h4>
-                {cls.description && <p style={{ margin: 0, fontSize: font.sizeSm, color: colors.textSecondary }}>{cls.description}</p>}
+            <div key={cls.id}>
+              <div 
+                onClick={() => navigate(`/classrooms/${cls.id}`)}
+                style={{ 
+                  ...card, 
+                  padding: 20, 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = card.boxShadow || '0 1px 3px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: '0 0 4px 0', color: colors.primary }}>{cls.name}</h4>
+                  {cls.description && <p style={{ margin: 0, fontSize: font.sizeSm, color: colors.textSecondary }}>{cls.description}</p>}
+                </div>
+                <code style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: radii.sm, padding: '4px 10px', fontSize: font.sizeSm, fontWeight: font.weightBold, letterSpacing: 2, color: colors.primary }}>
+                  {cls.class_code}
+                </code>
               </div>
-              <code style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: radii.sm, padding: '4px 10px', fontSize: font.sizeSm, fontWeight: font.weightBold, letterSpacing: 2, color: colors.primary }}>
-                {cls.class_code}
-              </code>
+              {/* Progress Analysis Card */}
+              <ProgressAnalysisCard 
+                progress={progressMap[cls.id]} 
+                classroomName={cls.name}
+                isLoading={loadingProgress}
+              />
             </div>
           ))}
         </div>

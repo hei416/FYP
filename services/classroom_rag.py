@@ -12,10 +12,17 @@ are kept as thin compatibility shims so existing callers still work.
 
 import io
 import numpy as np
+import logging
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 from db_models import ClassroomFile, ClassroomChunk
 from models import HKBUEmbeddings
-from core.config import API_KEY, BASE_URL, FAISS_EMBEDDING_MODEL, FAISS_EMBEDDING_API_VERSION
+from core.config import (
+    API_KEY, BASE_URL, FAISS_EMBEDDING_MODEL, FAISS_EMBEDDING_API_VERSION,
+    MAX_UPLOAD_SIZE_BYTES, ALLOWED_MIME_TYPES
+)
+
+logger = logging.getLogger(__name__)
 
 try:
     import faiss
@@ -35,27 +42,109 @@ try:
 except ImportError:
     _DOCX_AVAILABLE = False
 
+try:
+    from sentence_transformers import SentenceTransformer as _SentenceTransformer
+    _SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    _SENTENCE_TRANSFORMERS_AVAILABLE = False
+
 
 # ---------------------------------------------------------------------------
-# Embedding helper — wraps the project's HKBUEmbeddings
+# Embedding helper — HKBU primary, sentence-transformers offline fallback
 # ---------------------------------------------------------------------------
 
 _embedder = None
+_using_local_fallback = False
 
-def _get_embedder() -> HKBUEmbeddings:
-    global _embedder
+
+def _get_embedder():
+    """Return embedder, falling back to local sentence-transformers if HKBU fails."""
+    global _embedder, _using_local_fallback
     if _embedder is None:
-        _embedder = HKBUEmbeddings(
-            api_key=API_KEY,
-            base_url=BASE_URL,
-            model=FAISS_EMBEDDING_MODEL,
-            api_version=FAISS_EMBEDDING_API_VERSION,
-        )
+        try:
+            candidate = HKBUEmbeddings(
+                api_key=API_KEY,
+                base_url=BASE_URL,
+                model=FAISS_EMBEDDING_MODEL,
+                api_version=FAISS_EMBEDDING_API_VERSION,
+            )
+            # Quick probe to confirm the API is reachable
+            candidate.embed_query("test")
+            _embedder = candidate
+            _using_local_fallback = False
+            print("✅ Classroom RAG: using HKBU embeddings")
+        except Exception as e:
+            print(f"⚠️ Classroom RAG: HKBU embeddings unavailable ({e})")
+            if _SENTENCE_TRANSFORMERS_AVAILABLE:
+                print("   📦 Falling back to local sentence-transformers (offline)")
+                _embedder = _SentenceTransformer('all-MiniLM-L6-v2')
+                _using_local_fallback = True
+            else:
+                raise RuntimeError(
+                    "No embedding model available. "
+                    "HKBU failed and sentence-transformers is not installed."
+                )
     return _embedder
 
 
 def _embed(text: str) -> list:
-    return _get_embedder().embed_query(text)
+    """Embed a single text string, handling both HKBU and local fallback."""
+    global _embedder, _using_local_fallback
+    embedder = _get_embedder()
+    try:
+        if _using_local_fallback:
+            return embedder.encode(text, convert_to_numpy=True).tolist()
+        return embedder.embed_query(text)
+    except Exception as e:
+        # If HKBU fails mid-session (e.g. quota expires), switch to local
+        if not _using_local_fallback and _SENTENCE_TRANSFORMERS_AVAILABLE:
+            print(f"⚠️ Classroom RAG: HKBU embed failed ({e}), switching to local fallback")
+            _embedder = _SentenceTransformer('all-MiniLM-L6-v2')
+            _using_local_fallback = True
+            return _embedder.encode(text, convert_to_numpy=True).tolist()
+        raise
+
+
+# ---------------------------------------------------------------------------
+# FILE UPLOAD VALIDATION
+# ---------------------------------------------------------------------------
+
+def validate_uploaded_file(file_content_type: str) -> None:
+    """Validate file MIME type against whitelist.
+    
+    Args:
+        file_content_type: MIME type of uploaded file
+        
+    Raises:
+        HTTPException(400): If MIME type not in whitelist
+    """
+    if file_content_type not in ALLOWED_MIME_TYPES:
+        allowed = ", ".join(sorted(ALLOWED_MIME_TYPES))
+        logger.warning(f"File upload rejected: unsupported MIME type '{file_content_type}'")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {file_content_type}. Allowed: {allowed}"
+        )
+    logger.debug(f"File MIME type valid: {file_content_type}")
+
+
+async def check_file_size(file_bytes: bytes) -> None:
+    """Validate file size doesn't exceed limit.
+    
+    Args:
+        file_bytes: Uploaded file content
+        
+    Raises:
+        HTTPException(413): If file exceeds MAX_UPLOAD_SIZE_BYTES
+    """
+    file_size_mb = len(file_bytes) / (1024 * 1024)
+    if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
+        logger.warning(f"File upload rejected: size {file_size_mb:.1f}MB exceeds {MAX_UPLOAD_SIZE_BYTES/(1024*1024):.0f}MB limit")
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large: {file_size_mb:.1f}MB. Max allowed: {MAX_UPLOAD_SIZE_BYTES/(1024*1024):.0f}MB"
+        )
+    logger.debug(f"File size valid: {file_size_mb:.1f}MB")
 
 
 # ---------------------------------------------------------------------------

@@ -54,7 +54,7 @@ export default function DocumentViewer({ isOpen, onClose, documentFile, document
       onClick={onClose}
     >
         <div 
-            className="bg-white rounded-lg shadow-2xl w-[90vw] h-[95vh] flex flex-col"
+          className="bg-white rounded-lg shadow-2xl w-[90vw] h-[70vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '1600px' }} 
         >
