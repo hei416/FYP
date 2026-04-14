@@ -1014,7 +1014,7 @@ async def rag_ai(req: ExplainRequest, request: Request):
             base_url=base_url
         )
         elapsed = (datetime.now() - start_time).total_seconds()
-
+        query_id = str(uuid.uuid4())
         if conversation_manager and req.user_id and req.conversation_id:
             save_rag_conversation(
                 conversation_manager=conversation_manager,
@@ -1029,7 +1029,7 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 output_tokens=len(final_answer.split())
             )
 
-        query_id = str(uuid.uuid4())
+        
 
         asyncio.create_task(
             _monitor_nli_faithfulness_async(

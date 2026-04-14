@@ -281,7 +281,7 @@ def save_rag_conversation(
     code_snippet: Optional[str] = None,
     input_tokens: Optional[int] = None,
     output_tokens: Optional[int] = None,
-    query_id: Optional[str] = None,          
+    "query_id": (extra_metadata or {}).get("query_id"),         
 ) -> None:
     """
     Save RAG conversation turn with standardized error handling.

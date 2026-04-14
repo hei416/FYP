@@ -207,7 +207,13 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     const newHistory = [];
                     turns.forEach(t => {
                         newHistory.push({ role: 'user', content: t.user_message });
-                        newHistory.push({ role: 'assistant', content: t.assistant_response, pdf_matches: t.pdf_matches, debug_log: t.pdf_matches ? { pdf_matches: t.pdf_matches } : undefined });
+                        newHistory.push({ 
+                            role: 'assistant', 
+                            content: t.assistant_response, 
+                            pdf_matches: t.pdf_matches,
+                            debug_log: t.pdf_matches ? { pdf_matches: t.pdf_matches, response_time_sec: t.response_time_sec ?? null } : undefined,
+                            query_id: t.query_id ?? null 
+                        });
                     });
                     setHistory(newHistory);
                     conversationIdRef.current = session.conversationId;
@@ -417,8 +423,14 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     }, [externalInputRef, setShowChat, submitQuery]);
 
     const handleEnlarge = () => {
-        const savedId = saveCurrentSession(history);
-        if (savedId) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: savedId }));
+        // Save whatever we have so far (including pending user msg)
+        const savedId = saveCurrentSession(historyRef.current);
+        if (savedId) {
+            sessionStorage.setItem(SESSION_KEY, JSON.stringify({ 
+            id: savedId,
+            pendingMessages: historyRef.current  // ← carry over partial history
+            }));
+        }
         setShowChat(false);
         navigate('/chat-history');
     };

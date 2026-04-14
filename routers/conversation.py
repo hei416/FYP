@@ -24,6 +24,7 @@ class SaveTurnRequest(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     pdf_matches: Optional[List[Any]] = None
+    query_id: Optional[str] = None
 
 
 class ConversationTurnResponse(BaseModel):
@@ -75,7 +76,10 @@ def save_turn(
         code_snippet=payload.code_snippet,
         input_tokens=payload.input_tokens,
         output_tokens=payload.output_tokens,
-        summary_of_turns={"pdf_matches": payload.pdf_matches or []} if payload.pdf_matches else None,
+        summary_of_turns={
+            "pdf_matches": payload.pdf_matches or [],
+            "query_id": payload.query_id or None,  
+        } if (payload.pdf_matches or payload.query_id) else None,
     )
     db.add(turn)
     db.commit()
