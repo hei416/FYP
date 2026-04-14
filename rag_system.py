@@ -1,3 +1,5 @@
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
@@ -8,21 +10,29 @@ from langchain_core.runnables import RunnableLambda
 from langchain_core.embeddings import Embeddings
 from sentence_transformers import SentenceTransformer
 from typing import List
-import os
 import shutil
 import time
 
 # LocalEmbeddings: LangChain-compatible wrapper for offline sentence-transformers
 class LocalEmbeddings(Embeddings):
-    """LangChain-compatible embedding wrapper using sentence-transformers."""
     def __init__(self, model_name: str = 'all-MiniLM-L6-v2', device: str = "cpu"):
         self._model = SentenceTransformer(model_name, device=device)
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        return self._model.encode(texts, convert_to_numpy=True).tolist()
+        return self._model.encode(
+            texts,
+            convert_to_numpy=True,
+            show_progress_bar=False,   # ← kills the Batches: 0% hang
+            batch_size=32,
+        ).tolist()
     
     def embed_query(self, text: str) -> List[float]:
-        return self._model.encode(text, convert_to_numpy=True).tolist()
+        return self._model.encode(
+            text,
+            convert_to_numpy=True,
+            show_progress_bar=False,   # ← same fix
+        ).tolist()
+
 
 # ============================================================================
 # LLM INITIALIZATION: HKBU qwen3-max (Primary)
