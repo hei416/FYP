@@ -991,8 +991,9 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
 
-        final_answer = await asyncio.to_thread(rag_chain, query)
         docs = await asyncio.to_thread(retriever.invoke, query)
+        context = "\n\n".join([d.page_content for d in docs])
+        final_answer = await asyncio.to_thread(rag_chain, f"{context}\n\nQuestion: {query}")
         
         # Build PDF matches using helper with base URL for iframe links
         base_url = f"{request.url.scheme}://{request.url.netloc}"
@@ -1821,10 +1822,6 @@ async def ask_multi_classroom(
 
 # ==================== NLI BACKGROUND MONITORING ====================
 
-# Dedicated single-worker thread pool for NLI background tasks.
-# All blocking work (model init, inference, DB writes) runs here —
-# never on the asyncio event loop.
-
 _nli_bg_executor = ThreadPoolExecutor(max_workers=1)
 
 
@@ -1834,12 +1831,11 @@ def _run_nli_and_save(
     chunk_texts: list,
     llm_response: str
 ) -> None:
-    """Pure sync — runs inside _nli_bg_executor thread."""
     db = None
     try:
         monitor = get_nli_monitor()
-
         chunk_dicts = [{"text": t} for t in chunk_texts]
+
         if not chunk_dicts or not (llm_response or "").strip():
             nli_result = {
                 "score": 0.0, "is_faithful": False,
@@ -1850,10 +1846,10 @@ def _run_nli_and_save(
             premise = " ".join([c["text"] for c in chunk_dicts])[:1024]
             hypothesis = (llm_response or "")[:512]
             try:
-                entailment_score = monitor._run_inference(premise, hypothesis)
-                is_faithful = entailment_score >= getattr(monitor, "threshold", 0.65)
+                score = monitor._run_inference(premise, hypothesis)
+                is_faithful = score >= getattr(monitor, "threshold", 0.65)
                 nli_result = {
-                    "score": round(entailment_score, 3),
+                    "score": round(score, 3),
                     "is_faithful": is_faithful,
                     "threshold": getattr(monitor, "threshold", 0.65),
                     "status": "PASS" if is_faithful else "ALERT",
@@ -1866,60 +1862,37 @@ def _run_nli_and_save(
                     "status": "ERROR", "reason": str(e)
                 }
 
-        try:
-            db = SessionLocal()
-            log_entry = NLIMonitoringLog(
-                query_id=query_id,
-                user_id=user_id,
-                nli_score=nli_result.get("score", 0.0),
-                is_faithful=nli_result.get("is_faithful", False),
-                threshold=nli_result.get("threshold", 0.65),
-                status=nli_result.get("status", "ERROR"),
-                detail=nli_result.get("detail") or nli_result.get("reason")
-            )
-            db.add(log_entry)
-            db.commit()
-            if nli_result.get("status") != "PASS":
-                logger.warning(f"⚠️ NLI Alert: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}, status={nli_result.get('status')}")
-            else:
-                logger.debug(f"✅ NLI Pass: query_id={query_id}, score={nli_result.get('score', 0.0):.3f}")
-        except Exception as db_err:
-            logger.error(f"❌ DB write failed for {query_id}: {db_err}")
-            try:
-                if db:
-                    db.rollback()
-                existing = db.query(NLIMonitoringLog).filter(
-                    NLIMonitoringLog.query_id == query_id
-                ).first()
-                if not existing:
-                    db.add(NLIMonitoringLog(
-                        query_id=query_id, user_id=user_id,
-                        nli_score=0.0, is_faithful=False,
-                        threshold=0.65, status="ERROR",
-                        detail=str(db_err)[:255]
-                    ))
-                    db.commit()
-            except Exception:
-                pass
+        # ✅ DB WRITE — this must be inside _run_nli_and_save
+        db = SessionLocal()
+        log_entry = NLIMonitoringLog(
+            query_id=query_id,
+            user_id=user_id,
+            nli_score=nli_result.get("score", 0.0),
+            is_faithful=nli_result.get("is_faithful", False),
+            threshold=nli_result.get("threshold", 0.65),
+            status=nli_result.get("status", "ERROR"),
+            detail=nli_result.get("detail") or nli_result.get("reason")
+        )
+        db.add(log_entry)
+        db.commit()
+        logger.info(f"✅ NLI saved: query_id={query_id}, score={nli_result.get('score')}, status={nli_result.get('status')}")
 
     except Exception as e:
         logger.error(f"❌ NLI monitoring failed for {query_id}: {e}", exc_info=True)
         try:
             if db is None:
                 db = SessionLocal()
-            existing = db.query(NLIMonitoringLog).filter(
+            if not db.query(NLIMonitoringLog).filter(
                 NLIMonitoringLog.query_id == query_id
-            ).first()
-            if not existing:
+            ).first():
                 db.add(NLIMonitoringLog(
                     query_id=query_id, user_id=user_id,
                     nli_score=0.0, is_faithful=False,
-                    threshold=0.65, status="ERROR",
-                    detail=str(e)[:255]
+                    threshold=0.65, status="ERROR", detail=str(e)[:255]
                 ))
                 db.commit()
-        except Exception as db_err:
-            logger.error(f"❌ Failed to log NLI error for {query_id}: {db_err}", exc_info=True)
+        except Exception:
+            pass
     finally:
         if db:
             try:
@@ -1934,7 +1907,7 @@ async def _monitor_nli_faithfulness_async(
     retrieved_chunks: list,
     llm_response: str
 ) -> None:
-    """Async shell only — zero blocking code. Hands ALL work to thread."""
+    """Async shell only — zero blocking code."""
     chunk_texts = []
     for doc in retrieved_chunks:
         if hasattr(doc, 'page_content'):

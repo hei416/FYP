@@ -16,7 +16,7 @@ import time
 class LocalEmbeddings(Embeddings):
     """LangChain-compatible embedding wrapper using sentence-transformers."""
     def __init__(self, model_name: str = 'all-mpnet-base-v2'):
-        self._model = SentenceTransformer(model_name)
+        self._model = SentenceTransformer(model_name, device="cpu")
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return self._model.encode(texts, convert_to_numpy=True).tolist()

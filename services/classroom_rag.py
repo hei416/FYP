@@ -77,7 +77,7 @@ def _get_embedder():
             print(f"⚠️ Classroom RAG: HKBU embeddings unavailable ({e})")
             if _SENTENCE_TRANSFORMERS_AVAILABLE:
                 print("   📦 Falling back to local sentence-transformers (offline)")
-                _embedder = _SentenceTransformer('all-MiniLM-L6-v2')
+                _embedder = _SentenceTransformer('all-MiniLM-L6-v2', device="cpu")
                 _using_local_fallback = True
             else:
                 raise RuntimeError(
@@ -99,7 +99,7 @@ def _embed(text: str) -> list:
         # If HKBU fails mid-session (e.g. quota expires), switch to local
         if not _using_local_fallback and _SENTENCE_TRANSFORMERS_AVAILABLE:
             print(f"⚠️ Classroom RAG: HKBU embed failed ({e}), switching to local fallback")
-            _embedder = _SentenceTransformer('all-MiniLM-L6-v2')
+            _embedder = _SentenceTransformer('all-MiniLM-L6-v2', device="cpu")
             _using_local_fallback = True
             return _embedder.encode(text, convert_to_numpy=True).tolist()
         raise
