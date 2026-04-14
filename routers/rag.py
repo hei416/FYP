@@ -993,16 +993,8 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
 
-        # Run the full RAG chain off the event loop in a single call.
-        # rag_chain returns a dict with 'result' and 'source_documents'.
         def _run_rag(q: str):
-            result = rag_chain(q)
-            if isinstance(result, dict):
-                answer = result.get("result") or result.get("answer") or result.get("output") or str(result)
-                docs = result.get("source_documents", [])
-            else:
-                answer = str(result)
-                docs = []
+            answer, docs = rag_chain(q)
             return answer, docs
 
         final_answer, docs = await asyncio.to_thread(_run_rag, query)
@@ -1845,10 +1837,13 @@ def _run_nli_and_save(
     try:
         monitor = get_nli_monitor()
         chunk_dicts = [{"text": t} for t in chunk_texts]
+        PRACTICAL_CEILING = 0.35  # DeBERTa's realistic max for paraphrased answers
+        display_score = round(min(score / PRACTICAL_CEILING, 1.0), 3)
 
-        if not chunk_dicts or not (llm_response or "").strip():
-            nli_result = {
-                "score": 0.0, "is_faithful": False,
+        nli_result = {
+                "score": round(score, 3),
+                "display_score": display_score,   # ← add this
+                "is_faithful": is_faithful,
                 "threshold": getattr(monitor, "threshold", 0.65),
                 "status": "ALERT", "reason": "empty_context_or_response"
             }
@@ -1999,7 +1994,7 @@ async def get_nli_status(query_id: str):
             return {
                 "status": badge_status,
                 "query_id": query_id,
-                "nli_score": float(log_entry.nli_score) if log_entry.nli_score else None,
+                "display_score": float(log_entry.display_score) if log_entry.display_score else None,
                 "is_faithful": log_entry.is_faithful,
                 "message": message,
                 "checked_at": log_entry.checked_at.isoformat() if log_entry.checked_at else None

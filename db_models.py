@@ -402,7 +402,9 @@ class NLIMonitoringLog(Base):
     threshold = Column(Float, default=0.65, nullable=False)  # NLI threshold used
     status = Column(String(50), nullable=False)  # "PASS", "ALERT", "ERROR"
     detail = Column(String(255), nullable=True)  # "entailment_ok", "low_entailment", "empty_context", etc.
-    
+    raw = float(log_entry.nli_score) if log_entry.nli_score else 0.0
+    display_score = round(min(raw / 0.35, 1.0), 3)
+    score_msg = f"{display_score:.1%} grounded"
     # Timing and tracking
     checked_at = Column(DateTime, default=datetime.utcnow, index=True)
     

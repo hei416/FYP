@@ -313,6 +313,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     let totalSources = 0;
                     let pdfMatches = [];
                     let queryId = null;
+                    const responseTimeSec = data.debug_log?.response_time_sec ?? null;
                     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
                     if (classroomIds.length > 0) {
@@ -381,7 +382,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                         role: 'assistant', 
                         content: finalAnswer + sourceBadge, 
                         pdf_matches: pdfMatches, 
-                        debug_log: { pdf_matches: pdfMatches },
+                        debug_log: { pdf_matches: pdfMatches, response_time_sec: responseTimeSec },
                         query_id: queryId
                     };
                     const finalHistory = [...newHistory, aiMsg];
@@ -440,8 +441,8 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const renderAIMessage = (msg, msgIndex) => (
         <div>
             <div style={{ marginBottom: 10 }}><ReactMarkdown>{msg.content}</ReactMarkdown></div>
-            {msg.debug_log && (
-                <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: spacing.sm, padding: '8px 10px', backgroundColor: colors.divider, borderRadius: radii.sm }}>
+            {msg.debug_log?.response_time_sec != null && (
+                <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: spacing.sm, ... }}>
                     ⚡ {msg.debug_log.response_time_sec}s
                 </div>
             )}
