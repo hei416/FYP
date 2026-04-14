@@ -6,7 +6,7 @@ import { colors, radii, font, spacing, btn, shadows, transition } from './theme'
 import { useAuth } from './AuthContext';
 import PdfPageViewer from './components/PdfPageViewer';
 import NLIStatusBadge from './components/NLIStatusBadge';
-
+const location = useLocation();
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
@@ -115,6 +115,14 @@ export default function ConversationHistoryPage() {
             setSessionsLoaded(true);
         }
     }, []);
+    useEffect(() => {
+        if (!sessionsLoaded) return;
+        const autoId = location.state?.autoSelectId;
+        if (autoId) {
+            const match = sessions.find(s => s.id === autoId);
+            if (match) setActiveId(autoId);
+        }
+    }, [sessionsLoaded]);
 
     useEffect(() => {
         if (isAuthenticated && token) loadSessions();
@@ -234,7 +242,7 @@ export default function ConversationHistoryPage() {
         const questionText = (overrideText || userInput).trim();
         if (!questionText) return;
 
-        let currentId = overrideSessionId || activeId;  // ← use override first
+        let currentId = overrideSessionId ?? activeId;// if overrideSessionId is provided, use it; otherwise, use activeId
         if (!currentId) {
             const ns = {
                 id: generateId(),
@@ -752,19 +760,17 @@ export default function ConversationHistoryPage() {
                                     <button
                                         key={q}
                                         onClick={async () => {
-                                            // Create session inline without relying on state timing
-                                            const ns = {
-                                                id: generateId(),
-                                                title: q.slice(0, 80),
-                                                createdAt: new Date().toISOString(),
-                                                turnCount: 0,
-                                                messages: [],          
-                                                isDb: false,
-                                            };
+                                            const ns = { id: generateId(), 
+                                                title: q.slice(0, 80), 
+                                                createdAt: new Date().toISOString(), 
+                                                turnCount: 0, 
+                                                messages: [], 
+                                                isDb: false };
+                                            // Update state first
                                             setSessions(prev => [ns, ...prev]);
                                             setActiveId(ns.id);
-                                            // Trigger submit directly, bypassing userInput state timing
-                                            await handleSubmit(null, q, ns.id);   
+                                            // Pass BOTH override params explicitly — never rely on activeId state here
+                                            await handleSubmit(null, q, ns.id);
                                         }}
                                         style={{
                                             padding: '8px 16px',

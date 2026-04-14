@@ -1027,6 +1027,7 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 code_snippet=req.code_snippet if req.code_snippet else None,
                 input_tokens=len(query.split()),
                 output_tokens=len(final_answer.split())
+                extra_metadata={"query_id": query_id}
             )
 
         
@@ -1800,6 +1801,7 @@ async def ask_multi_classroom(
             context_type="multi_classroom_rag",
             pdf_matches=pdf_matches,
             code_snippet=None
+            extra_metadata={"query_id": query_id}
         )
         
         # Spawn background NLI validation task for multi-classroom responses
