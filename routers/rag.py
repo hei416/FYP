@@ -1870,14 +1870,16 @@ def _run_nli_and_save(
 
         # ✅ DB WRITE — this must be inside _run_nli_and_save
         db = SessionLocal()
+        # In run_nli_and_save, after computing display_score:
         log_entry = NLIMonitoringLog(
             query_id=query_id,
             user_id=user_id,
             nli_score=nli_result.get("score", 0.0),
+            display_score=display_score,
             is_faithful=nli_result.get("is_faithful", False),
             threshold=nli_result.get("threshold", 0.65),
             status=nli_result.get("status", "ERROR"),
-            detail=nli_result.get("detail") or nli_result.get("reason")
+            detail=nli_result.get("detail") or nli_result.get("reason"),
         )
         db.add(log_entry)
         db.commit()
