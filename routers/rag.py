@@ -1892,9 +1892,14 @@ def _run_nli_and_save(
                 NLIMonitoringLog.query_id == query_id
             ).first():
                 db.add(NLIMonitoringLog(
-                    query_id=query_id, user_id=user_id,
-                    nli_score=0.0, is_faithful=False,
-                    threshold=0.65, status="ERROR", detail=str(e)[:255]
+                    query_id=query_id, 
+                    user_id=user_id,
+                    nliscore=nliresult.get("score"),
+                    displayscore=displayscore, 
+                    isfaithful=nliresult.get("isfaithful"),
+                    threshold=0.65, 
+                    status="ERROR", 
+                    detail=str(e)[:255]
                 ))
                 db.commit()
         except Exception:
@@ -2004,9 +2009,9 @@ async def get_nli_status(query_id: str):
         finally:
             db.close()
 
-    raw_score = float(log_entry.nli_score) if log_entry.nli_score else 0.0
+    raw = float(logentry.nliscore) if logentry.nliscore else 0.0
     PRACTICAL_CEILING = 0.35
-    display_score = round(min(raw_score / PRACTICAL_CEILING, 1.0), 3)
+    display_score = round(min(raw / PRACTICAL_CEILING, 1.0), 3)
     score_msg = f"{display_score:.1%} grounded"
     
     except Exception as e:
