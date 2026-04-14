@@ -995,20 +995,20 @@ async def rag_ai(req: ExplainRequest, request: Request):
 
         loop = asyncio.get_event_loop()
 
-        # ✅ Step 1: Run the full RAG chain off the event loop (embed + retrieve + LLM)
+        # Run the full RAG chain off the event loop (embed + retrieve + LLM)
         def _run_rag(q: str):
-            result = rag_chain.invoke(q)
-            # chain_with_fallback returns a string directly, but guard anyway:
+            result = rag_chain(q)          # ← plain function call, NO .invoke()
             if isinstance(result, dict):
                 return result.get("result") or result.get("answer") or result.get("output") or str(result)
             return result
 
         final_answer = await loop.run_in_executor(_embed_executor, _run_rag, query)
 
-        # ✅ Step 2: Retrieve docs separately (for pdf_matches only, FAISS is fast)
+
+        # Retrieve docs separately (for pdf_matches only, FAISS is fast)
         docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)
 
-        # ✅ Step 3: Build PDF matches
+        # Build PDF matches
         base_url = f"{request.url.scheme}://{request.url.netloc}"
         pdf_matches = build_pdf_matches_from_langchain_docs(
             docs=docs,
