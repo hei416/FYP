@@ -397,14 +397,13 @@ class NLIMonitoringLog(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     
     # NLI faithfulness score and result
-    nli_score = Column(Float, nullable=False)  # 0.0 to 1.0 (entailment probability)
+    nli_score = Column(Float, nullable=True)   # 0.0 to 1.0 (entailment probability)
+    display_score = Column(Float, nullable=True)  # scaled score: min(nli_score / 0.35, 1.0)
     is_faithful = Column(Boolean, nullable=False)  # True if score >= 0.65 threshold
     threshold = Column(Float, default=0.65, nullable=False)  # NLI threshold used
     status = Column(String(50), nullable=False)  # "PASS", "ALERT", "ERROR"
     detail = Column(String(255), nullable=True)  # "entailment_ok", "low_entailment", "empty_context", etc.
-    raw = float(log_entry.nli_score) if log_entry.nli_score else 0.0
-    display_score = round(min(raw / 0.35, 1.0), 3)
-    score_msg = f"{display_score:.1%} grounded"
+
     # Timing and tracking
     checked_at = Column(DateTime, default=datetime.utcnow, index=True)
     
