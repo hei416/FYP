@@ -328,7 +328,8 @@ async def get_weak_topics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Return topics where the student scores below the pass threshold."""
+    """Return topics where the student scores below the pass threshold,
+    plus overall avg_quiz_score and avg_test_score split by work type."""
     all_works = (
         db.query(SavedWork)
         .filter(SavedWork.user_id == current_user.id)
@@ -354,10 +355,11 @@ async def get_weak_topics(
             return [w.topic_id]
         return []
 
-    # Aggregate per-topic scores by work type
     from collections import defaultdict
+
+    # Separate score tracking by work type
     quiz_topic_scores = defaultdict(list)
-    test_topic_scores = defaultdict(list)  # topic -> list of scores
+    test_topic_scores = defaultdict(list)
 
     for w in all_works:
         if w.work_type not in ("quiz", "test"):
@@ -371,12 +373,27 @@ async def get_weak_topics(
             else:
                 test_topic_scores[topic].append(score)
 
+    # Build weak topics list (combined, avg < 70)
+    combined_topic_scores = defaultdict(list)
+    for topic, scores in quiz_topic_scores.items():
+        combined_topic_scores[topic].extend(scores)
+    for topic, scores in test_topic_scores.items():
+        combined_topic_scores[topic].extend(scores)
+
+    weak = []
+    for topic, scores in combined_topic_scores.items():
+        avg = sum(scores) / len(scores) if scores else 0
+        if avg < 70:
+            weak.append({"topic": topic, "avg_score": round(avg, 1), "attempts": len(scores)})
+
+    weak.sort(key=lambda x: x["avg_score"])
+
+    # Overall avg scores split by type
     all_quiz_scores = [s for scores in quiz_topic_scores.values() for s in scores]
     all_test_scores = [s for scores in test_topic_scores.values() for s in scores]
-    avg_quiz = round(sum(all_quiz_scores)/len(all_quiz_scores), 1) if all_quiz_scores else None
-    avg_test = round(sum(all_test_scores)/len(all_test_scores), 1) if all_test_scores else None
+    avg_quiz = round(sum(all_quiz_scores) / len(all_quiz_scores), 1) if all_quiz_scores else None
+    avg_test = round(sum(all_test_scores) / len(all_test_scores), 1) if all_test_scores else None
 
-    # Then update the return:
     return {
         "weak_topics": weak,
         "avg_quiz_score": avg_quiz,
