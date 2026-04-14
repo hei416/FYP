@@ -828,8 +828,8 @@ async def get_official_aggregate_course_progress(
             .order_by(SavedWork.created_at.desc())
             .all()
         )
-        quiz_works = [w for w in works if w.work_type == "quiz"]
-test_works = [w for w in works if w.work_type == "test"]
+        quiz_works = [w for w in works if w.work_type == "quiz" and any(t in valid_subtopics for t in _topics_of(w))]
+        test_works = [w for w in works if w.work_type == "test" and any(t in valid_subtopics for t in _topics_of(w))]
         quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
         test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
 
@@ -1240,102 +1240,6 @@ async def get_student_work_for_teacher(
             for i in items
         ],
     )
-
-
-# ---------------------------------------------------------------------------
-# Student endpoints
-# ---------------------------------------------------------------------------
-
-@router.get("/public", response_model=List[ClassroomResponse])
-async def list_public_classrooms(
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user)
-):
-    """Return all public classrooms. Excludes already-joined ones for authenticated users."""
-    member_count_sq = (
-        db.query(func.count(ClassroomMember.id))
-        .filter(ClassroomMember.classroom_id == Classroom.id)
-        .correlate(Classroom)
-        .scalar_subquery()
-    )
-    query = db.query(Classroom, member_count_sq.label("member_count")).filter(Classroom.is_public == True)  # noqa: E712
-    if current_user:
-        joined_ids = (
-            db.query(ClassroomMember.classroom_id)
-            .filter(ClassroomMember.student_id == current_user.id)
-        )
-        query = query.filter(Classroom.id.notin_(joined_ids))
-    rows = query.order_by(Classroom.created_at.desc()).all()
-    result = []
-    for cls, count in rows:
-        d = ClassroomResponse.model_validate(cls)
-        d.member_count = count or 0
-        result.append(d)
-    return result
-
-
-@router.post("/join", status_code=status.HTTP_200_OK)
-async def join_classroom(
-    data: JoinClassroomRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("student"))
-):
-    classroom = db.query(Classroom).filter(
-        Classroom.class_code == data.class_code.upper().strip()
-    ).first()
-    if not classroom:
-        raise HTTPException(status_code=404, detail="Invalid class code")
-
-    already_member = db.query(ClassroomMember).filter(
-        ClassroomMember.classroom_id == classroom.id,
-        ClassroomMember.student_id == current_user.id
-    ).first()
-    if already_member:
-        raise HTTPException(status_code=409, detail="You are already in this classroom")
-
-    membership = ClassroomMember(
-        classroom_id=classroom.id,
-        student_id=current_user.id
-    )
-    db.add(membership)
-    db.commit()
-    return {"status": "joined", "classroom_id": classroom.id, "classroom_name": classroom.name}
-
-
-@router.get("/enrolled", response_model=List[ClassroomResponse])
-async def list_enrolled_classrooms(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """List classrooms for the current user: 
-    - Students: classrooms they're enrolled in
-    - Teachers: classrooms they teach
-    - Admins: all classrooms
-    """
-    print(f"📚 [CLASSROOM] Fetching enrolled classrooms for user {current_user.id} (role={current_user.role})")
-    if current_user.role == "admin":
-        classrooms = db.query(Classroom).all()
-        print(f"   → Admin: returning all {len(classrooms)} classrooms")
-        return classrooms
-    elif current_user.role == "teacher":
-        classrooms = db.query(Classroom).filter(Classroom.teacher_id == current_user.id).all()
-        print(f"   → Teacher: returning {len(classrooms)} classrooms they teach")
-        return classrooms
-    else:  # student
-        memberships = (
-            db.query(ClassroomMember)
-            .filter(ClassroomMember.student_id == current_user.id)
-            .all()
-        )
-        classroom_ids = [m.classroom_id for m in memberships]
-        print(f"   → Student: enrolled in classrooms: {classroom_ids}")
-        if not classroom_ids:
-            print(f"   → No classrooms found")
-            return []
-        classrooms = db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
-        print(f"   → Returning {len(classrooms)} classrooms")
-        return classrooms
-
 
 # ---------------------------------------------------------------------------
 # Legacy document management endpoints (kept for backwards compatibility)
