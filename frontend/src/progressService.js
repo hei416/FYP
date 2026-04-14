@@ -411,34 +411,38 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
 export async function getCourseProgress(courseId = 'basic') {
   if (!isAuthenticated()) return null;
   try {
-    const res = await fetch(`${API_BASE}/progress/me?course_id=${courseId}`, {
-      headers: authHeaders()
-    });
-    if (!res.ok) {
-      if (res.status === 401) localStorage.removeItem('authToken');
+    // Fetch progress AND saved work stats in parallel
+    const [progressRes, statsRes] = await Promise.all([
+      fetch(`${API_BASE}/progress/me?course_id=${courseId}`, { headers: authHeaders() }),
+      fetch(`${API_BASE}/progress/scores-by-type`, { headers: authHeaders() }),  // new endpoint
+    ]);
+    if (!progressRes.ok) {
+      if (progressRes.status === 401) localStorage.removeItem('authToken');
       return null;
     }
-    const progress = await res.json();
+
+    const progress = await progressRes.json();
+    const weakData = weakRes.ok ? await weakRes.json() : { weak_topics: [] };
 
     const quizzesPassed  = (progress.quizzes_completed || []).length;
-    const testsPassed    = (progress.tests_passed || []).length;
+    const testsPassed    = (progress.tests_passed || []).length;  // unique passed topics
     const quizzesAttempted = progress.quizzes_attempted || 0;
     const testsAttempted   = progress.tests_attempted  || 0;
 
-    // Compute avg scores from SavedWork via /progress/stats if available,
-    // otherwise derive pass rates from counts
-    const quizPassRate = quizzesAttempted > 0
-      ? Math.round((quizzesPassed / quizzesAttempted) * 100) : null;
-    const testPassRate = testsAttempted > 0
-      ? Math.round((testsPassed / testsAttempted) * 100) : null;
+    // Derive avg scores from weak_topics data (already has per-topic avg scores)
+    const weakTopics = weakData.weak_topics || [];
+    const allScores = weakTopics.map(t => t.avg_score).filter(v => v != null);
+    const avgScore = allScores.length
+      ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+      : null;
 
     return {
       completion_percentage: progress.completion_percentage || 0,
-      quizzes_attempted:  quizzesAttempted,
-      quizzes_passed:     quizzesPassed,       // ← count, not array
+      quizzes_attempted:  effectiveQuizAttempted, 
+      quizzes_passed:     quizzesPassed,
       avg_quiz_score:     progress.avg_quiz_score ?? null,
-      tests_attempted:    testsAttempted,
-      tests_passed:       testsPassed,         // ← count, not array
+      tests_attempted:    effectiveTestAttempted,  
+      tests_passed:       testsPassed,
       avg_test_score:     progress.avg_test_score ?? null,
       quiz_pass_rate:     quizPassRate,
       test_pass_rate:     testPassRate,

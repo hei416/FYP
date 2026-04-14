@@ -356,7 +356,8 @@ async def get_weak_topics(
 
     # Aggregate per-topic scores by work type
     from collections import defaultdict
-    topic_scores = defaultdict(list)  # topic -> list of scores
+    quiz_topic_scores = defaultdict(list)
+    test_topic_scores = defaultdict(list)  # topic -> list of scores
 
     for w in all_works:
         if w.work_type not in ("quiz", "test"):
@@ -365,8 +366,14 @@ async def get_weak_topics(
         if score is None:
             continue
         for topic in _topics_of(w):
-            topic_scores[topic].append(score)
-
+            if w.work_type == "quiz":
+                quiz_topic_scores[topic].append(score)
+            else:
+                test_topic_scores[topic].append(score)
+    all_quiz_scores = [s for scores in quiz_topic_scores.values() for s in scores]
+    all_test_scores = [s for scores in test_topic_scores.values() for s in scores]
+    avg_quiz = round(sum(all_quiz_scores)/len(all_quiz_scores), 1) if all_quiz_scores else None
+    avg_test = round(sum(all_test_scores)/len(all_test_scores), 1) if all_test_scores else None
     pass_threshold = {"quiz": 70, "test": 60}
     # Use 70 as default threshold since we mix types
     weak = []
@@ -376,4 +383,6 @@ async def get_weak_topics(
             weak.append({"topic": topic, "avg_score": round(avg, 1), "attempts": len(scores)})
 
     weak.sort(key=lambda x: x["avg_score"])
-    return {"weak_topics": weak}
+    return {"weak_topics": weak,
+            "avg_quiz_score": avg_quiz,  
+            "avg_test_score": avg_test}   

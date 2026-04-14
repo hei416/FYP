@@ -57,6 +57,7 @@ class ConversationManager:
         input_tokens: int = 0,
         output_tokens: int = 0,
         pdf_matches: Optional[List[Dict[str, Any]]] = None,
+        query_id: Optional[str] = None,    # ← add this line
     ) -> ConversationHistory:
         """Save a single conversation turn"""
         try:
@@ -73,7 +74,6 @@ class ConversationManager:
             turn_number = (last_turn or 0) + 1
             
             # Store pdf_matches in summary_of_turns JSONB field
-            summary_of_turns = None
             _summary = {"pdf_matches": pdf_matches or []}
             if query_id:
                 _summary["query_id"] = query_id

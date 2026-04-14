@@ -201,51 +201,75 @@ export default function StudentClassrooms() {
     if (!isAuthenticated || !classrooms.length) return;
     setLoadingProgress(true);
     try {
-      // Fetch per-course progress and manually aggregate — mirrors CourseSummaryBar shape
+      // ✅ Deduplicate: only fetch each unique course_id ONCE
+      const seenCourses = new Set();
+      const uniqueCourses = classrooms
+        .map(cls => (cls.enrolled_courses && cls.enrolled_courses[0]) || 'basic')
+        .filter(courseId => {
+          if (seenCourses.has(courseId)) return false;
+          seenCourses.add(courseId);
+          return true;
+        });
+
       const results = await Promise.all(
-        classrooms.map(cls => {
-          const courseId = (cls.enrolled_courses && cls.enrolled_courses[0]) || 'basic';
-          return getCourseProgress(courseId).catch(() => null);
-        })
+        uniqueCourses.map(courseId => getCourseProgress(courseId).catch(() => null))
       );
       const valid = results.filter(Boolean);
-
       if (valid.length === 0) { setAggregateSummary(null); return; }
 
-      const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+      const avg = arr => arr.length
+        ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+        : null;
 
-      const completions = valid.map(p => p.completion_percentage).filter(v => v != null);
-      const quizScores  = valid.map(p => p.avg_quiz_score).filter(v => v != null);
-      const testScores  = valid.map(p => p.avg_test_score).filter(v => v != null);
+      // ✅ Read completion from localStorage (the only reliable source)
+      const localCompletion = (() => {
+        try {
+          const roadmap = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
+          return Math.round((roadmap.length / 78) * 100);  // 78 = total roadmap topics
+        } catch { return null; }
+      })();
 
-      const totalQuizAttempts = valid.reduce((s, p) => s + (p.quizzes_attempted || 0), 0);
-      const totalQuizPassed   = valid.reduce((s, p) => s + (p.quizzes_passed   || 0), 0);
-      const totalTestAttempts = valid.reduce((s, p) => s + (p.tests_attempted  || 0), 0);
-      const totalTestPassed   = valid.reduce((s, p) => s + (p.tests_passed     || 0), 0);
+      const quizScores = valid.map(p => p.avg_quiz_score).filter(v => v != null);
+      const testScores = valid.map(p => p.avg_test_score).filter(v => v != null);
 
-      const allWeakTopics = valid.flatMap(p => p.most_common_weak_topics || p.weak_topics || []);
-      const uniqueWeak = [...new Set(allWeakTopics.map(t => typeof t === 'string' ? t : t.topic))].slice(0, 6);
+      const quizzesPassed   = (progress.quizzes_completed || []).length;
+      const testsPassed     = (progress.tests_passed || []).length;
+      const quizzesAttempted = progress.quizzes_attempted || 0;
+      const testsAttempted   = progress.tests_attempted  || 0;
 
-      // Replace the current quiz/test pass rate calculation with:
+      // Use max(attempted, passed) so passes never exceed attempts
+      const effectiveQuizAttempted = Math.max(quizzesAttempted, quizzesPassed);
+      const effectiveTestAttempted = Math.max(testsAttempted,   testsPassed);
+
+      const quizPassRate = effectiveQuizAttempted > 0
+        ? Math.min(100, Math.round((quizzesPassed / effectiveQuizAttempted) * 100)) : null;
+      const testPassRate = effectiveTestAttempted > 0
+        ? Math.min(100, Math.round((testsPassed   / effectiveTestAttempted) * 100)) : null;
+
+      // ✅ Don't sum ai_interactions across courses — take max (same user, same counter)
+      const aiInteractions = Math.max(...valid.map(p => p.ai_interactions || 0));
+
+      const allWeakTopics = valid.flatMap(p => p.weak_topics || []);
+      const uniqueWeak = [...new Map(allWeakTopics.map(t =>
+        [typeof t === 'string' ? t : t.topic, t]
+      )).values()].slice(0, 6);
+
       setAggregateSummary({
-        avg_completion_percentage: avg(completions),
+        avg_completion_percentage: localCompletion,
         avg_quiz_score:  avg(quizScores),
         avg_test_score:  avg(testScores),
-        // Use pre-calculated rates from progressService instead of re-deriving
         quiz_pass_rate:  totalQuizAttempts > 0
           ? Math.round((totalQuizPassed / totalQuizAttempts) * 100) : null,
         test_pass_rate:  totalTestAttempts > 0
           ? Math.round((totalTestPassed / totalTestAttempts) * 100) : null,
         most_common_weak_topics: uniqueWeak,
-        ai_interactions: valid.reduce((s, p) => s + (p.ai_interactions || 0), 0),
+        ai_interactions: aiInteractions,  // ✅ max not sum
       });
 
-      // Also fetch /progress/weak-topics for avg_score annotations (same as ProgressDisplay.js)
+      // fetch annotated weak topics separately (already done inside getCourseProgress)
       const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || '';
       if (token) {
-        fetch(`${API_BASE}/progress/weak-topics`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        fetch(`${API_BASE}/progress/weak-topics`, { headers: { Authorization: `Bearer ${token}` } })
           .then(r => r.ok ? r.json() : { weak_topics: [] })
           .then(data => setWeakTopics(data.weak_topics || []))
           .catch(() => setWeakTopics([]));
