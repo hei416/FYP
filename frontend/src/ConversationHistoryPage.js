@@ -229,40 +229,40 @@ export default function ConversationHistoryPage() {
     };
 
 
-    const handleSubmit = async (e, overrideText) => {
-    e?.preventDefault();                                        // ← ?. so null is safe
-    const questionText = (overrideText || userInput).trim();   // ← single source of truth
-    if (!questionText) return;
+    const handleSubmit = async (e, overrideText, overrideSessionId) => {
+        e?.preventDefault();
+        const questionText = (overrideText || userInput).trim();
+        if (!questionText) return;
 
-    let currentId = activeId;
-    if (!currentId) {
-        const ns = {
-            id: generateId(),
-            title: questionText.slice(0, 80),                  // ← use questionText
-            createdAt: new Date().toISOString(),
-            turnCount: 0,
-            messages: [],
-            isDb: false,
-        };
-        setSessions(prev => [ns, ...prev]);
-        setActiveId(ns.id);
-        currentId = ns.id;
-    }
-
-    const userMsg = { role: 'user', content: questionText };
-    const currentMsgs = sessions.find(s => s.id === currentId)?.messages || [];
-
-    setSessions(prev => prev.map(s => s.id === currentId
-        ? {
-            ...s,
-            messages: [...currentMsgs, userMsg],
-            title: currentMsgs.length === 0 ? questionText.slice(0, 80) : s.title, // ← use questionText
+        let currentId = overrideSessionId || activeId;  // ← use override first
+        if (!currentId) {
+            const ns = {
+                id: generateId(),
+                title: questionText.slice(0, 80),
+                createdAt: new Date().toISOString(),
+                turnCount: 0,
+                messages: [],
+                isDb: false,
+            };
+            setSessions(prev => [ns, ...prev]);
+            setActiveId(ns.id);
+            currentId = ns.id;
         }
-        : s
-    ));
 
-    setUserInput('');
-    setChatLoading(true);
+        const userMsg = { role: 'user', content: questionText };
+        const currentMsgs = sessions.find(s => s.id === currentId)?.messages || [];
+
+        setSessions(prev => prev.map(s => s.id === currentId
+            ? {
+                ...s,
+                messages: [...currentMsgs, userMsg],
+                title: currentMsgs.length === 0 ? questionText.slice(0, 80) : s.title, // ← use questionText
+            }
+            : s
+        ));
+
+        setUserInput('');
+        setChatLoading(true);
 
     try {
         const useGeneral = selectedSources['general'] !== false;
@@ -737,7 +737,7 @@ export default function ConversationHistoryPage() {
                 {/* Messages */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '32px 10%' }}>
                     {/* Empty state */}
-                    {(!activeSession || (activeSession && (activeSession.messages?.length ?? 0) === 0)) && (
+                    {(!activeSession || (activeSession && (activeSession.messages?.length ?? 0) === 0 && !chatLoading)) && (
                         <div style={{ textAlign: 'center', marginTop: '15%', color: colors.textMuted }}>
                             <div style={{ fontSize: 48, marginBottom: 16 }}>☕</div>
                             <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text, marginBottom: 8 }}>
@@ -764,7 +764,7 @@ export default function ConversationHistoryPage() {
                                             setSessions(prev => [ns, ...prev]);
                                             setActiveId(ns.id);
                                             // Trigger submit directly, bypassing userInput state timing
-                                            await handleSubmitWithText(null, q);   // set together in same event tick
+                                            await handleSubmit(null, q, ns.id);   
                                         }}
                                         style={{
                                             padding: '8px 16px',
