@@ -313,6 +313,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     let totalSources = 0;
                     let pdfMatches = [];
                     let queryId = null;
+                    let responseTimeSec = null;
                     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
                     if (classroomIds.length > 0) {
@@ -443,7 +444,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
         <div>
             <div style={{ marginBottom: 10 }}><ReactMarkdown>{msg.content}</ReactMarkdown></div>
             {msg.debug_log?.response_time_sec != null && (
-                <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: spacing.sm, ... }}>
+                <div style={{ fontSize: font.sizeSm, color: colors.textMuted, marginTop: spacing.sm, padding: '8px 10px', backgroundColor: colors.divider, borderRadius: radii.sm }}>
                     ⚡ {msg.debug_log.response_time_sec}s
                 </div>
             )}
