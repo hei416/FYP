@@ -246,6 +246,7 @@ class ConversationHistory(Base):
     # Token usage for cost tracking
     input_tokens = Column(Integer, default=0)
     output_tokens = Column(Integer, default=0)
+    query_id = Column(String(255), nullable=True, index=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

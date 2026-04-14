@@ -228,110 +228,112 @@ export default function ConversationHistoryPage() {
         setLoadingContext(false);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!userInput.trim()) return;
 
-        let currentId = activeId;
-        if (!currentId) {
-            const ns = {
-                id: generateId(),
-                title: userInput.trim().slice(0, 80),
-                createdAt: new Date().toISOString(),
-                turnCount: 0,
-                messages: [],
+    const handleSubmit = async (e, overrideText) => {
+    e?.preventDefault();                                        // ← ?. so null is safe
+    const questionText = (overrideText || userInput).trim();   // ← single source of truth
+    if (!questionText) return;
+
+    let currentId = activeId;
+    if (!currentId) {
+        const ns = {
+            id: generateId(),
+            title: questionText.slice(0, 80),                  // ← use questionText
+            createdAt: new Date().toISOString(),
+            turnCount: 0,
+            messages: [],
+            isDb: false,
+        };
+        setSessions(prev => [ns, ...prev]);
+        setActiveId(ns.id);
+        currentId = ns.id;
+    }
+
+    const userMsg = { role: 'user', content: questionText };
+    const currentMsgs = sessions.find(s => s.id === currentId)?.messages || [];
+
+    setSessions(prev => prev.map(s => s.id === currentId
+        ? {
+            ...s,
+            messages: [...currentMsgs, userMsg],
+            title: currentMsgs.length === 0 ? questionText.slice(0, 80) : s.title, // ← use questionText
+        }
+        : s
+    ));
+
+    setUserInput('');
+    setChatLoading(true);
+
+    try {
+        const useGeneral = selectedSources['general'] !== false;
+        const classroomIds = Object.entries(selectedSources)
+            .filter(([k, v]) => k !== 'general' && v)
+            .map(([k]) => Number(k));
+
+        let aiMsg;
+
+        if (classroomIds.length > 0) {
+            const res = await fetch(`${API_BASE}/ask-multi`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
+                body: JSON.stringify({
+                    question: questionText,
+                    classroom_ids: classroomIds,
+                    include_general: useGeneral,
+                }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            const data = await res.json();
+            aiMsg = {
+                role: 'assistant',
+                content: data.answer + (data.sources_count > 0
+                    ? `\n\n*✓ Based on ${data.sources_count} classroom source(s)*`
+                    : ''),
+                pdf_matches: data.debug_log?.pdf_matches || [],
+                debug_log: data.debug_log || null,
+                query_id: data.query_id || null,
             };
-            setSessions(prev => [ns, ...prev]);
-            setActiveId(ns.id);
-            currentId = ns.id;
+        } else {
+            const res = await fetch(`${API_BASE}/ragAI`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_input: questionText,
+                    history: [],
+                    user_id: user?.id || null,
+                    conversation_id: currentId,
+                }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            const data = await res.json();
+            aiMsg = {
+                role: 'assistant',
+                content: data.final_answer || 'No response.',
+                pdf_matches: data.debug_log?.pdf_matches || data.pdf_matches || [],
+                debug_log: data.debug_log || null,
+                query_id: data.query_id || null,
+            };
         }
 
-        const userMsg = { role: 'user', content: userInput };
-        const currentMsgs = sessions.find(s => s.id === currentId)?.messages || [];
-
+        setSessions(prev => prev.map(s =>
+            s.id === currentId
+                ? { ...s, messages: [...(s.messages || []), aiMsg] }
+                : s
+        ));
+    } catch (err) {
         setSessions(prev => prev.map(s => s.id === currentId
             ? {
                 ...s,
-                messages: [...currentMsgs, userMsg],
-                title: currentMsgs.length === 0 ? userInput.trim().slice(0, 80) : s.title,
+                messages: [...(s.messages || []), {
+                    role: 'assistant',
+                    content: `❌ Error: ${err.message}`,
+                }]
             }
             : s
         ));
-
-        const questionText = userInput;
-        setUserInput('');
-        setChatLoading(true);
-
-        try {
-            const useGeneral = selectedSources['general'] !== false;
-            const classroomIds = Object.entries(selectedSources)
-                .filter(([k, v]) => k !== 'general' && v)
-                .map(([k]) => Number(k));
-
-            let aiMsg;
-
-            if (classroomIds.length > 0) {
-                const res = await fetch(`${API_BASE}/ask-multi`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
-                    body: JSON.stringify({
-                        question: questionText,
-                        classroom_ids: classroomIds,
-                        include_general: useGeneral,
-                    }),
-                });
-                if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                const data = await res.json();
-                aiMsg = {
-                    role: 'assistant',
-                    content: data.answer + (data.sources_count > 0
-                        ? `\n\n*✓ Based on ${data.sources_count} classroom source(s)*`
-                        : ''),
-                    pdf_matches: data.debug_log?.pdf_matches || [],
-                    debug_log: data.debug_log || null,
-                    query_id: data.query_id || null,   // ← NLI badge key
-                };
-            } else {
-                const res = await fetch(`${API_BASE}/ragAI`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_input: questionText,
-                        history: [],
-                        user_id: user?.id || null,
-                        conversation_id: currentId,
-                    }),
-                });
-                if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                const data = await res.json();
-                aiMsg = {
-                    role: 'assistant',
-                    content: data.final_answer || 'No response.',
-                    pdf_matches: data.debug_log?.pdf_matches || data.pdf_matches || [],
-                    debug_log: data.debug_log || null,
-                    query_id: data.query_id || null,   // ← NLI badge key
-                };
-            }
-
-            setSessions(prev => prev.map(s =>
-                s.id === currentId
-                    ? { ...s, messages: [...(s.messages || []), aiMsg] }
-                    : s
-            ));
-        } catch (err) {
-            setSessions(prev => prev.map(s => s.id === currentId
-                ? {
-                    ...s,
-                    messages: [...(s.messages || []), {
-                        role: 'assistant',
-                        content: `❌ Error: ${err.message}`,
-                    }]
-                }
-                : s
-            ));
-        }
-        setChatLoading(false);
-    };
+    }
+    setChatLoading(false);
+};
 
     // ── Mirrors AI.js headerIconBtn ───────────────────────────────────────────
     const headerIconBtn = (onClick, title, children, extraStyle = {}) => (
@@ -735,7 +737,7 @@ export default function ConversationHistoryPage() {
                 {/* Messages */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '32px 10%' }}>
                     {/* Empty state */}
-                    {!activeSession && (
+                    {(!activeSession || (activeSession && (activeSession.messages?.length ?? 0) === 0)) && (
                         <div style={{ textAlign: 'center', marginTop: '15%', color: colors.textMuted }}>
                             <div style={{ fontSize: 48, marginBottom: 16 }}>☕</div>
                             <div style={{ fontSize: font.sizeLg, fontWeight: font.weightBold, color: colors.text, marginBottom: 8 }}>
@@ -749,18 +751,20 @@ export default function ConversationHistoryPage() {
                                 {['What is polymorphism?', 'Explain try-catch', 'ArrayList vs LinkedList'].map(q => (
                                     <button
                                         key={q}
-                                        onClick={() => {
+                                        onClick={async () => {
                                             // Create session inline without relying on state timing
                                             const ns = {
                                                 id: generateId(),
                                                 title: q.slice(0, 80),
                                                 createdAt: new Date().toISOString(),
                                                 turnCount: 0,
-                                                messages: [],
+                                                messages: [],          
+                                                isDb: false,
                                             };
                                             setSessions(prev => [ns, ...prev]);
                                             setActiveId(ns.id);
-                                            setUserInput(q);   // set together in same event tick
+                                            // Trigger submit directly, bypassing userInput state timing
+                                            await handleSubmitWithText(null, q);   // set together in same event tick
                                         }}
                                         style={{
                                             padding: '8px 16px',
