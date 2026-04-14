@@ -49,11 +49,6 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const navigate = useNavigate();
     const { user } = useAuth();
-    const tokenRef = useRef(token);
-    const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${tokenRef.current}`
-    });
     const [sessions, setSessions] = useState([]);
     const [activeId, setActiveId] = useState(null);
     const [history, setHistory] = useState([]);
@@ -75,7 +70,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const activeIdRef = useRef(null);
     // Stable conversation_id for this chat session — reset on new chat
     const conversationIdRef = useRef(generateId());
-
+    
     useEffect(() => {
         const token = getToken();
         if (!token) {
@@ -234,21 +229,30 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
 
     const deleteSession = async (id, e) => {
         e.stopPropagation();
-        console.log('Deleting session id:', id); // verify id is correct
-        try {
-            const res = await fetch(`${API_BASE}/session/${id}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) {
-                console.error(`Delete failed: HTTP ${res.status}`, await res.text());
+
+        const session = sessions.find(s => s.id === id);
+        // Local-only sessions (New Chat, never sent a message) have no DB record
+        const isLocalOnly = !session?.isDb;
+
+        if (!isLocalOnly) {
+            try {
+                const res = await fetch(`${API_BASE}/conversation/${id}`, {  // ← /conversation/ not /session/
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${getToken()}`               // ← getToken() not getAuthHeaders()
+                    }
+                });
+                if (!res.ok && res.status !== 404) {
+                    console.error(`Delete failed: HTTP ${res.status}`, await res.text());
+                    return;
+                }
+            } catch (err) {
+                console.error('Delete error:', err);
                 return;
             }
-        } catch (err) {
-            console.error('Delete error:', err);
-            return;
         }
-        // ✅ Use functional update to avoid stale closure on sessions
+
         setSessions(prev => {
             const remaining = prev.filter(s => s.id !== id);
             if (activeId === id) {

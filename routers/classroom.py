@@ -817,6 +817,10 @@ async def get_official_aggregate_course_progress(
             db.query(UserProgress)
             .filter(UserProgress.user_id == student.id, UserProgress.course_id == course_id)
             .first()
+        ) or (
+            db.query(UserProgress)
+            .filter(UserProgress.user_id == student.id)
+            .first()
         )
         works = (
             db.query(SavedWork)
@@ -824,8 +828,8 @@ async def get_official_aggregate_course_progress(
             .order_by(SavedWork.created_at.desc())
             .all()
         )
-        quiz_works = [w for w in works if w.work_type == "quiz" and any(t in valid_subtopics for t in _topics_of(w))]
-        test_works = [w for w in works if w.work_type == "test" and any(t in valid_subtopics for t in _topics_of(w))]
+        quiz_works = [w for w in works if w.work_type == "quiz"]
+test_works = [w for w in works if w.work_type == "test"]
         quiz_scores = [s for s in (_score_of(w.result_data) for w in quiz_works) if s is not None]
         test_scores = [s for s in (_score_of(w.result_data) for w in test_works) if s is not None]
 
