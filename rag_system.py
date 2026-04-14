@@ -15,8 +15,8 @@ import time
 # LocalEmbeddings: LangChain-compatible wrapper for offline sentence-transformers
 class LocalEmbeddings(Embeddings):
     """LangChain-compatible embedding wrapper using sentence-transformers."""
-    def __init__(self, model_name: str = 'all-mpnet-base-v2'):
-        self._model = SentenceTransformer(model_name, device="cpu")
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', device: str = "cpu"):
+        self._model = SentenceTransformer(model_name, device=device)
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return self._model.encode(texts, convert_to_numpy=True).tolist()
@@ -635,12 +635,12 @@ def setup_rag_system(
     """
     print("Initializing FAISS RAG system...")
     print(f"   LLM Model: {FAISS_MODEL_NAME}")
-    print(f"   Embedding Model: sentence-transformers/all-mpnet-base-v2 (768-dim, offline)")
+    print(f"   Embedding Model: sentence-transformers/all-MiniLM-L6-v2 (384-dim, offline)")
 
-    # Initialize embeddings: LocalEmbeddings ensures consistent 768-dim embeddings
+    # Initialize embeddings: LocalEmbeddings ensures consistent 384-dim embeddings
     # across vectorstore build time and query time (critical for retrieval quality)
-    embeddings = LocalEmbeddings('all-mpnet-base-v2')
-    print("✅ LocalEmbeddings initialized (768-dim, offline, balanced quality/speed)")
+    embeddings = LocalEmbeddings('all-MiniLM-L6-v2')
+    print("✅ LocalEmbeddings initialized (384-dim, offline, balanced quality/speed)")
     print("   Note: First run will download model (~420MB), then cached locally")
 
 
