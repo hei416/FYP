@@ -280,7 +280,8 @@ def save_rag_conversation(
     pdf_matches: List[Dict],
     code_snippet: Optional[str] = None,
     input_tokens: Optional[int] = None,
-    output_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None,
+    query_id: Optional[str] = None,          
 ) -> None:
     """
     Save RAG conversation turn with standardized error handling.
@@ -308,6 +309,7 @@ def save_rag_conversation(
             input_tokens=input_tokens or len(user_message.split()),
             output_tokens=output_tokens or len(assistant_response.split()),
             pdf_matches=pdf_matches,
+            query_id=query_id,    
         )
         print(f"✅ Saved {context_type} conversation turn for user {user_id}")
     except Exception as e:

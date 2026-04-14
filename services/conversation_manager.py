@@ -74,8 +74,10 @@ class ConversationManager:
             
             # Store pdf_matches in summary_of_turns JSONB field
             summary_of_turns = None
-            if pdf_matches:
-                summary_of_turns = {"pdf_matches": pdf_matches}
+            _summary = {"pdf_matches": pdf_matches or []}
+            if query_id:
+                _summary["query_id"] = query_id
+            summary_of_turns=_summary
             
             # Create and save turn
             turn = ConversationHistory(

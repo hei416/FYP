@@ -108,14 +108,18 @@ async def ask_classroom_rag(
         
         save_rag_conversation(
             conversation_manager=conversation_manager,
-            user_id=user_id,
-            conversation_id=request.conversation_id,
-            user_message=request.question,
-            assistant_response=answer,
-            context_type="classroom_rag",
+            user_id=req.user_id,
+            conversation_id=req.conversation_id,
+            user_message=req.user_input,
+            assistant_response=final_answer,
+            context_type="explain",
             pdf_matches=pdf_matches,
-            code_snippet=None
+            code_snippet=req.code_snippet if req.code_snippet else None,
+            input_tokens=len(query.split()),
+            output_tokens=len(final_answer.split()),
+            extra_metadata={"query_id": query_id}   
         )
+
     
     return {
         "answer": answer,

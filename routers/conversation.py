@@ -119,6 +119,7 @@ def get_conversation(
             "code_snippet": t.code_snippet,
             "created_at": t.created_at,
             "pdf_matches": pdf_matches,
+            "query_id": t.summary_of_turns.get("query_id") if t.summary_of_turns else None,
         })
     return result
 
