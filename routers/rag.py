@@ -993,17 +993,19 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 query = f"Previous conversation context:\n{conv_context}\n\n---\n\nNew question:\n{query}"
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
 
-        loop = asyncio.get_event_loop()
-
-        # Run the full RAG chain off the event loop (embed + retrieve + LLM)
+        # Run the full RAG chain off the event loop in a single call.
+        # rag_chain returns a dict with 'result' and 'source_documents'.
         def _run_rag(q: str):
-            result = rag_chain(q)          # ← plain function call, NO .invoke()
+            result = rag_chain(q)
             if isinstance(result, dict):
-                return result.get("result") or result.get("answer") or result.get("output") or str(result)
-            return result
+                answer = result.get("result") or result.get("answer") or result.get("output") or str(result)
+                docs = result.get("source_documents", [])
+            else:
+                answer = str(result)
+                docs = []
+            return answer, docs
 
-        final_answer = await asyncio.to_thread(rag_chain, query)
-        docs = await asyncio.to_thread(retriever.invoke, query)
+        final_answer, docs = await asyncio.to_thread(_run_rag, query)
 
         # Build PDF matches
         base_url = f"{request.url.scheme}://{request.url.netloc}"
