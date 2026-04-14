@@ -2003,6 +2003,11 @@ async def get_nli_status(query_id: str):
         
         finally:
             db.close()
+
+    raw_score = float(log_entry.nli_score) if log_entry.nli_score else 0.0
+    PRACTICAL_CEILING = 0.35
+    display_score = round(min(raw_score / PRACTICAL_CEILING, 1.0), 3)
+    score_msg = f"{display_score:.1%} grounded"
     
     except Exception as e:
         logger.error(f"❌ Failed to fetch NLI status for {query_id}: {str(e)}", exc_info=True)
