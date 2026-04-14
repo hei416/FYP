@@ -281,7 +281,7 @@ def save_rag_conversation(
     code_snippet: Optional[str] = None,
     input_tokens: Optional[int] = None,
     output_tokens: Optional[int] = None,
-    "query_id": (extra_metadata or {}).get("query_id"),         
+    extra_metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Save RAG conversation turn with standardized error handling.
@@ -297,8 +297,10 @@ def save_rag_conversation(
         code_snippet: Optional code snippet
         input_tokens: Optional input token count
         output_tokens: Optional output token count
+        extra_metadata: Optional dict of extra fields (e.g. {"query_id": "..."})
     """
     try:
+        query_id = (extra_metadata or {}).get("query_id")
         conversation_manager.save_turn(
             user_id=user_id,
             conversation_id=conversation_id,
@@ -309,7 +311,7 @@ def save_rag_conversation(
             input_tokens=input_tokens or len(user_message.split()),
             output_tokens=output_tokens or len(assistant_response.split()),
             pdf_matches=pdf_matches,
-            query_id=query_id,    
+            query_id=query_id,
         )
         print(f"✅ Saved {context_type} conversation turn for user {user_id}")
     except Exception as e:
