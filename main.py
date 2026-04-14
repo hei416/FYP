@@ -411,6 +411,7 @@ async def ensure_rag_initialized(rebuild_java=False, rebuild_platform=False):
             )
 
             # Store in rag router module for endpoint access
+            from routers import rag as rag_router
             rag_router.rag_chain = rag_chain
             rag_router.retriever = retriever
 
@@ -483,18 +484,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"❌ RAG init failed (will retry on first request): {e}\n")
 
-    # ── Print Registered Routes ─────────────────────────────────────────────
-    routes = sorted(
-        f"  {m} {r.path}"
-        for r in app.routes
-        if hasattr(r, 'path') and hasattr(r, 'methods')
-        for m in (r.methods or [])
-    )
-    print("=" * 60)
-    print("📋 REGISTERED API ROUTES:")
-    print("=" * 60)
-    print("\n".join(routes))
-    print("=" * 60 + "\n")
+    # ── Print Registered Routes (deferred so routers are all attached) ──────
+    async def _print_routes():
+        await asyncio.sleep(0.1)  # tiny delay — lets module-level router registration finish
+        routes = sorted(
+            f"  {m} {r.path}"
+            for r in app.routes
+            if hasattr(r, 'path') and hasattr(r, 'methods')
+            for m in (r.methods or [])
+        )
+        print("=" * 60)
+        print("📋 REGISTERED API ROUTES:")
+        print("=" * 60)
+        print("\n".join(routes))
+        print("=" * 60 + "\n")
+
+    asyncio.create_task(_print_routes())
 
     yield  # ← Server is live and accepting requests here
 
