@@ -4,6 +4,7 @@ import asyncio
 import torch
 import logging
 import threading
+import os
 from concurrent.futures import ThreadPoolExecutor
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from typing import List, Dict, Any, Optional
@@ -60,6 +61,13 @@ class NLIMonitor:
 
         Thread-safe via double-checked locking.
         Called automatically by get_nli_monitor() on singleton creation.
+
+        DEVICE SELECTION:
+          Always CPU for this model. MPS (Apple Silicon) is intentionally
+          skipped because DebertaV2 uses ops (e.g. disentangled attention)
+          that are not fully supported by MPS and cause silent hangs on M1/M2.
+          PYTORCH_ENABLE_MPS_FALLBACK=1 only partially helps and cannot
+          prevent all hangs during model.to() / model.eval().
         """
         if self._initialized:
             return
@@ -69,10 +77,23 @@ class NLIMonitor:
                 return
             try:
                 logger.info(f"🔄 Initializing NLI model: {self.model_name}")
-                self._device = "cuda" if torch.cuda.is_available() else "cpu"
+
+                # Force CPU — MPS is explicitly excluded for DebertaV2 stability.
+                # CUDA is still used if available (Linux/Windows GPU servers).
+                if torch.cuda.is_available():
+                    self._device = "cuda"
+                else:
+                    # Explicitly skip MPS even on Apple Silicon.
+                    # DeBERTa disentangled-attention ops hang on MPS.
+                    self._device = "cpu"
+                    # Prevent PyTorch from silently dispatching any op to MPS
+                    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
                 logger.info(f"📊 NLI running on: {self._device.upper()}")
                 self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-                self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    self.model_name
+                )
                 self.model.to(self._device)
                 self.model.eval()
                 self._initialized = True
