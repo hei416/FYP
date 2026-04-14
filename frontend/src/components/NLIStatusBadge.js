@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * NLIStatusBadge — Displays real-time NLI (Natural Language Inference) validation status
+ * NLIStatusBadge — 4-tier faithfulness display
  *
- * Polls the backend for faithfulness validation results and shows:
- * - "Validation in progress..." (gray) while checking
- * - "Response validated ✓ (92% grounded)" (green) if faithful
- * - "⚠️ Low confidence (23%) — check sources" (yellow) if low faithfulness
- * - "Validation error" (red) if check failed
- *
- * NOTE ON SCORE DISPLAY:
- * The backend returns both `nli_score` (raw DeBERTa entailment, 0–1) and
- * `display_score` (scaled relative to the model's practical ceiling for
- * paraphrased RAG answers). Always show `display_score` to the user.
+ * Tiers (score = faithful_claims / total_claims):
+ *   >= 0.90  Highly Grounded  ✅  dark green
+ *   0.70–0.89  Pass           ✓   green
+ *   0.50–0.69  Partial        ⚠️  amber
+ *   < 0.50   Alert            🔴  red
  *
  * Validation may take 10-30 seconds on first run (NLI model initialization).
  */
@@ -59,7 +54,6 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
         setStatus(data.status);
         setMessage(data.message);
 
-        // Prefer display_score (scaled); fall back to raw nli_score if absent
         const scored = data.display_score ?? data.nli_score;
         if (scored !== null && scored !== undefined) {
           setDisplayScore(scored);
@@ -107,34 +101,73 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
     };
   }, [queryId, apiBase]);
 
-  const badgeStyles = {
+  /**
+   * Map a 0-1 faithfulness score to one of four visual tiers.
+   * When still pending or score unavailable, falls back to status-based styling.
+   */
+  const getTier = (score, baseStatus) => {
+    if (baseStatus === 'pending') return 'pending';
+    if (baseStatus === 'error')   return 'error';
+    if (score === null || score === undefined) {
+      // backend returned pass/alert without a score — honour it
+      return baseStatus === 'pass' ? 'pass' : 'alert';
+    }
+    if (score >= 0.90) return 'highly_grounded';
+    if (score >= 0.70) return 'pass';
+    if (score >= 0.50) return 'partial';
+    return 'alert';
+  };
+
+  const tierStyles = {
     pending: {
       backgroundColor: '#f3f4f6',
       borderColor: '#d1d5db',
       color: '#6b7280',
       icon: '⏳',
+      label: 'Validating…',
+    },
+    highly_grounded: {
+      backgroundColor: '#dcfce7',
+      borderColor: '#16a34a',
+      color: '#14532d',
+      icon: '✅',
+      label: 'Highly Grounded',
     },
     pass: {
       backgroundColor: '#dcfce7',
       borderColor: '#86efac',
       color: '#166534',
       icon: '✓',
+      label: 'Grounded',
     },
-    alert: {
+    partial: {
       backgroundColor: '#fef3c7',
       borderColor: '#fcd34d',
       color: '#92400e',
       icon: '⚠️',
+      label: 'Partially Grounded',
+    },
+    alert: {
+      backgroundColor: '#fee2e2',
+      borderColor: '#fca5a5',
+      color: '#991b1b',
+      icon: '🔴',
+      label: 'Low Grounding — check sources',
     },
     error: {
       backgroundColor: '#fee2e2',
       borderColor: '#fca5a5',
       color: '#991b1b',
       icon: '❌',
+      label: 'Validation error',
     },
   };
 
-  const style = badgeStyles[status] || badgeStyles.pending;
+  const tier = getTier(displayScore, status);
+  const style = tierStyles[tier];
+  const pct = displayScore !== null && displayScore !== undefined
+    ? `${Math.round(displayScore * 100)}%`
+    : null;
 
   return (
     <div
@@ -158,8 +191,16 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
       }
     >
       <span style={{ marginRight: '6px' }}>{style.icon}</span>
-      {/* message already contains the score from the backend — no need to append again */}
-      <span>{message}</span>
+      <span>
+        {tier === 'pending'
+          ? message
+          : tier === 'error'
+            ? (message || style.label)
+            : pct
+              ? `${style.label} (${pct} grounded)`
+              : style.label
+        }
+      </span>
     </div>
   );
 }
