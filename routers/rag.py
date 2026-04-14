@@ -995,17 +995,16 @@ async def rag_ai(req: ExplainRequest, request: Request):
 
         loop = asyncio.get_event_loop()
 
-        # Step 1: retrieve docs (CPU-bound embedding, off event loop)
-        def _run_rag(query: str):
-            return rag_chain(query)
+        # ✅ Step 1: Run the full RAG chain off the event loop (embed + retrieve + LLM)
+        def _run_rag(q: str):
+            return rag_chain(q)
 
-        # Step 2: build context
-        context = "\n\n".join([d.page_content for d in docs])
-
-        # Step 3: LLM chain (also CPU-bound for embedding the prompt)
         final_answer = await loop.run_in_executor(_embed_executor, _run_rag, query)
+
+        # ✅ Step 2: Retrieve docs separately (for pdf_matches only, FAISS is fast)
         docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)
-        # Build PDF matches using helper with base URL for iframe links
+
+        # ✅ Step 3: Build PDF matches
         base_url = f"{request.url.scheme}://{request.url.netloc}"
         pdf_matches = build_pdf_matches_from_langchain_docs(
             docs=docs,
@@ -1029,10 +1028,8 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 output_tokens=len(final_answer.split())
             )
 
-        # Generate unique query ID for this response
         query_id = str(uuid.uuid4())
-        
-        # Schedule NLI check fully detached from request lifecycle
+
         asyncio.create_task(
             _monitor_nli_faithfulness_async(
                 query_id,
