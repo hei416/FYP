@@ -38,7 +38,7 @@ from services.rag_helpers import (
 )
 from services.nli_monitor import get_nli_monitor
 from concurrent.futures import ThreadPoolExecutor
-_embed_executor = ThreadPoolExecutor(max_workers=3)
+_embed_executor = ThreadPoolExecutor(max_workers=6)
 
 
 
@@ -996,17 +996,15 @@ async def rag_ai(req: ExplainRequest, request: Request):
         loop = asyncio.get_event_loop()
 
         # Step 1: retrieve docs (CPU-bound embedding, off event loop)
-        docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)
+        def _run_rag(query: str):
+            return rag_chain(query)
 
         # Step 2: build context
         context = "\n\n".join([d.page_content for d in docs])
 
         # Step 3: LLM chain (also CPU-bound for embedding the prompt)
-        final_answer = await loop.run_in_executor(
-            _embed_executor,
-            rag_chain,
-            f"{context}\n\nQuestion: {query}"
-        )
+        final_answer = await loop.run_in_executor(_embed_executor, _run_rag, query)
+        docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)
         # Build PDF matches using helper with base URL for iframe links
         base_url = f"{request.url.scheme}://{request.url.netloc}"
         pdf_matches = build_pdf_matches_from_langchain_docs(
@@ -1307,7 +1305,7 @@ async def ai_partial_grading(req: GradingRequest):
             print(f"DEBUG vectorstore embed fn: {type(getattr(ret.vectorstore, 'embedding_function', None)).__name__}")
         except Exception as e:
             print(f"DEBUG failed to introspect retriever: {e}")
-        relevant_docs = ret.invoke(f"Java {req.problem_description} best practices")
+        relevant_docs = await asyncio.to_thread(ret.invoke, f"Java {req.problem_description} best practices")
         best_practices = "\n\n".join([
             f"Reference {i+1}:\n{doc.page_content[:400]}"
             for i, doc in enumerate(relevant_docs[:2])
@@ -1785,7 +1783,7 @@ async def ask_multi_classroom(
         api_version=FAISS_API_VERSION,
         max_tokens=1024,
     )
-    answer = llm(prompt)
+    answer = await asyncio.to_thread(llm, prompt)
     
     # Save conversation if user_id is provided
     if current_user and current_user.id:
