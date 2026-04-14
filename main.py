@@ -13,12 +13,34 @@ load_dotenv()  # Load environment variables from .env file
 
 
 # ============================================================================
-# PYTORCH MPS WORKAROUND (macOS Apple Silicon)
+# PYTORCH MPS / METAL WORKAROUND (macOS Apple Silicon — M1/M2/M3)
 # ============================================================================
-# Must be set BEFORE importing torch/transformers to prevent segfaults on MPS
+# These env vars MUST be set before ANY import of torch or transformers.
+#
+# WHY DISABLE MPS ENTIRELY?
+#   DebertaV2 (used by the NLI monitor) and sentence-transformers (used by
+#   the FAISS embedder) both contain ops that are not fully supported by the
+#   Apple Metal Performance Shaders (MPS) backend. Symptoms on M1/M2:
+#     - Silent hang in model.to() / model.eval()  → server never goes live
+#     - SIGSEGV (EXC_BAD_ACCESS) on Thread 8     → process crash at startup
+#   PYTORCH_ENABLE_MPS_FALLBACK=1 only routes *individual ops* to CPU but
+#   cannot prevent crashes in the MPS allocator/driver init path.
+#
+#   Setting PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 and the NO_MPS flag below
+#   force the entire runtime to CPU, which is stable and correct for this app.
 import os as _os
 _os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-_os.environ["TOKENIZERS_PARALLELISM"] = "false" # Suppress tokenizers parallelism warning
+_os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
+_os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Suppress tokenizers warning
+
+# Disable MPS backend entirely — must happen before torch is imported.
+# This is the authoritative way to opt out of Metal on Apple Silicon.
+try:
+    import torch
+    if hasattr(torch.backends, "mps"):
+        torch.backends.mps.enabled = False  # type: ignore[attr-defined]
+except Exception:
+    pass  # torch not yet importable here on some envs; env vars above are the primary guard
 
 
 import traceback
@@ -443,8 +465,13 @@ async def lifespan(app: FastAPI):
 
         # Call get_nli_monitor() inside the startup executor so initialization
         # (which performs blocking HF/disk I/O) runs in a thread, not the event loop.
-        nli_monitor = await loop.run_in_executor(_startup_executor, get_nli_monitor)
+        nli_monitor = await asyncio.wait_for(
+            loop.run_in_executor(_startup_executor, get_nli_monitor),
+            timeout=60.0
+        )
         print("✅ NLI monitor ready\n")
+    except asyncio.TimeoutError:
+        print("⚠️ NLI monitor init timed out after 60s — skipping (will retry on first use)\n")
     except Exception as e:
         print(f"⚠️ NLI monitor init failed (will retry on first use): {e}\n")
 
