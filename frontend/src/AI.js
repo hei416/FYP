@@ -423,14 +423,16 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     }, [externalInputRef, setShowChat, submitQuery]);
 
     const handleEnlarge = () => {
-        // Save whatever we have so far (including pending user msg)
-        const savedId = saveCurrentSession(historyRef.current);
-        if (savedId) {
-            sessionStorage.setItem(SESSION_KEY, JSON.stringify({ 
-            id: savedId,
-            pendingMessages: historyRef.current  // ← carry over partial history
-            }));
-        }
+        const convId = conversationIdRef.current;   // always exists because we initialize it on mount and reset on new chat
+        saveCurrentSession(historyRef.current, convId);
+
+        // write to sessionStorage so ChatHistory page picks it up
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+            id: activeIdRef.current || convId,
+            conversationId: convId,
+            pendingMessages: historyRef.current
+        }));
+
         setShowChat(false);
         navigate('/chat-history');
     };
@@ -696,7 +698,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                                     <div style={{ fontSize: font.sizeXs, color: colors.textMuted, marginTop: 4 }}>Click History to browse past conversations</div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 20 }}>
                                         {['What is polymorphism?', 'Explain try-catch', 'ArrayList vs LinkedList'].map(q => (
-                                            <button key={q} onClick={() => { setUserInput(q); }}
+                                            <button key={q} onClick={() => submitQuery(q)}   
                                                 style={{
                                                     padding: '6px 14px', borderRadius: radii.full,
                                                     border: `1px solid ${colors.border}`, background: colors.surface,
