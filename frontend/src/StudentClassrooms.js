@@ -201,7 +201,7 @@ export default function StudentClassrooms() {
     if (!isAuthenticated || !classrooms.length) return;
     setLoadingProgress(true);
     try {
-      // ✅ Deduplicate: only fetch each unique course_id ONCE
+      // Deduplicate: only fetch each unique course_id ONCE
       const seenCourses = new Set();
       const uniqueCourses = classrooms
         .map(cls => (cls.enrolled_courses && cls.enrolled_courses[0]) || 'basic')
@@ -221,32 +221,25 @@ export default function StudentClassrooms() {
         ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
         : null;
 
-      // ✅ Read completion from localStorage (the only reliable source)
+      // Read completion from localStorage (the only reliable source)
       const localCompletion = (() => {
         try {
           const roadmap = JSON.parse(localStorage.getItem('java-roadmap-completed') || '[]');
-          return Math.round((roadmap.length / 78) * 100);  // 78 = total roadmap topics
+          return Math.round((roadmap.length / 78) * 100);
         } catch { return null; }
       })();
 
+      // Aggregate scores across all unique courses
       const quizScores = valid.map(p => p.avg_quiz_score).filter(v => v != null);
       const testScores = valid.map(p => p.avg_test_score).filter(v => v != null);
 
-      const quizzesPassed   = (progress.quizzes_completed || []).length;
-      const testsPassed     = (progress.tests_passed || []).length;
-      const quizzesAttempted = progress.quizzes_attempted || 0;
-      const testsAttempted   = progress.tests_attempted  || 0;
+      // Sum attempts and passes across courses (already correctly computed in getCourseProgress)
+      const totalQuizAttempts = valid.reduce((s, p) => s + (p.quizzes_attempted || 0), 0);
+      const totalQuizPassed   = valid.reduce((s, p) => s + (p.quizzes_passed   || 0), 0);
+      const totalTestAttempts = valid.reduce((s, p) => s + (p.tests_attempted  || 0), 0);
+      const totalTestPassed   = valid.reduce((s, p) => s + (p.tests_passed     || 0), 0);
 
-      // Use max(attempted, passed) so passes never exceed attempts
-      const effectiveQuizAttempted = Math.max(quizzesAttempted, quizzesPassed);
-      const effectiveTestAttempted = Math.max(testsAttempted,   testsPassed);
-
-      const quizPassRate = effectiveQuizAttempted > 0
-        ? Math.min(100, Math.round((quizzesPassed / effectiveQuizAttempted) * 100)) : null;
-      const testPassRate = effectiveTestAttempted > 0
-        ? Math.min(100, Math.round((testsPassed   / effectiveTestAttempted) * 100)) : null;
-
-      // ✅ Don't sum ai_interactions across courses — take max (same user, same counter)
+      // Take max for ai_interactions — same user, same counter across course calls
       const aiInteractions = Math.max(...valid.map(p => p.ai_interactions || 0));
 
       const allWeakTopics = valid.flatMap(p => p.weak_topics || []);
@@ -259,17 +252,19 @@ export default function StudentClassrooms() {
         avg_quiz_score:  avg(quizScores),
         avg_test_score:  avg(testScores),
         quiz_pass_rate:  totalQuizAttempts > 0
-          ? Math.round((totalQuizPassed / totalQuizAttempts) * 100) : null,
+          ? Math.min(100, Math.round((totalQuizPassed / totalQuizAttempts) * 100)) : null,
         test_pass_rate:  totalTestAttempts > 0
-          ? Math.round((totalTestPassed / totalTestAttempts) * 100) : null,
+          ? Math.min(100, Math.round((totalTestPassed / totalTestAttempts) * 100)) : null,
         most_common_weak_topics: uniqueWeak,
-        ai_interactions: aiInteractions,  // ✅ max not sum
+        ai_interactions: aiInteractions,
       });
 
-      // fetch annotated weak topics separately (already done inside getCourseProgress)
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || '';
+      // Fetch annotated weak topics for the summary bar
+      const token = localStorage.getItem('authToken') || '';
       if (token) {
-        fetch(`${API_BASE}/progress/weak-topics`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API_BASE}/progress/weak-topics`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
           .then(r => r.ok ? r.json() : { weak_topics: [] })
           .then(data => setWeakTopics(data.weak_topics || []))
           .catch(() => setWeakTopics([]));
@@ -302,8 +297,6 @@ export default function StudentClassrooms() {
   const filteredClasses = classes.filter(c =>
     (c.name + ' ' + (c.description || '')).toLowerCase().includes(classSearch.toLowerCase())
   );
-  
-
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
@@ -342,7 +335,7 @@ export default function StudentClassrooms() {
         </button>
       </div>
 
-      {/* ✅ Single aggregated progress card above classroom list */}
+      {/* Single aggregated progress card above classroom list */}
       <MyProgressSummaryBar
         summary={aggregateSummary}
         weakTopics={weakTopics}
@@ -368,7 +361,7 @@ export default function StudentClassrooms() {
         {joinSuccess && <p style={{ color: '#16a34a', marginTop: 10, fontSize: font.sizeSm }}>{joinSuccess}</p>}
       </div>
 
-      {/* Classroom list — no progress card inside */}
+      {/* Classroom list */}
       <h3 style={{ fontSize: font.sizeLg, color: colors.text, marginBottom: 12 }}>
         Enrolled Classrooms ({classes.length})
       </h3>
