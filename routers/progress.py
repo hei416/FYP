@@ -370,19 +370,15 @@ async def get_weak_topics(
                 quiz_topic_scores[topic].append(score)
             else:
                 test_topic_scores[topic].append(score)
+
     all_quiz_scores = [s for scores in quiz_topic_scores.values() for s in scores]
     all_test_scores = [s for scores in test_topic_scores.values() for s in scores]
     avg_quiz = round(sum(all_quiz_scores)/len(all_quiz_scores), 1) if all_quiz_scores else None
     avg_test = round(sum(all_test_scores)/len(all_test_scores), 1) if all_test_scores else None
-    pass_threshold = {"quiz": 70, "test": 60}
-    # Use 70 as default threshold since we mix types
-    weak = []
-    for topic, scores in topic_scores.items():
-        avg = sum(scores) / len(scores) if scores else 0
-        if avg < 70:
-            weak.append({"topic": topic, "avg_score": round(avg, 1), "attempts": len(scores)})
 
-    weak.sort(key=lambda x: x["avg_score"])
-    return {"weak_topics": weak,
-            "avg_quiz_score": avg_quiz,  
-            "avg_test_score": avg_test}   
+    # Then update the return:
+    return {
+        "weak_topics": weak,
+        "avg_quiz_score": avg_quiz,
+        "avg_test_score": avg_test,
+    }
