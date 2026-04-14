@@ -1002,11 +1002,8 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 return result.get("result") or result.get("answer") or result.get("output") or str(result)
             return result
 
-        final_answer = await loop.run_in_executor(_embed_executor, _run_rag, query)
-
-
-        # Retrieve docs separately (for pdf_matches only, FAISS is fast)
-        docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)
+        final_answer = await asyncio.to_thread(rag_chain, query)
+        docs = await asyncio.to_thread(retriever.invoke, query)
 
         # Build PDF matches
         base_url = f"{request.url.scheme}://{request.url.netloc}"

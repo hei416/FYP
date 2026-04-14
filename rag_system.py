@@ -556,29 +556,24 @@ Answer:"""
         | StrOutputParser()
     )
 
-    # Fallback chain: prompt → llm → parser (no retrieval)
-    fallback_chain = fallback_prompt | llm | StrOutputParser()
+
 
     def chain_with_fallback(question: str) -> str:
-        """Execute RAG chain; fall back to general LLM if context insufficient.
-        
-        Checks for marker phrase to detect when LLM indicates insufficient context.
-        This is more robust than checking for empty retrieval results, as some queries
-        may retrieve documents that are tangentially relevant but unhelpful.
-        
-        Args:
-            question (str): User question to answer.
-        
-        Returns:
-            str: Answer from RAG or fallback chain, with disclaimer if from fallback.
-        """
-        # First attempt: RAG chain with context-only constraint
-        rag_response = rag_chain.invoke(question)
+        # ✅ Step 1: Retrieve and format context manually
+        retrieved_docs = retriever.invoke(question)
+        context = format_docs(retrieved_docs)
 
-        # Detect if LLM signaled insufficient knowledge and switch to fallback
+        # ✅ Step 2: Format prompt manually
+        prompt_text = rag_prompt.format(context=context, question=question)
+
+        # ✅ Step 3: Call HKBULLM directly (plain sync requests.post)
+        rag_response = llm(prompt_text)
+
+        # ✅ Step 4: Fallback if context insufficient
         if "My knowledge base doesn't fully cover" in rag_response:
             print("⚠️ RAG insufficient — falling back to LLM knowledge...")
-            fallback_response = fallback_chain.invoke({"question": question})
+            fallback_text = fallback_prompt.format(question=question)
+            fallback_response = llm(fallback_text)
             return fallback_response + "\n\n*(Answered using general knowledge — not from the knowledge base)*"
 
         return rag_response
