@@ -242,7 +242,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
 
         if (!isLocalOnly) {
             try {
-                const res = await fetch(`${API_BASE}/conversation/${id}`, {  // ← /conversation/ not /session/
+                const res = await fetch(`${API_BASE}/conversation/session/${id}`, { 
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
