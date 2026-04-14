@@ -12,6 +12,8 @@ import time
 import asyncio
 import random
 import requests
+import torch
+import torch.nn.functional as F
 import difflib
 import re
 import logging
@@ -1759,10 +1761,10 @@ async def ask_multi_classroom(
 
     general_note = ""
     if body.include_general:
-        general_note = "You may also draw on your general Java knowledge to supplement the answer."
+        general_note = "You may also draw on your general Computer Science knowledge to supplement the answer."
 
     prompt = (
-        f"You are a Java programming tutor. {system_note} {general_note}\n\n"
+        f"You are a Computer Science tutor. {system_note} {general_note}\n\n"
         + (f"CLASSROOM CONTEXT:\n{context_str}\n\n" if context_str else "")
         + f"STUDENT QUESTION: {body.question}\n\n"
         "Provide a clear, educational answer."
@@ -1826,6 +1828,37 @@ async def ask_multi_classroom(
 
 _nli_bg_executor = ThreadPoolExecutor(max_workers=1)
 
+PRACTICAL_CEILING = 0.80  # shared constant — used in BOTH _run_nli_and_save AND get_nli_status
+
+
+def _split_sentences(text: str) -> list[str]:
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    return [s.strip() for s in sentences if len(s.strip()) > 15]
+
+
+def _split_atomic_claims(text: str) -> list[str]:
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    return [s.strip() for s in sentences if len(s.strip()) > 20]
+
+
+def _entailment_score(monitor, premise: str, hypothesis: str) -> float:
+    """
+    Safely extract softmax entailment probability (index 1) from the model.
+    Falls back to monitor._run_inference() if model.predict() is unavailable.
+    DeBERTa label order: [contradiction=0, entailment=1, neutral=2]
+    """
+    try:
+        # ✅ Preferred: direct access to raw logits → proper softmax
+        raw_logits = monitor.model.predict([(premise, hypothesis)])  # shape (1, 3)
+        probs = F.softmax(
+            torch.tensor(raw_logits, dtype=torch.float32), dim=1
+        ).numpy()
+        return float(probs[0, 1])  # entailment index
+    except AttributeError:
+        # Fallback: monitor._run_inference already returns a scalar
+        # — assume it returns the entailment probability directly
+        return float(monitor._run_inference(premise, hypothesis))
+
 
 def _run_nli_and_save(
     query_id: str,
@@ -1836,54 +1869,86 @@ def _run_nli_and_save(
     db = None
     try:
         monitor = get_nli_monitor()
-        chunk_dicts = [{"text": t} for t in chunk_texts]
-        raw_score = float(log_entry.nli_score) if log_entry.nli_score else 0.0
-        PRACTICAL_CEILING = 0.35  # DeBERTa's realistic max for paraphrased answers
-        display_score = round(min(raw_score / PRACTICAL_CEILING, 1.0), 3)
+        threshold = getattr(monitor, "threshold", 0.50)
 
-        nli_result = {
-                "score": round(score, 3),
-                "display_score": display_score,   # ← add this
-                "is_faithful": is_faithful,
-                "threshold": getattr(monitor, "threshold", 0.65),
-                "status": "ALERT", "reason": "empty_context_or_response"
+        if not chunk_texts or not llm_response:
+            nli_result = {
+                "score": 0.0, "is_faithful": False,
+                "threshold": threshold,
+                "status": "ALERT", "reason": "empty_context_or_response",
+                "claims_checked": 0, "faithful_ratio": 0.0,
             }
         else:
-            premise = " ".join([c["text"] for c in chunk_dicts])[:1024]
-            hypothesis = (llm_response or "")[:512]
-            try:
-                score = monitor._run_inference(premise, hypothesis)
-                is_faithful = score >= getattr(monitor, "threshold", 0.65)
+            # ── SummaC-style: split context & claims into sentences ──────────
+            context_sentences = []
+            for chunk in chunk_texts:
+                context_sentences.extend(_split_sentences(chunk))
+            context_sentences = context_sentences[:20]
+
+            claim_sentences = _split_atomic_claims(llm_response)
+            if not claim_sentences:
+                claim_sentences = [llm_response[:256]]
+            claim_sentences = claim_sentences[:8]
+
+            # For each claim → max entailment score across all context sentences
+            claim_max_scores = []
+            for claim in claim_sentences:
+                best = 0.0
+                for ctx in context_sentences:
+                    try:
+                        s = _entailment_score(monitor, ctx[:512], claim[:256])
+                        if s > best:
+                            best = s
+                    except Exception as e:
+                        logger.warning(f"NLI pair inference failed: {e}")
+                claim_max_scores.append(best)
+
+            if claim_max_scores:
+                # Mean of per-claim max scores (SummaC-ZS)
+                score = sum(claim_max_scores) / len(claim_max_scores)
+                # Binary faithfulness: % of claims entailed above 0.5
+                faithful_claims = sum(1 for s in claim_max_scores if s >= 0.5)
+                binary_score = faithful_claims / len(claim_max_scores)
+                is_faithful = binary_score >= 0.70  # 70%+ claims must be entailed
+
                 nli_result = {
                     "score": round(score, 3),
                     "is_faithful": is_faithful,
-                    "threshold": getattr(monitor, "threshold", 0.65),
+                    "threshold": threshold,
                     "status": "PASS" if is_faithful else "ALERT",
-                    "detail": "entailment_ok" if is_faithful else "low_entailment"
+                    "detail": "entailment_ok" if is_faithful else "low_entailment",
+                    "claims_checked": len(claim_max_scores),
+                    "faithful_ratio": round(binary_score, 3),
                 }
-            except Exception as e:
+            else:
                 nli_result = {
                     "score": 0.0, "is_faithful": False,
-                    "threshold": getattr(monitor, "threshold", 0.65),
-                    "status": "ERROR", "reason": str(e)
+                    "threshold": threshold,
+                    "status": "ERROR", "reason": "inference_failed_all_claims",
+                    "claims_checked": 0, "faithful_ratio": 0.0,
                 }
 
-        # ✅ DB WRITE — this must be inside _run_nli_and_save
+        raw_score = float(nli_result.get("score", 0.0) or 0.0)
+        display_score = round(min(raw_score / PRACTICAL_CEILING, 1.0), 3)
+
         db = SessionLocal()
-        # In run_nli_and_save, after computing display_score:
-        log_entry = NLIMonitoringLog(
+        db.add(NLIMonitoringLog(
             query_id=query_id,
             user_id=user_id,
-            nli_score=nli_result.get("score", 0.0),
+            nli_score=raw_score,
             display_score=display_score,
             is_faithful=nli_result.get("is_faithful", False),
-            threshold=nli_result.get("threshold", 0.65),
+            threshold=nli_result.get("threshold", 0.50),
             status=nli_result.get("status", "ERROR"),
             detail=nli_result.get("detail") or nli_result.get("reason"),
-        )
-        db.add(log_entry)
+        ))
         db.commit()
-        logger.info(f"✅ NLI saved: query_id={query_id}, score={nli_result.get('score')}, status={nli_result.get('status')}")
+        logger.info(
+            f"✅ NLI saved: query_id={query_id}, score={raw_score}, "
+            f"display={display_score:.1%}, status={nli_result.get('status')}, "
+            f"claims={nli_result.get('claims_checked', 0)}, "
+            f"faithful_ratio={nli_result.get('faithful_ratio', 'n/a')}"
+        )
 
     except Exception as e:
         logger.error(f"❌ NLI monitoring failed for {query_id}: {e}", exc_info=True)
@@ -1894,14 +1959,10 @@ def _run_nli_and_save(
                 NLIMonitoringLog.query_id == query_id
             ).first():
                 db.add(NLIMonitoringLog(
-                    query_id=query_id, 
-                    user_id=user_id,
-                    nliscore=nliresult.get("score"),
-                    displayscore=displayscore, 
-                    isfaithful=nliresult.get("isfaithful"),
-                    threshold=0.65, 
-                    status="ERROR", 
-                    detail=str(e)[:255]
+                    query_id=query_id, user_id=user_id,
+                    nli_score=0.0, display_score=0.0,
+                    is_faithful=False, threshold=0.50,
+                    status="ERROR", detail=str(e)[:255]
                 ))
                 db.commit()
         except Exception:
@@ -1943,85 +2004,61 @@ async def _monitor_nli_faithfulness_async(
     except Exception as e:
         logger.error(f"❌ NLI executor failed for {query_id}: {e}", exc_info=True)
 
+
 # ==================== NLI STATUS POLLING ENDPOINT ====================
 
 @router.get("/ragAI/status/{query_id}")
 async def get_nli_status(query_id: str):
-    """
-    Polling endpoint: Check the status of NLI faithfulness validation for a RAG response.
-    
-    Frontend polls this endpoint to get real-time updates on NLI validation progress.
-    
-    Args:
-        query_id: Unique identifier returned in the /ragAI response
-        
-    Returns:
-        {
-            "status": "pending" | "pass" | "alert" | "error",
-            "query_id": "uuid",
-            "nli_score": 0.927,
-            "is_faithful": true,
-            "message": "Response validated ✓ (92.7% grounded)"
-        }
-    """
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-        try:
-            # Query NLI monitoring log for this query_id
-            log_entry = db.query(NLIMonitoringLog).filter(
-                NLIMonitoringLog.query_id == query_id
-            ).first()
-            
-            if not log_entry:
-                # Not yet validated (still pending or not computed)
-                return {
-                    "status": "pending",
-                    "query_id": query_id,
-                    "nli_score": None,
-                    "is_faithful": None,
-                    "message": "Validation in progress..."
-                }
-            
-            # Return validated result
-            status = log_entry.status  # Should be "PASS" or "ALERT"
-            status_lower = status.lower() if status else "error"
-            
-            # Map status to badge color
-            if status_lower == "pass":
-                badge_status = "pass"
-                score_msg = f"{log_entry.nli_score:.1%} grounded" if log_entry.nli_score else "validated"
-                message = f"Response validated ✓ ({score_msg})"
-            elif status_lower == "alert":
-                badge_status = "alert"
-                score_msg = f"{log_entry.nli_score:.1%}" if log_entry.nli_score else "low confidence"
-                message = f"⚠️ Low confidence ({score_msg}) — check sources"
-            else:
-                badge_status = "error"
-                message = f"Validation error: {log_entry.detail or 'unknown'}"
-            
-            return {
-                "status": badge_status,
-                "query_id": query_id,
-                "display_score": float(log_entry.display_score) if log_entry.display_score else None,
-                "is_faithful": log_entry.is_faithful,
-                "message": message,
-                "checked_at": log_entry.checked_at.isoformat() if log_entry.checked_at else None
-            }
-        
-        finally:
-            db.close()
+        log_entry = db.query(NLIMonitoringLog).filter(
+            NLIMonitoringLog.query_id == query_id
+        ).first()
 
-    raw = float(logentry.nliscore) if logentry.nliscore else 0.0
-    PRACTICAL_CEILING = 0.35
-    display_score = round(min(raw / PRACTICAL_CEILING, 1.0), 3)
-    score_msg = f"{display_score:.1%} grounded"
-    
+        if not log_entry:
+            return {
+                "status": "pending",
+                "query_id": query_id,
+                "nli_score": None,
+                "display_score": None,
+                "is_faithful": None,
+                "message": "Validation in progress...",
+            }
+
+        raw_score = float(log_entry.nli_score) if log_entry.nli_score is not None else 0.0
+        # ✅ Use the same PRACTICAL_CEILING constant — no divergence
+        display_score = round(min(raw_score / PRACTICAL_CEILING, 1.0), 3)
+
+        status_lower = (log_entry.status or "error").lower()
+
+        if status_lower == "pass":
+            badge_status = "pass"
+            message = f"Response validated — {display_score:.1%} grounded"
+        elif status_lower == "alert":
+            badge_status = "alert"
+            message = f"Low confidence — {display_score:.1%} grounded, check sources"
+        else:
+            badge_status = "error"
+            message = f"Validation error — {log_entry.detail or 'unknown'}"
+
+        return {
+            "status": badge_status,
+            "query_id": query_id,
+            "nli_score": raw_score,
+            "display_score": display_score,
+            "is_faithful": log_entry.is_faithful,
+            "message": message,
+            "checked_at": log_entry.checked_at.isoformat() if log_entry.checked_at else None,
+        }
     except Exception as e:
-        logger.error(f"❌ Failed to fetch NLI status for {query_id}: {str(e)}", exc_info=True)
+        logger.error(f"Failed to fetch NLI status for {query_id}: {str(e)}", exc_info=True)
         return {
             "status": "error",
             "query_id": query_id,
             "nli_score": None,
+            "display_score": None,
             "is_faithful": None,
-            "message": f"Error checking validation: {str(e)}"
+            "message": f"Error checking validation: {str(e)}",
         }
+    finally:
+        db.close()
