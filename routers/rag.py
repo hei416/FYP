@@ -1026,7 +1026,7 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 pdf_matches=pdf_matches,
                 code_snippet=req.code_snippet if req.code_snippet else None,
                 input_tokens=len(query.split()),
-                output_tokens=len(final_answer.split())
+                output_tokens=len(final_answer.split()),
                 extra_metadata={"query_id": query_id}
             )
 
@@ -1800,7 +1800,7 @@ async def ask_multi_classroom(
             assistant_response=answer,
             context_type="multi_classroom_rag",
             pdf_matches=pdf_matches,
-            code_snippet=None
+            code_snippet=None,
             extra_metadata={"query_id": query_id}
         )
         
