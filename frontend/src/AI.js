@@ -49,7 +49,11 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
     const navigate = useNavigate();
     const { user } = useAuth();
-
+    const tokenRef = useRef(token);
+    const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${tokenRef.current}`
+    });
     const [sessions, setSessions] = useState([]);
     const [activeId, setActiveId] = useState(null);
     const [history, setHistory] = useState([]);
@@ -230,25 +234,28 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
 
     const deleteSession = async (id, e) => {
         e.stopPropagation();
-        const token = getToken();
-        if (token) {
-            try {
-                const session = sessions.find(s => s.id === id);
-                if (session && session.conversationId) {
-                    await fetch(`${API_BASE}/session/${session.conversationId}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                }
-            } catch (err) { console.error("Failed to delete session", err); }
+        console.log('Deleting session id:', id); // verify id is correct
+        try {
+            const res = await fetch(`${API_BASE}/session/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            if (!res.ok) {
+                console.error(`Delete failed: HTTP ${res.status}`, await res.text());
+                return;
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            return;
         }
-        setSessions(prev => prev.filter(s => s.id !== id));
-        if (activeId === id) {
-            setActiveId(null);
-            activeIdRef.current = null;
-            setHistory([]);
-            conversationIdRef.current = generateId();
-        }
+        // ✅ Use functional update to avoid stale closure on sessions
+        setSessions(prev => {
+            const remaining = prev.filter(s => s.id !== id);
+            if (activeId === id) {
+                setActiveId(remaining.length > 0 ? remaining[0].id : null);
+            }
+            return remaining;
+        });
     };
 
     const saveCurrentSession = useCallback((msgs, convId) => {

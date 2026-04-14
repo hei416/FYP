@@ -120,7 +120,7 @@ export default function ConversationHistoryPage() {
     }, [isAuthenticated, token, loadSessions]);
 
     // Lazy-load messages when session is selected
-    (() => {
+    useEffect(() => {
         if (!activeId || !token) return;
         const session = sessions.find(s => s.id === activeId);
         if (!session || session.messages !== null) return;
@@ -128,8 +128,8 @@ export default function ConversationHistoryPage() {
             try {
                 const res = await fetch(
                     `${API_BASE}/conversation/history/${activeId}`,
-                    { headers: authHeaders() }
-                );useEffect
+                    { headers: getAuthHeaders() }   // also fix authHeaders → getAuthHeaders()
+                );
                 if (!res.ok) return;
                 const turns = await res.json();
                 const messages = turns.flatMap(t => [
@@ -141,8 +141,6 @@ export default function ConversationHistoryPage() {
                         debug_log: t.response_time_sec
                             ? { response_time_sec: t.response_time_sec }
                             : null,
-                        // query_id intentionally omitted for old messages —
-                        // NLI only shows for messages sent in the current session
                     },
                 ]);
                 setSessions(prev =>
@@ -176,24 +174,28 @@ export default function ConversationHistoryPage() {
 
     const deleteSession = async (id, e) => {
         e.stopPropagation();
+        console.log('Deleting session id:', id); // ← add this to verify the id
         try {
             const res = await fetch(`${API_BASE}/session/${id}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
             if (!res.ok) {
-                console.error(`Delete failed: HTTP ${res.status}`);
+                console.error(`Delete failed: HTTP ${res.status}`, await res.text());
                 return;
             }
         } catch (err) {
             console.error('Delete error:', err);
             return;
         }
-        setSessions(prev => prev.filter(s => s.id !== id));
-        if (activeId === id) {
-            const rem = sessions.filter(s => s.id !== id);
-            setActiveId(rem.length > 0 ? rem[0].id : null);
-        }
+        // ✅ Use functional update to avoid stale closure on sessions
+        setSessions(prev => {
+            const remaining = prev.filter(s => s.id !== id);
+            if (activeId === id) {
+                setActiveId(remaining.length > 0 ? remaining[0].id : null);
+            }
+            return remaining;
+        });
     };
 
     const fetchChunkContext = async (sourceFile, chunkContent) => {
