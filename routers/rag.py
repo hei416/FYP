@@ -38,7 +38,7 @@ from services.rag_helpers import (
 )
 from services.nli_monitor import get_nli_monitor
 from concurrent.futures import ThreadPoolExecutor
-_embed_executor = ThreadPoolExecutor(max_workers=2)
+_embed_executor = ThreadPoolExecutor(max_workers=3)
 
 
 
@@ -994,9 +994,19 @@ async def rag_ai(req: ExplainRequest, request: Request):
                 print(f"📚 Added {len(conv_context)} chars of conversation context")
 
         loop = asyncio.get_event_loop()
-        docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)  # fetch first
-        context = "\n\n".join([d.page_content for d in docs])                        
-        final_answer = await asyncio.to_thread(rag_chain, f"{context}\n\nQuestion: {query}")
+
+        # Step 1: retrieve docs (CPU-bound embedding, off event loop)
+        docs = await loop.run_in_executor(_embed_executor, retriever.invoke, query)
+
+        # Step 2: build context
+        context = "\n\n".join([d.page_content for d in docs])
+
+        # Step 3: LLM chain (also CPU-bound for embedding the prompt)
+        final_answer = await loop.run_in_executor(
+            _embed_executor,
+            rag_chain,
+            f"{context}\n\nQuestion: {query}"
+        )
         # Build PDF matches using helper with base URL for iframe links
         base_url = f"{request.url.scheme}://{request.url.netloc}"
         pdf_matches = build_pdf_matches_from_langchain_docs(

@@ -18,6 +18,7 @@ load_dotenv()  # Load environment variables from .env file
 # Must be set BEFORE importing torch/transformers to prevent segfaults on MPS
 import os as _os
 _os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+_os.environ["TOKENIZERS_PARALLELISM"] = "false" # Suppress tokenizers parallelism warning
 
 
 import traceback
@@ -63,7 +64,7 @@ RAG_INIT_LOCK = asyncio.Lock()
 # max_workers=1 ensures migrations, NLI init, and RAG init run sequentially
 # rather than concurrently — prevents shared resource conflicts (DB connections,
 # model memory allocation, FAISS index writes).
-_startup_executor = ThreadPoolExecutor(max_workers=1)
+_startup_executor = ThreadPoolExecutor(max_workers=2)
 
 
 # ============================================================================
