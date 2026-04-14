@@ -434,7 +434,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
         }));
 
         setShowChat(false);
-        navigate('/chat-history', { state: { autoSelectId: currentConversationId } });
+        navigate('/chat-history', { state: { autoSelectId: conversationIdRef.current } });
     };
 
     const fetchChunkContext = async (sourceFile, chunkContent) => {

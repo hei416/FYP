@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import TextareaAutosize from 'react-textarea-autosize';
 import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
 import { useAuth } from './AuthContext';
 import PdfPageViewer from './components/PdfPageViewer';
 import NLIStatusBadge from './components/NLIStatusBadge';
-const location = useLocation();
+
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
@@ -48,6 +48,7 @@ const CollapseIcon = () => (
 );
 
 export default function ConversationHistoryPage() {
+    const location = useLocation();
     const navigate = useNavigate();
     const { isAuthenticated, token, loading, user } = useAuth();
     const tokenRef = useRef(token);
@@ -122,7 +123,7 @@ export default function ConversationHistoryPage() {
             const match = sessions.find(s => s.id === autoId);
             if (match) setActiveId(autoId);
         }
-    }, [sessionsLoaded]);
+    }, [sessionsLoaded, location.state, sessions]);
 
     useEffect(() => {
         if (isAuthenticated && token) loadSessions();
