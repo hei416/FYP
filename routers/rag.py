@@ -997,7 +997,11 @@ async def rag_ai(req: ExplainRequest, request: Request):
 
         # ✅ Step 1: Run the full RAG chain off the event loop (embed + retrieve + LLM)
         def _run_rag(q: str):
-            return rag_chain(q)
+            result = rag_chain.invoke(q)
+            # chain_with_fallback returns a string directly, but guard anyway:
+            if isinstance(result, dict):
+                return result.get("result") or result.get("answer") or result.get("output") or str(result)
+            return result
 
         final_answer = await loop.run_in_executor(_embed_executor, _run_rag, query)
 
