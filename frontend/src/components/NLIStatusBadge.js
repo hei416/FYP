@@ -2,18 +2,23 @@ import React, { useState, useEffect } from 'react';
 
 /**
  * NLIStatusBadge — Displays real-time NLI (Natural Language Inference) validation status
- * 
+ *
  * Polls the backend for faithfulness validation results and shows:
  * - "Validation in progress..." (gray) while checking
  * - "Response validated ✓ (92% grounded)" (green) if faithful
- * - "⚠️ Low confidence (65%) — check sources" (yellow) if low faithfulness
+ * - "⚠️ Low confidence (23%) — check sources" (yellow) if low faithfulness
  * - "Validation error" (red) if check failed
- * 
+ *
+ * NOTE ON SCORE DISPLAY:
+ * The backend returns both `nli_score` (raw DeBERTa entailment, 0–1) and
+ * `display_score` (scaled relative to the model's practical ceiling for
+ * paraphrased RAG answers). Always show `display_score` to the user.
+ *
  * Validation may take 10-30 seconds on first run (NLI model initialization).
  */
 export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:8000' }) {
   const [status, setStatus] = useState('pending');
-  const [score, setScore] = useState(null);
+  const [displayScore, setDisplayScore] = useState(null);
   const [message, setMessage] = useState('Validation in progress...');
   const [checkedAt, setCheckedAt] = useState(null);
   const [isSlowValidation, setIsSlowValidation] = useState(false);
@@ -22,30 +27,27 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
     if (!queryId) return;
 
     let attempts = 0;
-    const maxAttempts = 60; // Poll for up to 60 seconds (includes slower polling after 30s)
-    const slowThreshold = 30; // After 30 seconds, assume it's a slow validation (model init)
+    const maxAttempts = 60;
+    const slowThreshold = 30;
     let pollTimer;
 
     const poll = async () => {
       attempts++;
-      
-      // Show message if validation is taking longer than expected
+
       if (attempts === slowThreshold) {
         setIsSlowValidation(true);
         setMessage('Validation in progress... (first-time model initialization)');
       }
-      
+
       try {
         const response = await fetch(`${apiBase}/ragAI/status/${queryId}`);
-        
+
         if (!response.ok) {
           console.error(`[NLI] Poll failed: HTTP ${response.status}`);
           if (attempts < maxAttempts) {
-            // Slow down polling after slowThreshold to reduce backend load
             const interval = attempts > slowThreshold ? 2000 : 1000;
             pollTimer = setTimeout(poll, interval);
           } else {
-            // Timeout: assume validation failed or is stuck
             setStatus('error');
             setMessage('Validation timed out — response may not have been checked');
           }
@@ -53,30 +55,34 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
         }
 
         const data = await response.json();
-        
+
         setStatus(data.status);
         setMessage(data.message);
-        if (data.nli_score !== null && data.nli_score !== undefined) {
-          setScore(data.nli_score);
+
+        // Prefer display_score (scaled); fall back to raw nli_score if absent
+        const scored = data.display_score ?? data.nli_score;
+        if (scored !== null && scored !== undefined) {
+          setDisplayScore(scored);
         }
         if (data.checked_at) {
           setCheckedAt(data.checked_at);
         }
 
-        // Stop polling if validation is complete (not pending)
         if (data.status !== 'pending') {
-          console.log(`[NLI] Validation complete: ${data.status} (${data.nli_score?.toFixed(3) || '?'})`, data);
+          console.log(
+            `[NLI] Validation complete: ${data.status}`,
+            `raw=${data.nli_score?.toFixed(3) ?? '?'}`,
+            `display=${scored?.toFixed(3) ?? '?'}`,
+            data
+          );
           setIsSlowValidation(false);
-          return; // Stop polling
+          return;
         }
 
-        // Continue polling if still pending and haven't exceeded max attempts
         if (attempts < maxAttempts) {
-          // Slow down polling after slowThreshold to reduce backend load
           const interval = attempts > slowThreshold ? 2000 : 1000;
           pollTimer = setTimeout(poll, interval);
         } else {
-          // Timeout
           setStatus('error');
           setMessage('Validation timed out — response may not have been checked');
           setIsSlowValidation(false);
@@ -94,42 +100,38 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
       }
     };
 
-    // Start polling
     poll();
 
     return () => {
-      if (pollTimer) {
-        clearTimeout(pollTimer);
-      }
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [queryId, apiBase]);
 
-  // Map status to badge styling
   const badgeStyles = {
-    'pending': {
-      backgroundColor: '#f3f4f6', // gray-100
-      borderColor: '#d1d5db',      // gray-300
-      color: '#6b7280',             // gray-500
-      icon: '⏳'
+    pending: {
+      backgroundColor: '#f3f4f6',
+      borderColor: '#d1d5db',
+      color: '#6b7280',
+      icon: '⏳',
     },
-    'pass': {
-      backgroundColor: '#dcfce7',   // green-100
-      borderColor: '#86efac',       // green-300
-      color: '#166534',             // green-700
-      icon: '✓'
+    pass: {
+      backgroundColor: '#dcfce7',
+      borderColor: '#86efac',
+      color: '#166534',
+      icon: '✓',
     },
-    'alert': {
-      backgroundColor: '#fef3c7',   // yellow-100
-      borderColor: '#fcd34d',       // yellow-300
-      color: '#92400e',             // yellow-700
-      icon: '⚠️'
+    alert: {
+      backgroundColor: '#fef3c7',
+      borderColor: '#fcd34d',
+      color: '#92400e',
+      icon: '⚠️',
     },
-    'error': {
-      backgroundColor: '#fee2e2',   // red-100
-      borderColor: '#fca5a5',       // red-300
-      color: '#991b1b',             // red-700
-      icon: '❌'
-    }
+    error: {
+      backgroundColor: '#fee2e2',
+      borderColor: '#fca5a5',
+      color: '#991b1b',
+      icon: '❌',
+    },
   };
 
   const style = badgeStyles[status] || badgeStyles.pending;
@@ -147,7 +149,7 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
         borderLeft: `3px solid ${style.borderColor}`,
         color: style.color,
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        userSelect: 'none'
+        userSelect: 'none',
       }}
       title={
         checkedAt
@@ -156,12 +158,8 @@ export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:80
       }
     >
       <span style={{ marginRight: '6px' }}>{style.icon}</span>
+      {/* message already contains the score from the backend — no need to append again */}
       <span>{message}</span>
-      {score !== null && status !== 'pending' && (
-        <span style={{ marginLeft: '4px', opacity: 0.8 }}>
-          ({(score * 100).toFixed(0)}%)
-        </span>
-      )}
     </div>
   );
 }
