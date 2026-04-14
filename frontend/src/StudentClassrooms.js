@@ -226,12 +226,16 @@ export default function StudentClassrooms() {
       const allWeakTopics = valid.flatMap(p => p.most_common_weak_topics || p.weak_topics || []);
       const uniqueWeak = [...new Set(allWeakTopics.map(t => typeof t === 'string' ? t : t.topic))].slice(0, 6);
 
+      // Replace the current quiz/test pass rate calculation with:
       setAggregateSummary({
         avg_completion_percentage: avg(completions),
         avg_quiz_score:  avg(quizScores),
         avg_test_score:  avg(testScores),
-        quiz_pass_rate:  totalQuizAttempts > 0 ? Math.round((totalQuizPassed / totalQuizAttempts) * 100) : null,
-        test_pass_rate:  totalTestAttempts > 0 ? Math.round((totalTestPassed / totalTestAttempts) * 100) : null,
+        // Use pre-calculated rates from progressService instead of re-deriving
+        quiz_pass_rate:  totalQuizAttempts > 0
+          ? Math.round((totalQuizPassed / totalQuizAttempts) * 100) : null,
+        test_pass_rate:  totalTestAttempts > 0
+          ? Math.round((totalTestPassed / totalTestAttempts) * 100) : null,
         most_common_weak_topics: uniqueWeak,
         ai_interactions: valid.reduce((s, p) => s + (p.ai_interactions || 0), 0),
       });

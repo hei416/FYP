@@ -410,30 +410,41 @@ export function mergeProgressWithLocal(backendProgress, localStorageKey, roadmap
  */
 export async function getCourseProgress(courseId = 'basic') {
   if (!isAuthenticated()) return null;
-
   try {
     const res = await fetch(`${API_BASE}/progress/me?course_id=${courseId}`, {
       headers: authHeaders()
     });
-
     if (!res.ok) {
-      if (res.status === 401) {
-        localStorage.removeItem('authToken');
-      }
+      if (res.status === 401) localStorage.removeItem('authToken');
       return null;
     }
-
     const progress = await res.json();
-    
-    // TODO: Calculate weak_topics on backend based on quiz attempt scores
-    // For now, return basic progress data
+
+    const quizzesPassed  = (progress.quizzes_completed || []).length;
+    const testsPassed    = (progress.tests_passed || []).length;
+    const quizzesAttempted = progress.quizzes_attempted || 0;
+    const testsAttempted   = progress.tests_attempted  || 0;
+
+    // Compute avg scores from SavedWork via /progress/stats if available,
+    // otherwise derive pass rates from counts
+    const quizPassRate = quizzesAttempted > 0
+      ? Math.round((quizzesPassed / quizzesAttempted) * 100) : null;
+    const testPassRate = testsAttempted > 0
+      ? Math.round((testsPassed / testsAttempted) * 100) : null;
+
     return {
       completion_percentage: progress.completion_percentage || 0,
-      quizzes_attempted: progress.quizzes_attempted || 0,
-      quizzes_completed: progress.quizzes_completed || [],
-      tests_attempted: progress.tests_attempted || 0,
-      tests_passed: progress.tests_passed || [],
-      weak_topics: [], // Will be populated from backend calculation or saved work analysis
+      quizzes_attempted:  quizzesAttempted,
+      quizzes_passed:     quizzesPassed,       // ← count, not array
+      avg_quiz_score:     progress.avg_quiz_score ?? null,
+      tests_attempted:    testsAttempted,
+      tests_passed:       testsPassed,         // ← count, not array
+      avg_test_score:     progress.avg_test_score ?? null,
+      quiz_pass_rate:     quizPassRate,
+      test_pass_rate:     testPassRate,
+      ai_interactions:    progress.ai_interactions || 0,
+      weak_topics:        progress.weak_topics || [],
+      most_common_weak_topics: progress.most_common_weak_topics || [],
       updated_at: progress.updated_at || new Date().toISOString(),
     };
   } catch (err) {
