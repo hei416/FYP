@@ -313,7 +313,6 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     let totalSources = 0;
                     let pdfMatches = [];
                     let queryId = null;
-                    const responseTimeSec = data.debug_log?.response_time_sec ?? null;
                     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 
                     if (classroomIds.length > 0) {
@@ -344,6 +343,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                         totalSources = data.sources_count || 0;
                         pdfMatches = data.debug_log?.pdf_matches || [];
                         queryId = data.query_id || null;
+                        responseTimeSec = data.debug_log?.response_time_sec ?? null;
                         console.log('[DEBUG] pdf_matches from response:', JSON.stringify(pdfMatches, null, 2));
                     } else {
                         // Call general RAG endpoint (no specific classrooms selected)
@@ -372,6 +372,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                         totalSources = data.pdf_matches_count || 0;
                         pdfMatches = data.pdf_matches || [];
                         queryId = data.query_id || null;
+                        responseTimeSec = data.debug_log?.response_time_sec ?? null;
                         console.log('[DEBUG] General RAG response:', { finalAnswer: finalAnswer.substring(0, 50), totalSources });
                     }
 
