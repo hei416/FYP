@@ -655,7 +655,8 @@ async def root():
         "system": "Java Learning Platform",
         "ai_model": "qwen3-max (FAISS + NLI Validation)",
         "performance": {
-            "nli_faithfulness": "97.62%",
+            avg_score = db.query(func.avg(NLIMonitoringLog.display_score)).scalar()
+            "nli_faithfulness": f"{avg_score:.2%}" if avg_score else "N/A",
             "semantic_similarity": "80.78%",
             "context_recall": "74.21%",
             "avg_response_time": "6.73s",
