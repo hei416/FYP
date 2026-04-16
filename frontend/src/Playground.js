@@ -6,20 +6,54 @@ import { ProgressTracker } from "./ProgressTracker";
 import { saveWork } from './myWorkService';
 import { colors, radii, font, spacing, card, pageContainer } from './theme';
 
+/**
+ * Returns true if the code has a class definition but no main method —
+ * meaning it would fail with "找不到主要方法" when run directly.
+ */
+function missingMainMethod(code) {
+    const hasClass = /public\s+class\s+\w+/.test(code);
+    const hasMain = /public\s+static\s+void\s+main\s*\(\s*String/.test(code);
+    return hasClass && !hasMain;
+}
+
+/**
+ * Wraps a class that has no main method by adding one that instantiates
+ * the class and calls printResult() if it exists, or just prints the
+ * class name so the student gets visible output.
+ *
+ * Strategy: inject `public static void main(String[] args) { new ClassName().METHOD(); }`
+ * using the first public non-static method found, falling back to a
+ * simple instantiation print.
+ */
+function wrapWithMain(code) {
+    const classMatch = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
+    if (!classMatch) return code;
+    const className = classMatch[1];
+
+    // Find the first public non-static method name (e.g. countVowels, printResult)
+    const methodMatch = code.match(/public\s+(?!static\s)(?:\w+)\s+([a-zA-Z0-9_]+)\s*\(/);
+    const methodCall = methodMatch
+        ? `System.out.println(obj.${methodMatch[1]}());`
+        : `System.out.println("Ran " + obj.getClass().getSimpleName());`;
+
+    // Insert main method just before the last closing brace of the class
+    const insertPoint = code.lastIndexOf('}');
+    const mainSnippet = `
+    public static void main(String[] args) {
+        ${className} obj = new ${className}();
+        ${methodCall}
+    }
+`;
+    return code.slice(0, insertPoint) + mainSnippet + code.slice(insertPoint);
+}
+
 export default function Playground() {
     const location = useLocation();
     const navigate = useNavigate();
     const [code, setCode] = useState(() => {
         if (location.state?.restoredCode) return location.state.restoredCode;
         if (location.state?.code) return location.state.code;
-        return `public class Main {
-    public static void main(String[] args) {
-        System.out.println("Hello, Java Playground!");
-        
-        // Write your code here
-        
-    }
-}`;
+        return `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Java Playground!");\n        \n        // Write your code here\n        \n    }\n}`;
     });
 
     const fromTopic = location.state?.fromTopic;
@@ -82,6 +116,7 @@ export default function Playground() {
 
     const isInteractive = needsInteractiveTerminal(code);
     const extractedClassName = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/)?.[1] ?? 'Main';
+    const noMain = missingMainMethod(code);
 
     return (
         <div style={pageContainer(1200)}>
@@ -115,6 +150,41 @@ export default function Playground() {
             )}
 
             <div data-tour="code-editor">
+                {/* ── Missing main method warning banner ── */}
+                {noMain && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        marginBottom: 12,
+                        padding: '10px 16px',
+                        backgroundColor: '#fffbeb',
+                        border: '1px solid #fcd34d',
+                        borderRadius: 8,
+                        fontSize: font.sizeSm,
+                        color: '#92400e',
+                    }}>
+                        <span>⚠️ <strong>No <code>main</code> method found.</strong> This code cannot run directly — the JVM needs a <code>public static void main(String[] args)</code> entry point.</span>
+                        <button
+                            onClick={() => setCode(wrapWithMain(code))}
+                            style={{
+                                flexShrink: 0,
+                                background: '#f59e0b',
+                                color: 'white',
+                                border: 'none',
+                                padding: '5px 14px',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontSize: font.sizeSm,
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            ✨ Auto-fix
+                        </button>
+                    </div>
+                )}
+
                 {/* ── Compiler (Monaco editor + non-interactive run) ── */}
                 <Compiler
                     code={code}
