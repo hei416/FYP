@@ -17,26 +17,20 @@ function missingMainMethod(code) {
 }
 
 /**
- * Wraps a class that has no main method by adding one that instantiates
- * the class and calls printResult() if it exists, or just prints the
- * class name so the student gets visible output.
- *
- * Strategy: inject `public static void main(String[] args) { new ClassName().METHOD(); }`
- * using the first public non-static method found, falling back to a
- * simple instantiation print.
+ * Wraps a class that has no main method by injecting one before the last
+ * closing brace. Calls the first public non-static method found via
+ * System.out.println so students see output immediately.
  */
 function wrapWithMain(code) {
     const classMatch = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
     if (!classMatch) return code;
     const className = classMatch[1];
 
-    // Find the first public non-static method name (e.g. countVowels, printResult)
     const methodMatch = code.match(/public\s+(?!static\s)(?:\w+)\s+([a-zA-Z0-9_]+)\s*\(/);
     const methodCall = methodMatch
         ? `System.out.println(obj.${methodMatch[1]}());`
         : `System.out.println("Ran " + obj.getClass().getSimpleName());`;
 
-    // Insert main method just before the last closing brace of the class
     const insertPoint = code.lastIndexOf('}');
     const mainSnippet = `
     public static void main(String[] args) {
@@ -66,7 +60,6 @@ export default function Playground() {
     const needsInteractiveTerminal = (codeToCheck) =>
         /Scanner\s+\w+\s*=\s*new\s+Scanner\s*\(\s*System\.in\s*\)/.test(codeToCheck);
 
-    // Reset terminal when code changes so stale terminal isn't shown
     useEffect(() => {
         setHasRun(false);
     }, [code]);
@@ -93,7 +86,6 @@ export default function Playground() {
         setSaving(false);
     };
 
-    // Listen for code run completions
     useEffect(() => {
         const handleRunComplete = () => {
             tracker.markPlaygroundUsed();
@@ -103,7 +95,6 @@ export default function Playground() {
         return () => window.removeEventListener('demo-code-output', handleRunComplete);
     }, [tracker]);
 
-    // Listen for demo tour code fill events
     useEffect(() => {
         const handleDemoFill = (event) => {
             if (event.detail && event.detail.code) {
@@ -113,6 +104,17 @@ export default function Playground() {
         window.addEventListener('demo-fill-code', handleDemoFill);
         return () => window.removeEventListener('demo-fill-code', handleDemoFill);
     }, []);
+
+    /**
+     * Auto-fix: inject a main method then push the new code into BOTH
+     * React state (so Playground tracks it) AND the Compiler's internal
+     * Monaco editor (via the demo-fill-code event it already listens to).
+     */
+    const handleAutoFix = () => {
+        const fixed = wrapWithMain(code);
+        setCode(fixed);
+        window.dispatchEvent(new CustomEvent('demo-fill-code', { detail: { code: fixed } }));
+    };
 
     const isInteractive = needsInteractiveTerminal(code);
     const extractedClassName = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/)?.[1] ?? 'Main';
@@ -166,7 +168,7 @@ export default function Playground() {
                     }}>
                         <span>⚠️ <strong>No <code>main</code> method found.</strong> This code cannot run directly — the JVM needs a <code>public static void main(String[] args)</code> entry point.</span>
                         <button
-                            onClick={() => setCode(wrapWithMain(code))}
+                            onClick={handleAutoFix}
                             style={{
                                 flexShrink: 0,
                                 background: '#f59e0b',
