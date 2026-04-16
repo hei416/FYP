@@ -1152,11 +1152,7 @@ async def generate_progressive_hint(req: HintRequest):
                         "cached": True,
                     },
                 }
-        finally:
-            try:
-                db.close()
-            except Exception:
-                pass
+       
 
         relevant_docs = await asyncio.to_thread(ret.invoke, f"Java {req.problem_description}")
         context_snippets = "\n\n".join([
