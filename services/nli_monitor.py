@@ -80,10 +80,9 @@ class NLIMonitor:
     3. A claim is "faithful" if MES >= CLAIM_THRESHOLD (0.5).
     4. faithfulness = faithful_claims / total_claims  (range 0-1, shown as %)
 
-    This matches the methodology described in:
-      - RAGAS (Es et al., 2023): https://arxiv.org/abs/2309.15217
-      - DeepEval (default threshold 0.7)
-      - FYP Report Section 4.3
+    This matches the methodology described in RAGAS (Es et al., 2023): https://arxiv.org/abs/2309.15217
+    DeepEval (default threshold 0.7)
+
 
     Scores naturally fall in 0.70-0.95 for grounded RAG responses,
     making the badge display meaningful and comparable to published benchmarks.
