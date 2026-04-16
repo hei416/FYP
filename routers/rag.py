@@ -106,18 +106,19 @@ async def ask_classroom_rag(
             request.conversation_id = conversation_manager.create_conversation_id(user_id)
             print(f"📌 Created new classroom conversation: {request.conversation_id}")
         
+        query_id = str(uuid.uuid4())
         save_rag_conversation(
             conversation_manager=conversation_manager,
-            user_id=req.user_id,
-            conversation_id=req.conversation_id,
-            user_message=req.user_input,
-            assistant_response=final_answer,
-            context_type="explain",
+            user_id=current_user.id,
+            conversation_id=request.conversation_id,
+            user_message=request.question,
+            assistant_response=answer,
+            context_type="classroom_rag",
             pdf_matches=pdf_matches,
-            code_snippet=req.code_snippet if req.code_snippet else None,
-            input_tokens=len(query.split()),
-            output_tokens=len(final_answer.split()),
-            extra_metadata={"query_id": query_id}   
+            code_snippet=None,
+            input_tokens=len(request.question.split()),
+            output_tokens=len(answer.split()),
+            extra_metadata={"query_id": query_id}
         )
 
     
@@ -1120,17 +1121,21 @@ async def generate_progressive_hint(req: HintRequest):
         question_key = (req.problem_description or "").strip().lower()[:900]
 
         # Check DB cache first
-        try:
+        def _get_cached_hint(question_key, hint_level_value):
             db = SessionLocal()
-            cached = db.query(PracticalTestHintModel).filter(
-                PracticalTestHintModel.question_key == question_key,
-                PracticalTestHintModel.hint_level == req.hint_level.value,
-            ).first()
-            if cached:
-                elapsed = (datetime.now() - start_time).total_seconds()
-                print(f"💾 Served cached hint (level={req.hint_level.value}) for key[{question_key[:80]}]")
-                return {
-                    "hint": cached.content,
+            try:
+                return db.query(PracticalTestHintModel).filter(
+                    PracticalTestHintModel.question_key == question_key,
+                    PracticalTestHintModel.hint_level == hint_level_value,
+                ).first()
+            finally:
+                db.close()
+        cached = _get_cached_hint(question_key, req.hint_level.value)
+        if cached:
+            elapsed = (datetime.now() - start_time).total_seconds()
+            print(f"💾 Served cached hint (level={req.hint_level.value}) for key[{question_key[:80]}]")
+            return {
+                "hint": cached.content,
                     "hint_level": req.hint_level.value,
                     "can_request_more": req.hint_level != HintLevel.DETAILED,
                     "next_level": (
@@ -1609,12 +1614,11 @@ async def get_conversation_stats(req: ConversationStatsRequest):
         print(f"❌ Error getting stats: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
-
+class CreateConvRequest(BaseModel):
+            user_id: int
 @router.post("/api/conversations/create")
 async def create_conversation(req: BaseModel):
     try:
-        class CreateConvRequest(BaseModel):
-            user_id: int
 
         req_data = await req.__root__
         user_id = req_data.get("user_id")
@@ -1792,15 +1796,18 @@ async def ask_multi_classroom(
             body.conversation_id = conversation_manager.create_conversation_id(user_id)
             print(f"📌 Created new multi-classroom conversation: {body.conversation_id}")
         
+        query_id = str(uuid.uuid4())
         save_rag_conversation(
             conversation_manager=conversation_manager,
-            user_id=user_id,
-            conversation_id=body.conversation_id,
-            user_message=body.question,
+            user_id=current_user.id,
+            conversation_id=request.conversation_id,
+            user_message=request.question,
             assistant_response=answer,
-            context_type="multi_classroom_rag",
+            context_type="classroom_rag",
             pdf_matches=pdf_matches,
             code_snippet=None,
+            input_tokens=len(request.question.split()),
+            output_tokens=len(answer.split()),
             extra_metadata={"query_id": query_id}
         )
         
@@ -1813,7 +1820,7 @@ async def ask_multi_classroom(
                     [{"text": chunk} for chunk in all_chunks],
                     answer
                 )
-        )
+            )
         except Exception as e:
             print(f"⚠️ NLI monitoring not available for multi-classroom: {e}")
 
