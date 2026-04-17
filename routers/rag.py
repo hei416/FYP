@@ -1794,14 +1794,14 @@ async def ask_multi_classroom(
             conversation_manager=conversation_manager,
             user_id=current_user.id,
             conversation_id=body.conversation_id, 
-            user_message=body.question
+            user_message=body.question,
             assistant_response=answer,
             context_type="classroom_rag",
             pdf_matches=pdf_matches,
             code_snippet=None,
             input_tokens=len(request.question.split()),
             output_tokens=len(answer.split()),
-            extra_metadata={"query_id": query_id}
+            extra_metadata={"query_id": query_id},
         )
         
         # Spawn background NLI validation task for multi-classroom responses
