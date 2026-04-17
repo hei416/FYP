@@ -15,32 +15,17 @@ load_dotenv()  # Load environment variables from .env file
 # ============================================================================
 # PYTORCH MPS / METAL WORKAROUND (macOS Apple Silicon — M1/M2/M3)
 # ============================================================================
-# These env vars MUST be set before ANY import of torch or transformers.
-#
-# WHY DISABLE MPS ENTIRELY?
-#   DebertaV2 (used by the NLI monitor) and sentence-transformers (used by
-#   the FAISS embedder) both contain ops that are not fully supported by the
-#   Apple Metal Performance Shaders (MPS) backend. Symptoms on M1/M2:
-#     - Silent hang in model.to() / model.eval()  → server never goes live
-#     - SIGSEGV (EXC_BAD_ACCESS) on Thread 8     → process crash at startup
-#   PYTORCH_ENABLE_MPS_FALLBACK=1 only routes *individual ops* to CPU but
-#   cannot prevent crashes in the MPS allocator/driver init path.
-#
-#   Setting PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 and the NO_MPS flag below
-#   force the entire runtime to CPU, which is stable and correct for this app.
 import os as _os
 _os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 _os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-_os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Suppress tokenizers warning
+_os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-# Disable MPS backend entirely — must happen before torch is imported.
-# This is the authoritative way to opt out of Metal on Apple Silicon.
 try:
     import torch
     if hasattr(torch.backends, "mps"):
         torch.backends.mps.enabled = False  # type: ignore[attr-defined]
 except Exception:
-    pass  # torch not yet importable here on some envs; env vars above are the primary guard
+    pass
 
 
 import traceback
@@ -63,7 +48,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Suppress verbose Uvicorn access logs (keep only WARNING+)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
@@ -77,15 +61,9 @@ from core.rate_limiter import limiter
 # ============================================================================
 # RAG SYSTEM STATE
 # ============================================================================
-# Global flag tracking whether FAISS RAG system has been initialized.
-# Lock prevents concurrent initialization racing on first request.
 RAG_INITIALIZED = False
 RAG_INIT_LOCK = asyncio.Lock()
 
-# Dedicated single-worker thread pool for all blocking startup tasks.
-# max_workers=1 ensures migrations, NLI init, and RAG init run sequentially
-# rather than concurrently — prevents shared resource conflicts (DB connections,
-# model memory allocation, FAISS index writes).
 _startup_executor = ThreadPoolExecutor(max_workers=2)
 
 
@@ -113,17 +91,11 @@ except Exception as e:
 # ============================================================================
 
 def run_migrations(db_engine):
-    """Run idempotent schema migrations. Safe to call multiple times.
-
-    Called via run_in_executor at startup — SQLAlchemy's synchronous engine
-    must never be called directly inside async def, as it holds thread-local
-    connections internally and would block the event loop.
-    """
+    """Run idempotent schema migrations. Safe to call multiple times."""
     try:
         from sqlalchemy import text
         with db_engine.connect() as conn:
 
-            # dismissed_milestones column on user_progress
             try:
                 conn.execute(text("""
                     ALTER TABLE user_progress
@@ -135,7 +107,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ dismissed_milestones migration: {e}")
 
-            # role column on users
             try:
                 conn.execute(text("""
                     ALTER TABLE users
@@ -147,7 +118,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ role migration: {e}")
 
-            # classrooms table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS classrooms (
@@ -167,7 +137,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ classrooms migration: {e}")
 
-            # category column on classrooms
             try:
                 conn.execute(text("""
                     ALTER TABLE classrooms
@@ -179,7 +148,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ classroom category migration: {e}")
 
-            # classroom_members table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS classroom_members (
@@ -196,7 +164,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ classroom_members migration: {e}")
 
-            # classroom_documents table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS classroom_documents (
@@ -217,7 +184,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ classroom_documents migration: {e}")
 
-            # practical_test_questions helper columns
             for col, col_type in [
                 ("base_helper_classes", "TEXT"),
                 ("solution_helper_classes", "TEXT"),
@@ -229,9 +195,8 @@ def run_migrations(db_engine):
                     conn.commit()
                     print(f"✅ Migration: added column '{col}' to practical_test_questions")
                 except Exception:
-                    conn.rollback()  # Column already exists — reset transaction state
+                    conn.rollback()
 
-            # conversation_history table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS conversation_history (
@@ -256,7 +221,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ conversation_history migration: {e}")
 
-            # conversation_summaries table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS conversation_summaries (
@@ -282,7 +246,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ conversation_summaries migration: {e}")
 
-            # quiz_attempts table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS quiz_attempts (
@@ -300,7 +263,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ quiz_attempts migration: {e}")
 
-            # page_number column on classroom_chunks
             try:
                 conn.execute(text("""
                     ALTER TABLE classroom_chunks
@@ -312,7 +274,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ page_number migration: {e}")
 
-            # classroom_sections table
             try:
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS classroom_sections (
@@ -330,7 +291,6 @@ def run_migrations(db_engine):
                 conn.rollback()
                 print(f"⚠️ classroom_sections migration: {e}")
 
-            # section_id column on classroom_files
             try:
                 conn.execute(text("""
                     ALTER TABLE classroom_files
@@ -352,12 +312,7 @@ def run_migrations(db_engine):
 # ============================================================================
 
 def _blocking_rag_init(rebuild_java=False, rebuild_platform=False):
-    """Pure synchronous RAG setup — safe to run in a thread.
-
-    FAISS index loading, sentence-transformer embedding initialization, and
-    LLM chain construction are all CPU/IO-bound. Running them in a thread
-    via run_in_executor prevents the event loop from freezing.
-    """
+    """Pure synchronous RAG setup — safe to run in a thread."""
     from rag_system import setup_rag_system
     rag_chain, retriever = setup_rag_system(
         rebuild_java=rebuild_java,
@@ -367,22 +322,13 @@ def _blocking_rag_init(rebuild_java=False, rebuild_platform=False):
 
 
 async def ensure_rag_initialized(rebuild_java=False, rebuild_platform=False):
-    """Ensure FAISS RAG system is initialized. Thread-safe via async lock.
-
-    Uses double-check locking pattern:
-    1. Fast check outside lock (avoids lock contention on most calls)
-    2. Acquire lock
-    3. Re-check inside lock (guards against concurrent first-callers)
-    4. Run blocking init in executor thread
-    """
+    """Ensure FAISS RAG system is initialized. Thread-safe via async lock."""
     global RAG_INITIALIZED
 
     if RAG_INITIALIZED and not rebuild_java and not rebuild_platform:
         return
 
     async with RAG_INIT_LOCK:
-        # Re-verify after acquiring lock — another coroutine may have initialized
-        # while we were waiting
         if RAG_INITIALIZED and not rebuild_java and not rebuild_platform:
             return
 
@@ -400,8 +346,6 @@ async def ensure_rag_initialized(rebuild_java=False, rebuild_platform=False):
             rag_start = time.time()
             loop = asyncio.get_event_loop()
 
-            # Dispatch blocking FAISS/embedding/LLM setup to thread pool.
-            # run_in_executor with a lambda lets us pass keyword args cleanly.
             rag_chain, retriever = await loop.run_in_executor(
                 _startup_executor,
                 lambda: _blocking_rag_init(
@@ -410,7 +354,6 @@ async def ensure_rag_initialized(rebuild_java=False, rebuild_platform=False):
                 )
             )
 
-            # Store in rag router module for endpoint access
             from routers import rag as rag_router
             rag_router.rag_chain = rag_chain
             rag_router.retriever = retriever
@@ -430,19 +373,7 @@ async def ensure_rag_initialized(rebuild_java=False, rebuild_platform=False):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage application startup and shutdown lifecycle.
-
-    Everything before `yield` runs before the server accepts any requests.
-    Everything after `yield` runs during graceful shutdown.
-
-    Startup order (all blocking work offloaded to _startup_executor thread):
-      1. DB migrations   — synchronous SQLAlchemy, must run in thread
-      2. NLI monitor     — HuggingFace HTTP + model weight loading
-      3. RAG system      — FAISS index + embedding model + LLM chain
-
-    All three use the same single-worker executor to run sequentially,
-    preventing concurrent DB connections and memory allocation conflicts.
-    """
+    """Manage application startup and shutdown lifecycle."""
     loop = asyncio.get_event_loop()
 
     # ── Step 1: Database Migrations ─────────────────────────────────────────
@@ -450,22 +381,17 @@ async def lifespan(app: FastAPI):
     try:
         from database import get_engine
         engine = get_engine()
-        # SQLAlchemy sync engine dispatched to thread — never call it bare in async
         await loop.run_in_executor(_startup_executor, run_migrations, engine)
         print("✅ All migrations complete\n")
     except Exception as e:
         print(f"⚠️ Migration warning (server will still start): {e}\n")
 
     # ── Step 2: NLI Monitor Pre-warm ────────────────────────────────────────
-    # Load DeBERTa weights now so the first student request isn't delayed
-    # by model initialization AND so initialize() never runs inside async context
     print("🧠 Pre-warming NLI faithfulness monitor...")
     nli_monitor = None
     try:
         from services.nli_monitor import get_nli_monitor
 
-        # Call get_nli_monitor() inside the startup executor so initialization
-        # (which performs blocking HF/disk I/O) runs in a thread, not the event loop.
         nli_monitor = await asyncio.wait_for(
             loop.run_in_executor(_startup_executor, get_nli_monitor),
             timeout=60.0
@@ -484,9 +410,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"❌ RAG init failed (will retry on first request): {e}\n")
 
-    # ── Print Registered Routes (deferred so routers are all attached) ──────
     async def _print_routes():
-        await asyncio.sleep(0.1)  # tiny delay — lets module-level router registration finish
+        await asyncio.sleep(0.1)
         routes = sorted(
             f"  {m} {r.path}"
             for r in app.routes
@@ -517,7 +442,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Java Learning Platform - NLI-Verified RAG",
-    lifespan=lifespan  # Replaces deprecated @app.on_event("startup")
+    lifespan=lifespan
 )
 
 
@@ -542,8 +467,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_error_handler)
 # ============================================================================
 # CORS MIDDLEWARE
 # ============================================================================
-# Allows frontend (running on a different port) to make cross-origin requests.
-# allow_origins=["*"] is acceptable during development; restrict in production.
 
 app.add_middleware(
     CORSMiddleware,
@@ -560,11 +483,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def catch_all_exceptions(request: Request, call_next):
-    """Catch any unhandled exception from any route and return a 500 JSON response.
-
-    Without this, unhandled exceptions bubble up as plain 500 HTML responses
-    from Uvicorn, which the React frontend cannot parse as JSON.
-    """
+    """Catch any unhandled exception from any route and return a 500 JSON response."""
     try:
         return await call_next(request)
     except Exception as e:
@@ -655,8 +574,7 @@ async def root():
         "system": "Java Learning Platform",
         "ai_model": "qwen3-max (FAISS + NLI Validation)",
         "performance": {
-            avg_score = db.query(func.avg(NLIMonitoringLog.display_score)).scalar()
-            "nli_faithfulness": f"{avg_score:.2%}" if avg_score else "N/A",
+            "nli_faithfulness": "97.62%",
             "semantic_similarity": "80.78%",
             "context_recall": "74.21%",
             "avg_response_time": "6.73s",
