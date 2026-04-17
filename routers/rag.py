@@ -39,7 +39,6 @@ from services.rag_helpers import (
     clean_chunk_for_display
 )
 from services.nli_monitor import get_nli_monitor
-from concurrent.futures import ThreadPoolExecutor
 _embed_executor = ThreadPoolExecutor(max_workers=6)
 
 
@@ -1613,11 +1612,9 @@ async def get_conversation_stats(req: ConversationStatsRequest):
 class CreateConvRequest(BaseModel):
             user_id: int
 @router.post("/api/conversations/create")
-async def create_conversation(req: BaseModel):
+async def create_conversation(req: CreateConvRequest):
+    user_id = req.user_id
     try:
-
-        req_data = await req.__root__
-        user_id = req_data.get("user_id")
 
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
@@ -1796,8 +1793,8 @@ async def ask_multi_classroom(
         save_rag_conversation(
             conversation_manager=conversation_manager,
             user_id=current_user.id,
-            conversation_id=request.conversation_id,
-            user_message=request.question,
+            conversation_id=body.conversation_id, 
+            user_message=body.question
             assistant_response=answer,
             context_type="classroom_rag",
             pdf_matches=pdf_matches,
