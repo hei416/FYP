@@ -29,7 +29,7 @@ function wrapWithMain(code) {
     const methodMatch = code.match(/public\s+(?!static\s)(?:\w+)\s+([a-zA-Z0-9_]+)\s*\(/);
     const methodCall = methodMatch
         ? `System.out.println(obj.${methodMatch[1]}());`
-        : `System.out.println("Ran " + obj.getClass().getSimpleName());`;
+        : '';
 
     const insertPoint = code.lastIndexOf('}');
     const mainSnippet = `
