@@ -13,14 +13,22 @@ cd "$APP_DIR"
 echo "CWD: $(pwd)"
 echo "FILES: $(ls -1 | head -20)"
 
-# CRITICAL: Use ONLY Oryx's antenv — strip stale .python_packages
+# Try Oryx antenv in /tmp (server-side build), then fall back to
+# GitHub Actions-built antenv in /home/site/wwwroot (CI build)
 ANTENV_PATH=$(find /tmp -name "site-packages" -path "*/antenv/*" 2>/dev/null | head -1)
 if [ -n "$ANTENV_PATH" ]; then
     export PYTHONPATH="$ANTENV_PATH"
-    echo "✓ PYTHONPATH set to Oryx antenv: $PYTHONPATH"
+    echo "✓ PYTHONPATH set to Oryx antenv (server-built): $PYTHONPATH"
 else
-    export PYTHONPATH=$(echo "$PYTHONPATH" | tr ':' '\n' | grep -v '.python_packages' | tr '\n' ':' | sed 's/:$//')
-    echo "⚠️ antenv not found, cleaned PYTHONPATH: $PYTHONPATH"
+    PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    CI_ANTENV="/home/site/wwwroot/antenv/lib/python${PY_VER}/site-packages"
+    if [ -d "$CI_ANTENV" ]; then
+        export PYTHONPATH="$CI_ANTENV"
+        echo "✓ PYTHONPATH set to CI-built antenv: $PYTHONPATH"
+    else
+        export PYTHONPATH=$(echo "$PYTHONPATH" | tr ':' '\n' | grep -v '.python_packages' | tr '\n' ':' | sed 's/:$//')
+        echo "⚠️ No antenv found anywhere, cleaned PYTHONPATH: $PYTHONPATH"
+    fi
 fi
 
 echo "Python: $(which python) $(python --version)"
