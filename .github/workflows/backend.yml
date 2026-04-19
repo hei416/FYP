@@ -24,36 +24,45 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build local virtual environment
+        run: |
+          python -m venv antenv
+          source antenv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set startup file
+      - name: Configure App Service
         run: |
           az webapp config set \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
             --startup-file startup.sh
 
-      - name: Enable Oryx build
-        run: |
           az webapp config appsettings set \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
             --settings \
-              SCM_DO_BUILD_DURING_DEPLOYMENT=true \
-              ENABLE_ORYX_BUILD=true \
-              SCM_NO_BUILD_CACHE=false \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+              ENABLE_ORYX_BUILD=false \
+              WEBSITE_RUN_FROM_PACKAGE=0 \
               WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
               WEBSITES_CONTAINER_START_TIME_LIMIT=1800 \
-            "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-            "SECRET_KEY=${{ secrets.SECRET_KEY }}"
+              "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+              "SECRET_KEY=${{ secrets.SECRET_KEY }}"
 
       - name: Create deployment zip
         run: |
-          # Remove stale local packages before zipping — these conflict with Oryx's antenv
-          rm -rf .python_packages
+          chmod +x startup.sh
 
           zip -r deploy.zip . \
             --exclude "*.db" \
@@ -69,36 +78,38 @@ jobs:
             --exclude ".vscode/*" \
             --exclude ".VSCodeCounter/*" \
             --exclude "*.zip"
+
           echo "Zip size: $(du -sh deploy.zip | cut -f1)"
 
-      - name: Wait before deployment
-        run: sleep 30
-
       - name: Deploy to Azure Web App
-        continue-on-error: true
         run: |
           az webapp deploy \
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
             --src-path deploy.zip \
             --type zip \
-            --async true
-          echo "Deployment zip uploaded — Oryx build running on Azure server."
+            --restart true
 
-      - name: Wait for build then poll health
+      - name: Poll health until ready
         run: |
-          echo "Waiting 5 min for Oryx server-side build to complete..."
-          sleep 300
-          echo "Polling https://codetutor-fyp-hei.azurewebsites.net/health ..."
-          for i in $(seq 1 40); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              https://codetutor-fyp-hei.azurewebsites.net/health || echo "000")
-            echo "  Attempt $i/40 — HTTP $STATUS"
+          URL="https://codetutor-fyp-hei.azurewebsites.net/health"
+          MAX_ATTEMPTS=60
+          SLEEP_INTERVAL=10
+          ATTEMPT=0
+
+          echo "Polling $URL ..."
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$URL" || echo "000")
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS — HTTP $STATUS"
+
             if [ "$STATUS" = "200" ]; then
-              echo "✅ Site is healthy!"
+              echo "Site is healthy!"
               exit 0
             fi
-            sleep 30
+
+            sleep $SLEEP_INTERVAL
           done
-          echo "❌ Site did not respond with 200 within ~25 minutes."
+
+          echo "Site did not respond with 200 in time."
           exit 1
