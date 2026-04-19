@@ -54,6 +54,7 @@ jobs:
             --settings \
               SCM_DO_BUILD_DURING_DEPLOYMENT=false \
               ENABLE_ORYX_BUILD=false \
+              WEBSITE_ENABLE_SYNC_UPDATE_SITE=false \
               WEBSITE_RUN_FROM_PACKAGE=0 \
               WEBSITE_CONTAINER_START_TIME_LIMIT=1800 \
               WEBSITES_CONTAINER_START_TIME_LIMIT=1800 \
@@ -88,7 +89,7 @@ jobs:
             --resource-group codetutor-rg \
             --src-path deploy.zip \
             --type zip \
-            --restart true
+            --async true
 
       - name: Poll health until ready
         run: |
