@@ -1,7 +1,45 @@
-Source: Introduction to Programming Using Java by David Eck
-Chapter: c4-subroutines
-URL: http://math.hws.edu/javanotes9/c4-subroutines/index.html
-
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at math.hws.edu Port 443
+Source: Introduction to Programming Using Java (Eck)
+Chapter: Chapter 4: Subroutines
+URL: https://math.hws.edu/javanotes/c4/index.html
+Chapter 4
+Programming in the Large I: Subroutines
+O
+ne way to break up a complex program
+into
+manageable pieces is to use
+subroutines
+. A
+subroutine consists of the instructions for carrying out a certain task,
+grouped together and given a name. Elsewhere in the program, that name can be
+used as a stand-in for the whole set of instructions. As a computer executes a
+program, whenever it encounters a subroutine name, it executes all the
+instructions necessary to carry out the task associated with that
+subroutine.
+Subroutines can be used over and over, at different places in the program. A
+subroutine can even be used inside another subroutine. This allows you to write
+simple subroutines and then use them to help write more complex subroutines,
+which can then be used in turn in other subroutines. In this way, very complex
+programs can be built up step-by-step, where each step in the construction is
+reasonably simple.
+Subroutines in Java can be either static or non-static. This chapter 
+covers static subroutines. Non-static subroutines, which are used in 
+true object-oriented programming, will be covered in the next chapter.
+Contents of Chapter 4:
+Section 1:
+Black Boxes and Procedural Abstraction
+Section 2:
+Static Subroutines and Static Variables
+Section 3:
+Parameters
+Section 4:
+Return Values
+Section 5:
+Lambda Expressions
+Section 6:
+APIs, Packages, Modules, and Javadoc
+Section 7:
+More on Program Design
+Section 8:
+The Truth About Declarations
+Programming Exercises
+Quiz on This Chapter

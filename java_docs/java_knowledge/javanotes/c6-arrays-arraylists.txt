@@ -1,7 +1,68 @@
-Source: Introduction to Programming Using Java by David Eck
-Chapter: c6-arrays-arraylists
-URL: http://math.hws.edu/javanotes9/c6-arrays-arraylists/index.html
-
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at math.hws.edu Port 443
+Source: Introduction to Programming Using Java (Eck)
+Chapter: Chapter 6: Introduction to GUI Programming
+URL: https://math.hws.edu/javanotes/c6/index.html
+Chapter 6
+Introduction to GUI Programming
+C
+omputer users today expect
+to interact
+with their computers using a graphical user interface (GUI), and
+Java can be used to write sophisticated GUI programs.
+GUI programs
+differ from traditional "straight-through" programs that you have 
+encountered in the first few chapters of this book.  One big difference is
+that GUI programs are
+event-driven
+. That is, user actions such as
+clicking on a button or pressing a key on the keyboard generate events, and the
+program must respond to these events as they occur.
+Event-driven programming builds on all the skills you have learned in the
+first five chapters of this text. You need to be able to write the methods
+that respond to events. Inside those methods, you are doing the kind of
+programming-in-the-small that was covered in
+Chapter 2
+and
+Chapter 3
+.
+And of course, objects are everywhere in GUI programming.  
+Events are objects. Colors and fonts are objects.  GUI components such as buttons and
+menus are objects.  Events are handled by instance methods contained in objects. 
+In Java, GUI programming is object-oriented programming.  The purpose of this chapter is, as
+much as anything, to give you some experience with a large-scale object-oriented API.
+This chapter is just an introduction to JavaFX, but it covers the
+essential features of GUI programming in enough detail to write some
+interesting programs.  The discussion of JavaFX will continue in
+Chapter 13
+with more details and with more advanced techniques, but complete coverage
+of JavaFX would require an entire book of its own.
+Note that JavaFX is not distributed as part of the Java
+Development Kit.  For information about how to obtain JavaFX and how to
+compile and run programs that use it, see
+Section 2.6
+.
+This edition of this textbook covers GUI programming using the JavaFX GUI toolkit.
+An alternative edition covers the Swing GUI toolkit instead of JavaFX.  
+Swing is included as a standard part of Java, so does not require any extra
+downloads or configuration.  The Swing edition can be found
+at
+https://math.hws.edu/javanotes9-swing
+.
+The only really significant differences between the two editions are in this
+chapter and in
+Chapter 13
+.
+Contents of Chapter 6:
+Section 1:
+A Basic JavaFX Application
+Section 2:
+Some Basic Classes
+Section 3:
+Basic Events
+Section 4:
+Basic Controls
+Section 5:
+Basic Layout
+Section 6:
+Complete Programs
+Programming Exercises
+Quiz on This Chapter

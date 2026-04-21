@@ -1,6 +1,364 @@
-Source: Open Data Structures (in Java)
-URL: https://opendatastructures.org/ods-java/ods-java-node10.html
+Source: Open Data Structures in Java (Morin)
+Chapter: 10. Heaps
+URL: https://raw.githubusercontent.com/patmorin/ods/master/latex/heaps.tex
+Heaps
+heaps
 
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at opendatastructures.org Port 443
+In this chapter, we discuss two implementations of the extremely useful
+priority #Queue# data structure.  Both of these structures are a special
+kind of binary tree called a heap, 
+heap
+binary heap
+heap!binary
+which means ``a disorganized
+pile.''  This is in contrast to binary search trees that can be thought
+of as a highly organized pile.
+
+The first heap implementation uses an array to simulate a complete binary
+tree.  This very fast implementation is the basis of one of the fastest
+known sorting algorithms, namely heapsort (see heapsort).
+The second implementation is based on more flexible binary trees.
+It supports a #meld(h)# operation that allows the priority queue to
+absorb the elements of a second priority queue #h#.
+
+#BinaryHeap#: An Implicit Binary Tree
+binaryheap
+
+BinaryHeap@#BinaryHeap#
+Our first implementation of a (priority) #Queue# is based on a technique
+that is over four hundred years old.  Eytzinger's method
+Eytzinger's method
+allows us
+to represent a complete binary tree as an array by laying out the nodes
+of the tree in breadth-first order (see bintree:traversal).
+In this way, the root is stored at position 0, the root's left child is
+stored at position 1, the root's right child at position 2, the left
+child of the left child of the root is stored at position 3, and so
+on. See eytzinger.
+
+  
+    [scale=0.90909]figs/eytzinger
+  
+  Eytzinger's method represents a complete binary tree as an array.
+  eytzinger
+
+If we apply Eytzinger's method to a sufficiently large tree, some
+patterns emerge.  The left child of the node at index #i# is at index
+$#left(i)#=2#i#+1$ and the right child of the node at index #i# is at
+index $#right(i)#=2#i#+2$.  The parent of the node at index #i# is at
+index $#parent(i)#=(#i#-1)/2$.
+ods/BinaryHeap.left(i).right(i).parent(i)
+
+A #BinaryHeap# uses this technique to implicitly represent a complete
+binary tree in which the elements are heap-ordered:
+heap-ordered binary tree
+binary tree!heap-ordered
+heap order
+The value
+stored at any index #i# is not smaller than the value stored at index
+#parent(i)#, with the exception of the root value, $#i#=0$.  It follows
+that the smallest value in the priority #Queue# is therefore stored at
+position 0 (the root).
+
+In a #BinaryHeap#, the #n# elements are stored in an array #a#:
+ods/BinaryHeap.a.n
+
+Implementing the #add(x)# operation is fairly straightforward.  As with
+all array-based structures, we first check to see if #a# is full (by checking if $#a.length#=#n#$) and, if so, we grow #a#.  Next, we place #x# at location
+#a[n]# and increment #n#.  At this point, all that remains is to ensure
+that we maintain the heap property.  We do this by repeatedly swapping
+#x# with its parent until #x# is no longer smaller than its parent.
+See heap-insert.
+ods/BinaryHeap.add(x).bubbleUp(i)
+
+  
+    [height=]figs/heap-insert-1 \\
+    [height=]figs/heap-insert-2 \\
+    [height=]figs/heap-insert-3 \\
+    [height=]figs/heap-insert-4 \\
+  
+  [Adding to a BinaryHeap]Adding the value 6 to a #BinaryHeap#.
+  heap-insert
+
+Implementing the #remove()# operation, which removes the smallest value
+from the heap, is a little trickier.  We know where the smallest value is
+(at the root), but we need to replace it after we remove it and ensure
+that we maintain the heap property.
+
+The easiest way to do this is to replace the root with the value #a[n-1]#, delete
+that value, and decrement #n#.  Unfortunately, the new root element is now
+probably not the smallest element, so it needs to be moved downwards.
+We do this by repeatedly comparing this element to its two children.
+If it is the smallest of the three then we are done.  Otherwise, we swap
+this element with the smallest of its two children and continue.
+ods/BinaryHeap.remove().trickleDown(i)
+
+  
+    [height=]figs/heap-remove-1 \\
+    [height=]figs/heap-remove-2 \\
+    [height=]figs/heap-remove-3 \\
+    [height=]figs/heap-remove-4 \\
+  
+  [Removing from a BinaryHeap]Removing the minimum value, 4, from a #BinaryHeap#.
+  heap-remove
+
+As with other array-based structures, we will ignore the time spent in
+calls to #resize()#, since these can be accounted for using the amortization
+argument from arraystack-amortized.  The running times of
+both #add(x)# and #remove()# then depend on the height of the (implicit)
+binary tree.  Luckily, this is a complete
+binary tree!complete
+complete binary tree
+binary tree;  every level
+except the last has the maximum possible number of nodes.  Therefore,
+if the height of this tree is $h$, then it has at least $2^h$ nodes.
+Stated another way
+\[
+  #n#  2^h  .
+\]  
+Taking logarithms on both sides of this equation gives
+\[
+   h   #n#  .
+\]
+Therefore, both the #add(x)# and #remove()# operation run in $O( #n#)$ time.
+
+Summary
+
+The following theorem summarizes the performance of a #BinaryHeap#:
+
+binaryheap
+  A #BinaryHeap# implements the (priority) #Queue# interface.  Ignoring
+  the cost of calls to #resize()#, a #BinaryHeap# supports the operations
+  #add(x)# and #remove()# in $O( #n#)$ time per operation.
+
+  Furthermore, beginning with an empty #BinaryHeap#, any sequence of $m$
+  #add(x)# and #remove()# operations results in a total of $O(m)$
+  time spent during all calls to #resize()#.
+
+#MeldableHeap#: A Randomized Meldable Heap
+meldableheap
+
+MeldableHeap@#MeldableHeap#
+In this section, we describe the #MeldableHeap#, a priority #Queue#
+implementation in which the underlying structure is also a heap-ordered
+binary tree.  However, unlike a #BinaryHeap# in which the underlying
+binary tree is completely defined by the number of elements, there
+are no restrictions on the shape of the binary tree that underlies
+a #MeldableHeap#; anything goes.
+
+The #add(x)# and #remove()# operations in a #MeldableHeap# are
+implemented in terms of the #merge(h1,h2)# operation.  This operation
+takes two heap nodes #h1# and #h2# and merges them, returning a heap
+node that is the root of a heap that contains all elements in the subtree
+rooted at #h1# and all elements in the subtree rooted at #h2#.
+
+The nice thing about a #merge(h1,h2)# operation is that it can be
+defined recursively. See meldable-merge.  If either #h1# or
+#h2# is #nil#, then we are merging with an empty set, so we return #h2#
+or #h1#, respectively.  Otherwise, assume $#h1.x#  #h2.x#$ since,
+if $#h1.x# > #h2.x#$, then we can reverse the roles of #h1# and #h2#.
+Then we know that the root of the merged heap will contain #h1.x#, and
+we can recursively merge #h2# with #h1.left# or #h1.right#, as we wish.
+This is where randomization comes in, and we toss a coin to decide
+whether to merge #h2# with #h1.left# or #h1.right#:
+ods/MeldableHeap.merge(h1,h2)
+
+  [width=]figs/meldable-merge
+  [Merging in a MeldableHeap]Merging #h1# and #h2# is done by merging #h2# with one of
+  #h1.left# or #h1.right#.
+  meldable-merge
+
+In the next section, we show that #merge(h1,h2)# runs in $O( #n#)$
+expected time, where #n# is the total number of elements in #h1# and #h2#.
+
+With access to a #merge(h1,h2)# operation, the #add(x)# operation is easy.  We create a new node #u# containing #x# and then merge #u# with the root of our heap:
+ods/MeldableHeap.add(x)
+This takes $O( (#n#+1)) = O( #n#)$ expected time.
+
+The #remove()# operation is similarly easy.  The node we want to remove
+is the root, so we just merge its two children and make the result the root:
+ods/MeldableHeap.remove()
+Again, this takes $O( #n#)$ expected time.
+
+Additionally, a #MeldableHeap# can implement many other operations in
+$O( #n#)$ expected time, including:
+
+ #remove(u)#: remove the node #u# (and its key #u.x#) from the heap.
+ #absorb(h)#: add all the elements of the #MeldableHeap# #h# to this heap, emptying #h# in the process.
+
+Each of these operations can be implemented using a constant number of
+#merge(h1,h2)# operations that each take $O( #n#)$ expected time.
+
+Analysis of #merge(h1,h2)#
+
+The analysis of #merge(h1,h2)# is based on the analysis of a random walk
+in a binary tree.  A random walk in a binary tree starts at the
+root of the tree.  At each step in the random walk, a coin is tossed and,
+depending on the result of this coin toss, the walk proceeds to the left
+or to the right child of the current node.  The walk ends when it falls
+off the tree (the current node becomes #nil#).
+
+The following lemma is somewhat remarkable because it does not depend
+at all on the shape of the binary tree:
+
+tree-random-walk
+The expected length of a random walk in a binary tree with #n# nodes is at most # (n+1)#.
+
+The proof is by induction on #n#. In the base case, $#n#=0$ and the walk
+has length $0= (#n#+1)$.  Suppose now that the result is true for
+all non-negative integers $#n#'< #n#$.
+
+Let $#n#_1$ denote the size of the root's left subtree, so that
+$#n#_2=#n#-#n#_1-1$ is the size of the root's right subtree.  Starting at
+the root, the walk takes one step and then continues in a subtree of
+size $#n#_1$ or $#n#_2$.  By our inductive hypothesis, the expected
+length of the walk is then
+\[
+    [W] = 1 + 12 (#n#_1+1) + 12 (#n#_2+1)   , 
+\] 
+since each of $#n#_1$ and $#n#_2$ are less than $#n#$.  Since $$
+is a concave function, $[W]$ is maximized when $#n#_1=#n#_2=(#n#-1)/2$.
+
+Therefore,
+ the expected number of steps taken by the random walk is 
+
+    [W] 
+    & = 1 + 12 (#n#_1+1) + 12 (#n#_2+1) \\
+   &   1 +  ((#n#-1)/2+1) \\
+   & =  1 +  ((#n#+1)/2) \\
+   & =   (#n#+1)   .  
+
+We make a quick digression to note that, for readers who know a little
+about information theory, the proof of tree-random-walk can
+be stated in terms of entropy.  
+[Information Theoretic Proof of tree-random-walk]
+Let $d_i$ denote the depth of the $i$th external node and recall that a
+binary tree with #n# nodes has #n+1# external nodes.  The probability
+of the random walk reaching the $i$th external node is exactly
+$p_i=1/2^d_i$, so the expected length of the random walk is given by
+\[
+   H=\sum_i=0^#n# p_id_i
+    =\sum_i=0^#n# p_i(2^d_i)
+    = \sum_i=0^#n#p_i(1/p_i)
+\]
+The right hand side of this equation is easily recognizable as the
+entropy of a probability distribution over $#n#+1$ elements.  A basic
+fact about the entropy of a distribution over $#n#+1$ elements is that
+it does not exceed $(#n#+1)$, which proves the lemma.
+
+With this result on random walks, we can now easily prove that the
+running time of the #merge(h1,h2)# operation is $O( #n#)$.
+
+  If #h1# and #h2# are the roots of two heaps containing $#n#_1$
+  and $#n#_2$ nodes, respectively, then the expected running time of
+  #merge(h1,h2)# is at most $O( #n#)$, where $#n#=#n#_1+#n#_2$.
+
+  Each step of the merge algorithm takes one step of a random walk,
+  either in the heap rooted at #h1# or the heap rooted at #h2#.
+  
+  The algorithm terminates when either of these two random walks fall
+  out of its corresponding tree (when $#h1#=#null#$ or $#h2#=#null#$).
+  Therefore, the expected number of steps performed by the merge algorithm
+  is at most
+  \[
+      (#n#_1+1) +  (#n#_2+1)  2 #n#  . 
+  \]
+
+Summary
+
+The following theorem summarizes the performance of a #MeldableHeap#:
+
+meldableheap
+  A #MeldableHeap# implements the (priority) #Queue# interface.
+  A #MeldableHeap# supports the operations #add(x)# and #remove()#
+  in $O( #n#)$ expected time per operation.
+
+Discussion and Exercises
+
+The implicit representation of a complete binary tree as an array,
+or list, seems to have been first proposed by Eytzinger e1590.
+He used this representation in books containing pedigree family trees
+pedigree family tree
+of noble families.  The #BinaryHeap# data structure described here was
+first introduced by Williams w64.
+
+The randomized #MeldableHeap# data structure described here appears
+to have first been proposed by Gambin and Malinowski gm98.
+Other meldable heap implementations exist, including 
+leftist heaps [Section~5.3.2]c72,k97v3,
+leftist heap
+heap!leftist
+binomial heaps v78,
+binomial heap
+heap!binomial
+Fibonacci heaps ft87, 
+Fibonacci heap
+heap!Fibonacci
+pairing heaps fsst86,\
+pairing heap
+heap!pairing
+ and skew heaps st83, 
+skew heap
+heap!skew
+although none of these are as simple as the #MeldableHeap#
+structure.
+
+Some of the above structures also support a #decreaseKey(u,y)# operation
+decreaseKey@#decreaseKey(u,y)#
+in which the value stored at node #u# is decreased to #y#.  (It is a
+pre-condition that $#y##u.x#$.)  In most of the preceding structures,
+this operation can be supported in $O( #n#)$ time by removing node
+#u# and adding  #y#.  However, some of these structures can implement
+#decreaseKey(u,y)# more efficiently.  In particular, #decreaseKey(u,y)#
+takes $O(1)$ amortized time in Fibonacci heaps and $O( #n#)$
+amortized time in a special version of pairing heaps e09.
+This more efficient #decreaseKey(u,y)# operation has applications in
+speeding up several graph algorithms, including Dijkstra's shortest path
+algorithm ft87.
+
+  Illustrate the addition of the values 7 and then 3 to the #BinaryHeap#
+  shown at the end of heap-insert.
+
+  Illustrate the removal of the next two values (6 and 8) on the
+  #BinaryHeap# shown at the end of heap-remove.
+
+  Implement the #remove(i)# method, that removes the value stored in
+  #a[i]# in a #BinaryHeap#.  This method should run in $O( #n#)$ time.
+  Next, explain why this method is not likely to be useful.
+
+general-eytzinger
+  tree!$d$-ary
+  A $d$-ary tree is a generalization of a binary tree in which each
+  internal node has $d$ children.  Using Eytzinger's method it is also
+  possible to represent complete $d$-ary trees using arrays.  Work out
+  the equations that, given an index #i#, determine the index of #i#'s
+  parent and each of #i#'s $d$ children in this representation.
+
+  DaryHeap@#DaryHeap#
+  Using what you learned in general-eytzinger, design and
+  implement a #DaryHeap#, the $d$-ary generalization of a
+  #BinaryHeap#. Analyze the running times of operations on a #DaryHeap#
+  and test the performance of your #DaryHeap# implementation against
+  that of the #BinaryHeap# implementation given here.
+
+  Illustrate the addition of the values 17 and then 82 in the
+  #MeldableHeap# #h1# shown in meldable-merge.  Use a coin to
+  simulate a random bit when needed.
+
+  Illustrate the removal of the next two values (4 and 8) in the
+  #MeldableHeap# #h1# shown in meldable-merge.  Use a coin to
+  simulate a random bit when needed.
+
+  Implement the #remove(u)# method, that removes the node #u# from
+  a #MeldableHeap#.  This method should run in $O( #n#)$ expected time.
+
+  Show how to find the second smallest value in a #BinaryHeap# or
+  #MeldableHeap# in constant time.
+
+  Show how to find the $k$th smallest value in a #BinaryHeap# or
+  #MeldableHeap# in $O(k k)$ time.  (Hint: Using another heap
+  might help.)
+
+  Suppose you are given #k# sorted lists, of total length #n#.  Using
+  a heap, show how to merge these into a single sorted list in $O(n
+  k)$ time.  (Hint: Starting with the case $k=2$ can be instructive.)

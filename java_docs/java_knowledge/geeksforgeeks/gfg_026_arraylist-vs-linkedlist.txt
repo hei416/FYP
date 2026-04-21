@@ -1,0 +1,325 @@
+Source: GeeksforGeeks
+Topic: arraylist-vs-linkedlist-java
+URL: https://www.geeksforgeeks.org/arraylist-vs-linkedlist-java/
+ArrayList vs LinkedList in Java
+Last Updated :
+16 Jan, 2026
+ArrayList and LinkedList are two popular implementations of the List interface in Java. Both store elements in insertion order and allow duplicate values, but they differ in their internal data structure and performance.
+What is an ArrayList?
+ArrayList
+is a dynamic array-based implementation of the List interface. It internally uses a resizable array to store elements.
+Java
+import
+java.util.ArrayList
+;
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+ArrayList
+<
+String
+>
+list
+=
+new
+ArrayList
+<>
+();
+list
+.
+add
+(
+"Java"
+);
+list
+.
+add
+(
+"Python"
+);
+list
+.
+add
+(
+"C++"
+);
+System
+.
+out
+.
+println
+(
+list
+);
+System
+.
+out
+.
+println
+(
+"Element at index 1: "
++
+list
+.
+get
+(
+1
+));
+}
+}
+Output
+[Java, Python, C++]
+Element at index 1: Python
+Explanation
+Elements are stored in contiguous memory locations
+Accessing elements using index is fast
+When the internal array becomes full, a new larger array is created and elements are copied
+What is LinkedList ?
+LinkedList
+is a doubly linked list-based implementation of the List and Deque interfaces. Each element is stored as a separate node.
+Java
+import
+java.util.LinkedList
+;
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+LinkedList
+<
+String
+>
+list
+=
+new
+LinkedList
+<>
+();
+list
+.
+add
+(
+"Java"
+);
+list
+.
+add
+(
+"Python"
+);
+list
+.
+add
+(
+"C++"
+);
+System
+.
+out
+.
+println
+(
+list
+);
+System
+.
+out
+.
+println
+(
+"First element: "
++
+list
+.
+getFirst
+());
+}
+}
+Output
+[Java, Python, C++]
+First element: Java
+Explanation
+Each element is stored as a node. Every node contains:
+Data
+Reference to previous node
+Reference to next node
+No shifting of elements during insertion or deletion
+ArrayList vs LinkedList
+Feature
+ArrayList
+LinkedList
+Definition
+A resizable array implementation of the List interface
+A doubly-linked list implementation of the List interface
+Data Storage
+Stores elements in contiguous memory locations
+Stores elements as nodes linked using pointers
+Access Time
+Fast random access using index (O(1))
+Slower random access (O(n))
+Insertion/Deletion
+Slower in middle or beginning (O(n)), faster at end
+Faster for insertion/deletion anywhere (O(1) if position known)
+Memory Usage
+Less memory overhead
+More memory due to storing pointers
+Iteration
+Faster iteration using index-based loop
+Faster iteration using iterator
+Use Case
+Best for frequent access and rare modifications
+Best for frequent insertions and deletions
+Comment
+Article Tags:
+Article Tags:
+Java
+Difference Between
+Java-Collections
+Java-ArrayList
+java-LinkedList
+java-list
++
+2
+More
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

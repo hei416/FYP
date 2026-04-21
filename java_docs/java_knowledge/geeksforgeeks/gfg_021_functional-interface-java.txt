@@ -1,0 +1,496 @@
+Source: GeeksforGeeks
+Topic: functional-interfaces-java
+URL: https://www.geeksforgeeks.org/functional-interfaces-java/
+Java Functional Interfaces
+Last Updated :
+20 Nov, 2025
+A functional interface in Java is an interface that has only one
+abstract method
+, making it suitable for use with lambda expressions and method references (introduced in Java 8).
+Use @FunctionalInterface to ensure only one abstract method (annotation is optional).
+Enable clean, concise code using
+lambdas
+and method references.
+Example:
+Using a Functional Interface with a Lambda Expression
+Java
+public
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Using lambda expression to implement Runnable
+new
+Thread
+(()
+->
+System
+.
+out
+.
+println
+(
+"New thread created"
+)).
+start
+();
+}
+}
+Output
+New thread created
+Explanation:
+Above program demonstrates use of lambda expression with the Runnable functional interface.
+Runnable has one abstract method run(), so it qualifies as a functional interface.
+Lambda ()-> System.out.println("New thread created") defines the run() method.
+new Thread().start() starts a new thread that executes the lambda body
+Note:
+A
+f
+unctional interface can also extend another functional interface.
+@FunctionalInterface
+Annotation
+@FunctionalInterface annotation ensures that an interface cannot have more than one abstract method. If multiple abstract methods are present, the compiler throws an “Unexpected @FunctionalInterface annotation” error.
+Java
+@FunctionalInterface
+interface
+Square
+{
+int
+calculate
+(
+int
+x
+);
+}
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+args
+[]
+)
+{
+int
+a
+=
+5
+;
+// lambda expression to define the calculate method
+Square
+s
+=
+(
+int
+x
+)
+->
+x
+*
+x
+;
+// parameter passed and return type must be same as defined in the prototype
+int
+ans
+=
+s
+.
+calculate
+(
+a
+);
+System
+.
+out
+.
+println
+(
+ans
+);
+}
+}
+Output
+25
+Explanation
+:
+Square is a functional interface with a single method calculate(int x).
+A lambda expression (int x) -> x * x is used to implement the calculate method.
+Lambda takes x as input and returns x * x.
+Note:
+@FunctionalInterface annotation is optional but it is a good practice to use. It helps catching the error in early stage by making sure that the interface has only one abstract method.
+Java Functional Interfaces Before Java 8
+Before
+Java 8
+, developers had to use anonymous inner classes to provide interface implementations. Here’s how the same Runnable example would look:
+Java
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+args
+[]
+)
+{
+// create anonymous inner class object
+new
+Thread
+(
+new
+Runnable
+()
+{
+@Override
+public
+void
+run
+()
+{
+System
+.
+out
+.
+println
+(
+"New thread created"
+);
+}
+}).
+start
+();
+}
+}
+Output
+New thread created
+Types of Functional Interfaces in Java
+Java 8 introduced four main functional interface types under the package java.util.function. These are widely used in Stream API, collections and lambda-based operations.
+1. Consumer
+Consumer interface
+of the functional interface is the one that accepts only one argument. It is used for performing an action, such as printing or logging. There are also functional variants of the Consumer
+DoubleConsumer
+,
+IntConsumer
+and
+LongConsumer
+.
+Syntax:
+Consumer<Integer> consumer = (value) -> System.out.println(value);
+2. Predicate
+Predicate interface
+represents a boolean-valued function of one argument. It is commonly used for filtering operations in streams. There are also functional variants of the Predicate
+IntPredicate
+,
+DoublePredicate
+and
+LongPredicate
+.
+Syntax:
+public interface Predicate<T> {
+boolean test(T t);
+}
+The Java predicate functional interface can also be implemented using Lambda expressions.
+Predicate<Integer> predicate = (value) -> value != null;
+3. Function
+The
+function
+interface takes one argument and returns a result. It is commonly used for transforming data. Several variations exist:
+Bi-Function
+: Takes two arguments and returns a result.
+Unary Operator
+: Input and output are of the same type.
+Binary Operator
+: Like BiFunction but with same input/output type.
+Syntax:
+Function<Integer, Integer> function = (value) -> value * value;
+4. Supplier
+Supplier
+functional interface is also a type of functional interface that does not take any input or argument and yet returns a single output. The different extensions of the Supplier functional interface hold many other suppliers functions like
+BooleanSupplier
+,
+DoubleSupplier
+,
+LongSupplier
+and
+IntSupplier
+.
+Syntax:
+Supplier<String> supplier = () -> "Hello, World!";
+Example:
+Using Predicate Interface to Filter Strings
+Java
+import
+java.util.*
+;
+import
+java.util.function.Predicate
+;
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+args
+[]
+)
+{
+// create a list of strings
+List
+<
+String
+>
+n
+=
+Arrays
+.
+asList
+(
+"Geek"
+,
+"GeeksQuiz"
+,
+"g1"
+,
+"QA"
+,
+"Geek2"
+);
+// declare the predicate type as string and use lambda expression to create object
+Predicate
+<
+String
+>
+p
+=
+(
+s
+)
+->
+s
+.
+startsWith
+(
+"G"
+);
+// Iterate through the list
+for
+(
+String
+st
+:
+n
+)
+{
+// call the test method
+if
+(
+p
+.
+test
+(
+st
+))
+System
+.
+out
+.
+println
+(
+st
+);
+}
+}
+}
+Output
+Geek
+GeeksQuiz
+Geek2
+Functional Interfaces Table
+Functional Interfaces
+Description
+Method
+Runnable
+It represents a task that can be executed by a thread.
+void run()
+Comparable
+It compares two objects for ordering.
+int compareTo(T o)
+ActionListener
+It handles an action event in event-driven programming.
+void actionPerformed(ActionEvent e)
+Callable
+It represents a task that can return a result or throw an exception.
+V call() throws Exception
+Consumer
+It accepts a single input argument and returns no result.
+void accept(T t)
+Predicate
+It accepts a single argument and returns a boolean result.
+boolean test(T t)
+Function
+It accepts a single argument and returns a result.
+R apply(T t)
+Supplier
+It does not take any arguments but provides a result.
+T get()
+BiConsumer
+It accepts two arguments and returns no result.
+void accept(T t, U u)
+BiPredicate
+It accepts two arguments and returns a boolean result.
+boolean test(T t, U u)
+BiFunction
+It accepts two arguments and returns a result.
+R apply(T t, U u)
+UnaryOperator
+This is a special case of Function, where input and output types are the same.
+T apply(T t)
+BinaryOperator
+This is a special case of BiFunction, where input and output types are the same.
+T apply(T t1, T t2)
+Comment
+Article Tags:
+Article Tags:
+Java
+Java-Functional-Interfaces
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

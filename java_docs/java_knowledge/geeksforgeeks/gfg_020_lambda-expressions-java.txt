@@ -1,0 +1,713 @@
+Source: GeeksforGeeks
+Topic: lambda-expressions-java-8
+URL: https://www.geeksforgeeks.org/lambda-expressions-java-8/
+Java Lambda Expressions
+Last Updated :
+17 Mar, 2026
+Java lambda expressions, introduced in Java 8, allow developers to write concise, functional-style code by representing anonymous functions. They enable passing code as parameters or assigning it to variables, resulting in cleaner and more readable programs.
+Lambda expressions implement a
+functional interface
+(An interface with only one abstract function)
+Enable passing code as data (method arguments).
+Lambda expressions can access only final or effectively final variables from the enclosing scope.
+Lambdas cannot throw checked exceptions unless the functional interface declares them.
+Allow defining behavior without creating separate classes.
+Java
+interface
+Add
+{
+int
+addition
+(
+int
+a
+,
+int
+b
+);
+}
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+// Lambda expression to add two numbers
+Add
+add
+=
+(
+a
+,
+b
+)
+->
+a
++
+b
+;
+int
+result
+=
+add
+.
+addition
+(
+10
+,
+20
+);
+System
+.
+out
+.
+println
+(
+"Sum: "
++
+result
+);
+}
+}
+Output
+Sum: 30
+Syntax of Lambda Expressions
+Java Lambda Expression has the following syntax:
+Parameter List:
+Parameters for the lambda expression
+Arrow Token (->):
+Separates the parameter list and the body
+Body:
+Logic to be executed.
+Functional interface
+A functional interface has exactly one abstract method. Lambda expressions provide its implementation. @FunctionalInterface annotation is optional but recommended to enforce this rule at compile time.
+Java
+interface
+FuncInterface
+{
+void
+abstractFun
+(
+int
+x
+);
+default
+void
+normalFun
+(){
+System
+.
+out
+.
+println
+(
+"Hello"
+);
+}
+}
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+FuncInterface
+fobj
+=
+(
+int
+x
+)
+->
+System
+.
+out
+.
+println
+(
+2
+*
+x
+);
+fobj
+.
+abstractFun
+(
+5
+);
+}
+}
+Output
+10
+Types of Lambda Parameters
+There are three Lambda Expression Parameters are mentioned below:
+1. Lambda with Zero Parameters
+Syntax:
+() -> System.out.println("Zero parameter lambda");
+Java
+@FunctionalInterface
+interface
+ZeroParameter
+{
+void
+display
+();
+}
+public
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+// Lambda expression with zero parameters
+ZeroParameter
+zeroParamLambda
+=
+()
+->
+System
+.
+out
+.
+println
+(
+"This is a zero-parameter lambda expression!"
+);
+// Invoke the method
+zeroParamLambda
+.
+display
+();
+}
+}
+Output
+This is a zero-parameter lambda expression!
+2. Lambda with a Single Parameter
+Syntax:
+(p) -> System.out.println("One parameter: " + p);
+It is not mandatory to use parentheses if the type of that variable can be inferred from the context.
+Parentheses are optional if the compiler can infer the parameter type from the functional interface.
+Java
+import
+java.util.ArrayList
+;
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+ArrayList
+<
+Integer
+>
+list
+=
+new
+ArrayList
+<>
+();
+list
+.
+add
+(
+1
+);
+list
+.
+add
+(
+2
+);
+list
+.
+add
+(
+3
+);
+System
+.
+out
+.
+println
+(
+"All elements:"
+);
+list
+.
+forEach
+(
+n
+->
+System
+.
+out
+.
+println
+(
+n
+));
+System
+.
+out
+.
+println
+(
+"Even elements:"
+);
+list
+.
+forEach
+(
+n
+->
+{
+if
+(
+n
+%
+2
+==
+0
+)
+System
+.
+out
+.
+println
+(
+n
+);
+});
+}
+}
+Output
+All elements:
+1
+2
+3
+Even elements:
+2
+Note:
+The forEach() method internally uses the Consumer<T> functional interface, which takes one argument and performs an action.
+3. Lambda Expression with Multiple Parameters
+Syntax:
+(p1, p2) -> System.out.println("Multiple parameters: " + p1 + ", " + p2);
+Java
+@FunctionalInterface
+interface
+Functional
+{
+int
+operation
+(
+int
+a
+,
+int
+b
+);
+}
+public
+class
+Test
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Using lambda expressions to define the operations
+Functional
+add
+=
+(
+a
+,
+b
+)
+->
+a
++
+b
+;
+Functional
+multiply
+=
+(
+a
+,
+b
+)
+->
+a
+*
+b
+;
+// Using the operations
+System
+.
+out
+.
+println
+(
+add
+.
+operation
+(
+6
+,
+3
+));
+System
+.
+out
+.
+println
+(
+multiply
+.
+operation
+(
+4
+,
+5
+));
+}
+}
+Output
+9
+20
+Note:
+Lambda expressions are just like functions and they accept parameters just like functions.
+Examples in Collections / Streams
+Lambda expressions are widely used with Java Collections and Streams for concise operations
+Java
+import
+java.util.Arrays
+;
+import
+java.util.List
+;
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+List
+<
+String
+>
+names
+=
+Arrays
+.
+asList
+(
+"Alice"
+,
+"Bob"
+,
+"Charlie"
+,
+"Adam"
+);
+System
+.
+out
+.
+println
+(
+"All names:"
+);
+names
+.
+forEach
+(
+name
+->
+System
+.
+out
+.
+println
+(
+name
+));
+System
+.
+out
+.
+println
+(
+"\nNames starting with 'A':"
+);
+names
+.
+stream
+()
+.
+filter
+(
+n
+->
+n
+.
+startsWith
+(
+"A"
+))
+.
+map
+(
+n
+->
+n
+.
+toUpperCase
+())
+.
+forEach
+(
+System
+.
+out
+::
+println
+);
+}
+}
+Output
+All names:
+Alice
+Bob
+Charlie
+Adam
+
+Names starting with 'A':
+ALICE
+ADAM
+Why Use Lambda Expressions?
+Concise Code:
+Reduce boilerplate compared to anonymous classes.
+Functional Programming:
+Treat functions as first-class citizens.
+Improved Readability:
+Code is easier to read and maintain.
+Enhanced Collections and Streams:
+Simplify operations like filtering, mapping, and iterating.
+Common Built-in Functional Interfaces
+Interface
+Method
+Purpose
+Predicate
+boolean test(T t)
+Tests a given condition and returns true or false.
+Consumer
+void accept(T t)
+Performs an action on the given argument without returning a result.
+Supplier
+T get()
+Supplies or generates a result without taking any input.
+Comparator<T>
+int compare(T o1, T o2)
+Compares two objects to determine their order.
+Comparable<T>
+int compareTo(T o)
+Defines the natural ordering for objects of a class.
+Validity Check: Example Lambda Expressions
+Expression
+Validity
+Reason
+() -> {}
+Valid
+No parameters, empty body
+() -> "geeksforgeeks"
+Valid
+Single expression returns value
+() -> { return "geeksforgeeks"; }
+Valid
+Uses braces with return keyword
+(Integer i) -> { return "geeksforgeeks" + i; }
+Valid
+Correct syntax with typed parameter
+(String s) -> { return "geeksforgeeks"; }
+Valid
+Parameter unused but valid
+() -> { return "Hello" }
+Invalid
+Missing semicolon after return statement
+x -> { return x + 1; }
+Invalid
+Invalid if type inference not possible
+(int x, y) -> x + y
+Invalid
+If one parameter has type, all must
+Comment
+Article Tags:
+Article Tags:
+Java
+java-lambda
+Java 8
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

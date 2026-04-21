@@ -1,7 +1,64 @@
-Source: Introduction to Programming Using Java by David Eck
-Chapter: c7-recursion
-URL: http://math.hws.edu/javanotes9/c7-recursion/index.html
-
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at math.hws.edu Port 443
+Source: Introduction to Programming Using Java (Eck)
+Chapter: Chapter 7: Arrays, ArrayLists, and Records
+URL: https://math.hws.edu/javanotes/c7/index.html
+Chapter 7
+Arrays, ArrayLists, and Records
+C
+omputers get a lot of their power
+from working
+with
+data structures
+. A data structure is an
+organized collection of related data. An object is a data structure, combined
+usually with some methods, but this
+type of data structure—consisting of a fairly small number of named instance
+variables—is just the beginning. In many cases, programmers build
+complicated data structures by hand, by linking objects together. We'll look at
+these custom-built data structures in
+Chapter 9
+.  This
+chapter looks at more basic data structures. There is one type of
+data structure that is so important and so basic that it is built into every
+programming language: the array.
+You have already encountered arrays in
+Section 3.8
+and
+Subsection 5.1.4
+.  We continue the study of arrays in this chapter,
+including some new details of their use and some additional array-processing
+techniques.  In particular, we will look at the important topic of algorithms for
+searching and sorting an array in
+Section 7.5
+.
+An array has a fixed size that can't be changed after the array is created.
+But in many cases, it is useful to have a data structure that can grow and shrink
+as necessary.  In
+Section 7.3
+, we will look at a standard class,
+ArrayList
+, that represents such a data structure.
+An array is a numbered sequence of items, all of the same type.  A
+record
+is another kind of standard data structure.  Like an array, a record consists of a sequence of items,
+but in a record, the items are referred to by name instead of by number, and
+the items can be of different types.  Any object in Java can be thought of
+as a record in this sense, but Java 17 introduced records explicitly 
+into the language as a special kind of class with certain restrictions.
+We will look at record classes in
+Section 7.4
+.
+Contents of Chapter 7:
+Section 1:
+Array Details
+Section 2:
+Array Processing
+Section 3:
+ArrayList
+Section 4:
+Records
+Section 5:
+Searching and Sorting
+Section 6:
+Two-dimensional Arrays
+Programming Exercises
+Quiz on This Chapter

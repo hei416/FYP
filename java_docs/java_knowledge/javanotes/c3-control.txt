@@ -1,7 +1,58 @@
-Source: Introduction to Programming Using Java by David Eck
-Chapter: c3-control
-URL: http://math.hws.edu/javanotes9/c3-control/index.html
-
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at math.hws.edu Port 443
+Source: Introduction to Programming Using Java (Eck)
+Chapter: Chapter 3: Control
+URL: https://math.hws.edu/javanotes/c3/index.html
+Chapter 3
+Programming in the Small II: Control
+T
+he basic building blocks
+of programs—variables,
+expressions, assignment statements, and subroutine call statements—were
+covered in the previous chapter. Starting with this chapter, we look at how
+these building blocks can be put together to build complex programs with more
+interesting behavior.
+Since we are still working on the level of "programming in the small" in
+this chapter, we are interested in the kind of complexity that can occur within
+a single subroutine. On this level, complexity is provided by
+control structures
+. 
+The two types of control structures, loops
+and branches, can be used to repeat a sequence of statements over and over or
+to choose among two or more possible courses of action. Java includes several
+control structures of each type, and we will look at each of them in some
+detail.
+Program complexity can be seen not just in control structures but also in
+data structures
+.  A data structure is an organized collection 
+of data, chunked together so that it can be treated as a unit.
+Section 3.8
+in this chapter includes an introduction to one of the most common data structures:
+arrays
+.
+The chapter will also begin the study of program design. Given a problem,
+how can you come up with a program to solve that problem? We'll look at a
+partial answer to this question in
+Section 3.2
+.  Finally,
+Section 3.9
+is a very brief first look at GUI programming.
+Contents of Chapter 3:
+Section 1:
+Blocks, Loops, and Branches
+Section 2:
+Algorithm Development
+Section 3:
+The while and do..while Statements
+Section 4:
+The for Statement
+Section 5:
+The if Statement
+Section 6:
+The switch Statement
+Section 7:
+Introduction to Exceptions and try..catch
+Section 8:
+Introduction to Arrays
+Section 9:
+Introduction to GUI Programming
+Programming Exercises
+Quiz on This Chapter

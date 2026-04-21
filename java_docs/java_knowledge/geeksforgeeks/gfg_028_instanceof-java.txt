@@ -1,0 +1,571 @@
+Source: GeeksforGeeks
+Topic: java-instanceof
+URL: https://www.geeksforgeeks.org/java-instanceof-and-its-applications/
+instanceof Keyword in Java
+Last Updated :
+23 Jul, 2025
+In Java, instanceof is a keyword used for checking if a reference variable contains a given type of object reference or not. Following is a Java program to show different behaviors of instanceof. Henceforth it is known as a comparison operator where the
+instance
+is getting compared to
+type
+returning boolean true or false as in Java we do not have 0 and 1 boolean return types.
+Example of the Java instanceof Keyword
+Java
+// Java Program to Illustrate instanceof Keyword
+// Importing required I/O classes
+import
+java.io.*
+;
+// Main class
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating object of class inside main()
+GFG
+object
+=
+new
+GFG
+();
+// Returning instanceof
+System
+.
+out
+.
+println
+(
+object
+instanceof
+GFG
+);
+}
+}
+Output
+true
+Examples of Java instaceof keyword
+Here are all the examples of instanceof keywords with their respective cases:
+1. Here we will be creating sample classes with a parent-child relationship.
+Java
+// Java program to demonstrate working of instanceof Keyword
+// Class 1
+// Parent class
+class
+Parent
+{
+}
+// Class 2
+// Child class
+class
+Child
+extends
+Parent
+{
+}
+// Class 3
+// Main class
+class
+GFG
+{
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating object of child class
+Child
+cobj
+=
+new
+Child
+();
+// A simple case
+if
+(
+cobj
+instanceof
+Child
+)
+System
+.
+out
+.
+println
+(
+"cobj is instance of Child"
+);
+else
+System
+.
+out
+.
+println
+(
+"cobj is NOT instance of Child"
+);
+// instanceof returning true for Parent class also
+if
+(
+cobj
+instanceof
+Parent
+)
+System
+.
+out
+.
+println
+(
+"cobj is instance of Parent"
+);
+else
+System
+.
+out
+.
+println
+(
+"cobj is NOT instance of Parent"
+);
+// instanceof returns true for all ancestors
+// Note : Object is ancestor of all classes in Java
+if
+(
+cobj
+instanceof
+Object
+)
+System
+.
+out
+.
+println
+(
+"cobj is instance of Object"
+);
+else
+System
+.
+out
+.
+println
+(
+"cobj is NOT instance of Object"
+);
+}
+}
+Output
+cobj is instance of Child
+cobj is instance of Parent
+cobj is instance of Object
+2. instanceof returning false for null
+Java
+// Java program to demonstrate that instanceof
+// returns false for null
+class
+Test
+{
+}
+class
+Main
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+Test
+tobj
+=
+null
+;
+// A simple case
+if
+(
+tobj
+instanceof
+Test
+)
+System
+.
+out
+.
+println
+(
+"tobj is instance of Test"
+);
+else
+System
+.
+out
+.
+println
+(
+"tobj is NOT instance of Test"
+);
+}
+}
+Output
+tobj is NOT instance of Test
+3. Parent object is not an instance of Child
+Java
+// A Java program to show that a parent object is
+// not an instance of Child
+class
+Parent
+{
+}
+class
+Child
+extends
+Parent
+{
+}
+// Driver Class
+class
+Test
+{
+// main function
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+Parent
+pobj
+=
+new
+Parent
+();
+if
+(
+pobj
+instanceof
+Child
+)
+System
+.
+out
+.
+println
+(
+"pobj is instance of Child"
+);
+else
+System
+.
+out
+.
+println
+(
+"pobj is NOT instance of Child"
+);
+}
+}
+Output
+pobj is NOT instance of Child
+4. Parent reference referring to a Child is an instance of a Child
+Java
+// A Java program to show that a parent reference
+// referring to a Child is an instance of Child
+class
+Parent
+{
+}
+class
+Child
+extends
+Parent
+{
+}
+// Driver class
+class
+Test
+{
+// main function
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Reference is Parent type but object is
+// of child type.
+Parent
+cobj
+=
+new
+Child
+();
+if
+(
+cobj
+instanceof
+Child
+)
+System
+.
+out
+.
+println
+(
+"cobj is instance of Child"
+);
+else
+System
+.
+out
+.
+println
+(
+"cobj is NOT instance of Child"
+);
+}
+}
+Output
+cobj is instance of Child
+Application of Java instanceof keyword
+We have seen
+here
+that a parent class data member is accessed when a reference of parent type refers to a child object. We can access child data members using
+typecasting
+.
+Syntax
+((child_class_name) Parent_Reference_variable).func.name()
+When we do typecasting, it is always a good idea to check if the typecasting is valid or not. instanceof helps us here. We can always first check for validity using instanceof, then do typecasting.
+Example
+Java
+// Java program to demonstrate that non-method
+// members are accessed according to reference
+// type (Unlike methods which are accessed according
+// to the referred object)
+class
+Parent
+{
+int
+value
+=
+1000
+;
+}
+class
+Child
+extends
+Parent
+{
+int
+value
+=
+10
+;
+}
+// Driver class
+class
+Test
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+Parent
+cobj
+=
+new
+Child
+();
+Parent
+par
+=
+cobj
+;
+// Using instanceof to make sure that par
+// is a valid reference before typecasting
+if
+(
+par
+instanceof
+Child
+)
+{
+System
+.
+out
+.
+println
+(
+"Value accessed through "
++
+"parent reference with typecasting is "
++
+((
+Child
+)
+par
+).
+value
+);
+}
+}
+}
+Output
+Value accessed through parent reference with typecasting is 10
+Comment
+Article Tags:
+Article Tags:
+Java
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

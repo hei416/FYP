@@ -1,0 +1,388 @@
+Source: GeeksforGeeks
+Topic: method-chaining-in-java
+URL: https://www.geeksforgeeks.org/method-chaining-in-java-with-examples/
+Method Chaining In Java with Examples
+Last Updated :
+12 Jul, 2025
+Method Chaining
+is the practice of calling different
+methods
+in a single line instead of calling other methods with the same object reference separately. Under this procedure, we have to write the object reference once and then call the methods by separating them with a (dot.).
+Method chaining in Java is a common syntax to invoke multiple methods calls in OOPs. Each method in chaining returns an object. It violates the need for intermediate variables. In other words, the method chaining can be defined as if we have an object and we call methods on that object one after another is called method chaining.
+Syntax:
+obj.method1().method2().method3();
+In the above statement, we have an object (obj) and calling method1() then method2(), after that the method3(). So, calling or invoking methods one after another is known as method chaining.
+Note:
+Method chaining in Java is also known as parameter idiom or named parameter idiom. Sometimes it is also known as a train wreck because of the increase in the number of methods even though line breaks are often added between methods.
+Let's audit the example first, and then it will be much smoother to explain.
+Example 1:
+Java
+class
+A
+{
+private
+int
+a
+;
+private
+float
+b
+;
+A
+()
+{
+System
+.
+out
+.
+println
+(
+"Calling The Constructor"
+);
+}
+int
+setint
+(
+int
+a
+)
+{
+this
+.
+a
+=
+a
+;
+return
+this
+.
+a
+;
+}
+float
+setfloat
+(
+float
+b
+)
+{
+this
+.
+b
+=
+b
+;
+return
+this
+.
+b
+;
+}
+void
+display
+()
+{
+System
+.
+out
+.
+println
+(
+"Display="
++
+a
++
+" "
++
+b
+);
+}
+}
+// Driver code
+public
+class
+Example
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// This will return an error as
+// display() method needs an object but
+// setint(10) is returning an int value
+// instead of an object reference
+new
+A
+().
+setint
+(
+10
+).
+display
+();
+}
+}
+Compilation Error in the Java code:
+prog.java:34: error: int cannot be dereferenced
+        new A().setint(10).display();
+                          ^
+1 error
+Explanation:
+When we are calling the constructor, one should perceive that constructor does not hold any return type, but it returns the current object reference.
+Open this
+for more about constructors.
+As object reference is returned by the constructor, we can use the returned object reference for calling another method as well.
+Thus, by implementing the dot(.) operator, we can call another method, too, named "setint(10)". As of now, we are trying to call the display method further, but, it's impossible. Why? Check out the next point.
+Now, the "setint(10)" method returns the integer value of the variable. In a common way, one can easily understand that the next method can't be called on the basis of a variable. To solve this, "setint(10)" method must return object reference. How it can be done?.
+Example 2:
+Java
+class
+A
+{
+private
+int
+a
+;
+private
+float
+b
+;
+A
+()
+{
+System
+.
+out
+.
+println
+(
+"Calling The Constructor"
+);
+}
+public
+A
+setint
+(
+int
+a
+)
+{
+this
+.
+a
+=
+a
+;
+return
+this
+;
+}
+public
+A
+setfloat
+(
+float
+b
+)
+{
+this
+.
+b
+=
+b
+;
+return
+this
+;
+}
+void
+display
+()
+{
+System
+.
+out
+.
+println
+(
+"Display="
++
+a
++
+" "
++
+b
+);
+}
+}
+// Driver code
+public
+class
+Example
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// This is the "method chaining".
+new
+A
+().
+setint
+(
+10
+).
+setfloat
+(
+20
+).
+display
+();
+}
+}
+Output
+Calling The Constructor
+Display=10 20.0
+In the above example, we have derived setint(int a) & setfloat(float b) method as the class type.
+In this case, while returning, we are using "this," and it is returning the current instance reference. Check
+this
+for the uses and values of "this" reference variable.
+When the method chaining is implemented in the main method, "setint(10)" & "setfloat(20)" are returning the object's reference which is further used to call the "display()" method.
+Comment
+Article Tags:
+Article Tags:
+Java
+Technical Scripter 2019
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

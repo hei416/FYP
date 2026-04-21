@@ -1,7 +1,45 @@
-Source: Introduction to Programming Using Java by David Eck
-Chapter: c10-generics-streams
-URL: http://math.hws.edu/javanotes9/c10-generics-streams/index.html
-
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at math.hws.edu Port 443
+Source: Introduction to Programming Using Java (Eck)
+Chapter: Chapter 10: Generic Programming and Collection Classes
+URL: https://math.hws.edu/javanotes/c10/index.html
+Chapter 10
+Generic Programming and Collection Classes
+H
+ow to avoid reinventing
+the wheel? Many data
+structures and algorithms, such as those from
+Chapter 9
+, have been
+studied, programmed, and re-programmed by generations of computer science
+students. This is a valuable learning experience. Unfortunately, they have also
+been programmed and re-programmed by generations of working computer
+professionals, taking up time that could be devoted to new, more creative work.
+A programmer who needs a list or a binary tree shouldn't have to re-code these
+data structures from scratch. They are well-understood and have been programmed
+thousands of times before. The problem is how to make pre-written, robust data
+structures available to programmers. In this chapter, we'll look at Java's
+attempt to address this problem.
+You have already seen part of the solution in
+Section 7.3
+.
+That section introduced parameterized types and the
+ArrayList
+class.  Parameterized types make it possible for the same class to work with
+many different kinds of data.  This idea—that the same code can be used
+for a variety of data types—is called
+generic programming
+.
+Contents of Chapter 10:
+Section 1:
+Generic Programming
+Section 2:
+Lists and Sets
+Section 3:
+Maps
+Section 4:
+Programming with the Java Collection Framework
+Section 5:
+Writing Generic Classes and Methods
+Section 6:
+Introduction the Stream API
+Programming Exercises
+Quiz on This Chapter

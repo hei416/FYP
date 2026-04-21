@@ -1,0 +1,478 @@
+Source: GeeksforGeeks
+Topic: java-8-optional-class
+URL: https://www.geeksforgeeks.org/java-8-optional-class/
+Java 8 Optional Class
+Last Updated :
+6 Sep, 2025
+Java 8 introduced the Optional class in the java.util package to handle the problem of null values more gracefully. Instead of risking NullPointerException (NPE), Optional provides a container object that may or may not hold a non-null value.
+Why Do We Need Optional
+Traditionally, developers relied on null to represent the absence of a value, which often caused NullPointerException.
+Example:
+Java program without the Optional Class
+Java
+public
+class
+OptionalDemo
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+String
+[]
+words
+=
+new
+String
+[
+10
+]
+;
+String
+word
+=
+words
+[
+5
+]
+.
+toLowerCase
+();
+System
+.
+out
+.
+print
+(
+word
+);
+}
+}
+Output:
+Exception in thread "main" java.lang.NullPointerException
+To avoid abnormal termination, we use the Optional class. In the following example, we are using Optional. So, our program can execute without crashing.
+Example:
+Program using Optional Class
+Java
+import
+java.util.Optional
+;
+// Driver Class
+public
+class
+OptionalDemo
+{
+// Main Method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+String
+[]
+words
+=
+new
+String
+[
+10
+]
+;
+Optional
+<
+String
+>
+checkNull
+=
+Optional
+.
+ofNullable
+(
+words
+[
+5
+]
+);
+if
+(
+checkNull
+.
+isPresent
+())
+{
+String
+word
+=
+words
+[
+5
+]
+.
+toLowerCase
+();
+System
+.
+out
+.
+print
+(
+word
+);
+}
+else
+System
+.
+out
+.
+println
+(
+"word is null"
+);
+}
+}
+Output
+word is null
+Creating Optional Objects
+Optional.empty():
+Returns an empty Optional.
+Optional.of(value):
+Returns an Optional containing the given non-null value.
+Optional.ofNullable(value):
+Returns an Optional describing the value if non-null, otherwise empty
+Example 1:
+Using empty() and of()
+Java
+import
+java.util.Optional
+;
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+String
+[]
+str
+=
+new
+String
+[
+5
+]
+;
+str
+[
+2
+]
+=
+"Geeks Classes are coming soon"
+;
+Optional
+<
+String
+>
+empty
+=
+Optional
+.
+empty
+();
+System
+.
+out
+.
+println
+(
+empty
+);
+Optional
+<
+String
+>
+value
+=
+Optional
+.
+of
+(
+str
+[
+2
+]
+);
+System
+.
+out
+.
+println
+(
+value
+);
+}
+}
+Output
+Optional.empty
+Optional[Geeks Classes are coming soon]
+Example 2:
+Using get(), hashCode() and isPresent()
+Java
+import
+java.util.Optional
+;
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+String
+[]
+str
+=
+new
+String
+[
+5
+]
+;
+str
+[
+2
+]
+=
+"Geeks Classes are coming soon"
+;
+Optional
+<
+String
+>
+value
+=
+Optional
+.
+of
+(
+str
+[
+2
+]
+);
+System
+.
+out
+.
+println
+(
+value
+.
+get
+());
+System
+.
+out
+.
+println
+(
+value
+.
+hashCode
+());
+System
+.
+out
+.
+println
+(
+value
+.
+isPresent
+());
+}
+}
+Output
+Geeks Classes are coming soon
+1967487235
+true
+Common Methods in Optional
+The Optional class offers methods such as isPresent() orElse() and ifPresent() to handle potentially null values more safely and functionally. The table below lists commonly used Optional methods and their descriptions.
+Method
+Description
+empty()
+Returns an empty Optional instance
+of(T value)
+Returns an Optional with the specified present non-null value.
+ofNullable(T value)
+Returns an Optional describing the specified value if non-null, else empty
+equals(Object obj)
+Checks if another object is "equal to" this Optional.
+filter(Predicate<? super T> predicate)
+If a value is present and matches the predicate, returns an Optional with the value; else returns empty.
+flatMap(Function<? super T, Optional<U>> mapper)
+If a value is present, applies a mapping function that returns an Optional; otherwise returns empty.
+get()
+Returns the value if present, else throws NoSuchElementException.
+hashCode()
+Returns the hash code of the value if present, otherwise returns 0.
+ifPresent(Consumer<? super T> consumer)
+Returns true if a value is present, else false.
+map(Function<? super T, ? extends U> mapper)
+If a value is present, applies the mapping function and returns an Optional describing the result (if non-null).
+orElse(T other)
+Returns the value if present, otherwise returns the provided default value.
+orElseGet(Supplier<? extends T> other)
+Returns the value if present, otherwise invokes the supplier and returns its result.
+orElseThrow(Supplier<? extends X> exceptionSupplier)
+Returns the value if present, otherwise throws an exception provided by the supplier
+toString()
+Returns a non-empty string representation of this Optional for debugging.
+Comment
+Article Tags:
+Article Tags:
+Java
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

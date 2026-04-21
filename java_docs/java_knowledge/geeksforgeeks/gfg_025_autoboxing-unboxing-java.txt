@@ -1,0 +1,552 @@
+Source: GeeksforGeeks
+Topic: autoboxing-unboxing-java
+URL: https://www.geeksforgeeks.org/autoboxing-unboxing-java/
+Autoboxing and Unboxing in Java
+Last Updated :
+2 Aug, 2025
+A Wrapper class in Java is one whose object wraps or contains primitive data types. This leads to two key features: Autoboxing and Unboxing.
+1. Autoboxing
+The automatic conversion of primitive types to the object of their corresponding wrapper classes is known as autoboxing. For example: conversion of int to Integer, long to Long, double to Double, etc.
+2. Unboxing
+It is just the reverse process of autoboxing. Automatically converting an object of a wrapper class to its corresponding primitive type is known as unboxing. For example, conversion of Integer to int, Long to long, Double to double, etc.
+Example 1:
+Java program to illustrate the Concept of Autoboxing and Unboxing
+Java
+import
+java.io.*
+;
+// Main class
+class
+GFG
+{
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating an Integer Object with custom value say it be 10
+Integer
+i
+=
+new
+Integer
+(
+10
+);
+// Unboxing the Object
+int
+i1
+=
+i
+;
+// Print statements
+System
+.
+out
+.
+println
+(
+"Value of i:"
++
+i
+);
+System
+.
+out
+.
+println
+(
+"Value of i1: "
++
+i1
+);
+// Autoboxing of character
+Character
+gfg
+=
+'a'
+;
+// Auto-unboxing of Character
+char
+ch
+=
+gfg
+;
+// Print statements
+System
+.
+out
+.
+println
+(
+"Value of ch: "
++
+ch
+);
+System
+.
+out
+.
+println
+(
+" Value of gfg: "
++
+gfg
+);
+}
+}
+Output:
+Let's understand how the compiler did autoboxing and unboxing in the example of Collections in Java using
+generics
+.
+Example 2:
+Java Program to Illustrate Autoboxing
+Java
+import
+java.io.*
+;
+import
+java.util.*
+;
+// Main class
+class
+GFG
+{
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating an empty Arraylist of integer type
+ArrayList
+<
+Integer
+>
+al
+=
+new
+ArrayList
+<
+Integer
+>
+();
+// Adding the int primitives type values using add() method Autoboxing
+al
+.
+add
+(
+1
+);
+al
+.
+add
+(
+2
+);
+al
+.
+add
+(
+24
+);
+// Printing the ArrayList elements
+System
+.
+out
+.
+println
+(
+"ArrayList: "
++
+al
+);
+}
+}
+Output
+ArrayList: [1, 2, 24]
+Explanation:
+In the above example, we have created a list of elements of the Integer type. We are adding int primitive type values instead of Integer Object and the code is successfully compiled. It does not generate a compile-time error as the Java compiler creates an Integer wrapper Object from primitive int i and adds it to the list.
+Example 3:
+Java Program to Illustrate Autoboxing
+Java
+import
+java.io.*
+;
+import
+java.util.*
+;
+// Main class
+class
+GFG
+{
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating an empty ArrayList of integer type
+List
+<
+Integer
+>
+list
+=
+new
+ArrayList
+<
+Integer
+>
+();
+// Adding the int primitives type values by converting them into Integer wrapper object
+for
+(
+int
+i
+=
+0
+;
+i
+<
+10
+;
+i
+++
+)
+System
+.
+out
+.
+println
+(
+list
+.
+add
+(
+Integer
+.
+valueOf
+(
+i
+)));
+}
+}
+Output
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+Another example of auto and unboxing is to find the sum of odd numbers in a list. An important point in the program is that the operators remainder (%) and unary plus (+=) operators do not apply to Integer objects. But still, code compiles successfully because the unboxing of Integer Object to primitive int value is taking place by invoking intValue() method at runtime.
+Example 4:
+Java Program to Illustrate Find Sum of Odd Numbers  using Autoboxing and Unboxing
+Java
+import
+java.io.*
+;
+import
+java.util.*
+;
+// Main class
+class
+GFG
+{
+// Method 1 To sum odd numbers
+public
+static
+int
+sumOfOddNumber
+(
+List
+<
+Integer
+>
+list
+)
+{
+// Initially setting sum to zero
+int
+sum
+=
+0
+;
+for
+(
+Integer
+i
+:
+list
+)
+{
+// Unboxing of i automatically
+if
+(
+i
+%
+2
+!=
+0
+)
+sum
++=
+i
+;
+// Unboxing of i is done automatically using intvalue implicitly
+if
+(
+i
+.
+intValue
+()
+%
+2
+!=
+0
+)
+sum
++=
+i
+.
+intValue
+();
+}
+// Returning the odd sum
+return
+sum
+;
+}
+// Main driver method
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Creating an empty ArrayList of integer type
+List
+<
+Integer
+>
+list
+=
+new
+ArrayList
+<
+Integer
+>
+();
+// Adding the int primitives type values to List
+for
+(
+int
+i
+=
+0
+;
+i
+<
+10
+;
+i
+++
+)
+list
+.
+add
+(
+i
+);
+// Getting sum of all odd numbers in List
+int
+sumOdd
+=
+sumOfOddNumber
+(
+list
+);
+// Printing sum of odd numbers
+System
+.
+out
+.
+println
+(
+"Sum of odd numbers = "
++
+sumOdd
+);
+}
+}
+Output
+Sum of odd numbers = 50
+Java Primitive Types and Their Wrapper Classes
+Primitive Type
+Wrapper Class
+boolean
+Boolean
+byte
+Byte
+char
+Character
+float
+Float
+int
+Integer
+long
+Long
+short
+Short
+double
+Double
+Comment
+Article Tags:
+Article Tags:
+Java
+java-wrapper-class
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

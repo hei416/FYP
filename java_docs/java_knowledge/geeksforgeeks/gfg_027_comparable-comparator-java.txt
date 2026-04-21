@@ -1,0 +1,753 @@
+Source: GeeksforGeeks
+Topic: comparable-vs-comparator-java
+URL: https://www.geeksforgeeks.org/comparable-vs-comparator-in-java/
+Java Comparable vs Comparator
+Last Updated :
+18 Aug, 2025
+In Java, both Comparable and Comparator interfaces are used for sorting objects. The main difference between Comparable and Comparator is:
+Comparable
+: It is used to define the natural ordering of the objects within the class.
+Comparator
+: It is used to define custom sorting logic externally.
+Example of Comparable
+In this example, we use the
+Comparable
+interface to sort Movies by their release year using
+compareTo()
+method.
+Java
+import
+java.util.ArrayList
+;
+import
+java.util.Collections
+;
+// Movie class implements Comparable interface to define default sorting
+class
+Movie
+implements
+Comparable
+<
+Movie
+>
+{
+private
+String
+name
+;
+private
+double
+rating
+;
+private
+int
+year
+;
+public
+Movie
+(
+String
+name
+,
+double
+rating
+,
+int
+year
+)
+{
+this
+.
+name
+=
+name
+;
+this
+.
+rating
+=
+rating
+;
+this
+.
+year
+=
+year
+;
+}
+// Implementation of the compareTo method for default sorting by year
+public
+int
+compareTo
+(
+Movie
+m
+)
+{
+// Sort movies in ascending order of year
+return
+this
+.
+year
+-
+m
+.
+year
+;
+}
+public
+String
+getName
+()
+{
+return
+name
+;
+}
+public
+double
+getRating
+()
+{
+return
+rating
+;
+}
+public
+int
+getYear
+()
+{
+return
+year
+;
+}
+}
+public
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Create a list of movies
+ArrayList
+<
+Movie
+>
+l
+=
+new
+ArrayList
+<>
+();
+l
+.
+add
+(
+new
+Movie
+(
+"Star Wars"
+,
+8.7
+,
+1977
+));
+l
+.
+add
+(
+new
+Movie
+(
+"Empire Strikes Back"
+,
+8.8
+,
+1980
+));
+l
+.
+add
+(
+new
+Movie
+(
+"Return of the Jedi"
+,
+8.4
+,
+1983
+));
+// Sort movies using Comparable's compareTo method by year
+Collections
+.
+sort
+(
+l
+);
+// Display the sorted list of movies
+System
+.
+out
+.
+println
+(
+"Movies after sorting by year:"
+);
+for
+(
+Movie
+m
+:
+l
+)
+{
+System
+.
+out
+.
+println
+(
+m
+.
+getName
+()
++
+" "
++
+m
+.
+getRating
+()
++
+" "
++
+m
+.
+getYear
+());
+}
+}
+}
+Output
+Movies after sorting by year:
+Star Wars 8.7 1977
+Empire Strikes Back 8.8 1980
+Return of the Jedi 8.4 1983
+Explanation:
+Movie implements
+Comparable<Movie>
+to define a default sort order.
+compareTo()
+sorts movies by year in ascending order.
+Collections.sort()
+uses
+compareTo()
+to perform the sorting.
+Now, suppose we want to sort movies by their rating and names as well. When we make a collection element comparable (by having it implement Comparable), we get only one chance to implement the
+compareTo()
+method. The solution is using Comparator.
+Example of Comparator
+In this example, we use
+Comparator
+interface to define custom sorting logic to sort movies first by rating and then by name.
+Java
+import
+java.util.ArrayList
+;
+import
+java.util.Collections
+;
+import
+java.util.Comparator
+;
+class
+Movie
+{
+private
+String
+name
+;
+private
+double
+rating
+;
+private
+int
+year
+;
+public
+Movie
+(
+String
+name
+,
+double
+rating
+,
+int
+year
+)
+{
+this
+.
+name
+=
+name
+;
+this
+.
+rating
+=
+rating
+;
+this
+.
+year
+=
+year
+;
+}
+public
+String
+getN
+()
+{
+return
+name
+;
+}
+public
+double
+getR
+()
+{
+return
+rating
+;
+}
+public
+int
+getY
+()
+{
+return
+year
+;
+}
+}
+// Comparator to sort movies by rating
+class
+Rating
+implements
+Comparator
+<
+Movie
+>
+{
+public
+int
+compare
+(
+Movie
+m1
+,
+Movie
+m2
+)
+{
+// Sort by rating in descending order
+return
+Double
+.
+compare
+(
+m2
+.
+getR
+(),
+m1
+.
+getR
+());
+}
+}
+// Comparator to sort movies by name
+class
+NameCompare
+implements
+Comparator
+<
+Movie
+>
+{
+public
+int
+compare
+(
+Movie
+m1
+,
+Movie
+m2
+)
+{
+// Sort by name in alphabetical order
+return
+m1
+.
+getN
+().
+compareTo
+(
+m2
+.
+getN
+());
+}
+}
+// Main class
+public
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+// Create a list of movies
+ArrayList
+<
+Movie
+>
+m
+=
+new
+ArrayList
+<>
+();
+m
+.
+add
+(
+new
+Movie
+(
+"Force Awakens"
+,
+8.3
+,
+2015
+));
+m
+.
+add
+(
+new
+Movie
+(
+"Star Wars"
+,
+8.7
+,
+1977
+));
+m
+.
+add
+(
+new
+Movie
+(
+"Empire Strikes Back"
+,
+8.8
+,
+1980
+));
+// Sort movies by rating and display all
+Collections
+.
+sort
+(
+m
+,
+new
+Rating
+());
+System
+.
+out
+.
+println
+(
+"Movies sorted by rating:"
+);
+for
+(
+Movie
+m1
+:
+m
+)
+{
+System
+.
+out
+.
+println
+(
+m1
+.
+getR
+()
++
+" "
++
+m1
+.
+getN
+()
++
+" "
++
+m1
+.
+getY
+());
+}
+// Sort movies by name and display all
+Collections
+.
+sort
+(
+m
+,
+new
+NameCompare
+());
+System
+.
+out
+.
+println
+(
+"\nMovies sorted by name:"
+);
+for
+(
+Movie
+m1
+:
+m
+)
+{
+System
+.
+out
+.
+println
+(
+m1
+.
+getN
+()
++
+" "
++
+m1
+.
+getR
+()
++
+" "
++
+m1
+.
+getY
+());
+}
+}
+}
+Output
+Movies sorted by rating:
+8.8 Empire Strikes Back 1980
+8.7 Star Wars 1977
+8.3 Force Awakens 2015
+
+Movies sorted by name:
+Empire Strikes Back 8.8 1980
+Force Awakens 8.3 2015
+Star Wars 8.7 1977
+Explanation:
+In the above example, the Comparator interface is used to sort the movies first by rating and then by name. The Rating and NameCompare classes implement custom sorting logic. The
+Collections.sort()
+method uses these comparators to sort the list by multiple criteria.
+Difference Between Comparable and Comparator
+The table below demonstrates the difference between comparable and comparator in Java.
+Features
+Comparable
+Comparator
+Definition
+It defines natural ordering within the class.
+It defines external or custom sorting logic.
+Method
+compareTo()
+compare()
+Implementation
+It is implemented in the class.
+It is implemented in a separate class.
+Sorting Criteria
+Natural order sorting
+Custom order sorting
+Usage
+It is used for a single sorting order.
+It is used for multiple sorting orders.
+Why comparator is a functional interface?
+Functional Interface were introduced in Java 8. It has exactly one abstract method.
+In Comparator<T>, the only abstract method is: int compare(T o1, T o2);
+The equals(Object obj) method in Comparator comes from the Object class, so it is not abstract in the interface.
+Therefore, Comparator qualifies as a functional interface and can be used with lambdas in Java 8+.
+Comment
+Article Tags:
+Article Tags:
+Java
+Difference Between
+Java-Comparator
+Java-Comparable
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

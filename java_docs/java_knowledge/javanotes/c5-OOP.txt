@@ -1,7 +1,41 @@
-Source: Introduction to Programming Using Java by David Eck
-Chapter: c5-OOP
-URL: http://math.hws.edu/javanotes9/c5-OOP/index.html
-
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at math.hws.edu Port 443
+Source: Introduction to Programming Using Java (Eck)
+Chapter: Chapter 5: Objects and Classes
+URL: https://math.hws.edu/javanotes/c5/index.html
+Chapter 5
+Programming in the Large II: Objects and Classes
+W
+hereas a subroutine
+represents a single task, an
+object can encapsulate both data (in the form of instance variables) and a
+number of different tasks or "behaviors" related to that data (in the form of
+instance methods). Therefore objects provide another, more sophisticated type
+of structure that can be used to help manage the complexity of large
+programs.
+The first four
+sections of this chapter introduce the basic things you need to know to work with objects
+and to define simple classes.  The remaining sections cover more advanced topics; you
+might not understand them fully the first time through.  In particular,
+Section 5.5
+covers the most central ideas of object-oriented programming: inheritance and
+polymorphism.  However, in this textbook, we will generally use these ideas in a
+limited form, by creating independent classes and building on existing classes
+rather than by designing entire hierarchies of classes from scratch.
+Contents of Chapter 5:
+Section 1:
+Objects, Instance Methods, and Instance Variables
+Section 2:
+Constructors and Object Initialization
+Section 3:
+Programming with Objects
+Section 4:
+Programming Example: Card, Hand, Deck
+Section 5:
+Inheritance, Polymorphism, and Abstract Classes
+Section 6:
+this and super
+Section 7:
+Interfaces
+Section 8:
+Nested Classes
+Programming Exercises
+Quiz on This Chapter

@@ -1,0 +1,865 @@
+Source: GeeksforGeeks
+Topic: method-overriding-java
+URL: https://www.geeksforgeeks.org/overriding-in-java/
+Overriding in Java
+Last Updated :
+14 Oct, 2025
+When a subclass provides a specific implementation for a method that is already defined in its parent class, it is called method overriding. The overridden method in the subclass must have the same name, parameters, and return type as the method in the parent class.
+Rules for Method Overriding
+Name, parameters, and return type must match the parent method.
+Java picks which method to run at run time, based on the actual object type, not just the reference variable type.
+Static methods cannot be overridden.
+The
+@Override annotation
+catches mistakes like typos in method names.
+Java
+class
+Animal
+{
+void
+move
+(){
+System
+.
+out
+.
+println
+(
+"Animal is moving."
+);
+}
+void
+eat
+(){
+System
+.
+out
+.
+println
+(
+"Animal is eating."
+);
+}
+}
+class
+Dog
+extends
+Animal
+{
+@Override
+void
+move
+(){
+// move method from Base class is overriden in this
+// method
+System
+.
+out
+.
+println
+(
+"Dog is running."
+);
+}
+void
+bark
+(){
+System
+.
+out
+.
+println
+(
+"Dog is barking."
+);
+}
+}
+public
+class
+Geeks
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+)
+{
+Dog
+d
+=
+new
+Dog
+();
+d
+.
+move
+();
+d
+.
+eat
+();
+d
+.
+bark
+();
+}
+}
+Output
+Dog is running.
+Animal is eating.
+Dog is barking.
+Explanation:
+The Animal class defines base functionalities like
+move()
+and
+eat()
+. The Dog class inherits from Animal and
+overrides
+the move() method to provide a specific behavior
+Dog is running.
+Both classes can access their own methods. When creating a Dog object, calling move() executes the overridden method.
+Special Cases in Overriding
+1. Calling Parent Method Using super
+The
+super keyword
+can invoke the parent class method from the overriding method.
+Java
+class
+Parent
+{
+void
+show
+(){
+System
+.
+out
+.
+println
+(
+"Parent's show()"
+);
+}
+}
+class
+Child
+extends
+Parent
+{
+@Override
+void
+show
+(){
+super
+.
+show
+();
+System
+.
+out
+.
+println
+(
+"Child's show()"
+);
+}
+}
+public
+class
+Main
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+Parent
+obj
+=
+new
+Child
+();
+obj
+.
+show
+();
+}
+}
+Output
+Parent's show()
+Child's show()
+2.
+Final Methods Cannot Be Overridden
+If we don't want a method to be overridden, we declare it as
+final
+. Please see
+Using Final with Inheritance
+.
+Java
+class
+Parent
+{
+// Can't be overridden
+final
+void
+show
+(){
+}
+}
+class
+Child
+extends
+Parent
+{
+// This would produce error
+void
+show
+()
+{}
+}
+Output
+:
+3. Static Methods
+Static methods cannot be overridden; defining a static method in a subclass with the same signature as in the superclass hides the superclass method.
+Instance methods can be overridden, but a subclass cannot override a superclass static method.
+A static method in a subclass with the same signature as a superclass static method hides the original method.
+Java
+class
+Parent
+{
+static
+void
+staticMethod
+(){
+System
+.
+out
+.
+println
+(
+"Parent static method"
+);
+}
+void
+instanceMethod
+(){
+System
+.
+out
+.
+println
+(
+"Parent instance method"
+);
+}
+}
+class
+Child
+extends
+Parent
+{
+static
+void
+staticMethod
+(){
+// Hides Parent's static method
+System
+.
+out
+.
+println
+(
+"Child static method"
+);
+}
+@Override
+void
+instanceMethod
+(){
+// Overrides Parent's instance method
+System
+.
+out
+.
+println
+(
+"Child instance method"
+);
+}
+}
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+Parent
+p
+=
+new
+Child
+();
+// Calls Parent's static method (hiding)
+p
+.
+staticMethod
+();
+// Calls Child's overridden instance method
+p
+.
+instanceMethod
+();
+}
+}
+Output
+Parent static method
+Child instance method
+4. Private Methods
+Private methods cannot be overridden because they are not visible to subclasses.
+A subclass method with the same name is treated as a new, independent method, unrelated to the parent class.
+Java
+class
+Parent
+{
+private
+void
+display
+(){
+System
+.
+out
+.
+println
+(
+"Parent private method"
+);
+}
+}
+class
+Child
+extends
+Parent
+{
+void
+display
+(){
+// This is a new method, not overriding
+System
+.
+out
+.
+println
+(
+"Child method"
+);
+}
+}
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+Child
+c
+=
+new
+Child
+();
+// Calls Child's method
+c
+.
+display
+();
+}
+}
+Output
+Child method
+5. Covariant Return Types
+In method overriding, the return type of the overriding method can be a subclass of the return type of the overridden method.
+This feature is known as covariant return type and allows more specific return types in the subclass.
+Java
+class
+Parent
+{
+Parent
+getObject
+(){
+System
+.
+out
+.
+println
+(
+"Parent object"
+);
+return
+new
+Parent
+();
+}
+}
+class
+Child
+extends
+Parent
+{
+@Override
+// Covariant return type
+Child
+getObject
+()
+{
+System
+.
+out
+.
+println
+(
+"Child object"
+);
+return
+new
+Child
+();
+}
+}
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+Parent
+obj
+=
+new
+Child
+();
+// Calls Child's method
+obj
+.
+getObject
+();
+}
+}
+Output
+Child object
+Exception-Handling in Overriding
+The overriding method cannot throw new or broader checked exceptions than the method in the superclass.
+It can throw fewer or narrower checked exceptions.
+It can throw any unchecked exceptions (like RuntimeException) regardless of the superclass method.
+Java
+import
+java.io.IOException
+;
+class
+Parent
+{
+void
+display
+()
+throws
+IOException
+{
+System
+.
+out
+.
+println
+(
+"Parent method"
+);
+}
+}
+class
+Child
+extends
+Parent
+{
+@Override
+void
+display
+()
+throws
+IOException
+{
+System
+.
+out
+.
+println
+(
+"Child method"
+);
+}
+}
+public
+class
+GFG
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+// Parent reference, Child object
+Parent
+obj
+=
+new
+Child
+();
+try
+{
+// Calls Child's overridden method
+obj
+.
+display
+();
+}
+catch
+(
+IOException
+e
+){
+System
+.
+out
+.
+println
+(
+"Exception caught: "
++
+e
+.
+getMessage
+());
+}
+}
+}
+Output
+Child method
+Why Do We Use Method Overriding?
+To change or enhance the behavior of an existing method in a subclass.
+To achieve runtime polymorphism — method calls depend on the actual object type.
+To reuse method names logically, reducing redundancy.
+Real-Life Example: Employee Management System
+Let’s understand overriding with a real-world analogy.
+Imagine an organization’s Employee Management System. All employees share some behaviors like raiseSalary() and promote(), but the logic differs for different roles like Manager or Engineer. We can create a single Employee array where individual employees are of different types (sales, tech, etc) and call their functions. This simplifies the overall code a lot.
+Java
+abstract
+class
+Employee
+{
+abstract
+void
+raiseSalary
+();
+abstract
+void
+promote
+();
+}
+class
+Manager
+extends
+Employee
+{
+@Override
+void
+raiseSalary
+(){
+System
+.
+out
+.
+println
+(
+"Manager salary raised with incentives."
+);
+}
+@Override
+void
+promote
+(){
+System
+.
+out
+.
+println
+(
+"Manager promoted to Senior Manager."
+);
+}
+}
+class
+Engineer
+extends
+Employee
+{
+@Override
+void
+raiseSalary
+(){
+System
+.
+out
+.
+println
+(
+"Engineer salary raised with bonus."
+);
+}
+@Override
+void
+promote
+(){
+System
+.
+out
+.
+println
+(
+"Engineer promoted to Senior Engineer."
+);
+}
+}
+public
+class
+Company
+{
+public
+static
+void
+main
+(
+String
+[]
+args
+){
+Employee
+[]
+employees
+=
+{
+new
+Manager
+(),
+new
+Engineer
+()
+};
+System
+.
+out
+.
+println
+(
+"--- Raising Salaries ---"
+);
+for
+(
+Employee
+e
+:
+employees
+){
+e
+.
+raiseSalary
+();
+}
+System
+.
+out
+.
+println
+(
+"\n--- Promotions ---"
+);
+for
+(
+Employee
+e
+:
+employees
+)
+{
+e
+.
+promote
+();
+}
+}
+}
+Output
+--- Raising Salaries ---
+Manager salary raised with incentives.
+Engineer salary raised with bonus.
+
+--- Promotions ---
+Manager promoted to Senior Manager.
+Engineer promoted to Senior Engineer.
+Explanation:
+Although both Manager and Engineer objects are referred to using the Employee type, Java calls the overridden methods of the actual objects at runtime, demonstrating dynamic method dispatch (runtime polymorphism).
+Related Article:
+Method Overloading and Method Overriding
+Comment
+Article Tags:
+Article Tags:
+Java
+java-overriding
+Explore
+Java Basics
+Introduction
+3
+min read
+Fundamentals
+9
+min read
+Methods
+7
+min read
+Arrays
+7
+min read
+Strings
+7
+min read
+Regular Expressions
+3
+min read
+OOP & Interfaces
+Classes and Objects
+6
+min read
+Access Modifiers
+4
+min read
+Constructors
+5
+min read
+OOP
+6
+min read
+Packages
+2
+min read
+Interfaces
+7
+min read
+Collections
+Collections
+12
+min read
+Collections Class
+9
+min read
+Collection Interface
+5
+min read
+Iterators
+4
+min read
+Comparator Interface
+4
+min read
+Exception Handling
+Exception Handling
+6
+min read
+Try Catch Block
+4
+min read
+Final, Finally & Finalize
+4
+min read
+Chained Exceptions
+3
+min read
+Null Pointer Exception
+5
+min read
+Method Overriding
+4
+min read
+Java Advanced
+Multithreading
+3
+min read
+Synchronization
+8
+min read
+File Handling
+6
+min read
+Method References
+4
+min read
+8 Stream
+7
+min read
+Networking
+6
+min read
+JDBC
+5
+min read
+Memory Management
+3
+min read
+Garbage Collection
+6
+min read
+Memory Leaks
+3
+min read
+Practice Java
+Interview Questions
+1
+min read
+Programs
+7
+min read
+Practice Problems
+5
+min read
+Quiz
+1
+min read
+Project Ideas
+15+
+min read

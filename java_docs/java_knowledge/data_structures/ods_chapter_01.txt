@@ -1,6 +1,1160 @@
-Source: Open Data Structures (in Java)
-URL: https://opendatastructures.org/ods-java/ods-java-node1.html
+Source: Open Data Structures in Java (Morin)
+Chapter: 1. Introduction
+URL: https://raw.githubusercontent.com/patmorin/ods/master/latex/intro.tex
+Introduction
+arabic
 
-Not Found
-The requested URL was not found on this server.
-Apache/2.4.52 (Ubuntu) Server at opendatastructures.org Port 443
+Every computer science curriculum in the world includes a course on data
+structures and algorithms.  Data structures are that important;
+they improve our quality of life and even save lives on a regular basis.
+Many multi-million and several multi-billion dollar companies have been
+built around data structures.
+
+How can this be?  If we stop to think about it, we realize that we
+interact with data structures constantly.
+
+    Open a file: File system 
+    file system
+    data structures are used to locate
+    the parts of that file on disk so they can be retrieved.  This isn't
+    easy; disks contain hundreds of millions of blocks.  The contents of your
+    file could be stored on any one of them.
+   Look up a contact on your phone:  A data
+    structure is used to look up a phone number in your contact list
+    contact list
+    based on partial
+    information even before you finish dialing/typing.  This isn't easy;
+    your phone may contain information about a lot of people---everyone
+    you have ever contacted via phone or email---and your phone doesn't
+    have a very fast processor or a lot of memory.
+   Log in to your favourite social network:
+    social network
+    The network servers
+    use your login information to look up your account information.
+    This isn't easy; the most popular social networks have hundreds of
+    millions of active users.
+   Do a web search:
+    web search
+    The search engine uses data structures to find
+    the web pages containing your search terms.  This isn't easy; there
+    are over 8.5 billion web pages on the Internet and each page contains
+    a lot of potential search terms.
+   Phone emergency services (9-1-1):
+    emergency services9-1-1
+    The emergency services network
+    looks up your phone number in a data structure that maps phone numbers
+    to addresses so that police cars, ambulances, or fire trucks can be
+    sent there without delay. This is important;  the person making the
+    call may not be able to provide the exact address they are calling
+    from and a delay can mean the difference between life or death.
+
+The Need for Efficiency
+
+In the next section, we look at the operations supported by the most
+commonly used data structures.  Anyone with a bit of programming
+experience will see that these operations are not hard to implement
+correctly.  We can store the data in an array or a linked list and each
+operation can be implemented by iterating over all the elements of the
+array or list and possibly adding or removing an element.
+
+This kind of implementation is easy, but not very efficient.  Does this
+really matter?  Computers are becoming faster and faster. Maybe the
+obvious implementation is good enough. Let's do some rough calculations
+to find out.
+
+Number of operations:  Imagine an application with a
+moderately-sized data set, say of one million ($10^6$), items.  It is
+reasonable, in most applications, to assume that the application will
+want to look up each item at least once.  This means we can expect to do
+at least one million ($10^6$) searches in this data.  If each of these
+$10^6$ searches inspects  each of the $10^6$ items, this gives a total
+of $10^6 10^6=10^12$ (one thousand billion) inspections.
+
+Processor speeds: At the time of writing, even a very fast
+desktop computer can not do more than one billion ($10^9$) operations per
+second.Computer speeds are at most a few gigahertz (billions
+of cycles per second), and each operation typically takes a few cycles.
+This means that this application will take at least $10^12/10^9 = 1000$
+seconds, or roughly 16 minutes and 40 seconds.  Sixteen minutes is an
+eon in computer time, but a person might be willing to put up with it
+(if he or she were headed out for a coffee break).
+
+Bigger data sets: Now consider a company like Google,
+Google
+that
+indexes over 8.5 billion web pages.  By our calculations, doing any kind
+of query over this data would take at least 8.5 seconds.  We already
+know that this isn't the case; web searches complete in much less than
+8.5 seconds, and they do much more complicated queries than just asking
+if a particular page is in their list of indexed pages.  At the time
+of writing, Google receives approximately $4,500$ queries per second,
+meaning that they would require at least $4,500 8.5=38,250$ very
+fast servers just to keep up.
+
+The solution: 
+These examples tell us that the obvious implementations of data structures
+do not scale well when the number of items, #n#, in the data structure
+and the number of operations, $m$, performed on the data structure
+are both large.  In these cases, the time (measured in, say, machine
+instructions) is roughly $#n# m$.
+
+The solution, of course, is to carefully organize data within the data
+structure so that not every operation requires every data item to be
+inspected.  Although it sounds impossible at first, we will see data
+structures where a search requires looking at only two items on average,
+independent of the number of items stored in the data structure.  In our
+billion instruction per second computer it takes only $0.000000002$
+seconds to search in a data structure containing a billion items (or a
+trillion, or a quadrillion, or even a quintillion items).
+
+We will also see implementations of data structures that keep the
+items in sorted order, where the number of items inspected during an
+operation grows very slowly as a function of the number of items in
+the data structure.  For example, we can maintain a sorted set of one
+billion items while inspecting at most 60 items during any operation.
+In our billion instruction per second computer, these operations take
+$0.00000006$ seconds each.
+
+The remainder of this chapter briefly reviews some of the main concepts
+used throughout the rest of the book.   interfaces describes
+the interfaces implemented by all of the data structures described in
+this book and should be considered required reading.  The remaining
+sections discuss:
+
+   some mathematical review including exponentials, logarithms,
+  factorials, asymptotic (big-Oh) notation, probability, and randomization;
+   the model of computation; 
+   correctness, running time, and space;
+   an overview of the rest of the chapters; and
+   the sample code and typesetting conventions.
+
+A reader with or without a background in these areas can easily skip
+them now and come back to them later if necessary.
+
+Interfaces
+interfaces
+When discussing data structures, it is important to understand the
+difference between a data structure's interface and its implementation.
+An interface describes what a data structure does, while an implementation
+describes how the data structure does it.
+
+An interface,
+interface
+abstract data type|seeinterface
+sometimes also called an abstract data
+type, defines the set of operations supported by a data structure and
+the semantics, or meaning, of those operations.  An interface tells us
+nothing about how the data structure implements these operations; it only
+provides a list of supported operations along with specifications about
+what types of arguments each operation accepts and the value returned
+by each operation.
+
+A data structure implementation, on the other hand, includes the
+internal representation of the data structure as well as the definitions
+of the algorithms that implement the operations supported by the data
+structure.  Thus, there can be many implementations of a single interface.
+For example, in arrays, we will see implementations of the
+#List# interface using arrays and in linkedlists we will
+see implementations of the #List# interface using pointer-based data
+structures.  Each implements the same interface, #List#,
+but in different ways.
+
+The #Queue#, #Stack#, and #Deque# Interfaces
+
+The #Queue# interface represents a collection of elements to which we
+can add elements and remove the next element.  More precisely, the operations
+supported by the #Queue# interface are
+
+   #add(x)#: add the value #x# to the #Queue#
+   #remove()#: remove the next (previously added) value, #y#, from the #Queue# and return #y#
+
+Notice that the #remove()# operation takes no argument.  The #Queue#'s
+queueing discipline decides which element should be removed.
+There are many possible queueing disciplines, the most common of which
+include FIFO, priority, and LIFO.
+
+A FIFO (first-in-first-out) #Queue#,
+FIFO queue
+queue!FIFO
+which is illustrated in
+queue, removes items in the same order they were added, much
+in the same way a queue (or line-up) works when checking out at a cash
+register in a grocery store.  This is the most common kind of #Queue#
+so the qualifier FIFO is often omitted.  In other texts, the #add(x)#
+and #remove()# operations on a FIFO #Queue# are often called #enqueue(x)#
+and #dequeue()#, respectively.
+
+  [width=]figs/queue
+  [A FIFO queue]A FIFO #Queue#.
+  queue
+
+A priority #Queue#,
+priority queue
+priority queue|seealsoheap
+queue!priority
+illustrated in prioqueue, always
+removes the smallest element from the #Queue#, breaking ties arbitrarily.
+This is similar to the way in which patients are triaged in a hospital
+emergency room.  As patients arrive they are evaluated and then placed in
+a waiting room.  When a doctor becomes available he or she first treats
+the patient with the most life-threatening condition.  The #remove()#
+operation on a priority #Queue# is usually called #deleteMin()# in
+other texts.
+
+  [width=]figs/prioqueue
+  [A priority queue]A priority #Queue#.
+  prioqueue
+
+A very common queueing discipline is the LIFO (last-in-first-out)
+LIFO queue
+LIFO queue|seealsostack
+queue!LIFO
+stack
+discipline, illustrated in stack.  In a LIFO Queue,
+the most recently added element is the next one removed.  This is best
+visualized in terms of a stack of plates; plates are placed on the top of
+the stack and also removed from the top of the stack. This structure is
+so common that it gets its own name: #Stack#.  Often, when discussing a
+#Stack#, the names of #add(x)# and #remove()# are changed to #push(x)#
+and #pop()#; this is to avoid confusing the LIFO and FIFO queueing
+disciplines.
+
+  [width=]figs/stack
+  [A stack]A stack.
+  stack
+
+A #Deque#
+deque
+is a generalization of both the FIFO #Queue# and LIFO #Queue# (#Stack#).
+A #Deque# represents a sequence of elements, with a front and a back.
+Elements can be added at the front of the sequence or the back of the
+sequence.  The names of the #Deque# operations are self-explanatory:
+#addFirst(x)#, #removeFirst()#, #addLast(x)#, and #removeLast()#.  It is
+worth noting that a #Stack# can be implemented using only #addFirst(x)#
+and #removeFirst()# while a FIFO #Queue# can be implemented using
+#addLast(x)# and #removeFirst()#.
+
+The #List# Interface: Linear Sequences
+
+This book will talk very little about the FIFO #Queue#, #Stack#, or
+#Deque# interfaces.  This is because these interfaces are subsumed by the
+#List# interface.  A #List#,
+List@#List#
+illustrated in list, represents a
+sequence, $#x#_0,,#x#_#n#-1$, of values.  The #List# interface
+includes the following operations:
+
+   #size()#: return #n#, the length of the list
+   #get(i)#: return the value $#x#_#i#$
+   #set(i,x)#: set the value of $#x#_#i#$ equal to #x#
+   #add(i,x)#: add #x# at position #i#, displacing
+    $#x#_#i#,,#x#_#n#-1$; \\ 
+    Set $#x#_j+1=#x#_j$, for all
+    $j\#n#-1,,#i#\$, increment #n#, and set $#x#_i=#x#$
+   #remove(i)# remove the value $#x#_#i#$, displacing
+    $#x#_#i+1#,,#x#_#n#-1$; \\ 
+    Set $#x#_j=#x#_j+1$, for all
+    $j\#i#,,#n#-2\$ and decrement #n#
+
+Notice that these operations are easily sufficient to implement the
+#Deque# interface:
+
+  #addFirst(x)# && #add(0,x)# \\
+  #removeFirst()# && #remove(0)#  \\
+  #addLast(x)# && #add(size(),x)# \\
+  #removeLast()# && #remove(size()-1)#
+
+  [width=]figs/list
+  [A List]A #List# represents a sequence indexed by
+   $0,1,2,,#n#-1$.  In this #List# a call to #get(2)# would return
+   the value $c$.
+  list
+
+Although we will normally not discuss the #Stack#, #Deque# and FIFO
+#Queue# interfaces in subsequent chapters, the terms #Stack# and #Deque#
+are sometimes used in the names of data structures that implement the
+#List# interface.  When this happens, it highlights the fact that
+these data structures can be used to implement the #Stack# or #Deque#
+interface very efficiently.  For example, the #ArrayDeque# class is an
+implementation of the #List# interface that implements all the #Deque#
+operations in constant time per operation.
+
+The #USet# Interface: Unordered Sets
+
+The #USet#
+USet@#USet#
+interface represents an unordered set of unique elements, which
+mimics a mathematical set. A #USet# contains #n# distinct
+elements; no element appears more than once; the elements are in no
+specific order.  A #USet# supports the following operations:
+
+   #size()#: return the number, #n#, of elements in the set
+   #add(x)#: add the element #x# to the set if not already present; \\
+    Add #x# to the set provided that there
+    is no element #y# in the set such that #x# equals #y#.  Return #true#
+    if #x# was added to the set and #false# otherwise.
+   #remove(x)#: remove #x# from the set; \\
+    Find an element #y# in the set such that #x# equals
+    #y# and remove #y#.  Return #y#, or #null# if no such element exists.
+   #find(x)#: find #x# in the set if it exists; \\
+    Find an element #y# in the set such that #y# equals
+    #x#.  Return #y#, or #null# if no such element exists.
+
+These definitions are a bit fussy about distinguishing #x#, the element
+we are removing or finding, from #y#, the element we may remove or find.
+This is because #x# and #y# might actually be distinct objects that
+are nevertheless treated as equal.In Java, this is
+done by overriding the class's #equals(y)# and #hashCode()# methods.
+Such a distinction is  useful because it allows for the creation of
+dictionaries or maps that map keys onto values.
+dictionary
+map
+
+To create a dictionary/map, one forms compound objects called #Pair#s,
+pair
+each of which contains a key and a value. Two #Pair#s
+are treated as equal if their keys are equal.  If we store some pair
+$(#k#,#v#)$ in a #USet# and then later call the #find(x)# method using
+the pair $#x#=(#k#,#null#)$ the result will be $#y#=(#k#,#v#)$.  In other
+words, it is possible to recover the value, #v#, given only the key, #k#.
+
+The #SSet# Interface: Sorted Sets
+sset
+
+SSet@#SSet#
+The #SSet# interface represents a sorted set of elements.  An #SSet#
+stores elements from some total order, so that any two elements #x#
+and #y# can be compared.  In code examples, this will be done with a
+method called #compare(x,y)# in which
+\[
+    #compare(x,y)# 
+      
+        <0 & if $#x#<#y#$ \\
+        >0 & if $#x#>#y#$ \\
+        =0 & if $#x#=#y#$
+      
+\]
+compare@#compare(x,y)#
+An #SSet# supports the #size()#, #add(x)#, and #remove(x)# methods with
+exactly the same semantics as in the #USet# interface.  The difference
+between a #USet# and an #SSet# is in the #find(x)# method:
+
+enumi3
+ #find(x)#: locate #x# in the sorted set; \\
+   Find the smallest element #y# in the set such that $#y#  #x#$.
+   Return #y# or #null# if no such element exists.
+
+This version of the #find(x)# operation is sometimes referred to
+as a successor search.
+successor search
+It differs in a fundamental way from
+#USet.find(x)# since it returns a meaningful result even when there is
+no element equal to #x# in the set.
+
+The distinction between the #USet# and #SSet# #find(x)# operations is
+very important and often missed.  The extra functionality provided
+by an #SSet# usually comes with a price that includes both a larger
+running time and a higher implementation complexity.  For example, most
+of the #SSet# implementations discussed in this book all have #find(x)#
+operations with running times that are logarithmic in the size of the set.
+On the other hand, the implementation of a #USet# as a #ChainedHashTable#
+in hashing has a #find(x)# operation that runs in constant
+expected time.  When choosing which of these structures to use, one should
+always use a #USet# unless the extra functionality offered by an #SSet#
+is truly needed.
+
+Mathematical Background
+
+In this section, we review some mathematical notations and tools
+used throughout this book, including logarithms, big-Oh notation, and
+probability theory.  This review will be brief and is not intended as
+an introduction. Readers who feel they are missing this background are
+encouraged to read, and do exercises from, the appropriate sections of
+the very good (and free) textbook on mathematics for computer science
+llm11.
+
+Exponentials and Logarithms
+
+exponential
+The expression $b^x$ denotes the number $b$ raised to the power of $x$.
+If $x$ is a positive integer, then this is just the value of $b$
+multiplied by itself $x-1$ times:
+\[
+    b^x = b b   b_x  .
+\]
+When $x$ is a negative integer, $b^-x=1/b^x$.  When $x=0$, $b^x=1$.
+When $b$ is not an integer, we can still define exponentiation in terms
+of the exponential function $e^x$ (see below), which is itself defined in
+terms of the exponential series, but this is best left to a calculus text.
+
+logarithm
+In this book, the expression $\log_b k$ denotes the base-$b$ logarithm
+of $k$.  That is, the unique value $x$ that satisfies
+\[
+    b^x = k   .
+\]
+Most of the logarithms in this book are base 2 (binary logarithms).
+binary logarithm
+logarithm!binary
+For these, we omit the base, so that $ k$ is shorthand for
+$\log_2 k$.
+
+An informal, but useful, way to think about logarithms is to think
+of $\log_b k$ as the number of times we have to divide $k$ by $b$
+before the result is less than or equal to 1.  For example, when one
+does binary search, each comparison reduces the number of possible
+answers by a factor of 2.  This is repeated until there is at most one
+possible answer.  Therefore, the number of comparison done by binary
+search when there are initially at most $n+1$ possible answers is at
+most $\log_2(n+1)$.
+
+natural logarithm
+logarithm!natural
+Another logarithm that comes up several times in this book is the
+natural logarithm.  Here we use the notation $ k$ to denote
+$\log_e k$, where $e$ --- Euler's constant --- is given by
+Euler's constant
+e@$e$ (Euler's constant)
+\[
+   e = \lim_n (1+1n)^n
+     2.71828  .
+\]
+The natural logarithm comes up frequently because it is the value
+of a particularly common integral:
+\[
+    \int_1^k 1/x\,dx  =  k  .
+\]
+Two of the most common manipulations we do with logarithms are removing
+them from an exponent:
+\[
+    b^\log_b k = k
+\]
+and changing the base of a logarithm:
+\[
+    \log_b k = \log_a k\log_a b  .
+\]
+For example, we can use these two manipulations to compare the natural and binary logarithms
+\[
+    k =  k e =  k( e)/( 2) = 
+    ( 2)( k)  0.693147 k  .
+\]
+
+Factorials
+factorials
+
+factorial
+In one or two places in this book, the factorial function is used.
+For a non-negative integer $n$, the notation $n!$ (pronounced ``$n$ factorial'') is defined to mean 
+\[
+   n! = 1\cdot2\cdot3 n  .
+\]
+Factorials appear because $n!$ counts the number of distinct
+permutations, i.e., orderings, of $n$ distinct elements.
+permutation
+For the special case $n=0$, $0!$ is defined as 1. 
+
+Stirling's Approximation
+The quantity $n!$ can be approximated using Stirling's Approximation:
+\[
+	n! 
+   = 2 n(ne)^ne^(n)  ,
+\]
+where
+\[  
+   112n+1 <  (n) < 112n   .
+\]
+Stirling's Approximation also approximates $(n!)$:
+\[
+   (n!) = n n - n + 12(2 n) + (n)
+\]
+(In fact, Stirling's Approximation is most easily proven by approximating
+$(n!)= 1 +  2  +  +  n$ by the integral
+$\int_1^n  n\,dn = n n - n +1$.)
+
+binomial coefficients
+Related to the factorial function are the binomial coefficients.
+For a non-negative integer $n$ and an integer $k\0,,n\$,
+the notation $nk$ denotes:
+\[
+   nk = n!k!(n-k)!  .
+\]
+The binomial coefficient $nk$ (pronounced ``$n$ choose $k$'')
+counts the number of subsets of an $n$ element set that have size $k$,
+i.e., the number of ways of choosing $k$ distinct integers from the
+set $\1,,n\$.
+
+Asymptotic Notation
+
+asymptotic notation
+big-Oh notation
+O@$O$ notation
+When analyzing data structures in this book, we want to talk about
+the running times of various operations.  The exact running times will,
+of course, vary from computer to computer and even from run to run on an
+individual computer.  When we talk about the running time of an operation
+we are referring to the number of computer instructions performed during
+the operation.  Even for simple code, this quantity can be difficult to
+compute exactly.  Therefore, instead of analyzing running times exactly,
+we will use the so-called big-Oh notation: For a function $f(n)$,
+$O(f(n))$ denotes a set of functions,
+\[
+   O(f(n)) = \
+     l
+       g(n):there exists $c>0$, and $n_0$ such that \\
+             $g(n)  c f(n)$ for all $n n_0$   
+      \  .
+\]
+Thinking graphically, this set consists of the functions $g(n)$ where
+$c f(n)$ starts to dominate $g(n)$ when $n$ is sufficiently large.
+
+We generally use asymptotic notation to simplify functions.  For example,
+in place of $5n n + 8n - 200$ we can write $O(n n)$.
+This is proven as follows:
+ 
+       5n n + 8n - 200
+        &  5n n + 8n \\
+        &  5n n + 8n n &  for $n 2$ (so that $ n  1$)
+            \\
+        &  13n n   .
+
+This demonstrates that the function $f(n)=5n n + 8n - 200$ is in
+the set $O(n n)$ using the constants $c=13$ and $n_0 = 2$.
+
+A number of useful shortcuts can be applied when using asymptotic
+notation.  First:
+\[ O(n^c_1)  O(n^c_2)  ,\]
+for any $c_1 < c_2$.  Second: For any constants $a,b,c > 0$,
+\[ O(a)  O( n)  O(n^b)  O(c^n)  . \]
+These inclusion relations can be multiplied by any positive value,
+and they still hold. For example, multiplying by $n$ yields:
+\[ O(n)  O(n n)  O(n^1+b)  O(nc^n)  . \]
+
+Continuing in a long and distinguished tradition, we will abuse this
+notation by writing things like $f_1(n) = O(f(n))$ when what we really
+mean is $f_1(n)  O(f(n))$.  We will also make statements like ``the
+running time of this operation is $O(f(n))$'' when this statement should
+be ``the running time of this operation is a member of $O(f(n))$.''
+These shortcuts are mainly to avoid awkward language and to make it
+easier to use asymptotic notation within strings of equations.
+
+A particularly strange example of this occurs when we write statements like
+\[
+  T(n) = 2 n + O(1)   .
+\]
+Again, this would be more correctly written as
+\[
+  T(n)  2 n + [some member of $O(1)$]   .
+\]
+
+The expression $O(1)$ also brings up another issue. Since there is
+no variable in this expression, it may not be clear which variable is
+getting arbitrarily large.  Without context, there is no way to tell.
+In the example above, since the only variable in the rest of the equation
+is $n$, we can assume that this should be read as $T(n) = 2 n +
+O(f(n))$, where $f(n) = 1$.
+
+Big-Oh notation is not new or unique to computer science.  It was
+used by the number theorist Paul Bachmann as early as 1894, and is
+immensely useful for describing the running times of computer algorithms.
+Consider the following piece of code:
+junk/Simple.snippet()
+ods/Simple.snippet()
+One execution of this method involves
+
+       $1$ assignment (#int\, i\, =\, 0#),
+       $#n#+1$ comparisons (#i < n#),
+       #n# increments (#i++#),
+       #n# array offset calculations (#a[i]#), and
+       #n# indirect assignments (#a[i] = i#).
+
+So we could write this running time as
+\[
+    T(#n#)=a + b(#n#+1) + c#n# + d#n# + e#n#  , 
+\]
+where $a$, $b$, $c$, $d$, and $e$ are constants that depend on the
+machine running the code and represent the time to perform assignments,
+comparisons, increment operations, array offset calculations, and indirect
+assignments, respectively.  However, if this expression represents the
+running time of two lines of code, then clearly this kind of analysis
+will not be tractable to complicated code or algorithms.  Using big-Oh
+notation, the running time can be simplified to
+\[
+    T(#n#)= O(#n#)  .
+\]
+Not only is this more compact, but it also gives nearly as much
+information.  The fact that the running time depends on the constants $a$,
+$b$, $c$, $d$, and $e$ in the above example means that, in general, it
+will not be possible to compare two running times to know which is faster
+without knowing the values of these constants.  Even if we make the
+effort to determine these constants (say, through timing tests), then
+our conclusion will only be valid for the machine we run our tests on.
+
+Big-Oh notation allows us to reason at a much higher level, making
+it possible to analyze more complicated functions.  If two algorithms
+have the same big-Oh running time, then we won't know which is faster,
+and there may not be a clear winner.  One may be faster on one machine,
+and the other may be faster on a different machine.  However, if the
+two algorithms have demonstrably different big-Oh running times, then
+we can be certain that the one with the smaller running time will be
+faster for large enough values of #n#.
+
+An example of how big-Oh notation allows us to compare two different
+functions is shown in intro-asymptotics, which compares the rate
+of growth of $f_1(#n#)=15#n#$ versus $f_2(n)=2#n##n#$.  It might be
+that $f_1(n)$  is the running time of a complicated linear time algorithm
+while $f_2(n)$ is the running time of a considerably simpler algorithm
+based on the divide-and-conquer paradigm.  This illustrates that,
+although $f_1(#n#)$ is greater than $f_2(n)$ for small values of #n#,
+the opposite is true for large values of #n#.  Eventually $f_1(#n#)$
+wins out, by an increasingly wide margin.  Analysis using big-Oh notation
+told us that this would happen, since $O(#n#) O(#n# #n#)$.
+
+  
+    .98
+    -4mm
+    !images/bigoh-1.tex\\[4ex]
+    .98!images/bigoh-2.tex
+  
+  Plots of $15#n#$ versus $2#n##n#$.
+  intro-asymptotics
+
+In a few cases, we will use asymptotic notation on functions with more
+than one variable. There seems to be no standard for this, but for our
+purposes, the following definition is sufficient:
+\[
+   O(f(n_1,,n_k)) = 
+   \@l@
+             g(n_1,,n_k):there exists $c>0$, and $z$ such that \\
+              $g(n_1,,n_k)  c f(n_1,,n_k)$ \\
+              for all $n_1,,n_k$ such that $g(n_1,,n_k) z$   
+   \  .
+\]
+This definition captures the situation we really care about:  when the
+arguments $n_1,,n_k$ make $g$ take on large values.  This definition
+also agrees with the univariate definition of $O(f(n))$ when $f(n)$
+is an increasing function of $n$.  The reader should be warned that,
+although this works for our purposes, other texts may treat multivariate
+functions and asymptotic notation differently.
+
+Randomization and Probability
+randomization
+
+randomization
+probability
+randomized data structure
+randomized algorithm
+Some of the data structures presented in this book are randomized;
+they make random choices that are independent of the data being stored
+in them or the operations being performed on them.  For this reason,
+performing the same set of operations more than once using these
+structures could result in different running times.  When analyzing these
+data structures we are interested in their average or expected
+running times.
+expected running time
+running time!expected
+
+Formally, the running time of an operation on a randomized data structure
+is a random variable, and we want to study its expected value.
+expected value
+For
+a discrete random variable $X$ taking on values in some countable
+universe $U$, the expected value of $X$, denoted by $[X]$, is given
+by the formula
+\[
+    [X] = \sum_x U x\X=x\  .
+\]
+Here $\E\$ denotes the probability that the event
+$E$ occurs.  In all of the examples in this book, these
+probabilities are only with respect to the random choices made by the
+randomized data structure;  there is no assumption that the data stored
+in the structure, nor the sequence of operations performed on the
+data structure, is random.
+
+One of the most important properties of expected values is linearity
+of expectation.
+linearity of expectation
+For any two random variables $X$ and $Y$,
+\[
+   [X+Y] = [X] + [Y]  .
+\]
+More generally, for any random variables $X_1,,X_k$,
+\[
+   [\sum_i=1^k X_i] = \sum_i=1^k [X_i]  .
+\]
+Linearity of expectation allows us to break down complicated random variables (like the left hand sides of the above equations) into sums of simpler random variables (the right hand sides).
+
+A useful trick, that we will use repeatedly, is defining indicator
+random variables.
+indicator random variable
+These binary variables are useful when we want to
+count something and are best illustrated by an example.  Suppose we toss
+a fair coin $k$ times and we want to know the expected number of times
+the coin turns up as heads.
+coin toss
+Intuitively, we know the answer is $k/2$,
+but if we try to prove it using the definition of expected value, we get
+
+   [X] & = \sum_i=0^k i\X=i\ \\
+         & = \sum_i=0^k ii/2^k \\
+         & = k \sum_i=0^k-1k-1i/2^k \\
+         & = k/2  .
+
+This requires that we know enough to calculate that $\X=i\
+= ki/2^k$, and that we know the binomial identities
+$iki=kk-1i-1$ and $\sum_i=0^k ki = 2^k$.
+
+Using indicator variables and linearity of expectation makes things
+much easier.  For each $i\1,,k\$, define the indicator
+random variable
+\[
+    I_i = 
+           1 & if the $i$th coin toss is heads \\
+           0 & otherwise.
+          
+\]
+Then 
+\[ [I_i] = (1/2)1 + (1/2)0 = 1/2  . \]
+Now, $X=\sum_i=1^k I_i$, so
+
+   [X] & = [\sum_i=1^k I_i] \\
+         & = \sum_i=1^k [I_i] \\
+         & = \sum_i=1^k 1/2 \\
+         & = k/2  .
+
+This is a bit more long-winded, but doesn't require that we know any
+magical identities or compute any non-trivial probabilities. Even better,
+it agrees with the intuition that we expect half the coins to turn up as
+heads precisely because each individual coin turns up as heads with
+a probability of $1/2$.
+
+The Model of Computation
+model
+
+In this book, we will analyze the theoretical running times of operations
+on the data structures we study.  To do this precisely, we need a
+mathematical model of computation.  For this, we use the #w#-bit
+word-RAM
+word-RAM
+RAM
+model.  RAM stands for Random Access Machine. In this model, we
+have access to a random access memory consisting of cells, each of
+which stores a #w#-bit word.
+word
+This implies that a memory cell can
+represent, for example, any integer in the set $\0,,2^#w#-1\$.
+
+In the word-RAM model, basic operations on words take constant time.
+This includes arithmetic operations (#+#, #-#, #*#, #/#, #
+($<$, $>$, $=$, $$, $$), and bitwise boolean operations (bitwise-AND,
+OR, and exclusive-OR).
+
+Any cell can be read or written in constant time.  A computer's memory
+is managed by a memory management system from which we can allocate or
+deallocate a block of memory of any size we would like. Allocating a
+block of memory of size $k$ takes $O(k)$ time and returns a reference
+(a pointer) to the newly-allocated memory block.  This reference is
+small enough to be represented by a single word.
+
+The word-size #w# is a very important parameter of this model.  The only
+assumption we will make about #w# is the lower-bound $#w#   #n#$,
+where #n# is the number of elements stored in any of our data structures.
+This is a fairly modest assumption, since otherwise a word is not even
+big enough to count the number of elements stored in the data structure.
+
+Space is measured in words, so that when we talk about the amount of
+space used by a data structure, we are referring to the number of words
+of memory used by the structure.  All of our data structures store values of
+a generic type #T#, and we assume an element of type #T# occupies one word
+of memory.  (In reality, we are storing references to objects
+of type #T#, and these references occupy only one word of memory.)
+
+The #w#-bit word-RAM model is a fairly close match for the
+(32-bit) Java Virtual Machine (JVM) when $#w#=32$.The #w#-bit
+word-RAM model is a fairly close match for modern desktop computers when
+$#w#=32$ or $#w#=64$. The data structures presented in this book don't
+use any special tricks that are not implementable on the JVM and most
+other architectures.in C++ on most architectures.
+
+Correctness, Time Complexity, and Space Complexity
+
+When studying the performance of a data structure, there are three things
+that matter most:
+
+  [Correctness:] The data structure should correctly implement
+    its interface.
+    correctness
+  [Time complexity:] The running times of operations on the data
+    structure should be as small as possible.
+    time complexity
+    complexity!time
+  [Space complexity:] The data structure should use as little memory
+    as possible.
+    space complexity
+    complexity!space
+
+In this introductory text, we will take correctness as a given;  we
+won't consider data structures that give incorrect answers to queries or
+don't perform updates properly.  We will, however, see data structures
+that make an extra effort to keep space usage to a minimum.  This won't
+usually affect the (asymptotic) running times of operations, but can
+make the data structures a little slower in practice.
+
+When studying running times in the context of data structures we tend to
+come across three different kinds of running time guarantees:
+
+[Worst-case running times:] 
+  running time
+  running time!worst-case
+  worst-case running time
+  These are the strongest kind of running
+  time guarantees.  If a data structure operation has a worst-case
+  running time of $f(#n#)$, then one of these operations never
+  takes longer than $f(#n#)$ time.
+[Amortized running times:]
+  running time!amortized
+  amortized running time
+  If we say that the amortized running
+  time of an operation in a data structure is $f(#n#)$, then this means that
+  the cost of a typical operation is at most $f(#n#)$.  More precisely,
+  if a data structure has an amortized running time of $f(#n#)$,
+  then a sequence of $m$ operations takes at most $mf(#n#)$ time.
+  Some individual operations may take more than $f(#n#)$ time but the
+  average, over the entire sequence of operations, is at most $f(#n#)$.
+[Expected running times:] 
+  running time!expected
+  expected running time
+  If we say that the expected running time
+  of an operation on a data structure is $f(#n#)$, this means that the
+  actual running time is a random variable (see randomization)
+  and the expected value of this random variable is at most $f(#n#)$.
+  The randomization here is with respect to random choices made by the
+  data structure.
+
+To understand the difference between worst-case, amortized, and expected
+running times, it helps to consider a financial example.  Consider the
+cost of buying a house:
+Worst-case versus amortized cost:
+amortized cost
+Suppose that a home costs \$120\,000.  In order to buy this home,
+we might get a 120 month (10 year) mortgage with monthly payments of
+\$1\,200 per month.  In this case, the worst-case monthly cost of paying
+this mortgage is \$1\,200 per month.
+
+If we have enough cash on hand, we might choose to buy the house outright,
+with one payment of \$120\,000.  In this case, over a period of 10 years,
+the amortized monthly cost of buying this house is
+\[
+   \$120\,000 / 120 months = \$1\,000 per month  .
+\]
+This is much less than the \$1\,200 per month we would have to pay if
+we took out a mortgage.
+
+Worst-case versus expected cost:
+expected cost
+Next, consider the issue of fire insurance on our \$120\,000 home.
+By studying hundreds of thousands of cases, insurance companies have
+determined that the expected amount of fire damage caused to a home
+like ours is \$10 per month.  This is a very small number, since most
+homes never have fires, a few homes may have some small fires that
+cause a bit of smoke damage, and a tiny number of homes burn right to
+their foundations.  Based on this information, the insurance company
+charges \$15 per month for fire insurance.
+
+Now it's decision time. Should we pay the \$15 worst-case monthly cost
+for fire insurance, or should we gamble and self-insure at an expected
+cost of \$10 per month?  Clearly, the \$10 per month costs less in
+expectation, but we have to be able to accept the possibility that
+the actual cost may be much higher.  In the unlikely event that the
+entire house burns down, the actual cost will be \$120\,000.
+
+These financial examples also offer insight into why we sometimes settle
+for an amortized or expected running time over a worst-case running time.
+It is often possible to get a lower expected or amortized running time
+than a worst-case running time. At the very least, it is very often possible
+to get a much simpler data structure if one is willing to settle for
+amortized or expected running times.
+
+Code Samples
+
+The code samples in this book are written in pseudocode.
+pseudocode
+These should be easy enough to read for anyone who has any programming experience in any of the most common programming languages of the last 40 years.  To get an idea of what the pseudocode in this book looks like, here is a function that computes the average of an array, #a#:
+ods/Algorithms.average(a)
+As this code illustrates, assigning to a variable is done using the $$
+notation.
+
+We use the convention that the length of an
+array, #a#, is denoted by #len(a)# and array indices start at zero,
+so that #range(len(a))# are the valid indices for #a#.  To shorten
+code, and sometimes make it easier to read, our pseudocode allows for
+(sub)array assignments.  The following two functions are equivalent:
+ods/Algorithms.left_shift_a(a).left_shift_b(a)
+The following code sets all the values in an array to zero:
+ods/Algorithms.zero(a)
+When analyzing the running time of code like this, we have to be careful;
+statements like 
+    #a[0:len(a)] = 1#
+or
+   #a[1:len(a)] = a[0:len(a)-1]#
+do not run in constant time. They run in $O(#len(a)#)$ time.
+
+We take similar shortcuts with variable assignments, so that the code
+#x,y=0,1# sets #x# to zero and #y# to 1 and the code #x,y = y,x# swaps
+the values of the variables #x# and #y#.
+swap
+
+Our pseudocode uses a few operators that may be unfamiliar.  As is
+standard in mathematics, (normal) division is denoted by the $/$ operator.
+In many cases, we want to do integer division instead, in which case we
+use the $#//#$ operator, so that $#a//b# =  a/b$ is the
+integer part of $a/b$.  So, for example, $3/2=1.5$ but $#3//2# = 1$.
+integer division
+div operator
+Occasionally, we also use the $$ operator to obtain the
+remainder from integer division, but this will be defined when it is used.
+mod operator
+div operator
+Later in the book, we may use some bitwise operators including left-shift (#<<#), right shift (#>>#), bitwise and (#&#), and bitwise exclusive-or (#^#).
+left shift
+#<<#|see left shift
+right shift
+#>>#|see right shift
+bitwise and
+#&#|see bitwise and
+#^#|see bitwise exclusive-or
+
+The pseudocode samples in this book are machine translations
+of Python code that can be downloaded from the book's website. http://opendatastructures.org  If you ever encounter an ambiguity in the pseudocode that you can't resolve yourself, then you can always refer
+to the corresponding Python code.  If you don't read Python, the code is
+also available in Java and C++.  If you can't decipher the pseudocode,
+or read Python, C++, or Java, then you may not be ready for this book.
+
+The code samples in this book are written in the \ programming
+language.  However, to make the book accessible to readers not familiar
+with all of 's constructs and keywords, the code samples have
+been simplified.  For example, a reader won't find any of the keywords
+#public#, #protected#, #private#, or #static#.  A reader also won't find
+much discussion about class hierarchies.  Which interfaces a particular
+class implements or which class it extends, if relevant to the discussion,
+should be clear from the accompanying text.
+
+These conventions should make the code samples understandable by
+anyone with a background in any of the languages from the ALGOL tradition,
+including B, C, C++, C\#, Objective-C, D, Java, JavaScript, and so on.
+Readers who want the full details of all implementations are encouraged
+to look at the \ source code that accompanies this book.
+
+This book mixes mathematical analyses of running times with \
+source code for the algorithms being analyzed.  This means that
+some equations contain variables also found in the source code.
+These variables are typeset consistently, both within the source code
+and within equations.  The most common such variable is the variable #n#
+n@#n#
+that, without exception, always refers to the number of items currently
+stored in the data structure.
+
+List of Data Structures
+
+Tables~tab:summary-i and tab:summary-ii summarize the
+performance of data structures in this book that implement each of the
+interfaces, #List#, #USet#, and #SSet#, described in interfaces.
+dependencies shows the dependencies between various chapters in
+this book.
+dependencies
+A dashed arrow indicates only a weak dependency, in which
+only a small part of the chapter depends on a previous chapter or only
+the main results of the previous chapter.
+
+56pt
+
+.98!
+
+|l|l|l|l| 
+4|c|#List# implementations \\ 
+ & #get(i)#/#set(i,x)# & #add(i,x)#/#remove(i)# & \\ 
+#ArrayStack# & $O(1)$ & $O(1+#n#-#i#)$A & arraystack \\
+#ArrayDeque# & $O(1)$ & $O(1+\#i#,#n#-#i#\)$A & arraydeque \\
+#DualArrayDeque# & $O(1)$ & $O(1+\#i#,#n#-#i#\)$A & dualarraydeque\\
+#RootishArrayStack# & $O(1)$ & $O(1+#n#-#i#)$A  & rootisharraystack \\
+#DLList# & $O(1+\#i#,#n#-#i#\)$ & $O(1+\#i#,#n#-#i#\)$  & dllist \\
+#SEList# & $O(1+\#i#,#n#-#i#\/#b#)$ & $O(#b#+\#i#,#n#-#i#\/#b#)$A  & selist \\
+#SkiplistList# & $O( #n#)$E & $O( #n#)$E  & skiplistlist \\ 
+4c \\[2ex] 
+4|c|#USet# implementations \\ 
+ & #find(x)# & #add(x)#/#remove(x)# & \\ 
+#ChainedHashTable# & $O(1)$E & $O(1)$A,E & hashtable \\ 
+#LinearHashTable# & $O(1)$E & $O(1)$A,E & linearhashtable \\ 
+
+[A]Denotes an amortized running time.
+[E]Denotes an expected running time.
+
+[Summary of List and USet implementations.]Summary of #List# and #USet# implementations.
+summary-i
+
+|l|l|l|l| 
+4|c|#SSet# implementations \\ 
+ & #find(x)# & #add(x)#/#remove(x)# & \\ 
+#SkiplistSSet# & $O( #n#)$E & $O( #n#)$E & skiplistset \\ 
+#Treap# & $O( #n#)$E & $O( #n#)$E & treap \\ 
+#ScapegoatTree# & $O( #n#)$ & $O( #n#)$A & scapegoattree \\
+#RedBlackTree# & $O( #n#)$ & $O( #n#)$ & redblacktree \\ 
+#BinaryTrie#I & $O(#w#)$ & $O(#w#)$ & binarytrie \\ 
+#XFastTrie#I & $O( #w#)$A,E & $O(#w#)$A,E & xfast \\ 
+#YFastTrie#I & $O( #w#)$A,E & $O( #w#)$A,E & yfast \\ 
+#BTree# & $O( #n#)$ & $O(B+ #n#)$A & btree \\ 
+#BTree#X & $O(\log_B #n#)$ & $O(\log_B #n#)$ & btree \\  
+4c \\[2ex] 
+4|c|(Priority) #Queue# implementations \\ 
+ & #findMin()# & #add(x)#/#remove()# & \\ 
+#BinaryHeap# & $O(1)$ & $O( #n#)$A & binaryheap \\ 
+#MeldableHeap# & $O(1)$ & $O( #n#)$E & meldableheap \\ 
+
+[I]This structure can only store #w#-bit integer data.
+[X]This denotes the running time in the external-memory model; see btree.
+
+[Summary of SSet and priority Queue implementations.]Summary of #SSet# and priority #Queue# implementations.
+summary-ii
+
+  
+    [width=]figs/dependencies
+  
+  The dependencies between chapters in this book.
+  dependencies
+
+Discussion and Exercises
+
+The #List#, #USet#, and #SSet# interfaces described in
+interfaces are influenced by the Java Collections Framework
+oracle_collections.
+Java Collections Framework
+These are essentially simplified versions of
+the #List#, #Set#, #Map#, #SortedSet#, and #SortedMap# interfaces found in
+the Java Collections Framework.  The accompanying source
+code includes wrapper classes for making #USet# and #SSet# implementations
+into #Set#, #Map#, #SortedSet#, and #SortedMap# implementations.
+
+For a superb (and free) treatment of the mathematics discussed in this
+chapter, including asymptotic notation, logarithms, factorials, Stirling's
+approximation, basic probability, and lots more, see the textbook by
+Leyman, Leighton, and Meyer llm11.  For a gentle calculus text
+that includes formal definitions of exponentials and logarithms, see the
+(freely available) classic text by Thompson t14.
+
+For more information on basic probability, especially as it relates to
+computer science, see the textbook by Ross r01.  Another good
+reference, which covers both asymptotic notation and probability, is
+the textbook by Graham, Knuth, and Patashnik gkp94.
+
+Readers wanting to brush up on their Java programming can find
+many Java tutorials online oracle_tutorials.
+
+  This exercise is designed to help familiarize the reader with choosing
+  the right data structure for the right problem.  If implemented, the
+  parts of this exercise should be done by making use of an implementation
+  of the relevant interface (#Stack#, #Queue#, #Deque#, #USet#, or #SSet#)
+  provided by the Java Collections FrameworkC++
+  Standard Template Library.
+
+  Solve the following problems by reading a text file one line at a
+  time and performing operations on each line in the appropriate data
+  structure(s).  Your implementations should be fast enough that even
+  files containing a million lines can be processed in a few seconds.
+  
+     Read the input one line at a time and then write the lines out
+      in reverse order, so that the last input line is printed first,
+      then the second last input line, and so on.
+
+      Read the first 50 lines of input and then write them out in
+      reverse order. Read the next 50 lines and then write them out in
+      reverse order. Do this until there are no more lines left to read,
+      at which point any remaining lines should be output in reverse
+      order.
+
+      In other words, your output will start with the 50th line, then
+      the 49th, then the 48th, and so on down to the first line. This
+      will be followed by the 100th line, followed by the 99th, and so
+      on down to the 51st line. And so on.
+      
+      Your code should never have to store more than 50 lines at any
+      given time.
+
+     Read the input one line at a time.
+      At any point after reading the first 42 lines, if some line is blank
+      (i.e., a string of length 0), then output the line that occured
+      42 lines prior to that one. For example, if Line 242 is blank,
+      then your program should output line 200. This program should
+      be implemented so that it never stores more than 43 lines of the
+      input at any given time.
+
+     Read the input one line at a time and write each line to the
+      output if it is not a duplicate of some previous input line. Take
+      special care so that a file with a lot of duplicate lines does not
+      use more memory than what is required for the number of unique lines.
+
+     Read the input one line at a time and write each line to the
+      output only if you have already read this line before. (The end
+      result is that you remove the first occurrence of each line.)
+      Take special care so that a file with a lot of duplicate lines
+      does not use more memory than what is required for the number of
+      unique lines.
+
+     Read the entire input one line at a time. Then output all lines
+      sorted by length, with the shortest lines first. In the case where
+      two lines have the same length, resolve their order using the usual
+      ``sorted order.''  Duplicate lines should be printed only once.
+
+     Do the same as the previous question except that duplicate lines
+      should be printed the same number of times that they appear in the input.
+
+     Read the entire input one line at a time and then output the
+      even numbered lines (starting with the first line, line 0) followed
+      by the odd-numbered lines.
+
+     Read the entire input one line at a time and randomly permute
+      the lines before outputting them.  To be clear: You should not
+      modify the contents of any line. Instead, the same collection of
+      lines should be printed, but in a random order.
+  
+
+  Dyck word
+  A Dyck word is a sequence of +1's and -1's with the property that
+  the sum of any prefix of the sequence is never negative.  For example,
+  $+1,-1,+1,-1$ is a Dyck word, but $+1,-1,-1,+1$ is not a Dyck word
+  since the prefix $+1-1-1<0$.  Describe any relationship
+  between Dyck words and #Stack# #push(x)# and #pop()# operations.
+
+  matched string
+  string!matched
+  A matched string is a sequence of \, \, (, ), [, and ]
+  characters that are properly matched.  For example, ``\\()[]\\''
+  is a matched string, but this ``\\()]\'' is not, since the second \
+  is matched with a ].  Show how to use a stack so that, given a string
+  of length #n#, you can determine if it is a matched string in $O(#n#)$
+  time.
+
+  Suppose you have a #Stack#, #s#, that supports only the #push(x)#
+  and #pop()# operations. Show how, using only a FIFO #Queue#, #q#,
+  you can reverse the order of all elements in #s#.
+
+  Bag@#Bag#
+  Using a #USet#, implement a #Bag#.  A #Bag# is like a #USet#---it
+  supports the #add(x)#, #remove(x)# and #find(x)# methods---but it allows
+  duplicate elements to be stored.  The #find(x)# operation in a #Bag#
+  returns some element (if any) that is equal to #x#.  In addition,
+  a #Bag# supports the #findAll(x)# operation that returns a list of
+  all elements in the #Bag# that are equal to #x#.
+
+  From scratch, write and test implementations of the #List#, #USet#
+  and #SSet# interfaces.  These do not have to be efficient.  They can
+  be used later to test the correctness and performance of more efficient
+  implementations.  (The easiest way to do this is to store the elements
+  in an array.)
+
+  Work to improve the performance of your implementations from the
+  previous question using any tricks you can think of.  Experiment and
+  think about how you could improve the performance of #add(i,x)# and
+  #remove(i)# in your #List# implementation.  Think about how you could
+  improve the performance of the #find(x)# operation in your #USet#
+  and #SSet# implementations.  This exercise is designed to give you a
+  feel for  how difficult it can be to obtain efficient implementations
+  of these interfaces.
