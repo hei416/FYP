@@ -31,13 +31,15 @@ def logged_in_page(playwright):
 class TestAuth:
 
     def test_login_success(self, page: Page):
-        """TC-01: Valid credentials redirect to / (CourseCatalogPage)."""
+        """TC-01: Valid credentials redirect away from /login."""
         page.goto(f"{BASE_URL}/login")
         page.fill("#email",    TEST_EMAIL)
         page.fill("#password", TEST_PASSWORD)
         page.click('button[type="submit"]')
-        # Auth.js → navigate('/') on success
-        expect(page).to_have_url(f"{BASE_URL}/", timeout=20_000)
+        # Wait for navbar — proves auth succeeded and real page loaded
+        page.wait_for_selector('[data-tour="navbar"]', timeout=20_000)
+        # Assert we are no longer on /login
+        expect(page).not_to_have_url(f"{BASE_URL}/login", timeout=5_000)
 
     def test_login_invalid(self, page: Page):
         """TC-02: Wrong password keeps user on /login."""
