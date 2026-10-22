@@ -487,18 +487,23 @@ app.add_middleware(
 
 @app.middleware("http")
 async def catch_all_exceptions(request: Request, call_next):
-    """Catch any unhandled exception from any route and return a 500 JSON response."""
+    """Catch any unhandled exception from any route and return a 500 JSON response.
+
+    SEC-9: the exception text and traceback are logged server-side only; clients
+    get a generic message (details are included only when DEBUG_MODE=true).
+    """
     try:
         return await call_next(request)
     except Exception as e:
         print("=" * 60)
-        print("🔴 UNHANDLED EXCEPTION:")
+        print(f"🔴 UNHANDLED EXCEPTION on {request.method} {request.url.path}:")
         traceback.print_exc()
         print("=" * 60)
-        return JSONResponse(
-            status_code=500,
-            content={"detail": str(e), "traceback": traceback.format_exc()}
-        )
+        if config.DEBUG_MODE:
+            content = {"detail": str(e), "traceback": traceback.format_exc()}
+        else:
+            content = {"detail": "Internal server error"}
+        return JSONResponse(status_code=500, content=content)
 
 
 # ============================================================================

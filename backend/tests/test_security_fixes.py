@@ -90,3 +90,25 @@ def test_cors_origins_env_override(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(config)
+
+
+# --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------
+
+def test_unhandled_exception_returns_generic_500():
+    import main
+    from core import config as cfg
+    assert cfg.DEBUG_MODE is False  # test env must not run in debug
+
+    boom_path = "/_test_boom_sec9"
+    if not any(getattr(r, "path", None) == boom_path for r in main.app.routes):
+        async def _boom():
+            raise RuntimeError("sensitive internal detail")
+        main.app.add_api_route(boom_path, _boom, methods=["GET"])
+
+    c = TestClient(main.app, raise_server_exceptions=False)
+    r = c.get(boom_path)
+    assert r.status_code == 500
+    body = r.json()
+    assert body == {"detail": "Internal server error"}
+    assert "sensitive internal detail" not in r.text
+    assert "Traceback" not in r.text
