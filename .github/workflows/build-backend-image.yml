@@ -1,0 +1,80 @@
+# Build + push the backend container image to ghcr.io (DEPLOY-1: container pipeline).
+# Deliberately does NOT deploy anywhere: deploying the image to Azure Container Apps
+# is a manual, owner-run step — see docs/OPS.md §Deploy runbook.
+#
+# Triggers: manual (workflow_dispatch) and version tags (v*) ONLY — never push to main.
+# Actions are pinned to exact release tags; tighten to commit SHAs if desired
+# (repo setting sha_pinning_required is currently false).
+# No secret values in this file; ghcr.io auth uses the ephemeral GITHUB_TOKEN.
+
+name: Build backend image (ghcr.io)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bake_hf_models:
+        description: "Bake the two HF models into the image (~+0.7 GB; skips HF download on cold start — recommended for ACA scale-to-zero)"
+        type: boolean
+        default: true
+  push:
+    tags:
+      - "v*"
+
+# Default to no permissions; grant per-job below (least privilege).
+permissions: {}
+
+concurrency:
+  group: build-backend-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/codetutor-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.7.1
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (SHA-tagged; never deploy "latest" by itself)
+        id: meta
+        uses: docker/metadata-action@v5.5.1
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=tag
+          labels: |
+            org.opencontainers.image.title=codetutor-backend
+            org.opencontainers.image.description=CodeTutor FastAPI backend (FYP)
+
+      - name: Build and push
+        uses: docker/build-push-action@v6.9.0
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Tag builds always bake the HF models; manual builds follow the input.
+          build-args: |
+            BAKE_HF_MODELS=${{ (github.event_name == 'push' || inputs.bake_hf_models) && '1' || '0' }}
+
+      - name: Print pushed tags (deploy by the sha-* tag — OPS.md §Deploy runbook)
+        run: echo "${TAGS}"
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
