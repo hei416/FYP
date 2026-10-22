@@ -28,6 +28,7 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 | `terminal-service/` | ws + `child_process` server (localhost:3001; no node-pty) |
 | `backend/tests/` | offline unit tests (pytest, `backend/requirements-dev.txt`) + Playwright E2E + locust (E2E deps NOT in requirements.txt) |
 | `startup.sh` | Azure startup script — stays at the repo root (startup command) |
+| `backend/Dockerfile` | Host-agnostic backend image (DEPLOY-1 undecided) + `docker-compose.container.yml` smoke stack — see docs/OPS.md §Container |
 | `docs/` | All project docs — see map below |
 
 ## Run / test / build / deploy
@@ -39,7 +40,8 @@ Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 - Terminal service: `cd terminal-service && npm install && node server.js`
 - Import check (fast verification): `python -c "import main"` in the venv, run from `backend/`
 - Offline tests: `cd backend && python -m pytest tests/ -q` (deps: `backend/requirements-dev.txt`)
-- Frontend build check: `cd frontend && npm run build`
+- Frontend build check: `cd frontend && npm run build`; frontend tests: `CI=true npm test -- --watchAll=false` (green since FE-16)
+- Container image: `backend/Dockerfile` — build/smoke commands in docs/OPS.md §Container (never push images or log in to a registry)
 - Deploy: none is believed live (owner statement — hard rule 1), but a push to `main` **may still trigger** the latent workflows. There is no deploy step for agents; first-deploy gate: `docs/plans/active/first-deploy-readiness.md`.
 
 ## Docs map

@@ -29,4 +29,21 @@ Options research: [`docs/reports/deploy-options-2026-10-22.md`](../../reports/de
 |---|---|---|---|
 | 15 | **Deployment method chosen** (owner) — keep zip-deploy vs container on ACA / App Service / Fly / VPS; see report's top-2 + risks. Depends on #1 (do the Azure resources/credits still exist?) | Needs owner | Backlog DEPLOY-1. |
 | 16 | **AUD-2 CI repair on `fix/terminal-and-ci` is ON HOLD** until #15 is decided — it patches the zip pipeline that a container choice replaces wholesale. Merge it only if the owner keeps zip-deploy. | Waiting | Readiness #6 inherits this hold. |
-| 17 | If a container method is chosen: Dockerfile + `.dockerignore`, HF models baked into the image, probe on `/health`, new build+push CI, secrets in platform store; `startup.sh` retired (not deleted while the latent workflows exist); `PROJECT_ROOT` fixed by the image layout — makes the `backend/` restructure (proposal #9) cheap. | Open | Details: report §"What each option needs". |
+| 17 | If a container method is chosen: Dockerfile + `.dockerignore`, HF models baked into the image, probe on `/health`, new build+push CI, secrets in platform store; `startup.sh` retired (not deleted while the latent workflows exist); `PROJECT_ROOT` fixed by the image layout — makes the `backend/` restructure (proposal #9) cheap. | Partly Done | Repo side Done 2026-10-23 (see §Container readiness below); still open: new CI (waits on #15) and secrets in the chosen host's store. |
+
+## Container readiness (2026-10-23, branch `integration/container-readiness` — pending owner review/merge)
+
+Host-agnostic container prep done without choosing a host (DEPLOY-1/#15 still Needs owner). Runbook: `docs/OPS.md` §Container.
+
+| Item | Status | Notes |
+|---|---|---|
+| `backend/Dockerfile` (multi-stage, non-root, pinned base, CPU-only torch, env-only config, no secrets) | **Done** | Image NOT built: Docker is not installed on the dev machine; exact commands in OPS.md §Container. Pin the base-image digest at first real build. |
+| `backend/.dockerignore` (tests, caches, any `.env*` excluded; vectorstore/java_docs IN) | **Done** | |
+| HF models bakeable into the image | **Done** | `--build-arg BAKE_HF_MODELS=1`, ≈ +0.7 GB (MiniLM ~90 MB + nli-deberta-v3-small ~570 MB); default off. |
+| `/health` wired as container probe | **Done** | Dockerfile HEALTHCHECK, 180 s start period. |
+| Local smoke test (image + throwaway Postgres) | **Commands documented** | `docker-compose.container.yml` (dev placeholders only); not run — no Docker locally. Run before first deploy. |
+| Missing `sentence-transformers` pin (GAP-14) | **Done** | Container/manifest installs now get a working RAG. |
+| SEC-14 login rate limit, SEC-16 password policy (rows #7 scope) | **Done on branch** | Offline-tested; readiness #7's remaining items were already on `refactor/backend-and-prebuild-fixes`. |
+| FE-16 `npm test` green | **Done on branch** | Frontend test gate usable in any future CI. |
+| transformers/torch bumps (FE-17 remainder) | Deferred | Unverifiable offline; revisit at first container build. |
+| New build+push CI, platform secret store, host choice | Open / Needs owner | Blocked on #15 (and #1/#2); `.github/workflows/` untouched. |

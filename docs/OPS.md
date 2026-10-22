@@ -30,9 +30,9 @@ Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && pyt
 
 Offline unit tests live in `backend/tests/`; E2E still needs a running stack. What exists:
 
-- **Offline suite** (FastAPI TestClient, no network, no running services) — run from `backend/`: `python -m pytest tests/ -q --ignore=tests/test_acceptance.py --ignore=tests/test_browser_compat.py --ignore=tests/locustfile.py`. Covers the `ENABLE_TERMINAL` gate (`test_terminal_proxy.py`) and the pre-first-deploy security fixes (`test_security_fixes.py`: registration role forcing, CORS config, traceback suppression, auth on conversations//explain-error/files, SSRF guard). Dependencies: `pip install -r backend/requirements-dev.txt`.
+- **Offline suite** (FastAPI TestClient, no network, no running services) — run from `backend/`: `python -m pytest tests/ -q --ignore=tests/test_acceptance.py --ignore=tests/test_browser_compat.py --ignore=tests/locustfile.py`. Covers the `ENABLE_TERMINAL` gate (`test_terminal_proxy.py`) and the pre-first-deploy security fixes (`test_security_fixes.py`: registration role forcing, CORS config, traceback suppression, auth on conversations//explain-error/files, SSRF guard, SEC-14 login/register rate limit, SEC-16 password policy — 30 tests). Dependencies: `pip install -r backend/requirements-dev.txt`.
 - `backend/tests/` (the rest) — pytest + Playwright E2E against a **running** localhost:3000 stack, plus a locustfile for load testing.
-- `frontend/` — `npm test` (react-scripts, a few `__tests__`).
+- `frontend/` — `CI=true npm test -- --watchAll=false` (react-scripts/jest; green since FE-16: react-router 7 needs the `moduleNameMapper` + TextEncoder polyfill already configured in `package.json`/`setupTests.js` — don't remove them).
 
 Dev/test dependencies live in **`backend/requirements-dev.txt`** (pytest); the heavier E2E/load deps are still ad hoc (kept out deliberately — the deploy zip ships requirements.txt):
 
@@ -66,6 +66,46 @@ Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `fron
 ## Vector store rebuild (document only — do not run casually)
 
 `cd backend && python rebuild_vectorstore.py` regenerates the FAISS stores in `backend/vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast Azure startup — a rebuild changes tracked binaries and, if pushed, triggers a backend deploy (`backend/**` is in the CI path filter). Inspect metadata with `backend/vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
+
+## Container (host-agnostic — deploy method DEPLOY-1 still undecided)
+
+`backend/Dockerfile` builds a self-contained backend image (multi-stage, non-root, CPU-only torch, pinned `python:3.11-slim-bookworm`); it replaces `startup.sh` in any container deployment. **No host is chosen and nothing is deployed** — this works on ACA, Fly, a VPS, or App Service unchanged.
+
+```bash
+# Build (from the repo root). Docker is NOT installed on the current dev machine —
+# these commands are written for whoever has Docker:
+docker build -t codetutor-backend backend/
+# Variant with both HF models baked in (image grows ~0.7 GB; cold starts skip the HF download):
+docker build --build-arg BAKE_HF_MODELS=1 -t codetutor-backend backend/
+
+# Local smoke test against a THROWAWAY Postgres (dev placeholders only — see file header):
+docker compose -f docker-compose.container.yml up --build
+curl -fsS http://localhost:8000/health                      # expect {"status":"ok"}
+curl -fsS http://localhost:8000/openapi.json | python3 -c "import json,sys; print(len(json.load(sys.stdin)['paths']), 'paths')"
+docker compose -f docker-compose.container.yml down -v      # discard the throwaway DB
+```
+
+`/health` (`backend/main.py`) is the container health/startup probe; the Dockerfile's HEALTHCHECK uses it with a 180 s start period (model load; longer on first boot without baked models).
+
+**Backend env vars (placeholders only — real values live in the host's secret store, never in git or the image):**
+
+| Var | Required | Placeholder example | Notes |
+|---|---|---|---|
+| `DATABASE_URL` | yes | `postgresql://USER:PASSWORD@HOST:5432/DB` (placeholder) | No in-image default; unset falls back to SQLite inside the container (data lost on restart) |
+| `SECRET_KEY` | yes | `<long random string>` | JWT signing; unset = inert sentinel that refuses to sign |
+| `API_KEY` | for AI features | `<HKBU GenAI key>` | AI endpoints fail per-request without it |
+| `PAIZA_API_KEY` | no | `guest` | Code-execution fallback quota |
+| `CORS_ORIGINS` | yes at deploy | `https://your-frontend.example` | Comma-separated allowlist (SEC-8); defaults to localhost dev origins |
+| `PORT` | no | `8000` | Container listen port |
+| `ENABLE_TERMINAL` | **leave unset** | — | AUD-1: default off; only after SEC-2/3/5/6 hardening |
+| `DEBUG_MODE` | **leave unset** | — | Debug endpoints off by default |
+| `PDF_DIR` / `LESSON_DIR` / `BASE_PATH` | no | — | Stale defaults (BE-16); override only if those features are used |
+| `PROXY_ALLOWED_HOSTS` | no | `docs.oracle.com` | Extends the SSRF allowlist (SEC-13) |
+| `MIGRATION_CONFIRM` | no | — | Only for deliberate `schema_migration.py` runs |
+
+**Frontend container-era build option:** the frontend needs no container — `cd frontend && REACT_APP_API_BASE=https://YOUR-BACKEND.example npm run build` produces a static `build/` servable by any static host (or an nginx container). That removes the regenerated-`server.js` failure mode (FE-3) entirely; remember CRA env vars are build-time and `CORS_ORIGINS` must include the static origin.
+
+**Not in the image:** `terminal-service/` (stays undeployed until SEC-1..6 hardening), `frontend/`, `docs/`, tests, any `.env*`. `startup.sh` is unused by the image but stays at the repo root while the latent zip workflows exist.
 
 ## Deploy mechanics (latent)
 

@@ -6,7 +6,7 @@
 
 **Config:** everything path-related comes from `backend/core/config.py` (`PROJECT_ROOT`-derived — resolves to `backend/` — env-overridable). External integrations (Paiza, LLM API) read env vars there.
 
-**Rate limits (slowapi):** `/ragAI` 30 req/min, `/api/run-code` 20 req/min.
+**Rate limits (slowapi):** `/ragAI` 30 req/min, `/api/run-code` and `/api/explain-error` 20 req/min, `/auth/login` and `/auth/register` 5 req/min (SEC-14; keyed by client IP — behind a proxy that's the proxy IP until SEC-15). Registration enforces a password policy (SEC-16: 8–72 bytes, letter + digit).
 
 **How to use:** run the backend (`cd backend && uvicorn main:app --reload`) and browse http://localhost:8000/docs for the live OpenAPI surface.
 

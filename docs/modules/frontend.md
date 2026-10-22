@@ -2,7 +2,7 @@
 
 Create-React-App in `frontend/` (dev server :3000, talks to the backend at :8000 and terminal-service at :3001).
 
-**Commands:** `npm install`, `npm start` (dev), `npm run build` (production build — also the standard verification for frontend changes), `npm test` (react-scripts; a few `__tests__`).
+**Commands:** `npm install`, `npm start` (dev), `npm run build` (production build — also the standard verification for frontend changes), `CI=true npm test -- --watchAll=false` (react-scripts/jest; green since FE-16 — the `jest.moduleNameMapper` in `package.json` and the TextEncoder polyfill in `src/setupTests.js` keep react-router 7 resolvable under jest 27; don't remove them).
 
 **Env:** CRA `REACT_APP_*` variables are **baked in at build time**. `frontend/.env.development` and `.env.production` are git-tracked — hands off: do not read, edit, or move them (hard rule in [/AGENTS.md](../../AGENTS.md)).
 
@@ -10,4 +10,4 @@ Create-React-App in `frontend/` (dev server :3000, talks to the backend at :8000
 
 **Known clutter:** `frontend/src/TeacherClassroomDetail.js.bak` (116 KB) is tracked — owner decided to leave it for now (backlog).
 
-**How to test:** `npm run build` must pass; Playwright E2E in `tests/` covers key flows but needs the full running stack.
+**How to test:** `npm run build` must pass and `CI=true npm test -- --watchAll=false` must be green (2 suites / 6 tests: Navbar smoke test, localStorage cleanup); Playwright E2E in `backend/tests/` covers key flows but needs the full running stack.

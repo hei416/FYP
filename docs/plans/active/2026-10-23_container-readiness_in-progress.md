@@ -36,15 +36,19 @@ torch/transformers bump: **deferred with a note** — verifying new ML wheels re
 
 ## Status
 
-- **State: COMPLETE — all planned commits landed, every per-commit check green. Awaiting owner review/merge. Never pushed.**
-- Docker: **not installed** on this machine (checked: docker, colima, podman, orbstack, /Applications/Docker.app — none). Image was NOT built; exact build/run/smoke commands are documented in docs/OPS.md §Container and below in §Smoke test commands.
-- torch/transformers bump: deferred (offline verification impossible); note added to audit FE-17.
-- CI path filters: backend/frontend commits here match the latent filters (`backend/**`, `frontend/**`) — irrelevant while unpushed; owner must keep the no-push rule until DEPLOY-1 + readiness #1/#2 are resolved.
+- **State: COMPLETE — 9 commits landed, every per-commit check green. Awaiting owner review/merge. Never pushed; no registry, no cloud, no workflow edits.**
+- Docker: **not installed** on this machine (checked: docker, colima, podman, orbstack, /Applications/Docker.app — none). Image was NOT built; exact build/run/smoke commands: docs/OPS.md §Container.
+- Unplanned finding fixed en route (own commit): **GAP-14** — `sentence_transformers` imported by `rag_system.py` but never pinned in `requirements.txt`; pinned 2.7.0 (+Pillow 10.4.0), import-verified offline. Without it, any container built from the manifest would run with RAG degraded.
+- torch/transformers bump (FE-17 remainder): **deferred** — unverifiable offline (network wheel installs + model-behaviour checks); noted in the audit. Revisit at the first container build.
+- CI path filters: the backend/frontend commits here match the latent filters (`backend/**`, `frontend/**`) — inert while unpushed; the no-push rule stays until DEPLOY-1 + readiness #1/#2 are resolved.
+- Backlog delta for the owner: SEC-14, SEC-16, FE-16 → Done on this branch (pending merge); GAP-14 new+fixed; DEPLOY-1 unchanged (Needs human).
 
 ### Verification log (per commit)
 
-See git log; each commit message lists its changed paths. All commits passed: secret scan clean, import main OK, route set 120 (121 for commits after SEC-14/16? — no: route count unchanged, see notes), offline pytest green (21 → 26 tests by the end), vectorstore sha256 10/10 identical, clean tree. Frontend commits additionally: `npm run build` green, `npm test` green (after FE-16).
+Each commit message lists its changed paths. Every commit passed: blocking secret scan clean, `import main` OK (from backend/), route set identical to baseline (120), offline pytest green (21 tests at baseline → 23 after SEC-14 → 30 after SEC-16; final suite 30 passed), vectorstore sha256 10/10 identical to the baseline recorded before any change, `git status` clean. Frontend commit (FE-16) additionally: `CI=true npx react-scripts test --watchAll=false` 2 suites / 6 tests green, `npm run build` green. Compose/Dockerfile commits: YAML parse check; Dockerfile not buildable locally (no Docker). fetch_missing_docs commit: `py_compile` + path-resolution check (script is a network fetcher — deliberately not executed).
+
+Environment: venv reused from the restructure session (`/Users/pandawork/FYP-restructure/.venv`, Python 3.11.15); frontend `node_modules` cloned (APFS clonefile) from the restructure worktree — `package.json` byte-identical at clone time (the FE-16 commit then changed it: jest config only, no dependency changes, so no reinstall needed).
 
 ### Smoke test commands (for the owner, once Docker is available)
 
-Documented in docs/OPS.md §Container quickstart; summary: `docker build -t codetutor-backend backend/` (add `--build-arg BAKE_HF_MODELS=1` to bake models), `docker compose -f docker-compose.container.yml up`, then `curl localhost:8000/health` and `curl localhost:8000/openapi.json | jq '.paths | keys | length'`.
+Documented in docs/OPS.md §Container; summary: `docker build -t codetutor-backend backend/` (add `--build-arg BAKE_HF_MODELS=1` to bake models, ≈ +0.7 GB), `docker compose -f docker-compose.container.yml up --build`, then `curl -fsS localhost:8000/health` → `{"status":"ok"}` and the openapi path count per OPS.md. Tear down with `down -v` (throwaway DB).
