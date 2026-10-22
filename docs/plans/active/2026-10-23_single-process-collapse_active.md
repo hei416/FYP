@@ -72,7 +72,7 @@ never push.** The owner pushes if and when they choose.
 **Done — awaiting owner review. Local only; nothing pushed.**
 
 Branch `chore/single-process-collapse`, worktree `/Users/pandawork/FYP-single-process`, based on
-`main` @ `4211ee4`. Five commits: backend SPA mount, frontend single execution path, terminal-service
+`main` @ `4211ee4`. Six commits: backend SPA mount, frontend single execution path, terminal-service
 deletion + compose repair, docs, and the API-base single source of truth.
 
 ### Verified
@@ -80,7 +80,7 @@ deletion + compose repair, docs, and the API-base single source of truth.
 - `python -c "import main"` — 120 routes, 12 routers, **no `/ws/terminal`**. Ran under a Python 3.11
   venv borrowed from the `FYP-restructure` worktree (this machine's system `python3` is 3.9 and no
   `.venv` exists at the repo root).
-- `pytest tests/ -q` (offline subset) — **42 passed**, including 9 new SPA-mount tests. Green both
+- `pytest tests/ -q` (offline subset) — **43 passed**, including 10 new SPA-mount tests. Green both
   with and without `frontend/build` present.
 - `npm run build` — compiles (warnings only, all pre-existing). `CI=true npm test` — 6 passed.
 - `REACT_APP_API_BASE= npm run build` — bundle contains no absolute API host; the backend serves it
@@ -119,6 +119,22 @@ Verified: `REACT_APP_API_BASE= npm run build` produces a bundle with **zero** ab
 the backend serves it with only relative asset references. A default build still pins the Azure host —
 clearing that is **SP-4**, owner action, because `.env*` is off-limits to agents.
 
+### Third pass — owner-granted follow-ups (SP-2, SP-3; SP-4 blocked)
+
+- **SP-3 done.** `terminal-service/**` removed from `.github/workflows/backend.yml` under an explicit
+  in-session grant that overrides the 2026-10-22 "agents never edit CI" decision; the override is
+  recorded in the decision log so the next session does not revert it.
+- **SP-2 done, and UNVERIFIED — Docker is not installed here, so the image was never built.** The
+  build context stays `backend/` (moving it to the repo root would stop `backend/.dockerignore`
+  applying, and that file is what keeps `.env*`, `tests/` and `*.db` out of the image). CI drops the
+  SPA into `backend/frontend_build/`, committed as an empty placeholder so a hand-run build still
+  succeeds; `FRONTEND_BUILD_DIR=/app/frontend_build` because the code default resolves to
+  `/frontend/build` in-image (`PROJECT_ROOT` is `/app`). `main.py` now probes for `index.html` rather
+  than the directory, so an empty placeholder degrades to API-only — tested.
+- **SP-4 could not be done.** The owner granted the `.env.production` edit, but a tool-level deny rule
+  on `.env*` blocks agents from reading or writing the file. Still the one thing standing between this
+  branch and a working deployed single process.
+
 ### Left for the owner
 
 - **SP-4 (blocking for deploy)** `frontend/.env.production` pins `REACT_APP_API_BASE` to the stale
@@ -126,11 +142,9 @@ clearing that is **SP-4**, owner action, because `.env*` is off-limits to agents
   it, and single-process mode does not work. One-line owner fix; agents cannot touch `.env*`.
 - **SP-1** `frontend/.env.development` / `.env.production` still set `REACT_APP_TERMINAL_WS`. Agents
   must not touch `.env*` (hard rule 3). Dead but harmless.
-- **SP-2** `backend/Dockerfile` does not copy `frontend/build`, so a container built from it runs
-  API-only. Batch with DEPLOY-1 — and note this decision may retire the separate Cloudflare Pages
-  frontend that `ci/container-deploy-pipeline` assumes.
-- **SP-3** `.github/workflows/backend.yml` still filters on the deleted `terminal-service/**`.
-  Left alone: agents never edit CI.
+- **DEPLOY-1 reconciliation** — `ci/container-deploy-pipeline` assumes a separate Cloudflare Pages
+  frontend, which this decision retires. Someone has to reconcile the two before that pipeline lands.
+- **Build the image once Docker is available** — SP-2 is inspection-only today.
 - Decision-log entry wording (2026-10-23) marked *to confirm*.
 
 ### Merge note
