@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 import random
 import string
-import shutil, uuid, os, time, json
+import shutil, uuid, os, time, json, re, tempfile
 import httpx
 
 from database import get_db
@@ -17,6 +17,7 @@ from services.classroom_rag import (
     search_classroom_context, get_chunks_for_files,
 )
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, ENHANCED_SUBTOPIC_TO_MAIN_TOPIC, to_main_topic
+from core.config import MAX_UPLOAD_SIZE_BYTES
 
 router = APIRouter(prefix="/classrooms", tags=["Classroom"])
 
@@ -301,6 +302,17 @@ class ClassroomQuizResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _strip_quiz_answers(questions: List[dict]) -> List[dict]:
+    """S14: remove the answer key from quiz questions served to students."""
+    stripped = []
+    for q in (questions or []):
+        q = dict(q)
+        q.pop("correct_index", None)
+        q.pop("explanation", None)
+        stripped.append(q)
+    return stripped
+
+
 def _score_of(result_data: Any) -> Optional[float]:
     if not result_data:
         return None
@@ -486,11 +498,7 @@ async def update_classroom(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
-    if not classroom:
-        raise HTTPException(status_code=404, detail="Classroom not found")
-    if current_user.role == "teacher" and classroom.teacher_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You do not own this classroom")
+    classroom = _verify_teacher_access(classroom_id, current_user, db)
     if data.name is not None:
         stripped = data.name.strip()
         if not stripped:
@@ -1258,19 +1266,37 @@ async def upload_document(
     if current_user.role not in ["admin"] and classroom.teacher_id != current_user.id:
         raise HTTPException(403, "Only the classroom teacher can upload documents")
 
-    ext = file.filename.split(".")[-1].lower()
-    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
-    with open(tmp_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    # S20: the raw filename extension must not reach the filesystem path —
+    # a filename with no "." (or embedded "/"/"..") made `ext` traversal-
+    # controllable. Whitelist to a short alnum token.
+    raw_ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    ext = raw_ext if re.fullmatch(r"[a-z0-9]{1,10}", raw_ext) else "bin"
 
-    chunk_count = ingest_document(
-        classroom_id,
-        tmp_path,
-        file.filename,
-        uploaded_by=current_user.id,  # ← FIX: was missing, caused uploaded_by=0
-        db=db,                         # ← FIX: pass session so service doesn't create its own
-    )
-    os.remove(tmp_path)
+    tmp_fd, tmp_path = tempfile.mkstemp(prefix="classroom_upload_", suffix=f".{ext}")
+    try:
+        with os.fdopen(tmp_fd, "wb") as f:
+            written = 0
+            while True:
+                chunk = file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > MAX_UPLOAD_SIZE_BYTES:
+                    raise HTTPException(
+                        400, f"File too large (max {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB)"
+                    )
+                f.write(chunk)
+
+        chunk_count = ingest_document(
+            classroom_id,
+            tmp_path,
+            file.filename,
+            uploaded_by=current_user.id,  # ← FIX: was missing, caused uploaded_by=0
+            db=db,                         # ← FIX: pass session so service doesn't create its own
+        )
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
     doc = ClassroomDocument(
         classroom_id=classroom_id,
@@ -1818,6 +1844,8 @@ async def ask_classroom(
     from models import HKBULLM
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
 
+    _verify_classroom_access(classroom_id, current_user, db)
+
     context_chunks = search_classroom_context(
         classroom_id=classroom_id,
         query=body.question,
@@ -2083,7 +2111,11 @@ def list_classroom_quizzes(
     if current_user.role == "student":
         query = query.filter(ClassroomQuiz.status == "published")
 
-    return query.order_by(ClassroomQuiz.created_at.desc()).all()
+    quizzes = query.order_by(ClassroomQuiz.created_at.desc()).all()
+    if current_user.role == "student":
+        for q in quizzes:
+            q.questions = _strip_quiz_answers(q.questions)
+    return quizzes
 
 
 @router.get("/{classroom_id}/quizzes/{quiz_id}", response_model=ClassroomQuizResponse)
@@ -2102,6 +2134,8 @@ def get_classroom_quiz(
         raise HTTPException(404, "Quiz not found")
     if current_user.role == "student" and quiz.status != "published":
         raise HTTPException(403, "This quiz is not published yet")
+    if current_user.role == "student":
+        quiz.questions = _strip_quiz_answers(quiz.questions)
     return quiz
 
 
@@ -2204,12 +2238,26 @@ def submit_classroom_quiz_attempt(
         if existing_count >= quiz.attempt_limit:
             raise HTTPException(403, f"Attempt limit reached ({quiz.attempt_limit} max)")
 
+    # Grade server-side from the stored correct_index — never trust the
+    # client-submitted score (S13: students could award themselves 100%).
+    questions = quiz.questions or []
+    answers = data.answers or {}
+    if questions:
+        correct_count = sum(
+            1
+            for q in questions
+            if answers.get(str(q.get("id"))) == q.get("correct_index")
+        )
+        score = round(100.0 * correct_count / len(questions), 2)
+    else:
+        score = 0.0
+
     # Create and save attempt
     from db_models import ClassroomQuizAttempt
     attempt = ClassroomQuizAttempt(
         quiz_id=quiz_id,
         student_id=current_user.id,
-        score=data.score,
+        score=score,
         answers=data.answers,
     )
     db.add(attempt)
@@ -2234,16 +2282,18 @@ def get_classroom_quiz_student_results(
 ):
     """Get quiz attempt results for all students (teacher view) or current student's results (student view)."""
     # Verify access
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(404, "Classroom not found")
     member = db.query(ClassroomMember).filter(
         ClassroomMember.classroom_id == classroom_id,
         ClassroomMember.student_id == current_user.id,
     ).first()
     is_student = bool(member)
-    is_teacher = current_user.role == "teacher" and db.query(ClassroomMember).filter(
-        ClassroomMember.classroom_id == classroom_id,
-        ClassroomMember.student_id == current_user.id,
-    ).first() is None or current_user.role == "teacher"
-    
+    is_teacher = current_user.role == "admin" or (
+        current_user.role == "teacher" and classroom.teacher_id == current_user.id
+    )
+
     if not (is_student or is_teacher):
         raise HTTPException(403, "You do not have access to this classroom")
     
@@ -2324,8 +2374,7 @@ def get_classroom_quiz_detailed_results(
     current_user: User = Depends(get_current_user),
 ):
     """Teacher-only: full per-student per-question breakdown for a quiz."""
-    if current_user.role != "teacher":
-        raise HTTPException(403, "Only teachers can view detailed results")
+    _verify_teacher_access(classroom_id, current_user, db)
 
     quiz = db.query(ClassroomQuiz).filter(
         ClassroomQuiz.id == quiz_id,
@@ -2848,6 +2897,9 @@ def list_classroom_practical_challenges(
     if current_user.role == "student":
         q = q.filter(ClassroomPracticalChallenge.status == "published")
     challenges = q.order_by(ClassroomPracticalChallenge.created_at.desc()).all()
+    if current_user.role == "student":
+        for c in challenges:
+            c.model_solution = {}
     return challenges
 
 
@@ -2868,6 +2920,8 @@ def get_classroom_practical_challenge(
         raise HTTPException(404, "Challenge not found")
     if current_user.role == "student" and challenge.status != "published":
         raise HTTPException(404, "Challenge not found")
+    if current_user.role == "student":
+        challenge.model_solution = {}
     return challenge
 
 
@@ -3089,9 +3143,18 @@ def get_practical_challenge_student_results(
     current_user: User = Depends(get_current_user),
 ):
     """Get all student results for a challenge (teacher view) or current student's results (student view)."""
-    
+
     _verify_classroom_access(classroom_id, current_user, db)
-    
+
+    # S15: a challenge_id from another classroom must not be readable just
+    # because the caller owns/belongs to this classroom_id.
+    challenge = db.query(ClassroomPracticalChallenge).filter(
+        ClassroomPracticalChallenge.id == challenge_id,
+        ClassroomPracticalChallenge.classroom_id == classroom_id,
+    ).first()
+    if not challenge:
+        raise HTTPException(404, "Challenge not found")
+
     if current_user.role == "student":
         # Students see only their own results
         student_id = current_user.id

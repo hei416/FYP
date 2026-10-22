@@ -52,11 +52,13 @@ def main():
     print("\n⚡ Using LOCAL embeddings (sentence-transformers)")
     print("   No API calls, no rate limits, ~2-3 mins total\n")
     
-    # Load local embedding model (all-mpnet-base-v2 is ~420MB, balanced speed/quality)
+    # C4: must match the model rag_system.py queries with at runtime
+    # (all-MiniLM-L6-v2, 384-dim) — building with a different model here
+    # silently makes every search 500 after a rebuild.
     print("Loading embedding model...")
-    embeddings = LocalEmbeddings('all-mpnet-base-v2')
+    embeddings = LocalEmbeddings('all-MiniLM-L6-v2')
     dim = embeddings._model.get_sentence_embedding_dimension()
-    print(f"✅ Model loaded: {dim}-dim embeddings (768-dim, better quality)\n")
+    print(f"✅ Model loaded: {dim}-dim embeddings (matches runtime query model)\n")
     
     # Rebuild java_knowledge
     rebuild_vectorstore(

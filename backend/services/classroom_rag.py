@@ -55,6 +55,7 @@ except ImportError:
 
 _embedder = None
 _using_local_fallback = False
+_query_fallback_embedder = None  # separate cache: query-time-only fallback (C3)
 
 
 def _get_embedder():
@@ -88,21 +89,28 @@ def _get_embedder():
 
 
 def _embed(text: str) -> list:
-    """Embed a single text string, handling both HKBU and local fallback."""
-    global _embedder, _using_local_fallback
+    """Embed a single query string, handling both HKBU and local fallback.
+
+    C3: this is used for query-time embedding only. A transient HKBU failure
+    here must NOT flip the shared `_embedder`/`_using_local_fallback` globals
+    that `ingest_document` reads — doing so would make the next uploaded file
+    silently get embedded at a different dimension than chunks already stored
+    for that classroom, producing a ragged/mixed-dim index. The fallback
+    model used for queries is cached separately in `_query_fallback_embedder`.
+    """
+    global _query_fallback_embedder
     embedder = _get_embedder()
     try:
         if _using_local_fallback:
             return embedder.encode(text, convert_to_numpy=True).tolist()
         return embedder.embed_query(text)
     except Exception as e:
-        # If HKBU fails mid-session (e.g. quota expires), switch to local
-        if not _using_local_fallback and _SENTENCE_TRANSFORMERS_AVAILABLE:
-            print(f"⚠️ Classroom RAG: HKBU embed failed ({e}), switching to local fallback")
-            _embedder = _SentenceTransformer('all-MiniLM-L6-v2', device="cpu")
-            _using_local_fallback = True
-            return _embedder.encode(text, convert_to_numpy=True).tolist()
-        raise
+        if not _SENTENCE_TRANSFORMERS_AVAILABLE:
+            raise
+        print(f"⚠️ Classroom RAG: HKBU query embed failed ({e}), using local fallback for this query only")
+        if _query_fallback_embedder is None:
+            _query_fallback_embedder = _SentenceTransformer('all-MiniLM-L6-v2', device="cpu")
+        return _query_fallback_embedder.encode(text, convert_to_numpy=True).tolist()
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +305,26 @@ def upload_and_index(
         db.rollback()
         raise ValueError(f"Failed to embed document chunks: {str(e)}")
 
+    # C3: refuse to add chunks whose dimension doesn't match chunks already
+    # stored for this classroom — mixing dims makes every later query 500.
+    new_dim = len(all_embeddings[0]) if all_embeddings else None
+    if new_dim is not None:
+        existing = (
+            db.query(ClassroomChunk)
+            .filter(ClassroomChunk.classroom_id == classroom_id)
+            .first()
+        )
+        if existing is not None:
+            existing_dim = len(existing.embedding) // 4  # float32 = 4 bytes
+            if existing_dim != new_dim:
+                db.rollback()
+                raise ValueError(
+                    f"Embedding dimension mismatch for classroom {classroom_id}: "
+                    f"existing chunks are {existing_dim}-dim but this file embedded at {new_dim}-dim "
+                    "(the embedding model changed). Re-upload all of this classroom's documents together "
+                    "to rebuild a consistent index."
+                )
+
     # Persist chunks with page numbers
     for (chunk_text, page_num), emb in zip(all_chunks_with_pages, all_embeddings):
         emb_bytes = np.array(emb, dtype=np.float32).tobytes()
@@ -353,10 +381,24 @@ def _get_or_build_index(classroom_id: int, db: Session):
     if not rows or not _FAISS_AVAILABLE:
         return None, []
 
-    embeddings = np.array(
-        [np.frombuffer(r.embedding, dtype=np.float32) for r in rows],
-        dtype=np.float32,
-    )
+    raw_vectors = [np.frombuffer(r.embedding, dtype=np.float32) for r in rows]
+    dims = {v.shape[0] for v in raw_vectors}
+    if len(dims) > 1:
+        # C3: chunks for this classroom were embedded with different models
+        # at different times (e.g. a transient HKBU outage). Stacking a
+        # ragged array crashes every query for this classroom — fail with a
+        # clear, actionable error instead.
+        logger.error(
+            f"Classroom {classroom_id}: mixed embedding dimensions {sorted(dims)} "
+            "across stored chunks — re-upload the classroom's documents to rebuild a consistent index."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="This classroom's search index has mismatched embeddings and needs to be rebuilt. "
+                   "Ask a teacher to re-upload the classroom's documents.",
+        )
+
+    embeddings = np.array(raw_vectors, dtype=np.float32)
     faiss.normalize_L2(embeddings)
 
     dim = embeddings.shape[1]
