@@ -19,3 +19,4 @@ README claims match audited reality; eval doc committed with a usable golden set
 ## Status
 
 - 2026-10-22 — Started.
+- 2026-10-22 — **Complete** in 4 commits: plan; README accuracy (node-pty claim removed, issues #1/#4/#6/#7/#8 corrected against audit evidence, caveats on the stale "Completed Fixes" claims, Known-Issues table now links `docs/backlog.md` as the live tracker); `docs/modules/rag-evaluation.md` (methodology, metrics incl. reuse of the NLI monitor, 20-question golden set, thresholds — the runner `.py` deferred until AUD-2 per FE-8); backlog (QW-1 Done, KI-4/KI-6/GAP-RAG updated) + AGENTS.md docs map. All changed paths deploy-inert (`README.md`, `AGENTS.md`, `docs/**`); secret scans clean. Not pushed. Next agent-executable work is owner-gated: PROP-1 option choice, BE-1 rotation, AUD-1/AUD-2 approvals.

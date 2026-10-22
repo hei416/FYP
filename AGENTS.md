@@ -43,7 +43,7 @@ Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 ## Docs map
 
 - Runbook / ops: `docs/OPS.md`
-- Module guides: `docs/modules/` (routers, RAG, code playground, classroom roles, frontend)
+- Module guides: `docs/modules/` (routers, RAG pipeline, RAG evaluation, code playground, classroom roles, frontend)
 - Plans: `docs/plans/active/` (one file per task, `YYYY-MM-DD_<topic>_<status>.md`, with a Status block); move to `docs/plans/done/` when finished
 - Backlog: `docs/backlog.md` (Ready / Waiting / Needs human / Unclear / Parked / Done)
 - Decisions: `docs/strategy/decision-log.md` — append-only, entries only with owner-confirmed wording

@@ -21,10 +21,10 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[AUD-6] Perf quick wins** — BE-8 per-chunk query, BE-11 blocking RAG call, BE-13 sleepless Paiza poll, BE-9/10 analytics N+1s, GAP-4 missing indexes (`SavedWork.user_id`, `ClassroomChunk.file_id`).
 - **[KI-2] Specific 4xx/5xx instead of generic 500s** — 28 sites confirmed (BE-14/15).
 - **[KI-3] Pagination on list endpoints** — 2 paginated vs 48 unbounded `.all()` in classroom.py (BE-7).
-- **[KI-4] RAG degradation** — premise stale (BE-22): try/except + fallback exist; real gap is retrieval-only mode on LLM failure. Fix README wording too.
+- **[KI-4] RAG degradation** — premise stale (BE-22): try/except + fallback exist; real gap is retrieval-only mode on LLM failure. (README wording fixed 2026-10-22.)
 - **[OPS-1] Fix stale `core/config.py` defaults** — `LESSON_DIR` dead, `PDF_DIR` live and broken → `/pdfs` 500s (BE-16).
 - **[AUD-7] Grouped med/low cleanups** — security: SEC-15/17/18/19/20/26/27; backend: BE-5/6/17/18/19/25; deps: FE-13/17/20, GAP-10 duplicate pin; frontend: FE-16/18/19 (frontend deploy); tests: FE-15 `dev-requirements.txt` + `pytest.ini` + first backend unit tests. Details in the audit doc.
-- **[GAP-RAG] RAG quality** — unify the two divergent chunkers (GAP-2); add a golden-question eval set (GAP-3 — methodology/results deploy-inert in docs/, the runner `.py` waits for AUD-2's CI fix).
+- **[GAP-RAG] RAG quality** — unify the two divergent chunkers (GAP-2); eval golden set + methodology DONE 2026-10-22 (`docs/modules/rag-evaluation.md`); the runner `.py` still waits for AUD-2's CI fix (GAP-3).
 - **[GAP-OBS] Logging instead of print** — 193 `print(` vs 5 loggers (GAP-6, extends BE-25); module loggers + request-id middleware; batch with AUD-6.
 - **[GAP-FE] Frontend duplication** — shared `api.js` for the 18 duplicated API-base fallbacks (GAP-11); merge `TopicDetailPage`/`EnhancedTopicDetailPage` (GAP-12, halves the FE-4 sink surface). Frontend deploy.
 
@@ -35,7 +35,7 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 
 ## Unclear
 
-- **[KI-6] `migrate_to_postgres.py`** — confirmed absent (BE-23) yet referenced in README and listed in `.gitignore`. Fix the reference or restore the script.
+- **[KI-6] `migrate_to_postgres.py`** — confirmed absent (BE-23); README reference corrected 2026-10-22. Owner still to restore the script or drop the stale `.gitignore:47` line.
 
 ## Parked
 
@@ -46,6 +46,8 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[GAP-OPP] Opportunistic refactors** — extract services from the 3121/2069-line routers (GAP-1), `/api` prefix convention (GAP-7), adopt `require_role()` everywhere (GAP-8), blob-size cap before storage rethink (GAP-5), worker-count review after BE-11/12 (GAP-13). Do only while touching the same files for other fixes.
 
 ## Done
+
+- **[QW-1] Deploy-inert quick wins** — 2026-10-22: README aligned with the verified audit (node-pty claim removed, issues #1/#4/#6/#7/#8 corrected, upload/logging/rate-limit caveats, live-tracker link); RAG eval methodology + golden set in `docs/modules/rag-evaluation.md`.
 
 - **[KI-8] `.env.example` placeholders** — created 2026-10-22 as `env.example` (see OPS-2 for the rename).
 - **[KI-10] Loose root docs archived** — 2026-10-22, reorg Phase 2: 8 root report `*.md` + `QUICKSTART.md` (merged into `docs/OPS.md`) + `FYP RAG.ipynb` → `docs/_archives/` (see its README).
