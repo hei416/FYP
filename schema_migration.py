@@ -12,11 +12,11 @@ Run: python schema_migration.py
 import os
 from sqlalchemy import create_engine, text
 
-# PostgreSQL connection string
-PG_URL = (
-    "postgresql://fypAdmin:FypDB%402026!@fyp-postgres-db.postgres.database.azure.com"
-    "/learning_platform?sslmode=require"
-)
+# PostgreSQL connection string — read from the environment (audit BE-1: never hardcode).
+# Set PG_URL (or DATABASE_URL); on Azure this lives in the App Service settings.
+PG_URL = os.environ.get("PG_URL") or os.environ.get("DATABASE_URL")
+if not PG_URL:
+    raise SystemExit("PG_URL (or DATABASE_URL) environment variable is required - refusing to run.")
 
 def run_migration():
     """Execute the schema migration."""
