@@ -13,8 +13,8 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 ## Deploy triggers (why pushing still needs care)
 
 - **On this branch (2026-10-23, DEPLOY-1 adopted): no workflow fires on push.** `build-backend-image.yml` runs on `workflow_dispatch` and `v*` tags only (builds + pushes the ghcr.io image; the actual deploy stays a manual owner step — OPS.md §Deploy runbook); `deploy-frontend-pages.yml` is `workflow_dispatch` only. **Never push a `v*` tag** — tags are a build trigger now.
-- **On `main` the OLD zip workflows are still live and armed** (secrets exist, Actions enabled — `docs/reports/azure-inventory-2026-10-23.md`): `backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**`; `frontend.yml` on `frontend/**`, `public/**`, `src/**`, `package.json`. They are archived here (`docs/_archives/2026-10-23_zip-deploy-workflows/`), but that de-fangs `main` only once this branch merges.
-- Deploy-inert paths (on `main`): `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
+- **On `main` the OLD zip workflows (`backend.yml`/`frontend.yml`) are `disabled_manually`** on GitHub (verified 2026-10-23, after the reorg merge `6420455` was pushed — no deploy fired). The files still exist on `main` and **re-enabling them re-arms push-deploys** (secrets exist — `docs/reports/azure-inventory-2026-10-23.md`): `backend/**`, `startup.sh`, `terminal-service/**` / `frontend/**`, `public/**`, `src/**`, `package.json`. This branch archives the files to `docs/_archives/2026-10-23_zip-deploy-workflows/`, removing them from `.github/workflows/` for good once merged.
+- Deploy-inert paths (on `main`, if the old workflows were ever re-enabled): `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
 
 ## Where things live
 

@@ -64,6 +64,11 @@ clean per commit; clean tree; decision log NOT written (owner confirms wording f
   Neon/ACA/Pages; Azure half of readiness #1 (`docs/reports/azure-inventory-2026-10-23.md`);
   BE-1 rotation (urgent — repo public); merge/review of this branch, then delete the
   stale Azure GitHub secrets.
+- **Verified after writing (fetch + gh, read-only):** `main` was merged + pushed at
+  `6420455` by a parallel session (includes this branch's base `8290fc3`) and both old
+  workflows are now `disabled_manually` on GitHub — no deploy fired. This branch is
+  3-ahead / 3-behind `origin/main`; expect small doc conflicts (AGENTS.md, backlog,
+  readiness) at merge. Stale "main still armed" wording amended in commit 4.
 - **Watch-outs:** pushing a `v*` tag now triggers an image build — don't tag until
   intended; `wrangler` pinned only to major 3 (pin exact at first use); action pins are
   release tags, tighten to commit SHAs if wanted; `CI: false` in the frontend build is

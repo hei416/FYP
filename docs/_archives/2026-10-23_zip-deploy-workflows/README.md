@@ -13,8 +13,10 @@ on `fix/terminal-and-ci`) patched this zip pipeline; the owner dropped that comm
 2026-10-23 — do not merge it. Files kept verbatim for reference (deploy history
 Mar–Apr 2026: `docs/reports/deployment-evidence-2026-10-22.md`).
 
-Note while unmerged: on `main` the old workflows are still live and armed (secrets
-exist, Actions enabled — `docs/reports/azure-inventory-2026-10-23.md`); the no-push
-rule covers that. After merging, the owner should also delete the dangling secrets
+State on `main` (verified 2026-10-23, after the reorg merge `6420455`): both old
+workflows are **`disabled_manually`** on GitHub — no deploy fired — but the files
+remain in `.github/workflows/` there and re-enabling them re-arms push-deploys
+(secrets still exist — `docs/reports/azure-inventory-2026-10-23.md`). Merging this
+branch removes the files for good. The owner should also delete the dangling secrets
 `AZURE_CREDENTIALS`, `AZURE_WEBAPP_PUBLISH_PROFILE`, `AZURE_FRONTEND_PUBLISH_PROFILE`.
 `startup.sh` stays at the repo root until the old App Services are retired.
