@@ -349,7 +349,7 @@ uvicorn main:app
 | 7 | `terminal-service` WebSocket not proxied through backend in production | Security risk if exposed directly |
 | 8 | No `.env.example` file — developers must manually configure env vars | Add `.env.example` with placeholder values |
 | 9 | `quiz_questions.csv` committed to repo — may contain sensitive test data | Consider moving to seeded DB or protected storage |
-| 10 | Multiple loose `*.md` doc files in root (`BUG_FIX_REPORT_PHASE1.md`, `CONTENT_OVERLAP_ANALYSIS.md`, etc.) | Consider consolidating into a `/docs` folder |
+| 10 | ~~Multiple loose `*.md` doc files in root~~ | ✅ Done 2026-10-22 — archived to [`docs/_archives/`](docs/_archives/README.md) (reorg Phase 2) |
 
 ### ✅ Completed Fixes (Phase 1 — April 2026)
 

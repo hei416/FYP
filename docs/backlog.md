@@ -25,7 +25,6 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 
 ## Waiting
 
-- **[KI-10] Consolidate 8 loose root `*.md` files into `docs/_archives/`** — Phase 2 of the reorg; awaiting owner approval.
 - **[OPS-2] Rename `env.example` → `.env.example`** — blocked by the owner's user-level permission glob; owner runs `mv env.example .env.example` (closes KI-8 fully).
 - **[AUD-8] Untrack `practical_tests/**/.DS_Store`** — tracked despite ignore rules (pre-existing); removal touches a backend CI filter path, so batch with a deploy-triggering commit.
 
@@ -43,3 +42,4 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 ## Done
 
 - **[KI-8] `.env.example` placeholders** — created 2026-10-22 as `env.example` (see OPS-2 for the rename).
+- **[KI-10] Loose root docs archived** — 2026-10-22, reorg Phase 2: 8 root report `*.md` + `QUICKSTART.md` (merged into `docs/OPS.md`) + `FYP RAG.ipynb` → `docs/_archives/` (see its README).
