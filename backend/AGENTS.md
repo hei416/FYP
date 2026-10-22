@@ -1,6 +1,6 @@
 # backend/ — FastAPI app
 
-Everything server-side: API, auth, RAG pipeline, DB models. Entry point `main.py` (13 routers in a static list, ~line 505) is the only `.py` at this root (tidied 2026-10-23). All path/env config derives from `core/config.py` (`PROJECT_ROOT` = this folder). Shared infra lives in `core/` (config, limiter, `database.py`, `db_models.py`, `models.py` = HKBU LLM/embeddings clients); the RAG pipeline in `services/rag_system.py`; runnable one-offs in `scripts/` (run as `python scripts/<name>.py` from this folder).
+Everything server-side: API, auth, RAG pipeline, DB models. Entry point `main.py` (12 routers in a static list, ~line 550) is the only `.py` at this root (tidied 2026-10-23). All path/env config derives from `core/config.py` (`PROJECT_ROOT` = this folder). Shared infra lives in `core/` (config, limiter, `database.py`, `db_models.py`, `models.py` = HKBU LLM/embeddings clients); the RAG pipeline in `services/rag_system.py`; runnable one-offs in `scripts/` (run as `python scripts/<name>.py` from this folder).
 
 ## Rules
 

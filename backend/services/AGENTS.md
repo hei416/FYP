@@ -13,4 +13,4 @@ The logic layer behind [`../routers/`](../routers/AGENTS.md). New behavior goes 
 ## Rules
 
 - RAG code: use **per-request retriever instances** — module-level retriever singletons cause stale-state bugs. Details: [docs/modules/rag-pipeline.md](../../docs/modules/rag-pipeline.md).
-- No offline unit tests cover the RAG pipeline itself — verify with `python -c "import rag_system"` from `backend/`, then exercise `/ragAI` against a running backend.
+- No offline unit tests cover the RAG pipeline itself — verify with `python -c "import services.rag_system"` from `backend/`, then exercise `/ragAI` against a running backend.

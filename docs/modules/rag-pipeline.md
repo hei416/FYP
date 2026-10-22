@@ -1,6 +1,6 @@
 # RAG pipeline
 
-**Parts** (all under `backend/`): `rag_system.py` (core pipeline), `routers/rag.py` (API, rate-limited 30 req/min), `services/rag_helpers.py`, `services/classroom_rag.py` (classroom-scoped retrieval), `services/nli_monitor.py` (NLI faithfulness checks — answers must be grounded in retrieved docs).
+**Parts** (all under `backend/`): `services/rag_system.py` (core pipeline), `routers/rag.py` (API, rate-limited 30 req/min), `services/rag_helpers.py`, `services/classroom_rag.py` (classroom-scoped retrieval), `services/nli_monitor.py` (NLI faithfulness checks — answers must be grounded in retrieved docs).
 
 **Stores:** FAISS indexes in `backend/vectorstore/` (`java_knowledge`, `platform_guide`, ~6.4 MB) — **committed deliberately** for fast Azure startup. Metadata in `backend/vectorstore/faiss_summary.json`.
 

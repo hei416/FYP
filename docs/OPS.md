@@ -43,7 +43,7 @@ pip install playwright locust && playwright install
 Fast verification used instead of a suite (run from `backend/`):
 
 ```bash
-python -c "import main"               # app + all 13 routers import
+python -c "import main"               # app + all 12 routers import
 python -c "from core import config"  # path config sanity
 cd frontend && npm run build          # only when frontend changed (from the repo root)
 ```
@@ -57,7 +57,7 @@ Merged from the root `QUICKSTART.md` (original archived at `docs/_archives/QUICK
 3. Edit again and "✕ Cancel" → text reverts to the saved value.
 4. DevTools Network check: saving sends `PATCH /classrooms/{id}` with body `{"description": "…"}` → 200.
 
-Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `frontend/src/TeacherClassroomDetail.js` (state + inline editor); backend PATCH endpoint pre-existed. Technical details: `docs/_archives/IMPLEMENTATION_SUMMARY.md`.
+Implementation: `frontend/src/services/classroomService.js` (`updateClassroom()`) + `frontend/src/pages/TeacherClassroomDetail.js` (state + inline editor); backend PATCH endpoint pre-existed. Technical details: `docs/_archives/IMPLEMENTATION_SUMMARY.md`.
 
 ## Feature flags
 
@@ -111,12 +111,14 @@ docker compose -f docker-compose.container.yml down -v      # discard the throwa
 
 **Owner statement 2026-10-22: the app has never been live in production.** CI history shows real deploy runs to the two App Services in Mar–Apr 2026 and none since 2026-04-22; whether the Azure resources and secrets still exist is unverifiable from the repo — evidence: [reports/deployment-evidence-2026-10-22.md](reports/deployment-evidence-2026-10-22.md). Treat the pipelines below as **latent but possibly armed**: a push to `main` matching the path filters may still start a real deploy. Before any first public deployment, work through [plans/active/first-deploy-readiness.md](plans/active/first-deploy-readiness.md).
 
-Both GitHub Actions workflows fire **on every push to `main`** matching their path filters:
+**Current state (verified 2026-10-23):** both workflows are **disabled in the GitHub UI** (`disabled_manually`) — a push fires nothing until someone re-enables them, which instantly re-arms the deploys below unchanged.
+
+When enabled, both GitHub Actions workflows fire **on every push to `main`** matching their path filters:
 
 - `backend.yml`: `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted 2026-10-22 for the `backend/` restructure; final shape waits on the deploy-method decision) → zips the repo (minus `frontend/`) → synchronous `az webapp deploy` to App Service `codetutor-fyp-hei` → polls `/health` (the deploy is no longer `--async`, so the poll validates the **new** build).
 - `frontend.yml`: `frontend/**` plus stale root filters `public/**`, `src/**`, `package.json` → CRA build → regenerates `server.js` at package time (the repo copy was deleted in bec2835) → deploys to the frontend App Service.
 
-There is no staging environment. **Never push without the owner's explicit go-ahead.** Open question for the owner: no workflow run has fired since 2026-04-22 despite filter-matching pushes (Actions shows "active"; cause unverifiable with current token permissions) — resolve before relying on CI at all.
+There is no staging environment. **Never push without the owner's explicit go-ahead.** The old open question — why no workflow run fired since 2026-04-22 — was resolved 2026-10-23: benign, the only push in that window matched neither path filter (see [reports/azure-inventory-2026-10-23.md](reports/azure-inventory-2026-10-23.md)); both workflows were manually disabled the same day.
 
 ## Known failure patterns
 

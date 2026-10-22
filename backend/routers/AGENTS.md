@@ -1,6 +1,6 @@
 # backend/routers/ — API handlers
 
-13 FastAPI routers (admin, auth, classroom, code_execution, conversation, lessons, my_work, pdfs, practical_tests, progress, rag, terminal), registered in the **static list in `backend/main.py` (~line 505)**. Full guide: [docs/modules/backend-routers.md](../../docs/modules/backend-routers.md).
+12 FastAPI routers (admin, auth, classroom, code_execution, conversation, lessons, my_work, pdfs, practical_tests, progress, rag, terminal), registered in the **static list in `backend/main.py` (~line 550)**. Full guide: [docs/modules/backend-routers.md](../../docs/modules/backend-routers.md).
 
 ## Rules
 

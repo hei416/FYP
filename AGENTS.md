@@ -4,13 +4,15 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 
 ## Hard rules — read before doing anything
 
-1. **Never push.** Owner states (2026-10-22) the app has **never been deployed online / never live in production** — treat the path-filtered GitHub Actions deploy workflows as **latent, not dead**: a push to `main` may still start a real Azure deploy (and incur cost) if the secrets and App Services still exist, so the no-push rule stays until the owner lifts it. (CI history does show past deploy runs — evidence and open questions: `docs/reports/deployment-evidence-2026-10-22.md`.) Commit locally on a branch; only the owner pushes.
+1. **Never push.** Owner states (2026-10-22) the app has **never been deployed online / never live in production** — treat the path-filtered GitHub Actions deploy workflows as **latent, not dead**: both are **disabled in the GitHub UI** (`disabled_manually`, verified 2026-10-23), so a push fires nothing *today* — but re-enabling them instantly re-arms real Azure deploys (and cost) if the secrets and App Services still exist, so the no-push rule stays until the owner lifts it. (CI history does show past deploy runs — evidence and open questions: `docs/reports/deployment-evidence-2026-10-22.md`.) Commit locally on a branch; only the owner pushes.
 2. **Never deploy.** No `az`, no Azure portal/app settings, no `gh workflow run`.
 3. **Never touch `backend/vectorstore/`, secrets, or any `.env*` file** — do not read, edit, move, or commit them. `frontend/.env.*` are git-tracked; leave them alone.
 4. **One task per session.** Work in a **git worktree** on a branch, never directly on `main`.
 5. **Commit before stopping.** Leave a clean tree and update the Status block of your plan file in `docs/plans/active/` as the handoff note.
 
 ## Deploy triggers (latent — why pushing is still off-limits)
+
+Both workflows are currently `disabled_manually` on GitHub (2026-10-23) — nothing fires on push, but anyone re-enabling them re-arms everything below unchanged.
 
 - `.github/workflows/backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted for the `backend/` layout 2026-10-22; final CI shape waits on the deploy-method decision) → would deploy the backend (`codetutor-fyp-hei`).
 - `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → would deploy the frontend.
@@ -20,7 +22,7 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 
 | Path | What |
 |---|---|
-| `backend/main.py` | FastAPI app; 13 routers registered in a static list |
+| `backend/main.py` | FastAPI app; 12 routers registered in a static list |
 | `backend/core/config.py` | All path/env config; everything derives from `PROJECT_ROOT` (= `backend/`) |
 | `backend/routers/` / `backend/services/` | API handlers / business logic (router → service pattern) |
 | `backend/services/rag_system.py`, `backend/vectorstore/` | RAG pipeline + committed FAISS stores |
