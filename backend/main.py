@@ -468,9 +468,13 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_error_handler)
 # CORS MIDDLEWARE
 # ============================================================================
 
+# Explicit allowlist (SEC-8) — wildcard origins with credentials let any site
+# make authenticated requests. Configure CORS_ORIGINS at deploy time.
+from core import config
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]

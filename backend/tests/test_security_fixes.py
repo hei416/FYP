@@ -70,3 +70,23 @@ def test_register_as_admin_rejected(client):
         "email": "adm@example.com", "password": "pw123456", "role": "admin",
     })
     assert r.status_code == 403
+
+
+# --- SEC-8: CORS must be an explicit allowlist, never wildcard ---------------
+
+def test_cors_origins_default_is_localhost_allowlist():
+    from core import config
+    assert "*" not in config.CORS_ORIGINS
+    assert "http://localhost:3000" in config.CORS_ORIGINS
+
+
+def test_cors_origins_env_override(monkeypatch):
+    import importlib
+    from core import config
+    monkeypatch.setenv("CORS_ORIGINS", "https://example.edu, https://app.example.edu")
+    importlib.reload(config)
+    try:
+        assert config.CORS_ORIGINS == ["https://example.edu", "https://app.example.edu"]
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)

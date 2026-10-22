@@ -75,6 +75,20 @@ ALLOWED_MIME_TYPES = {
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
 
 # ============================================================================
+# CORS (SEC-8)
+# ============================================================================
+# Explicit origin allowlist — wildcard + credentials is forbidden. Set
+# CORS_ORIGINS to a comma-separated list (the real frontend origin at deploy
+# time); defaults cover local development only.
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+    if o.strip()
+]
+
+# ============================================================================
 # FEATURE FLAGS
 # ============================================================================
 # AUD-1 (owner decision 2026-10-22): /ws/terminal stays disabled unless
