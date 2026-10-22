@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../services/AuthContext';
 import { JAVA_SUBTOPIC_COUNT } from './BasicJavaPage';
 import { ENHANCED_SUBTOPIC_COUNT } from './EnhancedJavaPage';
-import { BASIC_ROADMAP_KEY, ENHANCED_ROADMAP_KEY, pullProgressFromBackend } from './progressService';
-import { getPublicClassrooms, joinClassroom } from './classroomService';
+import { BASIC_ROADMAP_KEY, ENHANCED_ROADMAP_KEY, pullProgressFromBackend } from '../services/progressService';
+import { getPublicClassrooms, joinClassroom } from '../services/classroomService';
 
 export default function CourseCatalogPage() {
   const navigate = useNavigate();

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './BasicJavaPage';
-import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
-import { colors, radii, font, spacing, shadows } from './theme';
-import DocumentViewer from './DocumentViewer';
+import { ragDocMapping, getSourceColor, formatSourceName } from '../utils/ragDocMapping';
+import { colors, radii, font, spacing, shadows } from '../utils/theme';
+import DocumentViewer from '../components/DocumentViewer';
 import DOMPurify from 'dompurify';
 
 // Maps each TOPIC_GROUPS index (0-based) to its quiz topic name
@@ -35,7 +35,7 @@ export default function TopicDetailPage() {
     useEffect(() => {
         let cancelled = false;
         setContentLoading(true);
-        import('./topicContent.json').then(mod => {
+        import('../data/topicContent.json').then(mod => {
             if (!cancelled) {
                 setTopicContent(mod.default || mod);
                 setContentLoading(false);

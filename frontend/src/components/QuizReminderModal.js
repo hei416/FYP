@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
-import { pushProgressToBackend } from './progressService';
+import { useAuth } from '../services/AuthContext';
+import { pushProgressToBackend } from '../services/progressService';
 
 const QuizReminderModal = ({ show, chapterCount, onClose, onDismiss }) => {
   const navigate = useNavigate();

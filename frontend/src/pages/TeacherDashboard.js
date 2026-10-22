@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../services/AuthContext';
 import {
   createClassroom, getMyClassrooms, getOfficialClassrooms,
   createSection, listSections, deleteSection, renameSection,
@@ -8,9 +8,9 @@ import {
   getOfficialAggregateCourseProgress, getOfficialAggregateStudentWork,
   getOfficialClassroomList, getClassroomCourseProgress, getClassroomStudentWork,
   toggleClassroomPublic,
-} from './classroomService';
-import { radii, font, card, shadows } from './theme';
-import { btn, colors } from './theme';
+} from '../services/classroomService';
+import { radii, font, card, shadows } from '../utils/theme';
+import { btn, colors } from '../utils/theme';
 // Section-based document management — also used by TeacherClassroomDetail (imported from here)
 export function ClassroomSections({ classroomId }) {
   const [sections, setSections] = useState([]);      // sections from API (id > 0)

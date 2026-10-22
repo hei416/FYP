@@ -1,6 +1,6 @@
 // Import the topic IDs from both courses
-import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from './BasicJavaPage';
-import { ENHANCED_SUBTOPIC_IDS, ENHANCED_SUBTOPIC_COUNT } from './EnhancedJavaPage';
+import { JAVA_SUBTOPIC_IDS, JAVA_SUBTOPIC_COUNT } from '../pages/BasicJavaPage';
+import { ENHANCED_SUBTOPIC_IDS, ENHANCED_SUBTOPIC_COUNT } from '../pages/EnhancedJavaPage';
 import {
     syncProgressToBackend,
     recordQuizAttempt,

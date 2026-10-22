@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ENHANCED_TOPIC_GROUPS } from './EnhancedJavaPage';
-import { enhancedRagDocMapping } from './enhancedRagDocMapping';
-import { getSourceColor, formatSourceName } from './ragDocMapping';
-import DocumentViewer from './DocumentViewer';
+import { enhancedRagDocMapping } from '../utils/enhancedRagDocMapping';
+import { getSourceColor, formatSourceName } from '../utils/ragDocMapping';
+import DocumentViewer from '../components/DocumentViewer';
 import DOMPurify from 'dompurify';
-import enhancedTopicContent from './enhancedTopicContent.json';
+import enhancedTopicContent from '../data/enhancedTopicContent.json';
 
 const GROUP_QUIZ_TOPICS = [
     "Advanced OOP",

@@ -12,7 +12,7 @@ import {
   ENHANCED_PROGRESS_KEY,
   BASIC_MILESTONES_KEY,
   ENHANCED_MILESTONES_KEY,
-} from '../progressService';
+} from '../services/progressService';
 
 describe('localStorage cleanup on logout', () => {
   beforeEach(() => {

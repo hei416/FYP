@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
-import { colors, radii, font, card, shadows, btn } from './theme';
+import { useAuth } from '../services/AuthContext';
+import { colors, radii, font, card, shadows, btn } from '../utils/theme';
 
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 // --- AdminClassroomFiles inline component ---

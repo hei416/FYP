@@ -1,8 +1,8 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { enhancedRagDocMapping } from './enhancedRagDocMapping';
-import { getSourceColor, formatSourceName } from './ragDocMapping';
-import { colors, radii, font, spacing, shadows } from './theme';
+import { enhancedRagDocMapping } from '../utils/enhancedRagDocMapping';
+import { getSourceColor, formatSourceName } from '../utils/ragDocMapping';
+import { colors, radii, font, spacing, shadows } from '../utils/theme';
 import ReactFlow, {
   Controls,
   Background,
@@ -11,8 +11,8 @@ import ReactFlow, {
   addEdge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import DocumentViewer from './DocumentViewer';
-import QuizReminderModal from './QuizReminderModal';
+import DocumentViewer from '../components/DocumentViewer';
+import QuizReminderModal from '../components/QuizReminderModal';
 
 // ----------------- Content Database -----------------
 const subtopicContent = {

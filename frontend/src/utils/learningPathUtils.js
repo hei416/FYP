@@ -34,12 +34,12 @@ export async function getTopicGroupsForCurrentPath() {
   const path = detectCurrentLearningPath();
 
   if (path === 'enhanced') {
-    const { ENHANCED_TOPIC_GROUPS } = await import('./EnhancedJavaPage');
+    const { ENHANCED_TOPIC_GROUPS } = await import('../pages/EnhancedJavaPage');
     return ENHANCED_TOPIC_GROUPS;
   }
 
   // Default to Basic (including 'unknown' case)
-  const { TOPIC_GROUPS } = await import('./BasicJavaPage');
+  const { TOPIC_GROUPS } = await import('../pages/BasicJavaPage');
   return TOPIC_GROUPS;
 }
 
@@ -56,9 +56,9 @@ export async function getTopicLabelsForCurrentPath() {
  */
 export async function getTopicGroupsForPath(path) {
   if (path === 'enhanced') {
-    const { ENHANCED_TOPIC_GROUPS } = await import('./EnhancedJavaPage');
+    const { ENHANCED_TOPIC_GROUPS } = await import('../pages/EnhancedJavaPage');
     return ENHANCED_TOPIC_GROUPS;
   }
-  const { TOPIC_GROUPS } = await import('./BasicJavaPage');
+  const { TOPIC_GROUPS } = await import('../pages/BasicJavaPage');
   return TOPIC_GROUPS;
 }
