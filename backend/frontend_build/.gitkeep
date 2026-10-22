@@ -1,0 +1,6 @@
+Placeholder so backend/frontend_build/ always exists in the Docker build
+context. CI fills it with the output of `REACT_APP_API_BASE= npm run build`
+before `docker build backend/`; a hand-run build leaves it empty, which yields
+an API-only image (main.py probes for index.html).
+
+Never commit a real build here — see .gitignore.

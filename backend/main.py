@@ -655,11 +655,14 @@ async def health_check():
 # In development the build dir is absent and this block is a no-op: CRA serves
 # the SPA on :3000 and talks to this process over CORS as before.
 
-if os.path.isdir(config.FRONTEND_BUILD_DIR):
-    from fastapi.responses import FileResponse
+# The probe is index.html, not the directory: a container image can carry an
+# empty placeholder build dir, and an empty dir must degrade to API-only rather
+# than 404/500 on every page load.
+_BUILD_DIR = os.path.realpath(config.FRONTEND_BUILD_DIR)
+_INDEX_HTML = os.path.join(_BUILD_DIR, "index.html")
 
-    _BUILD_DIR = os.path.realpath(config.FRONTEND_BUILD_DIR)
-    _INDEX_HTML = os.path.join(_BUILD_DIR, "index.html")
+if os.path.isfile(_INDEX_HTML):
+    from fastapi.responses import FileResponse
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
@@ -681,8 +684,8 @@ if os.path.isdir(config.FRONTEND_BUILD_DIR):
     logger.info("✅ Serving SPA from %s (single-process mode)", _BUILD_DIR)
 else:
     logger.info(
-        "ℹ️ No frontend build at %s — API-only mode (run CRA on :3000 for development)",
-        config.FRONTEND_BUILD_DIR,
+        "ℹ️ No index.html at %s — API-only mode (run CRA on :3000 for development)",
+        _INDEX_HTML,
     )
 
     @app.get("/", tags=["Health"], include_in_schema=False)

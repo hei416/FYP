@@ -48,3 +48,8 @@ Entry format:
 - **Reason:** Owner judged the architecture too complicated. The second runtime bought exactly one capability — live stdin — at the cost of a Node runtime, a second port, a second deploy target and an unauthenticated, unsandboxed `javac`/`java` surface (audit SEC-1..6). It was already inert: `ENABLE_TERMINAL` defaulted to off, and `InteractiveTerminal.jsx` hardcoded `ws://localhost:3001` (SEC-24), bypassing both the flag and the proxy — so interactive mode was dev-only and already broken in any deployed instance. Folding `javac` into the backend process was rejected: it would put unsandboxed code execution beside the DB credentials on a public repo.
 - **Trade-off accepted:** programs cannot read input interleaved with output; they read their whole stdin up front.
 - **Decided by:** owner (in session, 2026-10-23) — *wording to confirm*
+
+## 2026-10-23 — Agents may edit the CI path filters when a deletion makes one dead
+- **Decision:** The 2026-10-22 "agents never edit the GitHub Actions workflows" rule is relaxed for this case: the owner granted an in-session edit to remove the `terminal-service/**` path filter from `.github/workflows/backend.yml`, which became dead when the folder was deleted. Broader CI changes (the zip-vs-container pipeline shape, FE-8..FE-12) remain owner-only and gated on DEPLOY-1.
+- **Reason:** The filter referenced a path that no longer exists, so it could never match; leaving it would mislead the next reader into thinking a terminal service still deploys. `.github/**` is not itself in any deploy filter, so the edit cannot trigger a deploy.
+- **Decided by:** owner (in session, 2026-10-23) — *wording to confirm*

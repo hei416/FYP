@@ -6,9 +6,10 @@ on:
     paths:
       # PROVISIONAL (2026-10-22): adjusted for the backend/ restructure only.
       # Deploy method is undecided — revisit with the deploy-options decision.
+      # terminal-service/** dropped 2026-10-23: the folder was deleted in the
+      # single-process collapse (owner granted this CI edit in session).
       - 'backend/**'
       - 'startup.sh'
-      - 'terminal-service/**'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
 

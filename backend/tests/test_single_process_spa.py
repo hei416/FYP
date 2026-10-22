@@ -100,3 +100,25 @@ def test_terminal_proxy_is_gone(spa_client):
     """The ws proxy retired with terminal-service — no route may remain."""
     paths = [r.path for r in spa_client.app.routes if hasattr(r, "path")]
     assert "/ws/terminal" not in paths
+
+
+def test_empty_build_dir_degrades_to_api_only(tmp_path):
+    """A placeholder build dir with no index.html must not mount the SPA.
+
+    Container images ship `frontend_build/` as a committed placeholder so the
+    Dockerfile COPY always has a source; a hand-run `docker build` leaves it
+    empty. That must give an API-only app, not a 500 on every page.
+    """
+    previous = os.environ.get("FRONTEND_BUILD_DIR")
+    os.environ["FRONTEND_BUILD_DIR"] = str(tmp_path)  # exists, but no index.html
+    try:
+        main = _reimport_main()
+        paths = [r.path for r in main.app.routes if hasattr(r, "path")]
+        assert "/{full_path:path}" not in paths
+        assert TestClient(main.app).get("/health").json() == {"status": "ok"}
+    finally:
+        if previous is None:
+            os.environ.pop("FRONTEND_BUILD_DIR", None)
+        else:
+            os.environ["FRONTEND_BUILD_DIR"] = previous
+        _reimport_main()

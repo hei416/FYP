@@ -117,7 +117,22 @@ docker compose -f docker-compose.container.yml down -v      # discard the throwa
 
 **Frontend container-era build option:** the frontend needs no container — `cd frontend && REACT_APP_API_BASE=https://YOUR-BACKEND.example npm run build` produces a static `build/` servable by any static host (or an nginx container). That removes the regenerated-`server.js` failure mode (FE-3) entirely; remember CRA env vars are build-time and `CORS_ORIGINS` must include the static origin.
 
-**Not in the image:** `docs/`, tests, any `.env*`. **`frontend/build` must now be *in* the image** — single-process mode serves the SPA from the backend process; `backend/Dockerfile` does not yet copy it (open item, DEPLOY-1). `startup.sh` is unused by the image but stays at the repo root while the latent zip workflows exist.
+**Not in the image:** `docs/`, tests, any `.env*`. `startup.sh` is unused by the image but stays at the repo root while the latent zip workflows exist.
+
+**The SPA ships in the image** (single-process mode). The build context is `backend/`, so Docker cannot
+reach `frontend/build`; instead CI drops the build into **`backend/frontend_build/`** before
+`docker build backend/`, and the Dockerfile points `FRONTEND_BUILD_DIR` at `/app/frontend_build`
+(the code default resolves to `/frontend/build` in-image, because `PROJECT_ROOT` is `/app`). The
+directory is committed as an empty placeholder, so a hand-run `docker build backend/` succeeds and
+simply produces an API-only image. Build the SPA with **`REACT_APP_API_BASE=` empty** — it is a
+frontend build-time variable and nothing in the image can correct it afterwards:
+
+```bash
+cd frontend && REACT_APP_API_BASE= npm run build
+rm -rf backend/frontend_build && mkdir -p backend/frontend_build
+cp -R frontend/build/. backend/frontend_build/
+docker build -t codetutor backend/
+```
 
 ## Deploy mechanics (latent)
 

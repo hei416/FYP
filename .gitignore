@@ -45,3 +45,9 @@ Thumbs.db
 *.log
 deploy.zip
 migrate_to_postgres.py
+
+# Single-process container builds: CI drops the React build here before
+# `docker build backend/`. The directory is tracked (placeholder only) so the
+# Dockerfile COPY always resolves; its contents never are.
+backend/frontend_build/*
+!backend/frontend_build/.gitkeep

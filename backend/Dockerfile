@@ -13,7 +13,10 @@
 #   PAIZA_API_KEY    optional (defaults to "guest")
 #   CORS_ORIGINS     comma-separated allowlist; defaults to localhost dev origins
 #   PORT             listen port (default 8000)
-#   ENABLE_TERMINAL  deliberately NOT set — code default is off (AUD-1)
+#   FRONTEND_BUILD_DIR  set below to /app/frontend_build — do not override unless
+#                    the SPA is served elsewhere. NOTE: the code default
+#                    (<repo>/frontend/build) resolves to /frontend/build inside
+#                    this image, because PROJECT_ROOT is /app; hence the ENV.
 #   DEBUG_MODE       deliberately NOT set — code default is off
 
 # Pinned Python base. Once Docker is available locally, pin the digest too:
@@ -48,6 +51,20 @@ COPY --from=deps /opt/venv /opt/venv
 WORKDIR /app
 # .dockerignore keeps tests, caches and any .env* out of the context.
 COPY . /app
+
+# ---------- Single-process SPA ----------
+# This image serves the React app and the API from one process. CI builds the
+# SPA and drops it in backend/frontend_build/ before `docker build backend/`;
+# the directory is committed as an empty placeholder, so an image built by hand
+# simply has no index.html there and runs API-only (main.py probes for it).
+#
+# The SPA must be built with REACT_APP_API_BASE EMPTY — it is a frontend
+# build-time variable, so nothing in this image can fix it afterwards. A build
+# carrying an absolute host will call that host instead of this one.
+# `COPY . /app` above already brings frontend_build/ in, so no second COPY is
+# needed — only the pointer, because the code default (<repo>/frontend/build)
+# resolves to /frontend/build in this image: PROJECT_ROOT is /app.
+ENV FRONTEND_BUILD_DIR=/app/frontend_build
 
 # BAKE_HF_MODELS=1 downloads both startup models into the image's HF cache
 # (all-MiniLM-L6-v2 ~90 MB + cross-encoder/nli-deberta-v3-small ~570 MB ≈
