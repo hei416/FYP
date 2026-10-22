@@ -1,0 +1,30 @@
+# Build context is backend/ — frontend/, terminal-service/ and docs/ are
+# outside the context already. Keep the image to runtime code + committed data
+# (vectorstore/, java_docs/, practical_tests/, quiz_questions.csv stay IN).
+
+# Never ship environment/secret files
+.env
+.env.*
+*.pem
+*.key
+
+# Tests and dev tooling
+tests/
+evaluation/
+requirements-dev.txt
+.pytest_cache/
+
+# Python cruft
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local databases and scratch
+*.db
+*.sqlite3
+*.log
+
+# This file and the Dockerfile itself
+Dockerfile
+.dockerignore
