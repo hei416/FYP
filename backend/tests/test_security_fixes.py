@@ -332,6 +332,58 @@ def test_llm_endpoints_require_auth(rag_client):
         assert r.status_code == 401, f"{path} -> {r.status_code}"
 
 
+# --- AUD-5 (BE-2/BE-3): migration safety --------------------------------------
+
+def test_run_migrations_skips_non_postgres():
+    """BE-2: the Postgres-only migration SQL must not run against SQLite."""
+    import main
+    engine = create_engine("sqlite://")
+    # Must return without raising and without executing any statement.
+    assert main.run_migrations(engine) is None
+
+
+def test_run_migrations_raises_on_failed_steps():
+    """BE-3: failures must raise, not end in a green 'complete' message."""
+    import main
+
+    class FakeDialect:
+        name = "postgresql"
+
+    class FakeConn:
+        def execute(self, *a, **k):
+            raise RuntimeError("boom")
+        def commit(self):
+            pass
+        def rollback(self):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    class FakeEngine:
+        dialect = FakeDialect()
+        def connect(self):
+            return FakeConn()
+
+    with pytest.raises(RuntimeError, match="migration step"):
+        main.run_migrations(FakeEngine())
+
+
+def test_schema_migration_requires_explicit_confirmation():
+    """AUD-5: schema_migration.py must refuse to run without --yes."""
+    import subprocess
+    env = dict(os.environ, PG_URL="postgresql://db.invalid:5432/x")  # never connected
+    env.pop("MIGRATION_CONFIRM", None)
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    r = subprocess.run(
+        [sys.executable, "schema_migration.py"],
+        cwd=backend_dir, env=env, capture_output=True, text=True, timeout=60,
+    )
+    assert r.returncode == 2
+    assert "Nothing was executed" in r.stdout
+
+
 # --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------
 
 def test_unhandled_exception_returns_generic_500():

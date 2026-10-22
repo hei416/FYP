@@ -91,7 +91,22 @@ except Exception as e:
 # ============================================================================
 
 def run_migrations(db_engine):
-    """Run idempotent schema migrations. Safe to call multiple times."""
+    """Run idempotent schema migrations. Safe to call multiple times.
+
+    AUD-5 (BE-2/BE-3): the statements below are PostgreSQL-only SQL
+    (SERIAL, ::JSON casts, ADD COLUMN IF NOT EXISTS), so on any other
+    dialect the function skips instead of failing every statement; and
+    failures are collected and raised instead of silently swallowed.
+    """
+    if db_engine.dialect.name != "postgresql":
+        print(
+            f"⏭️  Skipping SQL migrations: dialect '{db_engine.dialect.name}' is not "
+            "postgresql (these statements are Postgres-only). For a fresh dev "
+            "database create tables with scripts/create_tables.py."
+        )
+        return
+
+    _migration_failures = []
     try:
         from sqlalchemy import text
         with db_engine.connect() as conn:
@@ -105,6 +120,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: dismissed_milestones column ensured on user_progress")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ dismissed_milestones migration: {e}")
 
             try:
@@ -116,6 +132,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: role column ensured on users")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ role migration: {e}")
 
             try:
@@ -135,6 +152,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: classrooms table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ classrooms migration: {e}")
 
             try:
@@ -146,6 +164,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: category column ensured on classrooms")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ classroom category migration: {e}")
 
             try:
@@ -162,6 +181,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: classroom_members table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ classroom_members migration: {e}")
 
             try:
@@ -182,6 +202,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: classroom_documents table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ classroom_documents migration: {e}")
 
             for col, col_type in [
@@ -195,6 +216,8 @@ def run_migrations(db_engine):
                     conn.commit()
                     print(f"✅ Migration: added column '{col}' to practical_test_questions")
                 except Exception:
+                    # Expected on re-runs: ADD COLUMN without IF NOT EXISTS fails
+                    # once the column exists — not counted as a migration failure.
                     conn.rollback()
 
             try:
@@ -219,6 +242,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: conversation_history table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ conversation_history migration: {e}")
 
             try:
@@ -244,6 +268,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: conversation_summaries table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ conversation_summaries migration: {e}")
 
             try:
@@ -261,6 +286,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: quiz_attempts table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ quiz_attempts migration: {e}")
 
             try:
@@ -272,6 +298,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: page_number column ensured on classroom_chunks")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ page_number migration: {e}")
 
             try:
@@ -289,6 +316,7 @@ def run_migrations(db_engine):
                 print("✅ Migration: classroom_sections table ready")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ classroom_sections migration: {e}")
 
             try:
@@ -301,10 +329,18 @@ def run_migrations(db_engine):
                 print("✅ Migration: section_id column ensured on classroom_files")
             except Exception as e:
                 conn.rollback()
+                _migration_failures.append(str(e))
                 print(f"⚠️ section_id migration: {e}")
 
-    except Exception as e:
-        print(f"⚠️ run_migrations error: {e}")
+        # BE-3: fail loudly — a failed step must not end in a green message.
+        if _migration_failures:
+            raise RuntimeError(
+                f"{len(_migration_failures)} migration step(s) failed; first: "
+                f"{_migration_failures[0]}"
+            )
+    except Exception:
+        print("❌ run_migrations FAILED — schema may be incomplete")
+        raise
 
 
 # ============================================================================
@@ -384,7 +420,10 @@ async def lifespan(app: FastAPI):
         await loop.run_in_executor(_startup_executor, run_migrations, engine)
         print("✅ All migrations complete\n")
     except Exception as e:
-        print(f"⚠️ Migration warning (server will still start): {e}\n")
+        # BE-3: loud, honest failure. The server still binds (Azure startup
+        # contract: never block gunicorn), but the log no longer claims success.
+        print(f"❌ MIGRATIONS FAILED — schema may be incomplete or outdated: {e}")
+        print("   The server starts anyway; investigate before trusting DB-backed routes.\n")
 
     # ── Step 2: NLI Monitor Pre-warm ────────────────────────────────────────
     print("🧠 Pre-warming NLI faithfulness monitor...")

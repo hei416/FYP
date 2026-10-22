@@ -7,9 +7,12 @@ This migration:
 3. Restores the data in JSON format
 4. Verifies data integrity
 
-Run: python schema_migration.py
+Run: python schema_migration.py --yes
+     (AUD-5: the --yes flag — or MIGRATION_CONFIRM=yes — is required; the
+      migration DROPS a column, so it must never run by accident.)
 """
 import os
+import sys
 from sqlalchemy import create_engine, text
 
 # PostgreSQL connection string — read from the environment (audit BE-1: never hardcode).
@@ -173,6 +176,17 @@ def run_migration():
             return False
 
 if __name__ == "__main__":
+    # AUD-5 safety gate: this migration drops user_progress.dismissed_milestones
+    # after conversion. Refuse to touch the database without explicit consent.
+    confirmed = "--yes" in sys.argv[1:] or os.environ.get("MIGRATION_CONFIRM", "").lower() == "yes"
+    if not confirmed:
+        print("This migration ALTERs user_progress and DROPS the old")
+        print("dismissed_milestones column after converting it to JSON.")
+        print("Nothing was executed. To run it for real:")
+        print("    python schema_migration.py --yes")
+        print("(or set MIGRATION_CONFIRM=yes)")
+        raise SystemExit(2)
+
     print("=" * 60)
     print("🚀 Starting schema migration: dismissed_milestones conversion")
     print("=" * 60)
