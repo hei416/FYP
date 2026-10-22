@@ -2,7 +2,9 @@
 fetch_missing_docs.py
 Fetches and saves all missing/broken KB content for the FYP RAG system.
 Fixes: data_structures/ (12 stubs), javanotes/ (12 stubs), + 10 missing GFG topics.
-Run once from repo root: python scripts/fetch_missing_docs.py
+Run once from backend/: python scripts/fetch_missing_docs.py
+(Needs network; writes under backend/java_docs/ — rebuild the vectorstore
+afterwards only deliberately, see docs/OPS.md.)
 """
 
 import os, time, re, requests
@@ -12,7 +14,12 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; FYP-RAG-Builder/1.0)"}
 DELAY   = 1.5   # seconds between requests — be polite to servers
 
 # ── OUTPUT DIRS ─────────────────────────────────────────────
-REPO_ROOT = "/Users/hei/IdeaProjects/fyp"
+# Self-relative (this file lives in backend/scripts/), overridable via env —
+# the old hardcoded dev-machine path broke this script on every other machine.
+REPO_ROOT = os.environ.get(
+    "BACKEND_ROOT",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+)
 BASE      = os.path.join(REPO_ROOT, "java_docs", "java_knowledge")
 DIR_GFG   = os.path.join(BASE, "geeksforgeeks")
 DIR_DS    = os.path.join(BASE, "data_structures")
