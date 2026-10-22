@@ -84,13 +84,13 @@ Exact changes it would require (all in **one** push, after a staging rehearsal):
 
 ## Decisions needed from owner (recommended default first)
 
-1. **Rotate the Postgres admin password now** (BE-1) — *default: yes, today; blocks everything else.*
+1. **Rotate the Postgres admin password now** (BE-1) — *default: yes, today; blocks everything else.* **Answered 2026-10-22: deferred by owner** (no-leak confirmed; backlog AUD-0, Parked — value remains in git history). Code side done separately on `fix/be1-credential-env`.
 2. **Terminal service stance** (AUD-1): disable `/ws/terminal` + keep :3001 private until hardened, vs harden in place in Phase 2 — *default: disable in the Phase 2 push, harden in the same batch (SEC-2/3/5/6); full sandboxing (SEC-4) deferred.*
 3. **Pick option A / B / C** — *default: B.*
 4. **Approve the Phase 1 CI repair commit** (AUD-2 — only agent-proposed, owner-reviewed CI change) — *default: yes; it gates everything.*
 5. **FE-3 frontend pipeline fix shape**: restore a minimal static `server.js` vs switch App Service to static serving — *default: minimal static Express/`serve` entry restored in frontend/, same zip layout; least Azure-side change.*
 6. **Confirm `frontend/.env.*` are URL-only** (SEC-22/FE-6), then untrack — *default: owner inspects; if URL-only, untrack + ignore without history purge.*
-7. **Dead code deletes** (BE-24: `verify_schema.py`, `verify_enhanced_support.py`, `local_llm_fallback.py`) — *default: delete `verify_schema.py` in the Phase 2 batch (it carries the credential), park the rest.*
+7. **Dead code deletes** (BE-24: `verify_schema.py`, `verify_enhanced_support.py`, `local_llm_fallback.py`) — *default: delete `verify_schema.py` in the Phase 2 batch (no longer carries the credential since 2026-10-22, but still dead code), park the rest.*
 8. **`quiz_questions.csv` in git** (KI-9) — *default: keep and document; revisit only if it gains sensitive content.*
 9. **Future restructure to `backend/`** (move map above) — *default: defer; recorded as propose-only.*
 10. **Staging slot / CI pytest gate** (C elements) — *default: pytest gate yes once Phase 4 tests exist; staging slot only if restructure is ever approved.*

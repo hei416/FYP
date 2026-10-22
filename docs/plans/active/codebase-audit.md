@@ -8,7 +8,7 @@ Static analysis only (grep + targeted reads; no app runs, no Azure, no `.env*` f
 
 ## Act-first items (owner action needed before any code fix)
 
-1. **BE-1 (critical):** a live Azure Postgres admin password is hardcoded in tracked files `schema_migration.py:16-19` and `verify_schema.py:7`. **Rotate the password in Azure first**, then remove from code and purge git history. Until rotated, treat the repo as leaking a production DB credential.
+1. **BE-1 (critical):** a live Azure Postgres admin password is hardcoded in tracked files `schema_migration.py:16-19` and `verify_schema.py:7`. **Rotate the password in Azure first**, then remove from code and purge git history. Until rotated, treat the repo as leaking a production DB credential. *Update 2026-10-22: owner deferred rotation (no-leak confirmed; backlog AUD-0, Parked). Code side done on branch `fix/be1-credential-env` — both scripts now read `PG_URL`/`DATABASE_URL` from the environment; the value remains in git history.*
 2. **SEC-1..6 (critical):** the terminal service is unauthenticated RCE: no auth/origin check on the WebSocket (`terminal-service/server.js:39-55`), attacker-controlled filename → arbitrary file write (`server.js:64-66`) and `javac` argument injection (`server.js:75`), unsandboxed `java` execution with inherited env and no timeout/memory cap (`server.js:91-95`); exposed to the internet via the backend proxy `routers/terminal.py:24-29` (accepts with no token check) and to the LAN via `docker-compose.yml:35-36` (`3001:3001` on all interfaces). **Consider disabling the `/ws/terminal` proxy route until fixed.** Note: contrary to the README, there is no node-pty — `server.js` uses plain `child_process`.
 
 ## SEC — security findings

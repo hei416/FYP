@@ -6,7 +6,6 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 
 - **[PROP-1] Decide improvement option A / B / C** — see `docs/reports/improvement-proposal-2026-10-22.md` §Decisions (10 items, each with a recommended default; default overall: **B**). Gates AUD-3..7 batching.
 
-- **[AUD-0] Rotate the Azure Postgres admin password** — committed in `schema_migration.py:16-19` and `verify_schema.py:7` (BE-1). Rotate first, then code cleanup + history purge.
 - **[AUD-1] Terminal-service RCE decision** — unauthenticated ws + file write + unsandboxed java (SEC-1..6/FE-1), runs in production via `startup.sh:88-90`. Quick option: disable the `/ws/terminal` proxy until hardened.
 - **[AUD-2] CI workflow fixes (one owner-reviewed commit)** — backend.yml misses `terminal-service/**` (FE-2) and over-matches `**.py` (FE-8); health polls validate the previous build (FE-7/FE-11); frontend.yml zips a deleted `server.js` — the frontend pipeline may be broken today (FE-3); stale filters (FE-9, GAP-9 — nonexistent `lessons_raw/**`); `REACT_APP_TERMINAL_WS` unset in build (FE-10); `CI: false` (FE-12). Owner also picks the FE-3 fix shape (proposal decision #5).
 - **[KI-7] Proxy terminal-service WebSocket through the backend in production** — part of the AUD-1 architecture decision.
@@ -38,6 +37,8 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[KI-6] `migrate_to_postgres.py`** — confirmed absent (BE-23); README reference corrected 2026-10-22. Owner still to restore the script or drop the stale `.gitignore:47` line.
 
 ## Parked
+
+- **[AUD-0] Azure Postgres admin password rotation** — **deferred by owner decision 2026-10-22** (owner confirms no leak; value stays in use). Code side DONE 2026-10-22: `schema_migration.py`/`verify_schema.py` now read `PG_URL`/`DATABASE_URL` from the environment. **The value remains in git history** — rotation + history purge still required before the repo is ever shared or made public. Owner also to set `PG_URL` wherever the scripts run, and may add a `PG_URL=` placeholder to `env.example`.
 
 - **[KI-5] Local LLM fallback** (`local_llm_fallback.py`) — disabled; revisit post-FYP. Dead-code removal candidates alongside it: `verify_enhanced_support.py`, `verify_schema.py` (BE-24 — deletes, owner-gated).
 - **[P2-public] Root `public/`** — owner 2026-10-22: leave in place (stale `frontend.yml` filter would fire).
