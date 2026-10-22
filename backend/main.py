@@ -76,7 +76,7 @@ try:
     from routers import (
         code_execution, lessons, pdfs, practical_tests,
         rag, auth, progress, my_work, conversation,
-        classroom, admin, terminal
+        classroom, admin
     )
     import routers.rag as rag_router
     ROUTERS_IMPORTED = True
@@ -563,7 +563,6 @@ if ROUTERS_IMPORTED:
             (conversation.router,    "Conversation",   None),
             (classroom.router,       "Classroom",      None),
             (admin.router,           "Admin",          None),
-            (terminal.router,        "Terminal",       None),
         ]
 
         for router_obj, router_name, prefix in routers_to_include:
@@ -614,9 +613,9 @@ if DEBUG_MODE:
 # HEALTH CHECK ENDPOINTS
 # ============================================================================
 
-@app.get("/", tags=["Health"])
-async def root():
-    """Root endpoint — system status and performance metrics."""
+@app.get("/api/status", tags=["Health"])
+async def api_status():
+    """System status and performance metrics (was `GET /` before the SPA mount)."""
     return {
         "status": "online",
         "system": "Java Learning Platform",
@@ -645,3 +644,48 @@ async def root():
 async def health_check():
     """Quick liveness probe."""
     return {"status": "ok"}
+
+
+# ============================================================================
+# SINGLE-PROCESS SPA MOUNT
+# ============================================================================
+# Registered LAST so every API route above wins the match. When a production
+# React build exists at FRONTEND_BUILD_DIR, this process serves the whole app
+# (API + SPA) on one port — no separate frontend host, no Node runtime.
+# In development the build dir is absent and this block is a no-op: CRA serves
+# the SPA on :3000 and talks to this process over CORS as before.
+
+if os.path.isdir(config.FRONTEND_BUILD_DIR):
+    from fastapi.responses import FileResponse
+
+    _BUILD_DIR = os.path.realpath(config.FRONTEND_BUILD_DIR)
+    _INDEX_HTML = os.path.join(_BUILD_DIR, "index.html")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Serve a built asset when the path names one, else index.html.
+
+        The index.html fallback is what makes client-side routes (/playground,
+        /lessons/3, …) survive a hard refresh. Paths are resolved and checked
+        against the build root so `..` segments cannot escape it.
+        """
+        if full_path:
+            candidate = os.path.realpath(os.path.join(_BUILD_DIR, full_path))
+            if (
+                (candidate == _BUILD_DIR or candidate.startswith(_BUILD_DIR + os.sep))
+                and os.path.isfile(candidate)
+            ):
+                return FileResponse(candidate)
+        return FileResponse(_INDEX_HTML)
+
+    logger.info("✅ Serving SPA from %s (single-process mode)", _BUILD_DIR)
+else:
+    logger.info(
+        "ℹ️ No frontend build at %s — API-only mode (run CRA on :3000 for development)",
+        config.FRONTEND_BUILD_DIR,
+    )
+
+    @app.get("/", tags=["Health"], include_in_schema=False)
+    async def root():
+        """Dev-mode root — the SPA takes this path once a build exists."""
+        return await api_status()

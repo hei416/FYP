@@ -18,6 +18,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Offline-only signing key; must be set before the auth module is imported.
 os.environ.setdefault("SECRET_KEY", "offline-test-signing-key-not-a-secret")
 
+# Keep the app API-only regardless of whether the developer has run
+# `npm run build`. With a build present main.py registers an SPA catch-all that
+# answers any unmatched path with index.html, which would shadow the throwaway
+# routes these tests add at runtime. The catch-all itself is covered by
+# tests/test_single_process_spa.py.
+os.environ.setdefault("FRONTEND_BUILD_DIR", "/nonexistent-frontend-build")
+
 from database import Base, get_db  # noqa: E402
 from routers import auth  # noqa: E402
 from core.rate_limiter import limiter  # noqa: E402

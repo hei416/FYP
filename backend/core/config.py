@@ -19,7 +19,8 @@ BASE_URL = "https://genai.hkbu.edu.hk/api/v0/rest"
 # Project Root
 # ============================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # /fyp/core
-PROJECT_ROOT = os.path.dirname(BASE_DIR)               # /fyp
+PROJECT_ROOT = os.path.dirname(BASE_DIR)               # <repo>/backend
+REPO_ROOT = os.path.dirname(PROJECT_ROOT)              # <repo>
 
 # ============================================
 # Directory Paths
@@ -89,13 +90,16 @@ CORS_ORIGINS = [
 ]
 
 # ============================================================================
-# FEATURE FLAGS
+# SINGLE-PROCESS SPA
 # ============================================================================
-# AUD-1 (owner decision 2026-10-22): /ws/terminal stays disabled unless
-# ENABLE_TERMINAL=true — the terminal-service it bridges to is unauthenticated
-# and unsandboxed (audit SEC-1..6). Read at import time: flipping it requires
-# an app restart (an Azure app-setting change restarts the app anyway).
-ENABLE_TERMINAL = os.environ.get("ENABLE_TERMINAL", "false").lower() == "true"
+# Owner decision 2026-10-23: one process serves both the API and the built
+# React SPA. Absent in development (CRA serves :3000), present in a deployed
+# image, where the build is copied next to the backend.
+# Note: PROJECT_ROOT is `backend/`, so the build is addressed from REPO_ROOT.
+# A deployed image that copies the build next to the backend sets the env var.
+FRONTEND_BUILD_DIR = os.getenv(
+    "FRONTEND_BUILD_DIR", os.path.join(REPO_ROOT, "frontend", "build")
+)
 FAISS_EMBEDDING_API_VERSION = "2024-05-01-preview"  # ← Changed from "2024-02-01"
 
 # Retrieval Settings
