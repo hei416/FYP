@@ -8,3 +8,4 @@
 ## Status
 
 - **2026-10-22 — DONE (research); decision now with the owner (DEPLOY-1 / readiness #15).** Recommended default: ghcr.io image → Azure Container Apps scale-to-zero + static frontend (CF Pages / Azure SWA) + Neon free Postgres; runner-up Fly.io. AUD-2's zip-pipeline repair on `fix/terminal-and-ci` stays **on hold** until the method is chosen. Branch `docs/deploy-options` (off `docs/not-live-reassessment`), not pushed. Changed paths: `docs/reports/deploy-options-2026-10-22.md` (new), `docs/plans/active/first-deploy-readiness.md`, `docs/backlog.md`, this file.
+- 2026-10-23 — Branch `docs/deploy-options` since pushed and merged to `main`. Filed to `done/`. DEPLOY-1 itself remains with the owner.

@@ -1,6 +1,6 @@
 # Backend routers
 
-13 routers in `backend/routers/`, registered in a static list in `backend/main.py` (~line 505): admin, auth, classroom, code_execution, conversation, lessons, my_work, pdfs, practical_tests, progress, rag, terminal — plus `__init__.py`.
+12 routers in `backend/routers/`, registered in a static list in `backend/main.py` (~line 550): admin, auth, classroom, code_execution, conversation, lessons, my_work, pdfs, practical_tests, progress, rag, terminal — plus `__init__.py`.
 
 **Pattern:** API handlers in `backend/routers/`, business logic in `backend/services/` (classroom_rag, conversation_manager, error_explainer, nli_monitor, rag_helpers). Keep new logic in a service, not the router.
 

@@ -114,3 +114,7 @@ Per-commit: offline pytest suite (`backend/tests/test_security_fixes.py` + `test
 | AUD-5 | BE-2 dialect gate, BE-3 fail-loudly, `--yes` gate | sqlite skip; raises on failed steps; script exits 2 without `--yes` |
 | deps | python-multipart 0.0.20, bcrypt 4.2.1, GAP-10 dedupe | import + bcrypt round-trip; multipart upload behaviour not verifiable offline; transformers/torch deferred |
 | AUD-4 | DOMPurify on 3 sinks | `npm run build` green (no offline DOM test harness exists) |
+
+## Close-out
+
+- 2026-10-23 — Owner merged the branch to `main` (reorg merge stack, `df44bad` … `0303156`); a same-day follow-up tidy moved the remaining backend root modules into `core/`/`services/`/`scripts/` (`docs/plans/done/2026-10-23_backend-root-tidy_done.md`). Filed to `done/` as `2026-10-22_backend-restructure_done.md`.

@@ -1,95 +1,29 @@
-# ☕ CodeTutor — Java Learning Platform
+# CodeTutor — Frontend
 
-An AI-powered Java learning platform with RAG-based tutoring, quizzes, practical tests, and a code playground.
+Create-React-App UI for the CodeTutor Java learning platform. Platform overview, backend setup, and the full runbook live in the [root README](../README.md) and [docs/OPS.md](../docs/OPS.md).
 
----
-
-## 🚀 Getting Started
-
-### Backend
+## Run
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start the server
-uvicorn main:app --reload
-```
-
-Server runs at: `http://localhost:8000`  
-API docs: `http://localhost:8000/docs`
-
-### Frontend
-
-```bash
-cd frontend
 npm install
-npm start
+npm start          # http://localhost:3000 (expects the backend at :8000)
 ```
 
-Frontend runs at: `http://localhost:3000`
-
----
-
-## 🔐 Test Account
-
-A pre-created dummy account for testing login and progress sync:
-
-| Field    | Value          |
-|----------|----------------|
-| Email    | `test@test.com` |
-| Password | `test1234`      |
-
-> **Note:** Login is optional. Users can use the platform as a guest and their progress is saved in `localStorage`. Logging in at any time will upload the local progress to the backend without overwriting any completed items.
-
----
-
-## ✨ Features
-
-- **AI Tutor** — RAG-based Q&A with NLI faithfulness verification (97.62%)
-- **Roadmap** — Visual Java learning roadmap with topic completion tracking
-- **Quizzes** — AI-generated MCQ quizzes based on completed topics
-- **Practical Tests** — Coding tests with automated grading and hints
-- **Playground** — In-browser Java code execution
-- **Progress Tracking** — Local + backend sync (login optional)
-
----
-
-## 🗄️ Database
-
-SQLite (`learning_platform.db`) is created automatically on first run.
-
-Tables:
-- `users` — registered accounts
-- `user_progress` — per-user learning progress
-- `quiz_attempts` — individual quiz attempt history
-- `test_attempts` — individual test attempt history
-
-To recreate the dummy account:
+Verify a change:
 
 ```bash
-python -c "
-import bcrypt
-from database import SessionLocal
-from db_models import User
-
-db = SessionLocal()
-pwd_hash = bcrypt.hashpw('test1234'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-user = User(email='test@test.com', password_hash=pwd_hash, full_name='Test User')
-db.add(user)
-db.commit()
-print('Done!')
-db.close()
-"
+npm run build                        # must pass
+CI=true npm test -- --watchAll=false # must stay green (2 suites / 6 tests)
 ```
 
----
+Optional interactive-terminal pairing: `npm run dev:with-terminal` starts the dev server together with `../terminal-service/` (ws://localhost:3001).
 
-## 📊 AI Performance Metrics
+## Source layout (since 2026-10-23)
 
-| Metric | Score |
-|--------|-------|
-| NLI Faithfulness | 97.62% (46/47 claims) |
-| Semantic Similarity | 80.78% |
-| Context Recall | 74.21% |
-| Avg Response Time | 6.73s |
+`src/` is organized into `pages/` (route targets), `components/` (embedded UI), `services/` (API clients + `AuthContext` + `ProgressTracker`), `utils/`, and `data/` — placement rules in [src/AGENTS.md](src/AGENTS.md), deeper guide in [docs/modules/frontend.md](../docs/modules/frontend.md).
+
+## Notes
+
+- `REACT_APP_*` env vars are baked in at **build time** — changing one requires a rebuild, not a restart.
+- Login is optional: guest progress is saved in `localStorage` and uploaded to the backend on a later login without overwriting completed items. Dev test account: see docs/OPS.md.
+- AI quality metrics and the evaluation methodology live in [docs/modules/rag-evaluation.md](../docs/modules/rag-evaluation.md).

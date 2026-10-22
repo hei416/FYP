@@ -1,5 +1,7 @@
 # Enhancement plan — 2026-10-22
 
+> **Superseded 2026-10-22** by the phased roadmap in `docs/reports/improvement-proposal-2026-10-22.md` (Option B adopted — decision log). Kept for its audit-ID → phase mapping; item-level status lives in `docs/backlog.md` (much of Phase 0/1 was merged to main 2026-10-23). Do not work from this file.
+
 Prioritised roadmap from the audit (`codebase-audit.md` — IDs referenced below). Tuned to the owner's stated purpose **maintain + portfolio** (extend-only items are marked); **no deadline** assumed. Nothing here is started without owner approval. Every backend `.py` fix deploys on push — fixes are batched into few, owner-reviewed pushes, and note FE-7: the CI health check currently validates the *previous* build, so verify the live site manually after each deploy.
 
 ## Phase 0 — owner-only actions (no code, do these first)

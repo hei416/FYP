@@ -39,7 +39,7 @@ CodeTutor is a full-stack AI-powered Java learning platform built as a Final Yea
 | Database | SQLite (dev) / PostgreSQL (prod) |
 | AI / RAG | FAISS, sentence-transformers, HKBU qwen3-max |
 | Code Execution | Paiza API + Node.js terminal-service (plain `child_process`, no PTY) |
-| Deployment | Docker, Azure App Service |
+| Deployment | None live (host-agnostic Docker image ready; method undecided — DEPLOY-1 in `docs/backlog.md`) |
 
 ---
 
@@ -55,10 +55,10 @@ CodeTutor is a full-stack AI-powered Java learning platform built as a Final Yea
 │               FastAPI Backend (main.py)              │
 │  ┌────────────┐  ┌──────────────┐  ┌─────────────┐  │
 │  │  routers/  │  │  services/   │  │  core/      │  │
-│  │  auth      │  │  classroom   │  │  config.py  │  │
-│  │  rag       │  │  rag         │  │  rate_lim.  │  │
-│  │  quiz      │  │  quiz        │  └─────────────┘  │
-│  │  code_exec │  └──────────────┘                   │
+│  │  auth      │  │  classroom_  │  │  config.py  │  │
+│  │  rag       │  │   rag        │  │  database   │  │
+│  │  progress  │  │  rag_system  │  │  rate_lim.  │  │
+│  │  code_exec │  └──────────────┘  └─────────────┘  │
 │  └────────────┘                                     │
 └──────┬───────────────┬────────────────┬─────────────┘
        │               │                │
@@ -76,7 +76,7 @@ Request → /ragAI
 Try: HKBU qwen3-max (97% accuracy, university API)
   ↓ (success) → Return AI answer + PDF matches
   ↓ (failure) → Retrieval-only fallback (documents + message)
-  ↓ (future)  → Local Llama 2 CPU-only (see local_llm_fallback.py)
+  ↓ (future)  → Local Llama 2 CPU-only (see backend/scripts/local_llm_fallback.py)
 ```
 
 **Cost: $0** — runs entirely on university infrastructure.
@@ -92,7 +92,7 @@ Try: HKBU qwen3-max (97% accuracy, university API)
 - **Interactive Java Playground** — interactive terminal (`terminal-service/`, plain `child_process` — no PTY) supporting `Scanner` input
 - **Classroom Management** — teachers can create classrooms, upload documents, manage students
 - **PDF Viewer with Text Highlight** — displays source documents with relevant passages highlighted
-- **Admin Panel** — user management via `create_admin.py`
+- **Admin Panel** — user management via `backend/scripts/create_admin.py`
 
 ---
 
@@ -100,49 +100,44 @@ Try: HKBU qwen3-max (97% accuracy, university API)
 
 ```
 FYP/
-├── backend/                  # Python FastAPI backend (restructured 2026-10)
-│   ├── main.py               # FastAPI app entry point
-│   ├── database.py           # DB connection & session
-│   ├── db_models.py          # SQLAlchemy ORM models
-│   ├── models.py             # Pydantic request/response schemas
-│   ├── rag_system.py         # RAG retrieval + LLM orchestration
-│   ├── local_llm_fallback.py # CPU-only Llama 2 fallback (disabled)
-│   ├── rebuild_vectorstore.py# Rebuild FAISS index from documents
-│   ├── schema_migration.py   # DB migration helpers
-│   ├── create_admin.py       # Create admin user script
+├── backend/                  # Python FastAPI backend (restructured 2026-10; main.py is the only root .py)
+│   ├── main.py               # FastAPI app entry point (12 routers in a static list)
 │   ├── requirements.txt      # Python dependencies
 │   ├── requirements-dev.txt  # Dev/test-only dependencies (pytest)
-│   ├── core/
-│   │   ├── config.py         # App config, env vars, DEBUG_MODE
-│   │   └── rate_limiter.py   # slowapi rate limiter singleton
-│   ├── routers/
-│   │   ├── auth.py           # Login, register, JWT
-│   │   ├── rag.py            # /ragAI endpoint (rate-limited)
-│   │   ├── code_execution.py # /api/run-code (rate-limited)
-│   │   └── ...               # Other routers
-│   ├── services/
-│   │   └── classroom_rag.py  # File validation, classroom RAG logic
+│   ├── Dockerfile            # Host-agnostic backend image (see docs/OPS.md §Container)
+│   ├── core/                 # Shared infra
+│   │   ├── config.py         # App config, env vars, DEBUG_MODE (PROJECT_ROOT = backend/)
+│   │   ├── database.py       # DB connection & session (lazy init)
+│   │   ├── db_models.py      # SQLAlchemy ORM models
+│   │   ├── models.py         # HKBU LLM / embeddings clients
+│   │   ├── rate_limiter.py   # slowapi rate limiter singleton
+│   │   ├── topic_mapping.py  # Subtopic → main-topic mapping
+│   │   └── utils.py
+│   ├── routers/              # API handlers (auth, rag, code_execution, …)
+│   ├── services/             # Business logic (rag_system.py, classroom_rag.py,
+│   │                         #   conversation_manager.py, error_explainer.py, nli_monitor.py, …)
+│   ├── scripts/              # One-off/maintenance scripts (create_admin.py,
+│   │                         #   rebuild_vectorstore.py, schema_migration.py, local_llm_fallback.py, …)
 │   ├── vectorstore/
 │   │   ├── index.faiss       # FAISS binary (do not edit manually)
 │   │   └── faiss_summary.json# Metadata for vectorstore entries
 │   ├── evaluation/           # Model evaluation artifacts
 │   ├── practical_tests/      # Practical test definitions
-│   ├── tests/                # Tests (offline unit tests + E2E)
-│   ├── scripts/              # Utility scripts
+│   ├── tests/                # Tests (offline unit tests + E2E + load)
 │   ├── java_docs/            # Java course documents (PDFs)
 │   └── quiz_questions.csv    # Quiz data
 │
 ├── docker-compose.yml        # Docker setup
+├── docker-compose.container.yml # Throwaway-Postgres smoke stack for the backend image
 ├── startup.sh                # Azure startup script (repo root — Azure startup command)
 │
-├── frontend/                 # React app
-│   └── src/
-│       ├── classroomService.js
-│       └── TeacherClassroomDetail.js
+├── frontend/                 # React app (CRA)
+│   └── src/                  # pages/ components/ services/ utils/ data/ (see frontend/src/AGENTS.md)
 │
 ├── terminal-service/         # Node.js terminal microservice (child_process, no PTY)
 │   └── server.js
 │
+├── docs/                     # All project docs (runbook: docs/OPS.md)
 └── public/                   # Static files (legacy, stays at root)
 ```
 
@@ -240,7 +235,7 @@ REACT_APP_TERMINAL_WS=ws://localhost:3001
 
 - **Default:** SQLite (`learning_platform.db`) — created automatically on first run.
 - **Production:** PostgreSQL — set `DATABASE_URL` in environment.
-- **Key files:** `database.py`, `db_models.py`, `schema_migration.py`
+- **Key files:** `backend/core/database.py`, `backend/core/db_models.py`, `backend/scripts/schema_migration.py`
 
 ### Recreate Test User
 
@@ -251,9 +246,10 @@ cd backend && python scripts/create_admin.py
 Or manually:
 
 ```python
+# run from backend/ with the venv active
 import bcrypt
-from database import SessionLocal
-from db_models import User
+from core.database import SessionLocal
+from core.db_models import User
 
 db = SessionLocal()
 pwd_hash = bcrypt.hashpw('test1234'.encode(), bcrypt.gensalt()).decode()
@@ -277,7 +273,7 @@ cd backend && python scripts/rebuild_vectorstore.py
 
 - FAISS index stored at `backend/vectorstore/index.faiss`; metadata in `backend/vectorstore/faiss_summary.json`.
 - Design intent: per-request retriever instances — **avoid module-level retriever singletons** (stale state). *Note: the current code does keep module-level singletons (`routers/rag.py`, set from `main.py`); tracked as BE-5 in [`docs/plans/active/codebase-audit.md`](docs/plans/active/codebase-audit.md).*
-- See `rag_system.py` and `routers/rag.py` for the full RAG pipeline.
+- See `backend/services/rag_system.py` and `backend/routers/rag.py` for the full RAG pipeline.
 - NLI faithfulness checks validate that AI answers are grounded in retrieved documents.
 
 ---

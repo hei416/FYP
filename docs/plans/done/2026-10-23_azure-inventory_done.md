@@ -22,3 +22,5 @@ could mutate state or reveal a secret value. ✅
 - **BE-1 escalated:** old Postgres password is in **public** git history now; rotate/delete
   same-day if the server exists.
 - Cleanup commands proposed in the report; none run.
+
+- 2026-10-23 (later) — Both deploy workflows manually disabled on GitHub (`disabled_manually`); work merged to `main`. Azure half still with the owner. Filed to `done/`.
