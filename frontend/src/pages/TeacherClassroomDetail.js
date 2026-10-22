@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useAuth } from './AuthContext';
-import { getTopicGroupsForPath } from './learningPathUtils';
+import { useAuth } from '../services/AuthContext';
+import { getTopicGroupsForPath } from '../utils/learningPathUtils';
 import {
   getClassroomAnalytics,
   getClassroomMaterialsWithProgress,
@@ -27,10 +27,10 @@ import {
   getClassroomQuizStudentResults,
   getClassroomQuizDetailedResults,
   getClassroomPracticalChallengeAttempts,
-} from './classroomService';
+} from '../services/classroomService';
 import { ClassroomSections } from './TeacherDashboard';
-import { radii, font, card, shadows } from './theme';
-import { btn, colors } from './theme';
+import { radii, font, card, shadows } from '../utils/theme';
+import { btn, colors } from '../utils/theme';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const scoreColor = (score) => {

@@ -3,8 +3,8 @@
 // mounts inside the auth context and router without crashing.
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { AuthProvider } from './AuthContext';
-import Navbar from './Navbar';
+import { AuthProvider } from './services/AuthContext';
+import Navbar from './components/Navbar';
 
 test('navbar renders for an anonymous visitor', () => {
   render(

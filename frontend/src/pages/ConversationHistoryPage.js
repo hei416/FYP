@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import TextareaAutosize from 'react-textarea-autosize';
-import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
-import { useAuth } from './AuthContext';
-import PdfPageViewer from './components/PdfPageViewer';
-import NLIStatusBadge from './components/NLIStatusBadge';
+import { colors, radii, font, spacing, btn, shadows, transition } from '../utils/theme';
+import { useAuth } from '../services/AuthContext';
+import PdfPageViewer from '../components/PdfPageViewer';
+import NLIStatusBadge from '../components/NLIStatusBadge';
 
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';

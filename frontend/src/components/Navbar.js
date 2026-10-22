@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ProgressDisplay from './ProgressDisplay';
-import { colors, radii, shadows, font, spacing, btn, navbar, sidebar, transition } from './theme';
-import { useAuth } from './AuthContext';
+import { colors, radii, shadows, font, spacing, btn, navbar, sidebar, transition } from '../utils/theme';
+import { useAuth } from '../services/AuthContext';
 
 export default function Navbar({ toggleChat }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);

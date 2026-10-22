@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ProgressTracker, QUIZ_TARGET, TEST_TARGET } from './ProgressTracker';
-import { listWork } from './myWorkService';
-import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './BasicJavaPage';
-import { colors, radii, shadows, spacing, font, transition } from './theme';
-import { useAuth } from './AuthContext';
+import { ProgressTracker, QUIZ_TARGET, TEST_TARGET } from '../services/ProgressTracker';
+import { listWork } from '../services/myWorkService';
+import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from '../pages/BasicJavaPage';
+import { colors, radii, shadows, spacing, font, transition } from '../utils/theme';
+import { useAuth } from '../services/AuthContext';
 
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 

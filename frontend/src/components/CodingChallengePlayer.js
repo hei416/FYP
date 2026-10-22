@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Compiler from "./Compiler";
-import { ProgressTracker } from "./ProgressTracker";
-import { submitPracticalChallengeAttempt } from "./classroomService";
+import { ProgressTracker } from "../services/ProgressTracker";
+import { submitPracticalChallengeAttempt } from "../services/classroomService";
 import {
     colors, radii, font, spacing, btn, card, codeOutput,
-} from './theme';
+} from '../utils/theme';
 import DOMPurify from 'dompurify';
 
 // SEC-21: AI endpoints now require authentication.

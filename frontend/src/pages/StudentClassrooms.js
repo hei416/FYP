@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
-import { joinClassroom, getEnrolledClassrooms } from './classroomService';
-import { getCourseProgress } from './progressService';
-import { colors, radii, font, spacing, card, btn, shadows } from './theme';
+import { useAuth } from '../services/AuthContext';
+import { joinClassroom, getEnrolledClassrooms } from '../services/classroomService';
+import { getCourseProgress } from '../services/progressService';
+import { colors, radii, font, spacing, card, btn, shadows } from '../utils/theme';
 
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
 

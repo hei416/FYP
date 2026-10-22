@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import TextareaAutosize from "react-textarea-autosize";
 import { useNavigate } from "react-router-dom";
-import { colors, radii, font, spacing, btn, shadows, transition } from './theme';
-import { useAuth } from './AuthContext';
-import PdfPageViewer from './components/PdfPageViewer';
-import NLIStatusBadge from './components/NLIStatusBadge';
+import { colors, radii, font, spacing, btn, shadows, transition } from '../utils/theme';
+import { useAuth } from '../services/AuthContext';
+import PdfPageViewer from './PdfPageViewer';
+import NLIStatusBadge from './NLIStatusBadge';
 
 
 // Add getToken helper for fetching classrooms

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useAuth } from './AuthContext';
+import { useAuth } from '../services/AuthContext';
 import { useLocation } from "react-router-dom";
-import { ProgressTracker, QUIZ_PASS_SCORE } from "./ProgressTracker";
-import { getTopicGroupsForPath } from "./learningPathUtils";
-import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
+import { ProgressTracker, QUIZ_PASS_SCORE } from "../services/ProgressTracker";
+import { getTopicGroupsForPath } from "../utils/learningPathUtils";
+import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from '../utils/theme';
 
 // SEC-21: AI endpoints now require authentication.
 const authHeaders = () => {

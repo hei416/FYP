@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { colors, radii, font, spacing, btn, shadows, transition } from '../theme';
+import { colors, radii, font, spacing, btn, shadows, transition } from '../utils/theme';
 
 export default function TextHighlightButton({ onAskAI }) {
     const [position, setPosition] = useState(null);

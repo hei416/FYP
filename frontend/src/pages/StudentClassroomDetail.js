@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { downloadClassroomFile, askClassroom, listSections, listClassroomQuizzes, listClassroomPracticalChallenges, submitClassroomQuizAttempt, markMaterialAsRead, getClassroomQuizStudentResults } from './classroomService';
-import CodingChallengePlayer, { normalizeChallenge } from './CodingChallengePlayer';
+import { downloadClassroomFile, askClassroom, listSections, listClassroomQuizzes, listClassroomPracticalChallenges, submitClassroomQuizAttempt, markMaterialAsRead, getClassroomQuizStudentResults } from '../services/classroomService';
+import CodingChallengePlayer, { normalizeChallenge } from '../components/CodingChallengePlayer';
 
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 

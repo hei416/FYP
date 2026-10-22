@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listWork, deleteWork } from './myWorkService';
-import { useAuth } from './AuthContext';
+import { listWork, deleteWork } from '../services/myWorkService';
+import { useAuth } from '../services/AuthContext';
 
 const typeLabel = { playground: '💻 Playground', quiz: '📝 Exercises', test: '🎯 Coding Challenges' };
 const typeColor = { playground: '#3b82f6', quiz: '#8b5cf6', test: '#10b981' };

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Compiler from "./Compiler";
-import InteractiveTerminal from './components/InteractiveTerminal';
-import { ProgressTracker } from "./ProgressTracker";
-import { saveWork } from './myWorkService';
-import { colors, radii, font, spacing, card, pageContainer } from './theme';
+import Compiler from "../components/Compiler";
+import InteractiveTerminal from '../components/InteractiveTerminal';
+import { ProgressTracker } from "../services/ProgressTracker";
+import { saveWork } from '../services/myWorkService';
+import { colors, radii, font, spacing, card, pageContainer } from '../utils/theme';
 
 /**
  * Returns true if the code has a class definition but no main method —

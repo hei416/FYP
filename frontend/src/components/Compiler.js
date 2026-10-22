@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { colors, radii, font, spacing, btn, codeOutput, transition } from './theme';
+import { colors, radii, font, spacing, btn, codeOutput, transition } from '../utils/theme';
 const Editor = React.lazy(() => import('@monaco-editor/react'));
 
 // Simple error boundary to catch editor runtime errors (monaco loader issues)

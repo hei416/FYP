@@ -1,5 +1,5 @@
 import React from 'react';
-import { colors, radii, font, spacing } from './theme';
+import { colors, radii, font, spacing } from '../utils/theme';
 
 /**
  * ProgressAnalysisCard

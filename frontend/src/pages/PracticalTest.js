@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import CodingChallengePlayer from "./CodingChallengePlayer";
-import { getTopicGroupsForPath } from "./learningPathUtils";
-import { ProgressTracker } from "./ProgressTracker";
-import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading } from './theme';
+import CodingChallengePlayer from "../components/CodingChallengePlayer";
+import { getTopicGroupsForPath } from "../utils/learningPathUtils";
+import { ProgressTracker } from "../services/ProgressTracker";
+import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading } from '../utils/theme';
 
 // SEC-21: AI endpoints now require authentication.
 const authHeaders = () => {
