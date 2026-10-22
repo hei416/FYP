@@ -10,11 +10,11 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 4. **One task per session.** Work in a **git worktree** on a branch, never directly on `main`.
 5. **Commit before stopping.** Leave a clean tree and update the Status block of your plan file in `docs/plans/active/` as the handoff note.
 
-## Deploy triggers (latent — why pushing is still off-limits)
+## Deploy triggers (why pushing still needs care)
 
-- `.github/workflows/backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted for the `backend/` layout 2026-10-22; final CI shape waits on the deploy-method decision) → would deploy the backend (`codetutor-fyp-hei`).
-- `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → would deploy the frontend.
-- Deploy-inert paths: `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
+- **On this branch (2026-10-23, DEPLOY-1 adopted): no workflow fires on push.** `build-backend-image.yml` runs on `workflow_dispatch` and `v*` tags only (builds + pushes the ghcr.io image; the actual deploy stays a manual owner step — OPS.md §Deploy runbook); `deploy-frontend-pages.yml` is `workflow_dispatch` only. **Never push a `v*` tag** — tags are a build trigger now.
+- **On `main` the OLD zip workflows are still live and armed** (secrets exist, Actions enabled — `docs/reports/azure-inventory-2026-10-23.md`): `backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**`; `frontend.yml` on `frontend/**`, `public/**`, `src/**`, `package.json`. They are archived here (`docs/_archives/2026-10-23_zip-deploy-workflows/`), but that de-fangs `main` only once this branch merges.
+- Deploy-inert paths (on `main`): `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
 
 ## Where things live
 
@@ -42,7 +42,7 @@ Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 - Offline tests: `cd backend && python -m pytest tests/ -q` (deps: `backend/requirements-dev.txt`)
 - Frontend build check: `cd frontend && npm run build`; frontend tests: `CI=true npm test -- --watchAll=false` (green since FE-16)
 - Container image: `backend/Dockerfile` — build/smoke commands in docs/OPS.md §Container (never push images or log in to a registry)
-- Deploy: none is believed live (owner statement — hard rule 1), but a push to `main` **may still trigger** the latent workflows. There is no deploy step for agents; first-deploy gate: `docs/plans/active/first-deploy-readiness.md`.
+- Deploy: none is live (owner statement — hard rule 1). Method decided 2026-10-23 (DEPLOY-1: ghcr image → Azure Container Apps + Cloudflare Pages + Neon); the runbook is OPS.md §Deploy runbook and every deploy step is **owner-run, by hand** — there is no deploy step for agents. A push to `main` may still trigger the old zip workflows there; first-deploy gate: `docs/plans/active/first-deploy-readiness.md`.
 
 ## Docs map
 
