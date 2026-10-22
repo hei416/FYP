@@ -1,6 +1,6 @@
 # CodeTutor (FYP) — Agent Guide
 
-Java learning platform (final-year project). FastAPI backend at the **repo root**, React (CRA) frontend in `frontend/`, Node PTY terminal service in `terminal-service/`, FAISS vector stores **deliberately committed** in `vectorstore/` for fast Azure startup.
+Java learning platform (final-year project). FastAPI backend at the **repo root**, React (CRA) frontend in `frontend/`, Node terminal service in `terminal-service/` (plain `child_process` — no node-pty), FAISS vector stores **deliberately committed** in `vectorstore/` for fast Azure startup.
 
 ## Hard rules — read before doing anything
 
@@ -25,7 +25,7 @@ Java learning platform (final-year project). FastAPI backend at the **repo root*
 | `routers/` / `services/` | API handlers / business logic (router → service pattern) |
 | `rag_system.py`, `vectorstore/` | RAG pipeline + committed FAISS stores |
 | `frontend/` | CRA app (localhost:3000) |
-| `terminal-service/` | ws + node-pty server (localhost:3001) |
+| `terminal-service/` | ws + `child_process` server (localhost:3001; no node-pty) |
 | `tests/` | pytest + Playwright E2E + locust (deps NOT in requirements.txt) |
 | `docs/` | All project docs — see map below |
 

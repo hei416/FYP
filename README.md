@@ -38,7 +38,7 @@ CodeTutor is a full-stack AI-powered Java learning platform built as a Final Yea
 | Frontend | React (JavaScript) |
 | Database | SQLite (dev) / PostgreSQL (prod) |
 | AI / RAG | FAISS, sentence-transformers, HKBU qwen3-max |
-| Code Execution | Paiza API + Node.js PTY (terminal-service) |
+| Code Execution | Paiza API + Node.js terminal-service (plain `child_process`, no PTY) |
 | Deployment | Docker, Azure App Service |
 
 ---
@@ -89,7 +89,7 @@ Try: HKBU qwen3-max (97% accuracy, university API)
 - **Roadmap & Progress Tracking** — topic-by-topic learning path with completion states
 - **Quizzes (MCQ)** — auto-graded multiple choice questions
 - **Practical Coding Tests** — in-browser Java execution via Paiza API
-- **Interactive Java Playground** — full PTY-based terminal (`terminal-service/`) supporting `Scanner` input
+- **Interactive Java Playground** — interactive terminal (`terminal-service/`, plain `child_process` — no PTY) supporting `Scanner` input
 - **Classroom Management** — teachers can create classrooms, upload documents, manage students
 - **PDF Viewer with Text Highlight** — displays source documents with relevant passages highlighted
 - **Admin Panel** — user management via `create_admin.py`
@@ -136,7 +136,7 @@ FYP/
 │   ├── index.faiss           # FAISS binary (do not edit manually)
 │   └── faiss_summary.json    # Metadata for vectorstore entries
 │
-├── terminal-service/         # Node.js PTY microservice
+├── terminal-service/         # Node.js terminal microservice (child_process, no PTY)
 │   └── server.js
 │
 ├── evaluation/               # Model evaluation scripts

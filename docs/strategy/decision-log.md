@@ -32,3 +32,13 @@ Entry format:
 - **Decision:** `AGENTS.md` holds all agent instructions; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 - **Reason:** One source of truth readable by all tools; a root CLAUDE.md shadows AGENTS.md in Claude Code, so the import bridges the two (documented pattern).
 - **Decided by:** owner
+
+## 2026-10-22 — Improvement option B adopted as the baseline
+- **Decision:** Option B (balanced: security, reliability, tests, portfolio polish) from `docs/reports/improvement-proposal-2026-10-22.md` is the working plan — everything in Option A, then the three batched owner-reviewed pushes (security; reliability/perf; frontend) plus the deploy-inert tests/eval/docs work. The two Option C elements held in reserve (CI pytest gate, staging slot) are decided separately later.
+- **Reason:** The purpose is maintain + portfolio with no deadline: B closes every critical/high finding, gives the backend its first real tests, and is the strongest outcome per hour; A leaves the audit a list of known-but-unfixed holes, and C's extra credit over B comes mostly from parts B already captures in lighter form.
+- **Decided by:** owner
+
+## 2026-10-22 — backend/ restructure stays propose-only
+- **Decision:** The move of the backend into `backend/` remains a propose-only move map in `docs/reports/improvement-proposal-2026-10-22.md` (proposal decision #9) — it is not part of the adopted Option B, and no agent executes it without a separate owner decision.
+- **Reason:** The restructure changes every path the live deploy depends on at once (PROJECT_ROOT derivation, `startup.sh`, CI filters, zip layout) for mostly cosmetic gain, and is the only part of Option C with real rollback pain; it would require a staging rehearsal first. Consistent with the existing "No code moves in reorg" decision.
+- **Decided by:** owner

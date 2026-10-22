@@ -73,4 +73,4 @@ There is no staging environment. **Never push without the owner's explicit go-ah
 - **`startup.sh` layout assumption** — on Azure it locates `main.py` by searching under `/tmp` at runtime (Oryx extraction + `antenv` venv dance). It assumes the current flat repo layout; moving backend files breaks startup.
 - **Stale path defaults in `core/config.py`** — `PDF_DIR` defaults to `frontend/Lecture Notes-20250622` and `LESSON_DIR` to `lessons_raw`; **neither directory exists**. Both are env-overridable; code paths relying on the defaults fail quietly. (Backlog item.)
 - **CRA env vars are build-time** — changing `REACT_APP_*` requires a rebuild/redeploy, not an app-settings change.
-- **node-pty native binaries** — on Azure run `npm rebuild node-pty --update-binary`; bind terminal-service to localhost only.
+- **Terminal-service has no native binaries** — it uses plain `child_process` (there is no node-pty; the old `npm rebuild node-pty` Azure step is obsolete). Bind terminal-service to localhost only.
