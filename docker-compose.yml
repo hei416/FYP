@@ -1,4 +1,10 @@
-version: '3.8'
+# Local DEVELOPMENT stack (hot reload). Two containers so the React dev server
+# can rebuild on save — a deployed instance is a SINGLE process (gunicorn
+# serving both the API and frontend/build; see docs/OPS.md § Single-process).
+#
+#   docker compose up
+#
+# Container-image smoke test: docker-compose.container.yml (separate concern).
 
 services:
   backend:
@@ -7,16 +13,26 @@ services:
     working_dir: /app/backend
     volumes:
       - ./:/app:cached
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
       - PORT=8000
+      # API-only in this stack: the CRA container below serves the SPA, so the
+      # backend must not pick up a stale frontend/build left over from a
+      # `npm run build`.
+      - FRONTEND_BUILD_DIR=/nonexistent
     ports:
       - "8000:8000"
-    command: bash -lc "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    command: >-
+      bash -lc "pip install -r requirements.txt &&
+                uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     image: node:18
     container_name: codetutor-frontend
+    # working_dir is already the frontend — do NOT `cd frontend` in the command
+    # as well, or it resolves to /app/frontend/frontend (the pre-2026-10-23 bug).
     working_dir: /app/frontend
     volumes:
       - ./:/app:cached
@@ -24,20 +40,8 @@ services:
       - "3000:3000"
     environment:
       - CHOKIDAR_USEPOLLING=true
-    command: bash -lc "cd frontend && npm install && npm start"
-
-  terminal-service:
-    image: node:18
-    container_name: codetutor-terminal
-    working_dir: /app/terminal-service
-    volumes:
-      - ./:/app:cached
-    ports:
-      - "3001:3001"
-    # Ensure OpenJDK is installed so `java`/`javac` are available to the service
-    # (plain child_process — there is no node-pty dependency)
-    command: bash -lc "apt-get update && apt-get install -y openjdk-17-jre-headless \
-      && cd terminal-service && npm install && node server.js"
-
-# Notes:
-# - This compose file is intended for local development only (hot-reload). For production, prefer separate containers with proper builds and a reverse proxy.
+      # Without this the browser cannot reach the backend container.
+      - REACT_APP_API_BASE=http://localhost:8000
+    depends_on:
+      - backend
+    command: bash -lc "npm install && npm start"

@@ -87,11 +87,13 @@ except Exception as e:
 " || true
 }
 
-# Start terminal service fully in background — MUST NOT block gunicorn startup
-# (terminal-service/ stays at the repo root, one level above backend/)
-if [ -d "$REPO_DIR/terminal-service" ]; then
-    echo "Starting terminal-service in background from $REPO_DIR/terminal-service"
-    (cd "$REPO_DIR/terminal-service" && npm install --no-audit --no-fund 2>/dev/null && node server.js 2>/dev/null) &
+# Single-process mode (2026-10-23): no terminal-service, no Node runtime.
+# gunicorn serves the API and the built SPA from one process. The React build
+# ships inside the deployment artifact at <repo>/frontend/build.
+if [ -d "$REPO_DIR/frontend/build" ]; then
+    echo "✓ Frontend build found — serving SPA from gunicorn"
+else
+    echo "⚠️ No frontend/build in the artifact — backend will run API-only"
 fi
 
 # Start gunicorn from the correct app directory
