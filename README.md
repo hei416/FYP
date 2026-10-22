@@ -245,7 +245,7 @@ REACT_APP_TERMINAL_WS=ws://localhost:3001
 ### Recreate Test User
 
 ```bash
-cd backend && python create_admin.py
+cd backend && python scripts/create_admin.py
 ```
 
 Or manually:
@@ -266,7 +266,7 @@ db.close()
 ### Rebuild Vectorstore
 
 ```bash
-cd backend && python rebuild_vectorstore.py
+cd backend && python scripts/rebuild_vectorstore.py
 ```
 
 > ⚠️ Do not manually edit `backend/vectorstore/index.faiss`. Use `backend/vectorstore/extract_from_faiss.py` to inspect or rebuild metadata.

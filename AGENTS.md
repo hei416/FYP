@@ -23,7 +23,7 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 | `backend/main.py` | FastAPI app; 13 routers registered in a static list |
 | `backend/core/config.py` | All path/env config; everything derives from `PROJECT_ROOT` (= `backend/`) |
 | `backend/routers/` / `backend/services/` | API handlers / business logic (router → service pattern) |
-| `backend/rag_system.py`, `backend/vectorstore/` | RAG pipeline + committed FAISS stores |
+| `backend/services/rag_system.py`, `backend/vectorstore/` | RAG pipeline + committed FAISS stores |
 | `frontend/` | CRA app (localhost:3000) |
 | `terminal-service/` | ws + `child_process` server (localhost:3001; no node-pty) |
 | `backend/tests/` | offline unit tests (pytest, `backend/requirements-dev.txt`) + Playwright E2E + locust (E2E deps NOT in requirements.txt) |

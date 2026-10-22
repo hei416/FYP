@@ -7,8 +7,8 @@
 **Rules:**
 - Use **per-request retriever instances** — module-level retriever singletons cause stale-state bugs (README warning).
 - Never hand-edit `index.faiss`; inspect with `backend/vectorstore/extract_from_faiss.py`.
-- Rebuild via `cd backend && python rebuild_vectorstore.py` — but note this changes tracked binaries and a push then deploys the backend (see [../OPS.md](../OPS.md)).
+- Rebuild via `cd backend && python scripts/rebuild_vectorstore.py` — but note this changes tracked binaries and a push then deploys the backend (see [../OPS.md](../OPS.md)).
 
-**Known gaps:** retrieval-only fallback when the LLM is down is not fully implemented in `backend/routers/rag.py` (backlog); `backend/local_llm_fallback.py` (Llama 2 CPU) is disabled via `OLLAMA_FALLBACK_ENABLED=False`.
+**Known gaps:** retrieval-only fallback when the LLM is down is not fully implemented in `backend/routers/rag.py` (backlog); `backend/scripts/local_llm_fallback.py` (Llama 2 CPU) is disabled via `OLLAMA_FALLBACK_ENABLED=False`.
 
 **How to test:** no offline unit tests exist for the pipeline itself. Verify imports (`python -c "import rag_system"` from `backend/`), then exercise `/ragAI` against a running backend with a real `API_KEY`.
