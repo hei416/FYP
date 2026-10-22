@@ -23,3 +23,4 @@ All 10 files live in `docs/_archives/` via `git mv` (history preserved, `git log
 ## Status
 
 - 2026-10-22 — Phase 2 approved by owner. Worktree + branch created from `reorg/phase1-scaffolding` (74880f2); backup tag `backup/pre-phase2-2026-10-22` set.
+- 2026-10-22 — **Phase 2 complete** in 5 commits: plan; QUICKSTART→OPS.md merge; 10 `git mv` moves (all R100, history verified via `git log --follow`) + archive README; reference fixes (README KI-10, backlog KI-10→Done, Phase 1 plan filed to done/); this closing entry. Per commit: secret scan clean, no changed path matched a CI filter, `import main` + `from core import config` passed (fresh `.venv`, Python 3.11, requirements.txt). Decided within autonomy: `FYP RAG.ipynb` cells keep their cwd-relative `./java_docs/…` paths — archived content stays frozen; the run-from-repo-root caveat is documented in `docs/_archives/README.md`. Tree clean. **Not pushed, not merged — owner reviews branch `reorg/phase2-moves`.**
