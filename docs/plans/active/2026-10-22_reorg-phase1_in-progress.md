@@ -29,5 +29,6 @@ All files above exist on branch `reorg/phase1-scaffolding`; every commit's chang
 ## Status
 
 - 2026-10-22 — Phase A (inventory + proposal) approved. Worktree `/Users/pandawork/FYP-reorg-phase1` created from `main` (23c472b).
-- 2026-10-22 — Scaffolding files written. Read-only codebase audit running (3 parallel read-only agents: security / backend quality / frontend+CI+deps+tests).
-- NEXT: owner review of this branch, decision-log wording confirmation, then Phase 2 approval. **Do not start Phase 2 without explicit owner approval. Never push.**
+- 2026-10-22 — Scaffolding files written and committed (4 commits; all paths verified deploy-inert, secret scans clean).
+- 2026-10-22 — Read-only audit completed (security / backend / frontend+CI+deps+tests): 27 SEC + 25 BE + 20 FE findings → `codebase-audit.md`, roadmap → `enhancement-plan.md`, backlog extended. **Urgent owner actions: rotate the committed Azure Postgres admin password (BE-1); decide the terminal-service RCE mitigation (SEC-1..6).** No fixes applied — read-only per task rules.
+- Phase 1 closed. NEXT (owner): review branch `reorg/phase1-scaffolding`, do Phase-0 actions in `enhancement-plan.md`, confirm decision-log entry wording, run `mv env.example .env.example`, then approve Phase 2 (doc moves). **Do not start Phase 2 without explicit owner approval. Never push — push = live deploy.**

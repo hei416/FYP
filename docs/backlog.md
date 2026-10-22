@@ -1,36 +1,45 @@
 # Backlog
 
-One task per entry. Keep this file under 150 lines — summarise minor items into grouped entries. Seeded 2026-10-22 from the README "Known Issues & TODOs" table (README now links here; numbers kept for traceability). Audit findings reference `docs/plans/active/codebase-audit.md` IDs.
+One task per entry. Keep this file under 150 lines — minor items are grouped. Seeded 2026-10-22 from the README "Known Issues & TODOs" table (KI-n keeps its numbering) and the read-only audit (`docs/plans/active/codebase-audit.md` — SEC/BE/FE IDs; roadmap in `enhancement-plan.md`). Reminder: any `.py` fix deploys the backend when pushed; batch and get owner review.
 
-## Ready
+## Needs human (owner action, before code fixes)
 
-- **[KI-1] Wire password strength validation into auth endpoints** — `routers/auth.py`. Fix triggers a backend deploy.
-- **[KI-2] Replace generic 500s with specific 4xx/5xx codes** — across `routers/*.py`. Backend deploy.
-- **[KI-3] Add pagination to large query results** (e.g. student lists) — `routers/`. Backend deploy.
-- **[KI-4] RAG graceful degradation** — wrap `rag_chain()` in try/except for retrieval-only fallback in `routers/rag.py`. Backend deploy.
-- **[OPS-1] Fix stale defaults in `core/config.py`** — `PDF_DIR` (`frontend/Lecture Notes-20250622`) and `LESSON_DIR` (`lessons_raw`) point at nonexistent dirs. Backend deploy.
+- **[AUD-0] Rotate the Azure Postgres admin password** — committed in `schema_migration.py:16-19` and `verify_schema.py:7` (BE-1). Rotate first, then code cleanup + history purge.
+- **[AUD-1] Terminal-service RCE decision** — unauthenticated ws + file write + unsandboxed java (SEC-1..6/FE-1), runs in production via `startup.sh:88-90`. Quick option: disable the `/ws/terminal` proxy until hardened.
+- **[AUD-2] CI workflow fixes (one owner-reviewed commit)** — backend.yml misses `terminal-service/**` (FE-2) and over-matches `**.py` (FE-8); health polls validate the previous build (FE-7/FE-11); frontend.yml zips a deleted `server.js` — the frontend pipeline may be broken today (FE-3); stale filters (FE-9); `REACT_APP_TERMINAL_WS` unset in build (FE-10); `CI: false` (FE-12).
+- **[KI-7] Proxy terminal-service WebSocket through the backend in production** — part of the AUD-1 architecture decision.
+- **[KI-9] `quiz_questions.csv` committed** — referenced by `db_models.py`, `routers/classroom.py`; owner decides seeded DB vs protected storage.
+- **[SEC-ENV] Confirm `frontend/.env.*` (git-tracked) contain only public URLs** (SEC-22/FE-6); agents must not read them. If not URL-only: rotate, untrack, purge.
+
+## Ready (code fixes awaiting approval; backend deploy on push unless noted)
+
+- **[AUD-3] Security batch (Phase 1 of enhancement plan)** — SEC-7 self-register-as-teacher, SEC-9/BE-4 tracebacks in 500s, SEC-8 CORS, SEC-10 file access, SEC-11/12/21 unauthenticated endpoints, SEC-13/BE-12 SSRF proxy, SEC-14/16 login limits + password policy (supersedes KI-1 — no validator exists to "wire"), SEC-2/3/5/6 terminal hardening.
+- **[AUD-4] XSS: sanitize `dangerouslySetInnerHTML` sinks** — FE-4 (frontend deploy).
+- **[AUD-5] Migration safety** — BE-2 dialect-gate Postgres-only SQL, BE-3 fail loudly instead of "✅ complete".
+- **[AUD-6] Perf quick wins** — BE-8 per-chunk query, BE-11 blocking RAG call, BE-13 sleepless Paiza poll, BE-9/10 analytics N+1s.
+- **[KI-2] Specific 4xx/5xx instead of generic 500s** — 28 sites confirmed (BE-14/15).
+- **[KI-3] Pagination on list endpoints** — 2 paginated vs 48 unbounded `.all()` in classroom.py (BE-7).
+- **[KI-4] RAG degradation** — premise stale (BE-22): try/except + fallback exist; real gap is retrieval-only mode on LLM failure. Fix README wording too.
+- **[OPS-1] Fix stale `core/config.py` defaults** — `LESSON_DIR` dead, `PDF_DIR` live and broken → `/pdfs` 500s (BE-16).
+- **[AUD-7] Grouped med/low cleanups** — security: SEC-15/17/18/19/20/26/27; backend: BE-5/6/17/18/19/25; deps: FE-13/17/20; frontend: FE-16/18/19 (frontend deploy); tests: FE-15 `dev-requirements.txt` + `pytest.ini` + first backend unit tests. Details in the audit doc.
 
 ## Waiting
 
-- **[KI-10] Consolidate 8 loose root `*.md` report files into `docs/_archives/`** — Phase 2 of the reorg; awaiting owner approval.
+- **[KI-10] Consolidate 8 loose root `*.md` files into `docs/_archives/`** — Phase 2 of the reorg; awaiting owner approval.
 - **[OPS-2] Rename `env.example` → `.env.example`** — blocked by the owner's user-level permission glob; owner runs `mv env.example .env.example` (closes KI-8 fully).
-
-## Needs human
-
-- **[KI-7] Proxy terminal-service WebSocket through the backend in production** — security risk if exposed directly; touches live Azure architecture.
-- **[KI-9] `quiz_questions.csv` committed to repo** — may hold sensitive test data; it is referenced by `db_models.py` and `routers/classroom.py`, so moving it is a code change. Owner to decide: seeded DB vs protected storage.
-- **[SEC-ENV] Confirm `frontend/.env.*` (git-tracked) contain only public URLs** — owner has not confirmed; agents must not read them.
+- **[AUD-8] Untrack `practical_tests/**/.DS_Store`** — tracked despite ignore rules (pre-existing); removal touches a backend CI filter path, so batch with a deploy-triggering commit.
 
 ## Unclear
 
-- **[KI-6] `migrate_to_postgres.py` referenced in README but not tracked** — note: `.gitignore` explicitly ignores this filename, so it may exist locally by design. Verify and either track it or fix the README reference.
+- **[KI-6] `migrate_to_postgres.py`** — confirmed absent (BE-23) yet referenced in README and listed in `.gitignore`. Fix the reference or restore the script.
 
 ## Parked
 
-- **[KI-5] Local LLM fallback (`local_llm_fallback.py`, Llama 2 CPU)** — disabled via `OLLAMA_FALLBACK_ENABLED=False`; revisit post-FYP.
-- **[P2-public] Root `public/` legacy dir** — owner decision 2026-10-22: leave in place (moving trips the stale `frontend.yml` filter).
-- **[P2-bak] `frontend/src/TeacherClassroomDetail.js.bak` (116 KB, tracked)** — owner decision 2026-10-22: leave for now.
+- **[KI-5] Local LLM fallback** (`local_llm_fallback.py`) — disabled; revisit post-FYP. Dead-code removal candidates alongside it: `verify_enhanced_support.py`, `verify_schema.py` (BE-24 — deletes, owner-gated).
+- **[P2-public] Root `public/`** — owner 2026-10-22: leave in place (stale `frontend.yml` filter would fire).
+- **[P2-bak] `frontend/src/TeacherClassroomDetail.js.bak`** — owner 2026-10-22: leave for now. Related: the live file is 3102 lines, the main refactor target (Phase 4).
+- **[EXT] Extend-only items** — sandboxed Java execution (SEC-4), httpOnly-cookie auth (FE-5), Alembic (BE-21), CRA→Vite (FE-14).
 
 ## Done
 
-- **[KI-8] `.env.example` with placeholder values** — created 2026-10-22 as `env.example` (see OPS-2 for the rename).
+- **[KI-8] `.env.example` placeholders** — created 2026-10-22 as `env.example` (see OPS-2 for the rename).
