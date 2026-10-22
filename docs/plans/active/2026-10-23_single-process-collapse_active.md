@@ -69,7 +69,8 @@ never push.** The owner pushes if and when they choose.
 
 ## Status
 
-**Done — awaiting owner review. Local only; nothing pushed.**
+**HANDED OFF 2026-10-23 — done, unmerged, unpushed, tree clean.** Awaiting owner review.
+Next session: read the Merge map below before anything else, and note SP-4 is still open and blocking.
 
 Branch `chore/single-process-collapse`, worktree `/Users/pandawork/FYP-single-process`, based on
 `main` @ `4211ee4`. Six commits: backend SPA mount, frontend single execution path, terminal-service
@@ -147,7 +148,36 @@ clearing that is **SP-4**, owner action, because `.env*` is off-limits to agents
 - **Build the image once Docker is available** — SP-2 is inspection-only today.
 - Decision-log entry wording (2026-10-23) marked *to confirm*.
 
-### Merge note
+### Merge map — measured, not guessed (dry run 2026-10-23, aborted)
+
+`main` moved **7 commits** during this session and is now at `0303156`. This branch is 7 ahead / 7
+behind. The big one is the **frontend src restructure merge**: 40 files moved into
+`pages/ components/ services/ utils/ data/`, which is exactly the set of files this branch edited.
+
+A trial `git merge main` (run in a throwaway worktree, aborted, nothing kept) produces **6 conflicts**:
+
+| File | Kind | What to do |
+|---|---|---|
+| `frontend/src/components/Compiler.js` | content, 1 hunk | Keep this branch's version — the ws run path, `stripAnsi` and the live stdin form are deliberately gone |
+| `frontend/src/pages/Playground.js` | content, 1 hunk | Keep this branch's version — `InteractiveTerminal` is deliberately gone |
+| `frontend/src/classroomService.js` | **modify/delete** | Take main's delete. Main made `services/classroomService.js` canonical (this branch edited the dead flat duplicate); then apply the `apiBase` change to the canonical file, which still has the old `REACT_APP_API_BASE \|\| 'http://localhost:8000'` fallback |
+| `backend/tests/test_security_fixes.py` | content | Both sides edited; keep both — main's path updates plus this branch's `FRONTEND_BUILD_DIR` pin |
+| `docs/backlog.md` | content | Merge both sets of entries |
+| `frontend/AGENTS.md` | content | Merge both |
+
+**Then the part the merge will not flag, because it resolves cleanly and is still wrong:** 16 files
+now sit one directory deeper but still `import … from './apiBase'`. After resolving, run:
+
+```bash
+# from frontend/src — components/ (7), pages/ (6), services/ (3)
+grep -rl "from './apiBase'" components pages services | xargs sed -i '' "s|from './apiBase'|from '../apiBase'|"
+```
+
+Consider moving `src/apiBase.js` to `src/services/` to match the new structure — if you do, fix all
+17 import paths accordingly. Then re-verify: `npm run build`, `CI=true npm test`, and the backend
+suite. **`backend/main.py` did not conflict** despite both sides touching it.
+
+### Old merge note
 
 `main` moved during this session — another session landed the backend root tidy
 (`core.database`, `services/rag_system.py`). This branch is based on `4211ee4` and will need a merge;
