@@ -6,7 +6,8 @@ A parallel session on `docs/deploy-options` owns `docs/reports/deploy-options-*`
 
 ## Status
 
-- **State: Part 1 (restructure) DONE — all checks green (see Verification log). Part 2 (pre-deploy fixes) in progress.**
+- **State: COMPLETE — Part 1 (restructure) and Part 2 (pre-deploy fixes) done, all checks green (see Verification log). Awaiting owner review/merge** (the plan moves to `done/` once the owner merges; nothing was pushed).
+- Branch `refactor/backend-and-prebuild-fixes`, 18 commits on top of `docs/not-live-reassessment`; base tagged `backup/pre-backend-restructure`.
 - Owner actions: review/merge by hand; see §Needs owner and §Backlog delta.
 
 ## Part 1 — move map (old → new)
@@ -72,13 +73,14 @@ First backend unit tests land in `backend/tests/` with each fix; dev deps in `ba
 
 ## Backlog delta (for the owner to merge into docs/backlog.md — not edited here; that file belongs to the deploy-options session)
 
-- AUD-9 (new): backend/ restructure — **Done** on `refactor/backend-and-prebuild-fixes` (this plan), pending owner review/merge.
-- AUD-3 (security batch SEC-7..13, SEC-21): **Done** (same branch) — pending review; SEC-14/16/17..20 remain open (not in this batch).
-- AUD-5 (BE-2/BE-3 migration safety): **Done** (same branch) — pending review.
-- AUD-4 (FE-4 XSS): **Done** (same branch) — pending review.
-- FE-13 python-multipart + GAP-10 dedupe + bcrypt bump: **Done** (same branch) — pending review.
+- New item: backend/ restructure (decision #9) — **Done** on `refactor/backend-and-prebuild-fixes` (this plan), pending owner review/merge. Workflow path filters updated provisionally only.
+- AUD-3 (security batch SEC-7/8/9/10/11/12/13/21): **Done** (same branch) — pending review. SEC-14/16 (login rate limit, password policy) were NOT in the approved batch scope and remain open; SEC-17..20 unchanged.
+- AUD-5 (BE-2/BE-3 migration safety + `schema_migration.py --yes` gate): **Done** (same branch) — pending review.
+- AUD-4 (FE-4 XSS, incl. GAP-12 duplicate sink): **Done** (same branch) — pending review.
+- FE-13 python-multipart 0.0.20 + GAP-10 dedupe + bcrypt 4.2.1 (FE-17 partial; transformers/torch deferred): **Done** (same branch) — pending review.
 - BE-24 partial: `verify_schema.py`, `verify_enhanced_support.py` deleted with the restructure; `local_llm_fallback.py` parked (moved, not deleted).
-- New: first backend unit tests exist (`backend/tests/`), dev deps in `backend/requirements-dev.txt` — CI pytest gate (decision #10) can now be designed once deploy method lands.
+- New: first backend unit tests exist (`backend/tests/test_security_fixes.py`, 18 tests + the 3 terminal-gate tests), dev deps in `backend/requirements-dev.txt` — the CI pytest gate (decision #10) can now be designed once the deploy method lands.
+- New env vars to document at deploy time: `CORS_ORIGINS` (required for the real frontend origin), `PROXY_ALLOWED_HOSTS` (optional extension of the SSRF allowlist), `MIGRATION_CONFIRM` (only for deliberate schema_migration runs).
 
 ## Verification log
 
@@ -94,3 +96,21 @@ Environment: fresh venv (`/opt/homebrew/bin/python3.11`, repo-root `.venv/`), `p
 | R6 docs/settings | settings.json JSON parses; full suite green; secret scan clean |
 
 Not verifiable offline: Azure startup (`startup.sh` on App Service), the latent workflows themselves (never run by agents), docker-compose runtime (Docker not used in this session).
+
+### Part 2 verification log
+
+Per-commit: offline pytest suite (`backend/tests/test_security_fixes.py` + `test_terminal_proxy.py`, grew to 21 tests), route set identical to baseline (120), secret scan clean. Frontend commits: `npm run build` green before and after; `npm test` fails identically on the untouched tree (module-resolution, pre-existing — FE-16), so it is not a regression gate.
+
+| Commit | Finding | Tests added |
+|---|---|---|
+| SEC-7 | register student-only | default role, 403 teacher/admin |
+| SEC-8 | CORS allowlist | default list, env override |
+| SEC-9 | no tracebacks in 500s | generic 500 body |
+| SEC-10 | file view/download gate | 401/403/200 incl. `?token=` path |
+| SEC-11 | conversation auth | 401 + cross-user 403 on all five endpoints |
+| SEC-12 | /explain-error auth + rate limit | 401; authenticated short-circuit |
+| SEC-13 | SSRF allowlist | metadata/localhost/private-IP/foreign-host 403, file:// 400, allowed host passes |
+| SEC-21 | LLM endpoints auth (10) | 401 on all ten; frontend token headers added (build green) |
+| AUD-5 | BE-2 dialect gate, BE-3 fail-loudly, `--yes` gate | sqlite skip; raises on failed steps; script exits 2 without `--yes` |
+| deps | python-multipart 0.0.20, bcrypt 4.2.1, GAP-10 dedupe | import + bcrypt round-trip; multipart upload behaviour not verifiable offline; transformers/torch deferred |
+| AUD-4 | DOMPurify on 3 sinks | `npm run build` green (no offline DOM test harness exists) |
