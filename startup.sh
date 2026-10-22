@@ -6,9 +6,12 @@ echo "=========================================="
 echo "  CodeTutor - Azure Startup $(date)"
 echo "=========================================="
 
-# Find where Oryx extracted the app — it's in /tmp, NOT /home/site/wwwroot
+# Find where Oryx extracted the app — it's in /tmp, NOT /home/site/wwwroot.
+# Backend code lives under backend/ since the 2026-10 restructure; the find
+# locates backend/main.py, so APP_DIR resolves to <extract>/backend.
 APP_DIR=$(find /tmp -name "main.py" 2>/dev/null | grep -v antenv | grep -v __pycache__ | head -1 | xargs dirname 2>/dev/null)
-APP_DIR="${APP_DIR:-/home/site/wwwroot}"
+APP_DIR="${APP_DIR:-/home/site/wwwroot/backend}"
+REPO_DIR="$(dirname "$APP_DIR")"
 cd "$APP_DIR"
 echo "CWD: $(pwd)"
 echo "FILES: $(ls -1 | head -20)"
@@ -85,9 +88,10 @@ except Exception as e:
 }
 
 # Start terminal service fully in background — MUST NOT block gunicorn startup
-if [ -d "$APP_DIR/terminal-service" ]; then
-    echo "Starting terminal-service in background from $APP_DIR/terminal-service"
-    (cd "$APP_DIR/terminal-service" && npm install --no-audit --no-fund 2>/dev/null && node server.js 2>/dev/null) &
+# (terminal-service/ stays at the repo root, one level above backend/)
+if [ -d "$REPO_DIR/terminal-service" ]; then
+    echo "Starting terminal-service in background from $REPO_DIR/terminal-service"
+    (cd "$REPO_DIR/terminal-service" && npm install --no-audit --no-fund 2>/dev/null && node server.js 2>/dev/null) &
 fi
 
 # Start gunicorn from the correct app directory
