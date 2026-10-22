@@ -8,7 +8,8 @@ import requests
 import httpx
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from routers.auth import get_current_user
 from pydantic import BaseModel
 from core.config import PAIZA_API_KEY
 
@@ -449,7 +450,7 @@ class PracticalGenerateRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_practical_test(req: PracticalGenerateRequest):
+async def generate_practical_test(req: PracticalGenerateRequest, current_user=Depends(get_current_user)):  # SEC-21
     # Support multi-topic generation: prefer `topics` array, fallback to single `topic`.
     topics = req.topics if req.topics and len(req.topics) > 0 else [req.topic]
     # Map subtopics to main topics where applicable
@@ -633,7 +634,7 @@ def _build_smart_run_app(base_methods: dict) -> str:
 
 
 @router.post("/evaluate-ai")
-def evaluate_ai(req: AiCodeRequest):
+def evaluate_ai(req: AiCodeRequest, current_user=Depends(get_current_user)):  # SEC-21
     """Evaluate student code against a practical test question.
     
     FLOW FOR CLASSROOM CHALLENGES:

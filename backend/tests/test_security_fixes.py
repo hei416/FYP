@@ -178,6 +178,8 @@ def test_file_endpoints_require_enrollment(classroom_client):
 
 @pytest.fixture()
 def rag_client():
+    from core.rate_limiter import limiter
+    from routers import practical_tests
     from routers import rag as rag_router
 
     engine = create_engine(
@@ -189,8 +191,10 @@ def rag_client():
     TestSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
     app = FastAPI()
+    app.state.limiter = limiter
     app.include_router(auth.router)
     app.include_router(rag_router.router)
+    app.include_router(practical_tests.router, prefix="/api/practical-tests")
 
     def _get_db():
         db = TestSession()
@@ -306,6 +310,26 @@ def test_proxy_rejects_non_http_schemes(lessons_client):
 def test_proxy_allowlist_validation_accepts_known_doc_host():
     from routers.lessons import _validate_proxy_url
     _validate_proxy_url("https://www.w3schools.com/java/")  # must not raise
+
+
+# --- SEC-21: LLM generate/grade endpoints require auth ------------------------
+
+def test_llm_endpoints_require_auth(rag_client):
+    c = rag_client
+    for method, path in [
+        ("post", "/api/quizzes/generate"),
+        ("post", "/api/quizzes/more"),
+        ("post", "/api/topics/generate-content"),
+        ("post", "/api/topics/batch-generate"),
+        ("post", "/ragAI"),
+        ("post", "/api/review-code"),
+        ("post", "/api/hints/generate"),
+        ("post", "/api/grading/evaluate"),
+        ("post", "/api/practical-tests/generate"),
+        ("post", "/api/practical-tests/evaluate-ai"),
+    ]:
+        r = getattr(c, method)(path, json={})
+        assert r.status_code == 401, f"{path} -> {r.status_code}"
 
 
 # --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------

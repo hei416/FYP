@@ -6,6 +6,13 @@ import {
     colors, radii, font, spacing, btn, card, codeOutput,
 } from './theme';
 
+// SEC-21: AI endpoints now require authentication.
+const authHeaders = () => {
+    const token = localStorage.getItem('authToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+
 // ─── helpers (shared with PracticalTest) ──────────────────────────────────────
 export function buildInstructionHtml(q) {
     if (!q) return '';
@@ -178,7 +185,7 @@ export default function CodingChallengePlayer({
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify(body),
             });
             const data = await res.json();
@@ -216,7 +223,7 @@ export default function CodingChallengePlayer({
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify(body),
             });
             const data = await res.json();
@@ -332,7 +339,7 @@ export default function CodingChallengePlayer({
             const questionTitle = challenge?.question?.title        || "Coding Challenge";
             const res = await fetch(`${API_BASE}/api/grading/evaluate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify({
                     problem_description: `${questionTitle}: ${questionDesc}`,
                     expected_approach: "Implement the solution correctly following Java best practices",
@@ -398,7 +405,7 @@ export default function CodingChallengePlayer({
         try {
             const res = await fetch(`${API_BASE}/api/hints/generate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify({
                     problem_description: challenge?.question?.description || "",
                     student_code: studentCode,

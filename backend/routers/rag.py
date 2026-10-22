@@ -453,7 +453,7 @@ def sample_questions_with_topic_coverage(
 # ==================== QUIZ ENDPOINTS ====================
 
 @router.post("/api/quizzes/generate", response_model=QuizGenerateResponse)
-async def generate_mcq_quiz(req: QuizGenerateRequest):
+async def generate_mcq_quiz(req: QuizGenerateRequest, current_user=Depends(get_current_user)):  # SEC-21
     """Serve quiz from DB (random pick). If not enough questions exist, auto-generate via AI."""
     print(f"📥 Quiz request: {req.completed_topics}, num={req.num_questions}")
     print(f"📥 user_id received: {req.user_id}")
@@ -517,7 +517,7 @@ async def generate_mcq_quiz(req: QuizGenerateRequest):
 
 
 @router.post("/api/quizzes/more")
-async def stream_more_questions(req: QuizGenerateRequest):
+async def stream_more_questions(req: QuizGenerateRequest, current_user=Depends(get_current_user)):  # SEC-21
     """Stream NEW questions via SSE, one at a time as they are generated."""
     print(f"📥 'More Questions' SSE request: {req.completed_topics}, num={req.num_questions}")
     print(f"📥 user_id received: {req.user_id}")
@@ -598,7 +598,7 @@ class TopicContentRequest(BaseModel):
 # ==================== TOPIC CONTENT GENERATION ====================
 
 @router.post("/api/topics/generate-content")
-async def generate_topic_content(req: TopicContentRequest):
+async def generate_topic_content(req: TopicContentRequest, current_user=Depends(get_current_user)):  # SEC-21
     """Generate learning material for a topic using RAG + LLM."""
     try:
         # ✅ lazy-init
@@ -693,7 +693,7 @@ IMPORTANT:
 
 
 @router.post("/api/topics/batch-generate")
-async def batch_generate_topic_content(topics: List[TopicContentRequest]):
+async def batch_generate_topic_content(topics: List[TopicContentRequest], current_user=Depends(get_current_user)):  # SEC-21
     """Generate learning material for multiple topics in parallel."""
     try:
         print(f"📚 Batch generating content for {len(topics)} topics")
@@ -969,7 +969,7 @@ async def call_llm_json(messages: List[Dict], temperature: float = 0.3, max_toke
 
 @router.post("/ragAI")
 @limiter.limit("30/minute")
-async def rag_ai(req: ExplainRequest, request: Request):
+async def rag_ai(req: ExplainRequest, request: Request, current_user=Depends(get_current_user)):  # SEC-21
     try:
         global rag_chain, retriever
 
@@ -1064,7 +1064,7 @@ async def rag_ai(req: ExplainRequest, request: Request):
 # ==================== CODE REVIEW ====================
 
 @router.post("/api/review-code")
-async def review_code(req: CodeReviewRequest):
+async def review_code(req: CodeReviewRequest, current_user=Depends(get_current_user)):  # SEC-21
     try:
         review_prompt = f"""You are a Java programming tutor. Review the following student code and provide constructive feedback.
 
@@ -1110,7 +1110,7 @@ Keep feedback constructive and educational."""
 # ==================== HINTS ====================
 
 @router.post("/api/hints/generate")
-async def generate_progressive_hint(req: HintRequest):
+async def generate_progressive_hint(req: HintRequest, current_user=Depends(get_current_user)):  # SEC-21
     try:
         ret = await get_retriever()
         print(f"[Hints] Generating {req.hint_level} hint...")
@@ -1286,7 +1286,7 @@ Generate a detailed hint now:"""
 # ==================== GRADING ====================
 
 @router.post("/api/grading/evaluate", response_model=GradingResponse)
-async def ai_partial_grading(req: GradingRequest):
+async def ai_partial_grading(req: GradingRequest, current_user=Depends(get_current_user)):  # SEC-21
     try:
         # ✅ lazy-init instead of raw global check
         ret = await get_retriever()
