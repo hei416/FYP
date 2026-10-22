@@ -5,6 +5,7 @@ import { submitPracticalChallengeAttempt } from "./classroomService";
 import {
     colors, radii, font, spacing, btn, card, codeOutput,
 } from './theme';
+import DOMPurify from 'dompurify';
 
 // SEC-21: AI endpoints now require authentication.
 const authHeaders = () => {
@@ -468,7 +469,7 @@ export default function CodingChallengePlayer({
             {/* ── instruction card ──────────────────────────────────────────── */}
             <div
                 style={{ ...card.base, marginTop: spacing.lg, maxHeight: 320, overflowY: 'auto' }}
-                dangerouslySetInnerHTML={{ __html: instruction }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(instruction || '') }}
             />
 
             {/* ── editor ────────────────────────────────────────────────────── */}

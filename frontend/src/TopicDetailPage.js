@@ -4,6 +4,7 @@ import { JAVA_SUBTOPIC_IDS, TOPIC_GROUPS } from './BasicJavaPage';
 import { ragDocMapping, getSourceColor, formatSourceName } from './ragDocMapping';
 import { colors, radii, font, spacing, shadows } from './theme';
 import DocumentViewer from './DocumentViewer';
+import DOMPurify from 'dompurify';
 
 // Maps each TOPIC_GROUPS index (0-based) to its quiz topic name
 const GROUP_QUIZ_TOPICS = [
@@ -218,7 +219,7 @@ export default function TopicDetailPage() {
                     <div className="p-6 space-y-6" style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radii.md, color: colors.text }}>
                         <div 
                             className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: content.keyConceptsHtml }} 
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.keyConceptsHtml || '') }} 
                         />
                     </div>
                 </div>
