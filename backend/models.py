@@ -63,7 +63,8 @@ class HKBUEmbeddings:
                     'api-key': self.api_key,
                     'Content-Type': 'application/json'
                 },
-                json={'input': text}
+                json={'input': text},
+                timeout=30,
             )
             if resp.status_code in (429, 403):
                 wait = 2 ** attempt * 10
@@ -93,7 +94,8 @@ class HKBUEmbeddings:
                     'api-key': self.api_key,
                     'Content-Type': 'application/json'
                 },
-                json={'input': texts}
+                json={'input': texts},
+                timeout=60,
             )
             if resp.status_code in (429, 403):
                 wait = 2 ** attempt * 10  # 10s, 20s, 40s, 80s, 160s, 320s
@@ -146,6 +148,14 @@ class HKBULLM:
             'api-key': self.api_key,
             'Content-Type': 'application/json'
         }
-        resp = requests.post(url, headers=headers, json=payload)
-        resp.raise_for_status()
-        return resp.json()['choices'][0]['message']['content']
+        import time as _time
+        max_retries = 3
+        for attempt in range(max_retries):
+            resp = requests.post(url, headers=headers, json=payload, timeout=120)
+            if resp.status_code in (429, 503) and attempt < max_retries - 1:
+                wait = 2 ** attempt * 5
+                print(f"  ⏳ HTTP {resp.status_code} from LLM, retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                _time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp.json()['choices'][0]['message']['content']

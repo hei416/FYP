@@ -92,6 +92,11 @@ def create_access_token(user_id: int, email: str, role: str) -> str:
 
 def verify_token(token: str) -> dict:
     """Verify and decode JWT token"""
+    if SECRET_KEY == "UNSET_SECRET_KEY_REPLACE_ME":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server misconfiguration: SECRET_KEY is not set"
+        )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")

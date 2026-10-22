@@ -83,8 +83,23 @@ async def ask_classroom_rag(
         return {"answer": "No documents have been uploaded to this classroom yet.", "has_context": False, "sources_count": 0}
 
     context = "\n\n".join(d.get("page_content", "") for d in docs)
-    chain = await get_rag_chain()
-    answer = await asyncio.to_thread(chain, f"Context from classroom materials:\n{context}\n\nQuestion: {request.question}")
+    from models import HKBULLM
+    from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
+    prompt = (
+        "You are a Java programming tutor. Answer using the classroom document "
+        "excerpts below.\n\n"
+        f"CLASSROOM CONTEXT:\n{context}\n\n"
+        f"STUDENT QUESTION: {request.question}\n\n"
+        "Provide a clear, educational answer. If referencing classroom material, cite it."
+    )
+    llm = HKBULLM(
+        api_key=API_KEY,
+        base_url=BASE_URL,
+        model=FAISS_MODEL_NAME,
+        api_version=FAISS_API_VERSION,
+        max_tokens=1024,
+    )
+    answer = await asyncio.to_thread(llm, prompt)
     # Get the base URL for absolute iframe URLs
     base_url = str(http_request.base_url).rstrip('/')
     
@@ -1731,6 +1746,22 @@ async def ask_multi_classroom(
     from models import HKBULLM
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
 
+    # S16: verify the caller may access every requested classroom before
+    # running any RAG query against it.
+    for cid in body.classroom_ids:
+        classroom = db.query(Classroom).filter(Classroom.id == cid).first()
+        if not classroom:
+            raise HTTPException(404, f"Classroom {cid} not found")
+        if current_user.role == "student":
+            membership = db.query(ClassroomMember).filter(
+                ClassroomMember.classroom_id == cid,
+                ClassroomMember.student_id == current_user.id,
+            ).first()
+            if not membership:
+                raise HTTPException(403, f"Not enrolled in classroom {cid}")
+        elif current_user.role == "teacher" and classroom.teacher_id != current_user.id:
+            raise HTTPException(403, f"You do not own classroom {cid}")
+
     # Generate unique ID for NLI monitoring
     query_id = str(uuid.uuid4())
 
@@ -1811,11 +1842,11 @@ async def ask_multi_classroom(
             context_type="classroom_rag",
             pdf_matches=pdf_matches,
             code_snippet=None,
-            input_tokens=len(request.question.split()),
+            input_tokens=len(body.question.split()),
             output_tokens=len(answer.split()),
             extra_metadata={"query_id": query_id},
         )
-        
+
         # Spawn background NLI validation task for multi-classroom responses
         try:
             asyncio.create_task(

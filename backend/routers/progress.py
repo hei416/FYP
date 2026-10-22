@@ -183,8 +183,11 @@ async def mark_topic_complete(
         course_id = "basic"
     progress = get_user_progress(current_user.id, db, course_id)
     
-    # Add topic to completed list if not already there
-    completed = progress.completed_topics or []
+    # Add topic to completed list if not already there. Must copy before
+    # mutating — reassigning the same list object SQLAlchemy already has
+    # cached leaves the JSON column's change undetected, so the UPDATE is
+    # never emitted (B1).
+    completed = list(progress.completed_topics or [])
     if request.topic_id not in completed:
         completed.append(request.topic_id)
         progress.completed_topics = completed
@@ -220,7 +223,7 @@ async def record_quiz_attempt(
     
     # Update progress
     progress.quizzes_attempted = (progress.quizzes_attempted or 0) + 1
-    completed = progress.quizzes_completed or []
+    completed = list(progress.quizzes_completed or [])
     if attempt.quiz_id not in completed:
         completed.append(attempt.quiz_id)
         progress.quizzes_completed = completed
@@ -260,7 +263,7 @@ async def record_test_attempt(
     # Update progress
     progress.tests_attempted = (progress.tests_attempted or 0) + 1
     if attempt.passed:
-        passed = progress.tests_passed or []
+        passed = list(progress.tests_passed or [])
         if attempt.test_id not in passed:
             passed.append(attempt.test_id)
             progress.tests_passed = passed
