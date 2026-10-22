@@ -1,18 +1,18 @@
 # CodeTutor (FYP) — Agent Guide
 
-Java learning platform (final-year project). FastAPI backend at the **repo root**, React (CRA) frontend in `frontend/`, Node terminal service in `terminal-service/` (plain `child_process` — no node-pty), FAISS vector stores **deliberately committed** in `vectorstore/` for fast Azure startup.
+Java learning platform (final-year project). FastAPI backend in **`backend/`** (moved from the repo root 2026-10-22, owner-approved decision #9), React (CRA) frontend in `frontend/`, Node terminal service in `terminal-service/` (plain `child_process` — no node-pty), FAISS vector stores **deliberately committed** in `backend/vectorstore/` for fast Azure startup.
 
 ## Hard rules — read before doing anything
 
 1. **Never push.** Owner states (2026-10-22) the app has **never been deployed online / never live in production** — treat the path-filtered GitHub Actions deploy workflows as **latent, not dead**: a push to `main` may still start a real Azure deploy (and incur cost) if the secrets and App Services still exist, so the no-push rule stays until the owner lifts it. (CI history does show past deploy runs — evidence and open questions: `docs/reports/deployment-evidence-2026-10-22.md`.) Commit locally on a branch; only the owner pushes.
 2. **Never deploy.** No `az`, no Azure portal/app settings, no `gh workflow run`.
-3. **Never touch `vectorstore/`, secrets, or any `.env*` file** — do not read, edit, move, or commit them. `frontend/.env.*` are git-tracked; leave them alone.
+3. **Never touch `backend/vectorstore/`, secrets, or any `.env*` file** — do not read, edit, move, or commit them. `frontend/.env.*` are git-tracked; leave them alone.
 4. **One task per session.** Work in a **git worktree** on a branch, never directly on `main`.
 5. **Commit before stopping.** Leave a clean tree and update the Status block of your plan file in `docs/plans/active/` as the handoff note.
 
 ## Deploy triggers (latent — why pushing is still off-limits)
 
-- `.github/workflows/backend.yml` fires on **any `*.py` anywhere**, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/`, `terminal-service/` → would deploy the backend (`codetutor-fyp-hei`).
+- `.github/workflows/backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted for the `backend/` layout 2026-10-22; final CI shape waits on the deploy-method decision) → would deploy the backend (`codetutor-fyp-hei`).
 - `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → would deploy the frontend.
 - Deploy-inert paths: `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
 
@@ -20,23 +20,25 @@ Java learning platform (final-year project). FastAPI backend at the **repo root*
 
 | Path | What |
 |---|---|
-| `main.py` | FastAPI app; 13 routers registered in a static list |
-| `core/config.py` | All path/env config; everything derives from `PROJECT_ROOT` |
-| `routers/` / `services/` | API handlers / business logic (router → service pattern) |
-| `rag_system.py`, `vectorstore/` | RAG pipeline + committed FAISS stores |
+| `backend/main.py` | FastAPI app; 13 routers registered in a static list |
+| `backend/core/config.py` | All path/env config; everything derives from `PROJECT_ROOT` (= `backend/`) |
+| `backend/routers/` / `backend/services/` | API handlers / business logic (router → service pattern) |
+| `backend/rag_system.py`, `backend/vectorstore/` | RAG pipeline + committed FAISS stores |
 | `frontend/` | CRA app (localhost:3000) |
 | `terminal-service/` | ws + `child_process` server (localhost:3001; no node-pty) |
-| `tests/` | pytest + Playwright E2E + locust (deps NOT in requirements.txt) |
+| `backend/tests/` | offline unit tests (pytest, `backend/requirements-dev.txt`) + Playwright E2E + locust (E2E deps NOT in requirements.txt) |
+| `startup.sh` | Azure startup script — stays at the repo root (startup command) |
 | `docs/` | All project docs — see map below |
 
 ## Run / test / build / deploy
 
 Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 
-- Backend: `source .venv/bin/activate && uvicorn main:app --reload` (API docs at :8000/docs)
+- Backend: `source .venv/bin/activate && cd backend && uvicorn main:app --reload` (API docs at :8000/docs)
 - Frontend: `cd frontend && npm install && npm start`
 - Terminal service: `cd terminal-service && npm install && node server.js`
-- Import check (fast verification): `python -c "import main"` in the venv
+- Import check (fast verification): `python -c "import main"` in the venv, run from `backend/`
+- Offline tests: `cd backend && python -m pytest tests/ -q` (deps: `backend/requirements-dev.txt`)
 - Frontend build check: `cd frontend && npm run build`
 - Deploy: none is believed live (owner statement — hard rule 1), but a push to `main` **may still trigger** the latent workflows. There is no deploy step for agents; first-deploy gate: `docs/plans/active/first-deploy-readiness.md`.
 

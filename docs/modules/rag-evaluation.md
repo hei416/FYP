@@ -1,10 +1,10 @@
 # RAG evaluation — methodology and golden set
 
-Status: **methodology + golden set only** (deploy-inert). The runner script is deliberately not committed yet — any new `.py` matches the backend CI filter `'**.py'` (audit FE-8) and would deploy on push. Commit the runner with/after the AUD-2 CI repair. Tracked as GAP-3 in `docs/plans/active/codebase-audit.md`.
+Status: **methodology + golden set only** (deploy-inert). The runner script is deliberately not committed yet — it would live under `backend/`, which matches the (provisional) backend CI filter `backend/**` and would deploy on push (the old `'**.py'` filter, audit FE-8, was removed with the 2026-10-22 restructure). Commit the runner once the deploy-method decision lands. Tracked as GAP-3 in `docs/plans/active/codebase-audit.md`.
 
 ## What is being evaluated
 
-The global RAG pipeline (`rag_system.py` + `routers/rag.py`): MMR retrieval over two committed FAISS stores — `vectorstore/java_knowledge` (corpus: `java_docs/` — oracle, javanotes, w3schools, geeksforgeeks, books, data_structures, exceptions) and `vectorstore/platform_guide`. Current parameters (`core/config.py:79-83`): chunks 600/150, k=3, fetch_k=15, lambda_mult=0.7. Classroom RAG (`services/classroom_rag.py`) is a separate pipeline — evaluate later with per-classroom fixtures.
+The global RAG pipeline (`backend/rag_system.py` + `backend/routers/rag.py`): MMR retrieval over two committed FAISS stores — `backend/vectorstore/java_knowledge` (corpus: `backend/java_docs/` — oracle, javanotes, w3schools, geeksforgeeks, books, data_structures, exceptions) and `backend/vectorstore/platform_guide`. Current parameters (`backend/core/config.py:79-83`): chunks 600/150, k=3, fetch_k=15, lambda_mult=0.7. Classroom RAG (`backend/services/classroom_rag.py`) is a separate pipeline — evaluate later with per-classroom fixtures.
 
 ## Metrics
 
@@ -51,4 +51,4 @@ Types: `core` (Java fundamentals), `adv` (advanced), `plat` (platform guide), `o
 
 ## Runner sketch (to be committed after AUD-2)
 
-~80 lines: load golden set (move this table to `evaluation/golden_set.json` then), call the retriever directly for hit@k, call the full chain for answers, score with `nli_monitor`, write the dated results file. Run locally in the venv — never against production. The orphan artifacts `evaluation/nli_results.{csv,json}` are from an earlier uncommitted script; the new runner supersedes them.
+~80 lines: load golden set (move this table to `backend/evaluation/golden_set.json` then), call the retriever directly for hit@k, call the full chain for answers, score with `nli_monitor`, write the dated results file. Run locally in the venv — never against production. The orphan artifacts `backend/evaluation/nli_results.{csv,json}` are from an earlier uncommitted script; the new runner supersedes them.

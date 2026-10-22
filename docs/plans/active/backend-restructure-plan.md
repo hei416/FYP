@@ -6,9 +6,7 @@ A parallel session on `docs/deploy-options` owns `docs/reports/deploy-options-*`
 
 ## Status
 
-- **State: CLOSED — Part 1 and Part 2 complete, all checks green (see Verification log).**
-- Part 1 (restructure): done — commits R1–R6 below.
-- Part 2 (pre-deploy fixes): done — AUD-3 batch, AUD-5, dependency bumps, AUD-4.
+- **State: Part 1 (restructure) DONE — all checks green (see Verification log). Part 2 (pre-deploy fixes) in progress.**
 - Owner actions: review/merge by hand; see §Needs owner and §Backlog delta.
 
 ## Part 1 — move map (old → new)
@@ -84,4 +82,15 @@ First backend unit tests land in `backend/tests/` with each fix; dev deps in `ba
 
 ## Verification log
 
-(filled in as commits land)
+Environment: fresh venv (`/opt/homebrew/bin/python3.11`, repo-root `.venv/`), `pip install -r backend/requirements.txt` + pytest. Baseline captured on fdc384b before any move: `import main` OK ("Total routes: 118" app log; 120 total `app.routes` incl. 4 built-in docs routes + 2 post-inclusion registrations), offline pytest 3 passed, vectorstore sha256 list recorded (10 files).
+
+| Commit | Checks |
+|---|---|
+| R1 plan file | secret scan clean (docs only) |
+| R2 move (229 renames R100 + 2 deletes) | import main OK; config OK; route set identical (120); vectorstore index paths resolve under `backend/`; **vectorstore sha256 before/after identical (10/10 files)**; offline pytest 3 passed; `git log --follow backend/main.py` crosses the move; secret scan clean |
+| R3 tests move | same suite green (pytest now from `backend/tests/`); secret scan clean |
+| R4 requirements/startup/compose | `bash -n startup.sh` OK; compose YAML parses; full suite green; secret scan clean |
+| R5 workflow (provisional) | workflow YAML parses; full suite green; secret scan clean |
+| R6 docs/settings | settings.json JSON parses; full suite green; secret scan clean |
+
+Not verifiable offline: Azure startup (`startup.sh` on App Service), the latent workflows themselves (never run by agents), docker-compose runtime (Docker not used in this session).

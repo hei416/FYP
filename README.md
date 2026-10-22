@@ -100,51 +100,50 @@ Try: HKBU qwen3-max (97% accuracy, university API)
 
 ```
 FYP/
-├── main.py                   # FastAPI app entry point
-├── database.py               # DB connection & session
-├── db_models.py              # SQLAlchemy ORM models
-├── models.py                 # Pydantic request/response schemas
-├── rag_system.py             # RAG retrieval + LLM orchestration
-├── local_llm_fallback.py     # CPU-only Llama 2 fallback (disabled)
-├── rebuild_vectorstore.py    # Rebuild FAISS index from documents
-├── schema_migration.py       # DB migration helpers
-├── create_admin.py           # Create admin user script
-├── requirements.txt          # Python dependencies
+├── backend/                  # Python FastAPI backend (restructured 2026-10)
+│   ├── main.py               # FastAPI app entry point
+│   ├── database.py           # DB connection & session
+│   ├── db_models.py          # SQLAlchemy ORM models
+│   ├── models.py             # Pydantic request/response schemas
+│   ├── rag_system.py         # RAG retrieval + LLM orchestration
+│   ├── local_llm_fallback.py # CPU-only Llama 2 fallback (disabled)
+│   ├── rebuild_vectorstore.py# Rebuild FAISS index from documents
+│   ├── schema_migration.py   # DB migration helpers
+│   ├── create_admin.py       # Create admin user script
+│   ├── requirements.txt      # Python dependencies
+│   ├── requirements-dev.txt  # Dev/test-only dependencies (pytest)
+│   ├── core/
+│   │   ├── config.py         # App config, env vars, DEBUG_MODE
+│   │   └── rate_limiter.py   # slowapi rate limiter singleton
+│   ├── routers/
+│   │   ├── auth.py           # Login, register, JWT
+│   │   ├── rag.py            # /ragAI endpoint (rate-limited)
+│   │   ├── code_execution.py # /api/run-code (rate-limited)
+│   │   └── ...               # Other routers
+│   ├── services/
+│   │   └── classroom_rag.py  # File validation, classroom RAG logic
+│   ├── vectorstore/
+│   │   ├── index.faiss       # FAISS binary (do not edit manually)
+│   │   └── faiss_summary.json# Metadata for vectorstore entries
+│   ├── evaluation/           # Model evaluation artifacts
+│   ├── practical_tests/      # Practical test definitions
+│   ├── tests/                # Tests (offline unit tests + E2E)
+│   ├── scripts/              # Utility scripts
+│   ├── java_docs/            # Java course documents (PDFs)
+│   └── quiz_questions.csv    # Quiz data
+│
 ├── docker-compose.yml        # Docker setup
-├── startup.sh                # Azure startup script
-│
-├── core/
-│   ├── config.py             # App config, env vars, DEBUG_MODE
-│   └── rate_limiter.py       # slowapi rate limiter singleton
-│
-├── routers/
-│   ├── auth.py               # Login, register, JWT
-│   ├── rag.py                # /ragAI endpoint (rate-limited)
-│   ├── quiz.py               # MCQ quiz endpoints
-│   ├── code_execution.py     # /api/run-code (rate-limited)
-│   └── ...                   # Other routers
-│
-├── services/
-│   └── classroom_rag.py      # File validation, classroom RAG logic
+├── startup.sh                # Azure startup script (repo root — Azure startup command)
 │
 ├── frontend/                 # React app
 │   └── src/
 │       ├── classroomService.js
 │       └── TeacherClassroomDetail.js
 │
-├── vectorstore/
-│   ├── index.faiss           # FAISS binary (do not edit manually)
-│   └── faiss_summary.json    # Metadata for vectorstore entries
-│
 ├── terminal-service/         # Node.js terminal microservice (child_process, no PTY)
 │   └── server.js
 │
-├── evaluation/               # Model evaluation scripts
-├── practical_tests/          # Practical test definitions
-├── tests/                    # Unit tests
-├── scripts/                  # Utility scripts
-├── java_docs/                # Java course documents (PDFs)
-└── public/                   # Static files
+└── public/                   # Static files (legacy, stays at root)
 ```
 
 ---
@@ -160,17 +159,18 @@ FYP/
 ### 1. Backend
 
 ```bash
-# Create and activate virtual environment
+# Create and activate virtual environment (at the repo root)
 python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # Set required environment variables (see below)
 cp .env.example .env            # or set manually
 
-# Run backend (development)
+# Run backend (development) — from backend/
+cd backend
 uvicorn main:app --reload
 # API docs: http://localhost:8000/docs
 ```
@@ -245,7 +245,7 @@ REACT_APP_TERMINAL_WS=ws://localhost:3001
 ### Recreate Test User
 
 ```bash
-python create_admin.py
+cd backend && python create_admin.py
 ```
 
 Or manually:
@@ -266,16 +266,16 @@ db.close()
 ### Rebuild Vectorstore
 
 ```bash
-python rebuild_vectorstore.py
+cd backend && python rebuild_vectorstore.py
 ```
 
-> ⚠️ Do not manually edit `vectorstore/index.faiss`. Use `vectorstore/extract_from_faiss.py` to inspect or rebuild metadata.
+> ⚠️ Do not manually edit `backend/vectorstore/index.faiss`. Use `backend/vectorstore/extract_from_faiss.py` to inspect or rebuild metadata.
 
 ---
 
 ## Vectorstore / RAG Notes
 
-- FAISS index stored at `vectorstore/index.faiss`; metadata in `vectorstore/faiss_summary.json`.
+- FAISS index stored at `backend/vectorstore/index.faiss`; metadata in `backend/vectorstore/faiss_summary.json`.
 - Design intent: per-request retriever instances — **avoid module-level retriever singletons** (stale state). *Note: the current code does keep module-level singletons (`routers/rag.py`, set from `main.py`); tracked as BE-5 in [`docs/plans/active/codebase-audit.md`](docs/plans/active/codebase-audit.md).*
 - See `rag_system.py` and `routers/rag.py` for the full RAG pipeline.
 - NLI faithfulness checks validate that AI answers are grounded in retrieved documents.
@@ -317,7 +317,7 @@ Then: `npm run dev:with-terminal`
 ### Debug Mode
 
 ```bash
-# Development (debug endpoints visible)
+# Development (debug endpoints visible) — run from backend/
 DEBUG_MODE=true uvicorn main:app --reload
 
 # Production (debug endpoints return 404)
