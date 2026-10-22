@@ -5,7 +5,8 @@ import { joinClassroom, getEnrolledClassrooms } from './classroomService';
 import { getCourseProgress } from './progressService';
 import { colors, radii, font, spacing, card, btn, shadows } from './theme';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
+const API_BASE = RESOLVED_API_BASE;
 
 
 // ── Mirrors teacher's scoreColor / rateColor helpers exactly ─────────────────

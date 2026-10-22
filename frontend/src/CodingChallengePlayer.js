@@ -7,6 +7,7 @@ import {
 } from './theme';
 import DOMPurify from 'dompurify';
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 // SEC-21: AI endpoints now require authentication.
 const authHeaders = () => {
     const token = localStorage.getItem('authToken');
@@ -88,7 +89,7 @@ export default function CodingChallengePlayer({
     classroomId = null,
     challengeId = null,
 }) {
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
 
     const [instruction, setInstruction]         = useState('');
     const [studentCode, setStudentCode]         = useState('');

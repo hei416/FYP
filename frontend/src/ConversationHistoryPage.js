@@ -7,8 +7,9 @@ import { useAuth } from './AuthContext';
 import PdfPageViewer from './components/PdfPageViewer';
 import NLIStatusBadge from './components/NLIStatusBadge';
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+const API_BASE = RESOLVED_API_BASE;
 
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);

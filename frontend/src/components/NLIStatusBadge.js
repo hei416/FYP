@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE as RESOLVED_API_BASE } from '../apiBase';
 
 /**
  * NLIStatusBadge — 4-tier faithfulness display
@@ -11,7 +12,7 @@ import React, { useState, useEffect } from 'react';
  *
  * Validation may take 10-30 seconds on first run (NLI model initialization).
  */
-export default function NLIStatusBadge({ queryId, apiBase = 'http://localhost:8000' }) {
+export default function NLIStatusBadge({ queryId, apiBase = RESOLVED_API_BASE }) {
   const [status, setStatus] = useState('pending');
   const [displayScore, setDisplayScore] = useState(null);
   const [message, setMessage] = useState('Validation in progress...');

@@ -5,6 +5,7 @@ import { ProgressTracker, QUIZ_PASS_SCORE } from "./ProgressTracker";
 import { getTopicGroupsForPath } from "./learningPathUtils";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 // SEC-21: AI endpoints now require authentication.
 const authHeaders = () => {
     const token = localStorage.getItem('authToken');
@@ -34,7 +35,7 @@ function shuffleArray(array) {
 
 export default function Quiz() {
     const selectedType = "multiple_choice";
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
     const [currentIndex, setCurrentIndex] = useState(0);
     const [userAnswers, setUserAnswers] = useState({});
     const [feedback, setFeedback] = useState(null);
@@ -386,7 +387,7 @@ export default function Quiz() {
             // Auto-save to My Work if logged in — use refs to ensure latest values
             const token = localStorage.getItem('authToken');
             if (token) {
-                const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                const API_BASE = RESOLVED_API_BASE;
                 const reviewData = filteredQuestionsRef.current.map((q, idx) => ({
                     question_id: q.id,
                     question: q.question,

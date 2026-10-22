@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 function LessonLayout() {
     const [files, setFiles] = useState([]);
     const location = useLocation();
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
 
     useEffect(() => {
         fetch(`${API_BASE}/lessons`)

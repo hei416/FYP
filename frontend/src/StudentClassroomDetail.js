@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { downloadClassroomFile, askClassroom, listSections, listClassroomQuizzes, listClassroomPracticalChallenges, submitClassroomQuizAttempt, markMaterialAsRead, getClassroomQuizStudentResults } from './classroomService';
 import CodingChallengePlayer, { normalizeChallenge } from './CodingChallengePlayer';
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
 
 // Helper function to generate unique IDs
@@ -179,7 +180,7 @@ export default function StudentClassroomDetail() {
     if (!(viewerFile.mime_type?.includes('text') || viewerFile.mime_type?.includes('markdown'))) return;
     
     setTextContent(null); // Reset while loading
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
     console.log(`📄 Loading text file: ${viewerFile.filename}`);
     fetch(`${API_BASE}/classrooms/${classroomId}/files/${viewerFile.id}/view`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -209,7 +210,7 @@ export default function StudentClassroomDetail() {
     if (!viewerFile.mime_type?.includes('pdf')) return;
     
     setPdfBlobUrl(null); // Reset while loading
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
     console.log(`📄 [PDF] Loading: ${viewerFile.filename} (token=${token?.length} chars)`);
     fetch(`${API_BASE}/classrooms/${classroomId}/files/${viewerFile.id}/view`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -264,7 +265,7 @@ export default function StudentClassroomDetail() {
       setAnswer(result);
       
       // Save to conversation history with "classroom" context_type
-      const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+      const API_BASE = RESOLVED_API_BASE;
       
       // ✅ FIXED: Reuse conversation_id if it exists, create new one only on first message
       const conversationId = classroomConversationId || 
@@ -740,7 +741,7 @@ export default function StudentClassroomDetail() {
                     }}>
                       <iframe
                         src={(() => {
-                          const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                          const API_BASE = RESOLVED_API_BASE;
                           const url = `${API_BASE}/classrooms/${classroomId}/files/${answer.sources[selectedSourceIndex].file_id}/view`;
                           // Add page number as anchor if available
                           const page = answer.sources[selectedSourceIndex].page_number || 1;

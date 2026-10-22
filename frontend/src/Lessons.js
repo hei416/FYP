@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 function Lessons() {
     const { id } = useParams();
     const [lesson, setLesson] = useState(null);
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
 
     useEffect(() => {
         fetch(`${API_BASE}/lessons/${id}`)

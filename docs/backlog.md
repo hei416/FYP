@@ -14,6 +14,8 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[KI-9] `quiz_questions.csv` committed** — referenced by `db_models.py`, `routers/classroom.py`; owner decides seeded DB vs protected storage.
 - **[SP-1] Remove `REACT_APP_TERMINAL_WS` from `frontend/.env.development` / `.env.production`** — dead after the 2026-10-23 single-process collapse. Agents must not read or edit `.env*` (hard rule 3), so the owner does this. Harmless if left (nothing reads it).
 
+- **[SP-4] Clear `REACT_APP_API_BASE` in `frontend/.env.production`** — **blocks single-process mode.** The var is baked in at build time and currently pins `https://codetutor-fyp-hei.azurewebsites.net`, so a production build calls that host instead of the origin serving the page. Build with it empty (`REACT_APP_API_BASE= npm run build`) and the SPA is origin-relative. Agents must not edit `.env*` (hard rule 3). Code side **done 2026-10-23**: `frontend/src/apiBase.js` is now the single source of truth for the API base (closes **GAP-11** — the 17 duplicated fallbacks are gone).
+
 - **[SP-2] Make `backend/Dockerfile` carry `frontend/build`** — single-process mode serves the SPA from the backend process, so the image must contain the build (CI builds it; no Node at runtime). Currently the Dockerfile ships backend only and `docker-compose.container.yml` would run API-only. Batch with DEPLOY-1 — the pipeline work on `ci/container-deploy-pipeline` assumes a separate frontend host (Cloudflare Pages), which this decision may retire.
 
 - **[SP-3] Drop the dead `terminal-service/**` filter from `.github/workflows/backend.yml`** — the folder no longer exists. Deliberately left alone: agents never edit CI (decision 2026-10-22) and the final shape waits on DEPLOY-1.
@@ -34,7 +36,7 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[AUD-7] Grouped med/low cleanups** — security: SEC-15/17/18/19/20/26/27; backend: BE-5/6/17/18/19/25; deps: FE-13/17/20, GAP-10 duplicate pin; frontend: FE-16/18/19 (frontend deploy); tests: FE-15 `dev-requirements.txt` + `pytest.ini` + first backend unit tests. Details in the audit doc.
 - **[GAP-RAG] RAG quality** — unify the two divergent chunkers (GAP-2); eval golden set + methodology DONE 2026-10-22 (`docs/modules/rag-evaluation.md`); the runner `.py` still waits for AUD-2's CI fix (GAP-3).
 - **[GAP-OBS] Logging instead of print** — 193 `print(` vs 5 loggers (GAP-6, extends BE-25); module loggers + request-id middleware; batch with AUD-6.
-- **[GAP-FE] Frontend duplication** — shared `api.js` for the 18 duplicated API-base fallbacks (GAP-11); merge `TopicDetailPage`/`EnhancedTopicDetailPage` (GAP-12, halves the FE-4 sink surface). Frontend deploy.
+- **[GAP-FE] Frontend duplication** — ~~shared `api.js` for the duplicated API-base fallbacks (GAP-11)~~ **done 2026-10-23** (`src/apiBase.js`); merge `TopicDetailPage`/`EnhancedTopicDetailPage` (GAP-12, halves the FE-4 sink surface). Frontend deploy.
 
 ## Waiting
 

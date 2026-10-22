@@ -25,9 +25,16 @@ Prerequisites: Python 3.10+, Node 18+, (optional) Docker.
 
 **Single-process mode.** A deployed instance runs **one** process: gunicorn/uvicorn serves the API *and*
 the built SPA from `FRONTEND_BUILD_DIR` (default `<repo>/frontend/build`). Reproduce it locally with
-`cd frontend && npm run build`, then start the backend — `/` now serves the SPA and unknown paths fall
+`cd frontend && REACT_APP_API_BASE= npm run build`, then start the backend — `/` now serves the SPA and unknown paths fall
 back to `index.html` so client-side routes survive a refresh. Leave the build dir absent (or set
-`FRONTEND_BUILD_DIR=/nonexistent`) to keep the backend API-only while CRA hot-reloads on :3000.
+`FRONTEND_BUILD_DIR=/nonexistent`) to keep the backend API-only while CRA hot-reloads on :3000 —
+**otherwise a `frontend/build` left over from an earlier build is served at `:8000/`, silently stale.**
+
+**`REACT_APP_API_BASE` must be empty for single-process mode.** It is baked in at build time; when it
+holds an absolute host the SPA calls that host instead of the origin serving it. `frontend/src/apiBase.js`
+resolves the base once for the whole app: the env var when set, `http://localhost:8000` when the page is
+on the CRA dev port, and otherwise the same origin. `frontend/.env.production` currently pins the stale
+Azure host — backlog **SP-4**, owner action (agents must not touch `.env*`).
 
 Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && python create_admin.py`).
 
@@ -35,7 +42,7 @@ Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && pyt
 
 Offline unit tests live in `backend/tests/`; E2E still needs a running stack. What exists:
 
-- **Offline suite** (FastAPI TestClient, no network, no running services) — run from `backend/`: `python -m pytest tests/ -q --ignore=tests/test_acceptance.py --ignore=tests/test_browser_compat.py --ignore=tests/locustfile.py`. Covers the single-process SPA mount (`test_single_process_spa.py`: API routes beat the catch-all, client-side routes fall back to index.html, traversal cannot escape the build dir) and the pre-first-deploy security fixes (`test_security_fixes.py`: registration role forcing, CORS config, traceback suppression, auth on conversations//explain-error/files, SSRF guard, SEC-14 login/register rate limit, SEC-16 password policy — 30 tests). Dependencies: `pip install -r backend/requirements-dev.txt`.
+- **Offline suite** (FastAPI TestClient, no network, no running services) — run from `backend/`: `python -m pytest tests/ -q --ignore=tests/test_acceptance.py --ignore=tests/test_browser_compat.py --ignore=tests/locustfile.py` (**42 tests**). Covers the single-process SPA mount (`test_single_process_spa.py`: API routes beat the catch-all, client-side routes fall back to index.html, traversal cannot escape the build dir) and the pre-first-deploy security fixes (`test_security_fixes.py`: registration role forcing, CORS config, traceback suppression, auth on conversations//explain-error/files, SSRF guard, SEC-14 login/register rate limit, SEC-16 password policy). Dependencies: `pip install -r backend/requirements-dev.txt`.
 - `backend/tests/` (the rest) — pytest + Playwright E2E against a **running** localhost:3000 stack, plus a locustfile for load testing.
 - `frontend/` — `CI=true npm test -- --watchAll=false` (react-scripts/jest; green since FE-16: react-router 7 needs the `moduleNameMapper` + TextEncoder polyfill already configured in `package.json`/`setupTests.js` — don't remove them).
 

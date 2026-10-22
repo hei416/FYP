@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { colors, radii, font, spacing, btn, codeOutput, transition } from './theme';
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 const Editor = React.lazy(() => import('@monaco-editor/react'));
 
 // Simple error boundary to catch editor runtime errors (monaco loader issues)
@@ -47,7 +48,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     const [errorExplanations, setErrorExplanations] = useState({}); // { idx: "explanation text" }
     const [stdinInput, setStdinInput] = useState('');
     const decorationIdsRef = useRef([]);
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
 
     const filesRef = useRef(files);
     useEffect(() => { filesRef.current = files; }, [files]);

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { colors, radii, font, card, shadows, btn } from './theme';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
+const API_BASE = RESOLVED_API_BASE;
 // --- AdminClassroomFiles inline component ---
 function AdminClassroomFiles({ classroomId, token }) {
   const [files, setFiles] = useState([]);

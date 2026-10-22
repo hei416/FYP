@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { pullProgressFromBackend, pushProgressToBackend, clearAllProgressLocalData } from './progressService';
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -9,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+  const API_BASE = RESOLVED_API_BASE;
 
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');

@@ -72,8 +72,8 @@ never push.** The owner pushes if and when they choose.
 **Done — awaiting owner review. Local only; nothing pushed.**
 
 Branch `chore/single-process-collapse`, worktree `/Users/pandawork/FYP-single-process`, based on
-`main` @ `4211ee4`. Four commits: backend SPA mount, frontend single execution path, terminal-service
-deletion + compose repair, docs.
+`main` @ `4211ee4`. Five commits: backend SPA mount, frontend single execution path, terminal-service
+deletion + compose repair, docs, and the API-base single source of truth.
 
 ### Verified
 
@@ -83,6 +83,8 @@ deletion + compose repair, docs.
 - `pytest tests/ -q` (offline subset) — **42 passed**, including 9 new SPA-mount tests. Green both
   with and without `frontend/build` present.
 - `npm run build` — compiles (warnings only, all pre-existing). `CI=true npm test` — 6 passed.
+- `REACT_APP_API_BASE= npm run build` — bundle contains no absolute API host; the backend serves it
+  with only relative asset references.
 - **End-to-end single-process proof:** with the real `frontend/build`, the backend serves `/` as
   index.html, serves the hashed `main.*.js` bundle (1.73 MB), falls back to index.html on
   `/lessons/3`, and still answers `/health`, `/api/status`, `/api/run-code`, `/docs`, `/openapi.json`.
@@ -102,8 +104,26 @@ Fixed by pinning `FRONTEND_BUILD_DIR` to a nonexistent path in that module. The 
 holds: **any route added after app import is shadowed by the catch-all.** All real routers register
 before it.
 
+### Second pass — the API base (would have made the collapse non-functional)
+
+The first pass shipped a backend that serves the SPA, but every `fetch` still resolved through 17
+duplicated `process.env.REACT_APP_API_BASE || 'http://localhost:8000'` fallbacks, and
+`frontend/.env.production` bakes in `https://codetutor-fyp-hei.azurewebsites.net` — 22 occurrences in
+the built bundle. A deployed single process would have served a page that called a different host.
+
+Fixed by `frontend/src/apiBase.js`, now the single source of truth (closes **GAP-11**): the env var
+when set, `http://localhost:8000` when the page is on the CRA dev port, **same origin** otherwise.
+All 17 call sites and the `NLIStatusBadge` default parameter route through it.
+
+Verified: `REACT_APP_API_BASE= npm run build` produces a bundle with **zero** absolute API hosts, and
+the backend serves it with only relative asset references. A default build still pins the Azure host —
+clearing that is **SP-4**, owner action, because `.env*` is off-limits to agents.
+
 ### Left for the owner
 
+- **SP-4 (blocking for deploy)** `frontend/.env.production` pins `REACT_APP_API_BASE` to the stale
+  Azure host. Until it is cleared, a production build calls that host rather than the origin serving
+  it, and single-process mode does not work. One-line owner fix; agents cannot touch `.env*`.
 - **SP-1** `frontend/.env.development` / `.env.production` still set `REACT_APP_TERMINAL_WS`. Agents
   must not touch `.env*` (hard rule 3). Dead but harmless.
 - **SP-2** `backend/Dockerfile` does not copy `frontend/build`, so a container built from it runs

@@ -8,6 +8,7 @@ import PdfPageViewer from './components/PdfPageViewer';
 import NLIStatusBadge from './components/NLIStatusBadge';
 
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 // Add getToken helper for fetching classrooms
 const getToken = () => localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
 
@@ -46,7 +47,7 @@ const ExpandIcon = () => (
 );
 
 export default function AI({ showChat, setShowChat, externalInputRef }) {
-    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+    const API_BASE = RESOLVED_API_BASE;
     const navigate = useNavigate();
     const { user } = useAuth();
     const [sessions, setSessions] = useState([]);
@@ -331,7 +332,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     let pdfMatches = [];
                     let queryId = null;
                     let responseTimeSec = null;
-                    const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                    const API_BASE = RESOLVED_API_BASE;
 
                     if (classroomIds.length > 0) {
                         // Call multi-classroom RAG endpoint
@@ -474,7 +475,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                 </div>
             )}
             {msg.query_id && (
-                <NLIStatusBadge queryId={msg.query_id} apiBase={process.env.REACT_APP_API_BASE || 'http://localhost:8000'} />
+                <NLIStatusBadge queryId={msg.query_id} apiBase={RESOLVED_API_BASE} />
             )}
             {console.log(`📊 [AI] Message ${msgIndex}:`, { 
                 content: msg.content?.substring(0, 50), 
@@ -590,7 +591,7 @@ export default function AI({ showChat, setShowChat, externalInputRef }) {
                     return () => clearTimeout(timer);
                 }
 
-                const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+                const API_BASE = RESOLVED_API_BASE;
                 console.log(`🔑 [AI] Fetching classrooms with valid token (length=${token.length})`);
                 
                 fetch(`${API_BASE}/classrooms/enrolled`, {

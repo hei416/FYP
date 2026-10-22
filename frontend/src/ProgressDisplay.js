@@ -5,7 +5,8 @@ import { TOPIC_GROUPS, JAVA_SUBTOPIC_IDS } from './BasicJavaPage';
 import { colors, radii, shadows, spacing, font, transition } from './theme';
 import { useAuth } from './AuthContext';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
+const API_BASE = RESOLVED_API_BASE;
 
 export default function ProgressDisplay() {
     const [progress, setProgress] = useState({ completed: 0, total: 1 });

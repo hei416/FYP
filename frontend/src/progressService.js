@@ -6,7 +6,8 @@
 
 import { QUIZ_PASS_SCORE } from './ProgressTracker';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
+const API_BASE = RESOLVED_API_BASE;
 
 const getToken = () => localStorage.getItem('authToken');
 

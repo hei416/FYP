@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+import { API_BASE as RESOLVED_API_BASE } from './apiBase';
 export default function DocumentViewer({ isOpen, onClose, documentFile, documentSource }) {
   const [content, setContent] = useState('');
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('text'); // 'text' or 'web'
-  const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+  const API_BASE = RESOLVED_API_BASE;
 
   const fetchDocumentContent = useCallback(async () => {
     setLoading(true);
