@@ -276,7 +276,7 @@ python rebuild_vectorstore.py
 ## Vectorstore / RAG Notes
 
 - FAISS index stored at `vectorstore/index.faiss`; metadata in `vectorstore/faiss_summary.json`.
-- RAG system uses per-request retriever instances — **avoid module-level retriever singletons** (causes stale state issues).
+- Design intent: per-request retriever instances — **avoid module-level retriever singletons** (stale state). *Note: the current code does keep module-level singletons (`routers/rag.py`, set from `main.py`); tracked as BE-5 in [`docs/plans/active/codebase-audit.md`](docs/plans/active/codebase-audit.md).*
 - See `rag_system.py` and `routers/rag.py` for the full RAG pipeline.
 - NLI faithfulness checks validate that AI answers are grounded in retrieved documents.
 
@@ -284,7 +284,7 @@ python rebuild_vectorstore.py
 
 ## Interactive Terminal (dev & deploy)
 
-The `terminal-service/` Node.js microservice provides a PTY (via `node-pty`) for Java programs that need stdin (e.g., `Scanner`).
+The `terminal-service/` Node.js microservice compiles and runs Java programs that need stdin (e.g., `Scanner`). It uses plain `child_process` (`javac`/`java` via `execFile`/`spawn`) over a WebSocket — **not** node-pty (no PTY dependency exists in `terminal-service/package.json`).
 
 ### Local Dev — Convenience Script
 
@@ -300,12 +300,9 @@ Then: `npm run dev:with-terminal`
 
 ### Production / Azure Notes
 
-- `node-pty` includes native binaries. On Azure App Service, run:
-  ```bash
-  cd terminal-service && npm rebuild node-pty --update-binary
-  ```
-- **Recommended:** Run `terminal-service` as a separate service (PM2 / systemd / container) and proxy WebSocket through FastAPI backend.
-- Bind the service to `localhost` only — never expose it publicly without authentication.
+- No native binaries to rebuild (the old `npm rebuild node-pty` step is obsolete — there is no node-pty).
+- In production, `startup.sh` launches the service in the background and the FastAPI backend proxies it at `/ws/terminal` (`routers/terminal.py`).
+- Bind the service to `localhost` only — never expose it publicly without authentication. *Currently neither the service nor the proxy authenticates (audit SEC-1..6, critical — see owner item AUD-1 in [`docs/backlog.md`](docs/backlog.md)).*
 
 ---
 
@@ -315,7 +312,7 @@ Then: `npm run dev:with-terminal`
 - **Rate limiting:** `/ragAI` — 30 req/min; `/api/run-code` — 20 req/min (via `slowapi`).
 - **External integrations** (e.g., Paiza) rely on env vars in `core/config.py`.
 - **Debug endpoints** (`/test-alive`, `/debug/routes`) are only registered when `DEBUG_MODE=true`.
-- **File uploads:** Max 50 MB, allowed types: PDF, TXT, DOCX, DOC.
+- **File uploads:** intended max 50 MB, allowed types PDF, TXT, DOCX, DOC — *currently not enforced on the legacy upload route, and `MAX_UPLOAD_SIZE_BYTES` is never applied (audit SEC-20)*.
 
 ### Debug Mode
 
@@ -331,11 +328,13 @@ uvicorn main:app
 
 ## Known Issues & TODOs
 
+> **Live tracker:** this table is a snapshot. The maintained list is [`docs/backlog.md`](docs/backlog.md) (items `KI-n` keep the numbering below); evidence and severity live in the verified audit, [`docs/plans/active/codebase-audit.md`](docs/plans/active/codebase-audit.md), and the 2026-10-22 analysis + improvement proposal in [`docs/reports/`](docs/reports/).
+
 ### 🔴 Phase 2 Fixes (Pending)
 
 | # | Issue | File | Status |
 |---|---|---|---|
-| 1 | Password strength validation not yet wired to auth endpoints | `routers/auth.py` | ⏳ Pending |
+| 1 | No password policy at all — no validator exists anywhere to "wire" (empty password accepted); one must be written (audit SEC-16) | `routers/auth.py` | ⏳ Pending |
 | 2 | Generic 500 errors in some routers — need specific 4xx/5xx codes | `routers/*.py` | ⏳ Pending |
 | 3 | No pagination on large query results (e.g., student lists) | `routers/` | ⏳ Pending |
 
@@ -343,15 +342,17 @@ uvicorn main:app
 
 | # | Issue | Notes |
 |---|---|---|
-| 4 | LLM retrieval-only fallback not fully implemented in `routers/rag.py` | Wrap `rag_chain()` in try-except for graceful degradation |
+| 4 | try/except + fallback already exist around `rag_chain()`; the real gap is a retrieval-only degradation mode when the LLM call itself fails (audit BE-22) | Handle LLM errors inside `chain_with_fallback` |
 | 5 | `local_llm_fallback.py` (Llama 2 CPU) disabled — `OLLAMA_FALLBACK_ENABLED=False` | Enable post-FYP if local inference needed |
-| 6 | `migrate_to_postgres.py` referenced in README but not present in root | Verify file location or update reference |
-| 7 | `terminal-service` WebSocket not proxied through backend in production | Security risk if exposed directly |
-| 8 | No `.env.example` file — developers must manually configure env vars | Add `.env.example` with placeholder values |
+| 6 | `migrate_to_postgres.py` confirmed absent from the repo (audit BE-23) yet still listed in `.gitignore:47` | Owner: restore the script or drop the `.gitignore` line |
+| 7 | The backend proxy for the terminal WebSocket exists (`/ws/terminal`, `routers/terminal.py`) but is unauthenticated, as is the service itself (audit SEC-1..6) | Owner decision AUD-1 |
+| 8 | ~~No `.env.example` file~~ | ✅ Done 2026-10-22 — created as `env.example` (placeholders only); rename to `.env.example` pending (backlog OPS-2) |
 | 9 | `quiz_questions.csv` committed to repo — may contain sensitive test data | Consider moving to seeded DB or protected storage |
 | 10 | ~~Multiple loose `*.md` doc files in root~~ | ✅ Done 2026-10-22 — archived to [`docs/_archives/`](docs/_archives/README.md) (reorg Phase 2) |
 
 ### ✅ Completed Fixes (Phase 1 — April 2026)
+
+> *Accuracy note (2026-10-22 audit): some of these claims no longer hold in full — logging is still mostly `print()` (GAP-6), the upload size/MIME checks are missing on the legacy route and `MAX_UPLOAD_SIZE_BYTES` is never enforced (SEC-20), and rate limiting covers RAG/code-exec but not login/register (SEC-14) and keys by a single proxy IP in production (SEC-15).*
 
 - ✅ Structured logging added throughout (silent exceptions eliminated)
 - ✅ Debug endpoints hidden behind `DEBUG_MODE` flag
