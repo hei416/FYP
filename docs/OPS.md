@@ -65,7 +65,7 @@ Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `fron
 
 ## Vector store rebuild (document only — do not run casually)
 
-`cd backend && python rebuild_vectorstore.py` regenerates the FAISS stores in `backend/vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast Azure startup — a rebuild changes tracked binaries and, if pushed, triggers a backend deploy (`backend/**` is in the CI path filter). Inspect metadata with `backend/vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
+`cd backend && python rebuild_vectorstore.py` regenerates the FAISS stores in `backend/vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast startup — a rebuild changes tracked binaries; they ship inside the container image (and on the unmerged `main` a push would still hit the old zip pipeline's `backend/**` filter). Inspect metadata with `backend/vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
 
 ## Container (host-agnostic — deploy method DEPLOY-1 still undecided)
 
@@ -105,18 +105,44 @@ docker compose -f docker-compose.container.yml down -v      # discard the throwa
 
 **Frontend container-era build option:** the frontend needs no container — `cd frontend && REACT_APP_API_BASE=https://YOUR-BACKEND.example npm run build` produces a static `build/` servable by any static host (or an nginx container). That removes the regenerated-`server.js` failure mode (FE-3) entirely; remember CRA env vars are build-time and `CORS_ORIGINS` must include the static origin.
 
-**Not in the image:** `terminal-service/` (stays undeployed until SEC-1..6 hardening), `frontend/`, `docs/`, tests, any `.env*`. `startup.sh` is unused by the image but stays at the repo root while the latent zip workflows exist.
+**Not in the image:** `terminal-service/` (stays undeployed until SEC-1..6 hardening), `frontend/`, `docs/`, tests, any `.env*`. `startup.sh` is unused by the image; it stays at the repo root only until the old App Services are retired (the zip workflows that used it are archived on this branch but still live on `main`).
 
-## Deploy mechanics (latent)
+## Deploy runbook (container pipeline — DEPLOY-1, 2026-10-23; nothing provisioned yet)
 
-**Owner statement 2026-10-22: the app has never been live in production.** CI history shows real deploy runs to the two App Services in Mar–Apr 2026 and none since 2026-04-22; whether the Azure resources and secrets still exist is unverifiable from the repo — evidence: [reports/deployment-evidence-2026-10-22.md](reports/deployment-evidence-2026-10-22.md). Treat the pipelines below as **latent but possibly armed**: a push to `main` matching the path filters may still start a real deploy. Before any first public deployment, work through [plans/active/first-deploy-readiness.md](plans/active/first-deploy-readiness.md).
+Stack: backend image on **ghcr.io** → **Azure Container Apps** (consumption, scale-to-zero) · frontend static build → **Cloudflare Pages** · DB → **Neon** free Postgres. Decision-log entry pending owner confirmation. The old push-triggered zip pipelines are archived verbatim in [`docs/_archives/2026-10-23_zip-deploy-workflows/`](_archives/2026-10-23_zip-deploy-workflows/README.md) (the AUD-2 zip repair `c9e78c7` was dropped, never merged). **No workflow fires on push to `main`**: image builds run manually (Actions → *Build backend image*) or on a `v*` tag; the frontend deploy is manual-only. On the still-unmerged `main` the old workflows remain live-armed — the no-push rule stands there (history: [reports/deployment-evidence-2026-10-22.md](reports/deployment-evidence-2026-10-22.md), inventory: [reports/azure-inventory-2026-10-23.md](reports/azure-inventory-2026-10-23.md)). Before the first deployment, work through [plans/active/first-deploy-readiness.md](plans/active/first-deploy-readiness.md).
 
-Both GitHub Actions workflows fire **on every push to `main`** matching their path filters:
+### Secrets and variables (names only — values never in git)
 
-- `backend.yml`: `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted 2026-10-22 for the `backend/` restructure; final shape waits on the deploy-method decision) → zips the repo (minus `frontend/`) → synchronous `az webapp deploy` to App Service `codetutor-fyp-hei` → polls `/health` (the deploy is no longer `--async`, so the poll validates the **new** build).
-- `frontend.yml`: `frontend/**` plus stale root filters `public/**`, `src/**`, `package.json` → CRA build → regenerates `server.js` at package time (the repo copy was deleted in bec2835) → deploys to the frontend App Service.
+| Where | Name | Used by |
+|---|---|---|
+| GitHub secret | `CLOUDFLARE_API_TOKEN` (scope: Account → Cloudflare Pages → Edit) | `deploy-frontend-pages.yml` |
+| GitHub secret | `CLOUDFLARE_ACCOUNT_ID` | `deploy-frontend-pages.yml` |
+| GitHub variable | `REACT_APP_API_BASE` (deployed backend URL; CRA = build-time) | frontend build |
+| GitHub variable | `CF_PAGES_PROJECT` (Pages project name) | frontend deploy |
+| ACA secret/env | `DATABASE_URL` (Neon), `SECRET_KEY`, `API_KEY`, `PAIZA_API_KEY` (optional), `CORS_ORIGINS` | backend runtime (full table: §Container) |
+| ACA env | `ENABLE_TERMINAL`, `DEBUG_MODE` — **leave unset** | readiness #5/#13 |
 
-There is no staging environment. **Never push without the owner's explicit go-ahead.** Open question for the owner: no workflow run has fired since 2026-04-22 despite filter-matching pushes (Actions shows "active"; cause unverifiable with current token permissions) — resolve before relying on CI at all.
+ghcr.io auth in CI is the ephemeral `GITHUB_TOKEN` — no stored registry secret. Stale GitHub secrets once the old App Services are retired: `AZURE_CREDENTIALS`, `AZURE_WEBAPP_PUBLISH_PROFILE`, `AZURE_FRONTEND_PUBLISH_PROFILE` (and the GitHub-side `DATABASE_URL`/`SECRET_KEY` copies — no workflow reads them anymore; their real values live only in ACA).
+
+### First deploy (owner, by hand — in this order)
+
+1. **Neon**: create project + database; keep the connection string out of git. From a local shell, migrate the empty DB **by hand** (never CI): `DATABASE_URL=<neon url> MIGRATION_CONFIRM=yes python backend/schema_migration.py` (or `--yes`), then seed the admin with a non-default password: `python backend/create_admin.py` (readiness #8).
+2. **Image**: run the *Build backend image* workflow (bake models = yes) or push a `v*` tag; note the pushed `sha-<fullsha>` tag. If the ghcr package is private, either make it public or give ACA a registry credential (PAT with `read:packages`).
+3. **ACA**: create resource group + Containerapp environment + app — image `ghcr.io/hei416/codetutor-backend:sha-<sha>`, target port 8000, min replicas 0 / max 1, startup probe `GET /health` with ≥180 s allowance (first boot without baked models is slower), secrets/env from the table above, `CORS_ORIGINS=https://<project>.pages.dev` (plus any custom domain).
+4. **Health check**: `curl -fsS https://<app>.<region>.azurecontainerapps.io/health` → `{"status":"ok"}`; then `/openapi.json` path count as in §Container.
+5. **Cloudflare Pages**: create the Pages project (direct-upload); set repo variables `REACT_APP_API_BASE` = the ACA URL and `CF_PAGES_PROJECT`; run *Deploy frontend (Cloudflare Pages)*. `REACT_APP_TERMINAL_WS` stays unset (FE-10).
+6. **Verify end-to-end**: open the Pages URL — login, one RAG question, classroom page, code run via Paiza (readiness #14); watch for CORS errors in the browser console.
+7. Tag the deployed commit (`git tag deploy/YYYY-MM-DD`) so rollback has a named baseline (readiness #12).
+
+### Rollback (one command)
+
+- **Backend** — shift traffic back to the previous ACA revision (seconds, no rebuild): `az containerapp ingress traffic set -g <rg> -n <app> --revision-weight <previous-revision>=100` (list them: `az containerapp revision list -g <rg> -n <app> -o table`). Equivalent by image: `az containerapp update -g <rg> -n <app> --image ghcr.io/hei416/codetutor-backend:sha-<previous>`.
+- **Frontend** — Cloudflare Pages keeps every deployment: dashboard → Deployments → previous → *Rollback*.
+- **DB** — revisions only roll back code: take a manual `pg_dump` before every migration and keep schema changes backward-compatible with the previous revision, or the rollback lies.
+
+### DB migrations after first deploy
+
+Always by hand, never from CI: `pg_dump` first, then `MIGRATION_CONFIRM=yes python backend/schema_migration.py` with `DATABASE_URL` pointing at Neon, then health-check and smoke-test the running revision.
 
 ## Known failure patterns
 
