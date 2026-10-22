@@ -4,14 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - '**.py'
-      - 'requirements.txt'
+      # PROVISIONAL (2026-10-22): adjusted for the backend/ restructure only.
+      # Deploy method is undecided — revisit with the deploy-options decision.
+      - 'backend/**'
       - 'startup.sh'
-      - 'routers/**'
-      - 'services/**'
-      - 'core/**'
-      - 'vectorstore/**'
-      - 'practical_tests/**'
       - 'terminal-service/**'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
@@ -34,7 +30,7 @@ jobs:
           python -m venv antenv
           source antenv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r backend/requirements.txt
 
       - name: Azure login
         uses: azure/login@v2
