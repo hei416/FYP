@@ -96,3 +96,10 @@ PyMuPDF==1.26.3
 python-docx==1.2.0
 transformers==4.40.2
 torch==2.2.2
+
+# rag_system.py / services/classroom_rag.py import sentence_transformers; it was
+# never pinned here (RAG init degraded at runtime wherever requirements.txt was
+# the only install source). 2.7.0 = last 2.x line, compatible with the pinned
+# transformers 4.40.2 / torch 2.2.2. Pillow is its one dep not already pinned.
+sentence-transformers==2.7.0
+Pillow==10.4.0
