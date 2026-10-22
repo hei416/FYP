@@ -5,6 +5,13 @@ import { ProgressTracker, QUIZ_PASS_SCORE } from "./ProgressTracker";
 import { getTopicGroupsForPath } from "./learningPathUtils";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading, pageSubheading, transition } from './theme';
 
+// SEC-21: AI endpoints now require authentication.
+const authHeaders = () => {
+    const token = localStorage.getItem('authToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+
 // Enhanced Java subtopic ID prefixes and main topic names
 const ENHANCED_SUBTOPIC_PREFIXES = ["adv_", "col_", "stream_", "exc_", "thread_", "ds_", "algo_"];
 const ENHANCED_MAIN_TOPICS = new Set([
@@ -136,7 +143,7 @@ export default function Quiz() {
 
             const res = await fetch(`${API_BASE}/api/quizzes/generate`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeaders() },
                 body: JSON.stringify({
                     completed_topics: topicsToUse,
                     num_questions: 10,
@@ -200,7 +207,7 @@ export default function Quiz() {
 
             const res = await fetch(`${API_BASE}/api/quizzes/more`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeaders() },
                 body: JSON.stringify({
                     completed_topics: lastTopics,
                     num_questions: 5,

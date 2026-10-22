@@ -1,66 +1,47 @@
+# ── Python ──
 __pycache__/
-*.pyc
-.env
+*.py[cod]
 .venv/
-node_modules/
-frontend/node_modules/
-# vectorstore FAISS binaries are committed for fast production startup (Option B)
-# index.faiss
-.DS_Store
-.idea/
-.vscode/# 依賴
+venv/
+
+# ── Node ──
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+build/
+dist/
 
-# 環境變數
+# ── Environment variables (never commit real values) ──
 .env
 .env.local
-migrate_to_postgres.py
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Build
-build/
-dist/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# SQLite databases (stored in /home on Azure; exclude from source)
+# ── Databases (SQLite lives in /home on Azure; exclude from source) ──
 *.db
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# ── Vector stores ──
+# FAISS binaries in vectorstore/ ARE committed on purpose for fast production
+# startup (Option B). Do NOT add a rule that ignores vectorstore/.
+# index.faiss
 
-# Python virtual environments
-.venv/
-venv/
+# ── Model caches (local development only) ──
+.cache/
+sentence_transformers_cache/
 
-# Deployment zip
-deploy.zip
-.DS_Store
-__pycache__/
-*.log
-.venv/
+# ── IDE / OS ──
+.vscode/
 .idea/
 .VSCodeCounter/
 *.iml
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
 
-# HuggingFace & sentence-transformers model cache (local development only)
-.cache/
-~/.cache/huggingface/
-sentence_transformers_cache/
-
+# ── Misc ──
+*.log
+deploy.zip
+migrate_to_postgres.py

@@ -155,7 +155,12 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
 
                     const res = await fetch(`${API_BASE}/api/explain-error`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(localStorage.getItem('authToken')
+                                ? { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+                                : {}),
+                        },
                         body: JSON.stringify({
                             error_message: err.message,
                             code_snippet: getLineContext(err.line, code),

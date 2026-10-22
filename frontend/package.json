@@ -18,6 +18,7 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^5.2.0",
     "bootstrap": "^5.3.7",
+    "dompurify": "^3.4.17",
     "express": "^4.21.2",
     "mermaid": "^11.12.1",
     "monaco-editor": "^0.55.1",
@@ -39,6 +40,13 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router-dom$": "<rootDir>/node_modules/react-router-dom/dist/index.js",
+      "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js",
+      "^react-router$": "<rootDir>/node_modules/react-router/dist/development/index.js"
+    }
   },
   "browserslist": {
     "production": [

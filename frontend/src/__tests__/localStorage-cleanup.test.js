@@ -52,8 +52,10 @@ describe('localStorage cleanup on logout', () => {
       expect(localStorage.getItem(key)).toBeNull();
     });
 
-    // Verify localStorage is empty
-    expect(localStorage.length).toBe(0);
+    // 'hasSeenDemoTour' is intentionally excluded from cleanup (persistent
+    // user preference — see progressService.js); everything else is gone.
+    expect(localStorage.getItem('hasSeenDemoTour')).toBe('true');
+    expect(localStorage.length).toBe(1);
   });
 
   test('should remove dynamically-created user-specific keys', () => {

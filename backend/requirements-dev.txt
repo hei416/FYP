@@ -1,0 +1,3 @@
+# Dev/test-only dependencies — NOT shipped in the deploy zip's install step.
+# Heavier E2E/load deps (playwright, locust) stay ad hoc; see docs/OPS.md §Tests.
+pytest==8.3.4

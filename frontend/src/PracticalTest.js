@@ -4,6 +4,13 @@ import { getTopicGroupsForPath } from "./learningPathUtils";
 import { ProgressTracker } from "./ProgressTracker";
 import { colors, radii, font, spacing, btn, card, pageContainer, pageHeading } from './theme';
 
+// SEC-21: AI endpoints now require authentication.
+const authHeaders = () => {
+    const token = localStorage.getItem('authToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+
 const MAX_TOPICS = 3;
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -73,7 +80,7 @@ export default function PracticalTest() {
         try {
             const res = await fetch(`${API_BASE}/api/practical-tests/generate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
                 body: JSON.stringify({
                     topic: topicsForQuestion[0],
                     topics: topicsForQuestion,

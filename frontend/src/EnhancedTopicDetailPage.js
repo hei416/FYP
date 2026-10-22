@@ -4,6 +4,7 @@ import { ENHANCED_TOPIC_GROUPS } from './EnhancedJavaPage';
 import { enhancedRagDocMapping } from './enhancedRagDocMapping';
 import { getSourceColor, formatSourceName } from './ragDocMapping';
 import DocumentViewer from './DocumentViewer';
+import DOMPurify from 'dompurify';
 import enhancedTopicContent from './enhancedTopicContent.json';
 
 const GROUP_QUIZ_TOPICS = [
@@ -195,7 +196,7 @@ export default function EnhancedTopicDetailPage() {
                     <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6 text-gray-700">
                         <div
                             className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: content.keyConceptsHtml }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.keyConceptsHtml || '') }}
                         />
                     </div>
                 </div>
