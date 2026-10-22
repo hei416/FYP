@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(frontend/.env*)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Edit(frontend/.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/credentials*.json)",
+      "Bash(cat .env*)",
+      "Bash(cat frontend/.env*)"
+    ],
+    "ask": [
+      "Bash(rm:*)",
+      "Bash(git push:*)",
+      "Bash(az:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(npm publish:*)",
+      "Bash(python schema_migration.py:*)",
+      "Bash(python3 schema_migration.py:*)",
+      "Bash(python rebuild_vectorstore.py:*)",
+      "Bash(python3 rebuild_vectorstore.py:*)",
+      "Bash(python scripts/create_tables.py:*)",
+      "Bash(python3 scripts/create_tables.py:*)",
+      "Bash(python scripts/reset_sequences.py:*)",
+      "Bash(python3 scripts/reset_sequences.py:*)"
+    ],
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git --no-optional-locks status:*)",
+      "Bash(git --no-optional-locks log:*)",
+      "Bash(git --no-optional-locks diff:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
