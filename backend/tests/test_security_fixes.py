@@ -20,6 +20,17 @@ os.environ.setdefault("SECRET_KEY", "offline-test-signing-key-not-a-secret")
 
 from database import Base, get_db  # noqa: E402
 from routers import auth  # noqa: E402
+from core.rate_limiter import limiter  # noqa: E402
+from slowapi import _rate_limit_exceeded_handler  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """The module-level limiter keys on client IP, which is constant under
+    TestClient — reset between tests so SEC-14 limits don't leak across them."""
+    limiter.reset()
+    yield
 
 
 @pytest.fixture()
@@ -34,6 +45,8 @@ def client():
     TestSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
     app = FastAPI()
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.include_router(auth.router)
 
     def _get_db():
@@ -70,6 +83,32 @@ def test_register_as_admin_rejected(client):
         "email": "adm@example.com", "password": "pw123456", "role": "admin",
     })
     assert r.status_code == 403
+
+
+# --- SEC-14: login/register are rate-limited (5/minute per client IP) --------
+
+def test_login_rate_limited_after_five_attempts(client):
+    for _ in range(5):
+        r = client.post("/auth/login", json={
+            "email": "nobody@example.com", "password": "wrong-password",
+        })
+        assert r.status_code == 401
+    r = client.post("/auth/login", json={
+        "email": "nobody@example.com", "password": "wrong-password",
+    })
+    assert r.status_code == 429
+
+
+def test_register_rate_limited_after_five_attempts(client):
+    for i in range(5):
+        r = client.post("/auth/register", json={
+            "email": f"rl{i}@example.com", "password": "pw123456", "full_name": "RL",
+        })
+        assert r.status_code == 200
+    r = client.post("/auth/register", json={
+        "email": "rl5@example.com", "password": "pw123456", "full_name": "RL",
+    })
+    assert r.status_code == 429
 
 
 # --- SEC-8: CORS must be an explicit allowlist, never wildcard ---------------

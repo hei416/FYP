@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -7,6 +7,7 @@ import os
 import bcrypt
 from database import get_db
 from db_models import User
+from core.rate_limiter import limiter
 from typing import Optional
 
 # JWT Configuration
@@ -159,7 +160,8 @@ def require_role(*allowed_roles: str):
 
 # Routes
 @router.post("/register", response_model=Token)
-async def register(user_data: UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, user_data: UserRegister, db: Session = Depends(get_db)):
     """Register a new user. All self-registrations are created as 'student';
     an admin promotes accounts to teacher/admin (SEC-7)."""
     # Self-registration must not grant elevated roles. The role field is still
@@ -203,8 +205,10 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     }
 
 @router.post("/login", response_model=Token)
-async def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    """Login user"""
+@limiter.limit("5/minute")
+async def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db)):
+    """Login user. SEC-14: rate-limited per client IP to slow credential
+    stuffing; behind a proxy the key is the proxy IP until SEC-15 is fixed."""
     # Find user by email
     user = db.query(User).filter(User.email == user_data.email).first()
     
