@@ -58,20 +58,22 @@ Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `fron
 
 ## Feature flags
 
-- **`ENABLE_TERMINAL`** (env var, default **off**) — gates the backend `/ws/terminal` WebSocket proxy (`routers/terminal.py`; AUD-1 owner decision 2026-10-22 — the terminal-service it bridges to is unauthenticated and unsandboxed, audit SEC-1..6). When off, the WS handshake is rejected with HTTP 403 (close code 1008), so **the in-browser interactive Java terminal (Scanner/stdin) does not work in production**: the frontend prints `[WebSocket error — retrying via HTTP]` and falls back to batch execution via Paiza (no interactive input). Set `ENABLE_TERMINAL=true` (an app-setting change restarts the app) only after the terminal service is hardened. Details and frontend behavior: [docs/modules/code-playground.md](modules/code-playground.md).
+- **`ENABLE_TERMINAL`** (env var, default **off**) — gates the backend `/ws/terminal` WebSocket proxy (`routers/terminal.py`; AUD-1 owner decision 2026-10-22 — the terminal-service it bridges to is unauthenticated and unsandboxed, audit SEC-1..6). When off, the WS handshake is rejected with HTTP 403 (close code 1008), so **the in-browser interactive Java terminal (Scanner/stdin) does not work in a deployed instance** (none is believed live — owner statement 2026-10-22): the frontend prints `[WebSocket error — retrying via HTTP]` and falls back to batch execution via Paiza (no interactive input). Set `ENABLE_TERMINAL=true` (an app-setting change restarts the app) only after the terminal service is hardened. Details and frontend behavior: [docs/modules/code-playground.md](modules/code-playground.md).
 
 ## Vector store rebuild (document only — do not run casually)
 
 `python rebuild_vectorstore.py` regenerates the FAISS stores in `vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast Azure startup — a rebuild changes tracked binaries and, if pushed, triggers a backend deploy (`vectorstore/` is in the CI path filter). Inspect metadata with `vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
 
-## Deploy mechanics
+## Deploy mechanics (latent)
 
-Both GitHub Actions workflows deploy **on every push to `main`** matching their path filters:
+**Owner statement 2026-10-22: the app has never been live in production.** CI history shows real deploy runs to the two App Services in Mar–Apr 2026 and none since 2026-04-22; whether the Azure resources and secrets still exist is unverifiable from the repo — evidence: [reports/deployment-evidence-2026-10-22.md](reports/deployment-evidence-2026-10-22.md). Treat the pipelines below as **latent but possibly armed**: a push to `main` matching the path filters may still start a real deploy. Before any first public deployment, work through [plans/active/first-deploy-readiness.md](plans/active/first-deploy-readiness.md).
+
+Both GitHub Actions workflows fire **on every push to `main`** matching their path filters:
 
 - `backend.yml`: any `*.py`, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/`, `terminal-service/` → zips the repo (minus `frontend/`) → synchronous `az webapp deploy` to App Service `codetutor-fyp-hei` → polls `/health` (the deploy is no longer `--async`, so the poll validates the **new** build).
 - `frontend.yml`: `frontend/**` plus stale root filters `public/**`, `src/**`, `package.json` → CRA build → regenerates `server.js` at package time (the repo copy was deleted in bec2835) → deploys to the frontend App Service.
 
-There is no staging environment. **Never push without the owner's explicit go-ahead.**
+There is no staging environment. **Never push without the owner's explicit go-ahead.** Open question for the owner: no workflow run has fired since 2026-04-22 despite filter-matching pushes (Actions shows "active"; cause unverifiable with current token permissions) — resolve before relying on CI at all.
 
 ## Known failure patterns
 

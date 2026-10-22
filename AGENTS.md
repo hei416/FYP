@@ -4,16 +4,16 @@ Java learning platform (final-year project). FastAPI backend at the **repo root*
 
 ## Hard rules — read before doing anything
 
-1. **Never push.** A push to `main` deploys straight to the two live Azure App Services (path-filtered GitHub Actions). Commit locally on a branch; only the owner pushes.
+1. **Never push.** Owner states (2026-10-22) the app has **never been deployed online / never live in production** — treat the path-filtered GitHub Actions deploy workflows as **latent, not dead**: a push to `main` may still start a real Azure deploy (and incur cost) if the secrets and App Services still exist, so the no-push rule stays until the owner lifts it. (CI history does show past deploy runs — evidence and open questions: `docs/reports/deployment-evidence-2026-10-22.md`.) Commit locally on a branch; only the owner pushes.
 2. **Never deploy.** No `az`, no Azure portal/app settings, no `gh workflow run`.
 3. **Never touch `vectorstore/`, secrets, or any `.env*` file** — do not read, edit, move, or commit them. `frontend/.env.*` are git-tracked; leave them alone.
 4. **One task per session.** Work in a **git worktree** on a branch, never directly on `main`.
 5. **Commit before stopping.** Leave a clean tree and update the Status block of your plan file in `docs/plans/active/` as the handoff note.
 
-## Deploy triggers (why pushing is dangerous)
+## Deploy triggers (latent — why pushing is still off-limits)
 
-- `.github/workflows/backend.yml` fires on **any `*.py` anywhere**, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/`, `terminal-service/` → deploys the backend (`codetutor-fyp-hei`).
-- `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → deploys the frontend.
+- `.github/workflows/backend.yml` fires on **any `*.py` anywhere**, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/`, `terminal-service/` → would deploy the backend (`codetutor-fyp-hei`).
+- `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → would deploy the frontend.
 - Deploy-inert paths: `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
 
 ## Where things live
@@ -38,7 +38,7 @@ Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 - Terminal service: `cd terminal-service && npm install && node server.js`
 - Import check (fast verification): `python -c "import main"` in the venv
 - Frontend build check: `cd frontend && npm run build`
-- Deploy: **automatic on push to `main`** — see hard rule 1. There is no manual deploy step for agents.
+- Deploy: none is believed live (owner statement — hard rule 1), but a push to `main` **may still trigger** the latent workflows. There is no deploy step for agents; first-deploy gate: `docs/plans/active/first-deploy-readiness.md`.
 
 ## Docs map
 
