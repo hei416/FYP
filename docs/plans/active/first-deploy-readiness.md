@@ -20,3 +20,13 @@ What must be true before the **first public deployment** of CodeTutor. Premise: 
 | 14 | **Smoke test script agreed** — login, RAG question, classroom page, code run (Paiza path) on the deployed URL | Open | Reuse OPS.md manual smoke test + `tests/` E2E where possible. |
 
 Owner lifts the no-push rule only when every row is Done or explicitly accepted. Until then: workflows stay latent, nobody pushes.
+
+## Deployment method (new, 2026-10-22 — decide before CI work)
+
+Options research: [`docs/reports/deploy-options-2026-10-22.md`](../../reports/deploy-options-2026-10-22.md). Recommended default: **container image (ghcr.io) on Azure Container Apps, scale-to-zero (~$0–10/mo) + static frontend hosting (Cloudflare Pages or Azure SWA, $0) + Neon free Postgres**; runner-up Fly.io (~$3–8/mo, faster cold start, leaves Azure). The current zip-deploy pipeline is the thing the audit found broken — repairing it and replacing it are alternatives, not a sequence.
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| 15 | **Deployment method chosen** (owner) — keep zip-deploy vs container on ACA / App Service / Fly / VPS; see report's top-2 + risks. Depends on #1 (do the Azure resources/credits still exist?) | Needs owner | Backlog DEPLOY-1. |
+| 16 | **AUD-2 CI repair on `fix/terminal-and-ci` is ON HOLD** until #15 is decided — it patches the zip pipeline that a container choice replaces wholesale. Merge it only if the owner keeps zip-deploy. | Waiting | Readiness #6 inherits this hold. |
+| 17 | If a container method is chosen: Dockerfile + `.dockerignore`, HF models baked into the image, probe on `/health`, new build+push CI, secrets in platform store; `startup.sh` retired (not deleted while the latent workflows exist); `PROJECT_ROOT` fixed by the image layout — makes the `backend/` restructure (proposal #9) cheap. | Open | Details: report §"What each option needs". |
