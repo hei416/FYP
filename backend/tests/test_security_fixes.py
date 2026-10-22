@@ -174,6 +174,57 @@ def test_file_endpoints_require_enrollment(classroom_client):
     assert c.get(f"/classrooms/{room_id}/files/{file_id}/view", headers=hdr).status_code == 200
 
 
+# --- SEC-11: conversation history/stats/create/clear/list require auth -------
+
+@pytest.fixture()
+def rag_client():
+    from routers import rag as rag_router
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+    app = FastAPI()
+    app.include_router(auth.router)
+    app.include_router(rag_router.router)
+
+    def _get_db():
+        db = TestSession()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _get_db
+    with TestClient(app) as c:
+        yield c
+
+
+def test_conversation_endpoints_require_auth(rag_client):
+    c = rag_client
+    assert c.post("/api/conversations/history", json={"user_id": 1}).status_code == 401
+    assert c.post("/api/conversations/stats", json={"user_id": 1}).status_code == 401
+    assert c.post("/api/conversations/create", json={"user_id": 1}).status_code == 401
+    assert c.post("/api/conversations/clear", json={"user_id": 1}).status_code == 401
+    assert c.get("/api/conversations/1/list").status_code == 401
+
+
+def test_conversation_endpoints_reject_other_users(rag_client):
+    c = rag_client
+    user = _register(c, "conv@example.com")
+    hdr = {"Authorization": f"Bearer {user['access_token']}"}
+    other = user["user_id"] + 999
+    assert c.post("/api/conversations/history", json={"user_id": other, "conversation_id": "x"}, headers=hdr).status_code == 403
+    assert c.post("/api/conversations/stats", json={"user_id": other}, headers=hdr).status_code == 403
+    assert c.post("/api/conversations/create", json={"user_id": other}, headers=hdr).status_code == 403
+    assert c.post("/api/conversations/clear", json={"user_id": other}, headers=hdr).status_code == 403
+    assert c.get(f"/api/conversations/{other}/list", headers=hdr).status_code == 403
+
+
 # --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------
 
 def test_unhandled_exception_returns_generic_500():

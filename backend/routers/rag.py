@@ -1572,8 +1572,16 @@ class ClearConversationsRequest(BaseModel):
     days: int = 30
 
 
+def _authorize_conversation_access(current_user, user_id: int) -> None:
+    """SEC-11: conversation data is per-user — only the owner (or an admin)
+    may read or delete it."""
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not your conversation data")
+
+
 @router.post("/api/conversations/history")
-async def get_conversation_history(req: ConversationHistoryRequest):
+async def get_conversation_history(req: ConversationHistoryRequest, current_user=Depends(get_current_user)):
+    _authorize_conversation_access(current_user, req.user_id)
     try:
         manager = ConversationManager()
         history = manager.get_conversation_history(
@@ -1594,7 +1602,8 @@ async def get_conversation_history(req: ConversationHistoryRequest):
 
 
 @router.post("/api/conversations/stats")
-async def get_conversation_stats(req: ConversationStatsRequest):
+async def get_conversation_stats(req: ConversationStatsRequest, current_user=Depends(get_current_user)):
+    _authorize_conversation_access(current_user, req.user_id)
     try:
         manager = ConversationManager()
         stats = manager.get_conversation_stats(
@@ -1612,7 +1621,8 @@ async def get_conversation_stats(req: ConversationStatsRequest):
 class CreateConvRequest(BaseModel):
             user_id: int
 @router.post("/api/conversations/create")
-async def create_conversation(req: CreateConvRequest):
+async def create_conversation(req: CreateConvRequest, current_user=Depends(get_current_user)):
+    _authorize_conversation_access(current_user, req.user_id)
     user_id = req.user_id
     try:
 
@@ -1634,7 +1644,8 @@ async def create_conversation(req: CreateConvRequest):
 
 
 @router.post("/api/conversations/clear")
-async def clear_old_conversations(req: ClearConversationsRequest):
+async def clear_old_conversations(req: ClearConversationsRequest, current_user=Depends(get_current_user)):
+    _authorize_conversation_access(current_user, req.user_id)
     try:
         manager = ConversationManager()
         deleted_turns = manager.clear_old_conversations(
@@ -1653,7 +1664,8 @@ async def clear_old_conversations(req: ClearConversationsRequest):
 
 
 @router.get("/api/conversations/{user_id}/list")
-async def list_conversations(user_id: int):
+async def list_conversations(user_id: int, current_user=Depends(get_current_user)):
+    _authorize_conversation_access(current_user, user_id)
     try:
         manager = ConversationManager()
         db = SessionLocal()
