@@ -225,6 +225,53 @@ def test_conversation_endpoints_reject_other_users(rag_client):
     assert c.get(f"/api/conversations/{other}/list", headers=hdr).status_code == 403
 
 
+# --- SEC-12: /api/explain-error requires auth (LLM spend) ---------------------
+
+@pytest.fixture()
+def code_exec_client():
+    from core.rate_limiter import limiter
+    from routers import code_execution
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(auth.router)
+    app.include_router(code_execution.router)
+
+    def _get_db():
+        db = TestSession()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _get_db
+    with TestClient(app) as c:
+        yield c
+
+
+def test_explain_error_requires_auth(code_exec_client):
+    c = code_exec_client
+    r = c.post("/api/explain-error", json={"error_message": "boom"})
+    assert r.status_code == 401
+
+
+def test_explain_error_authenticated_empty_message_short_circuits(code_exec_client):
+    c = code_exec_client
+    user = _register(c, "exp@example.com")
+    hdr = {"Authorization": f"Bearer {user['access_token']}"}
+    r = c.post("/api/explain-error", json={"error_message": ""}, headers=hdr)
+    assert r.status_code == 200
+    assert r.json() == {"explanation": "No error message provided."}
+
+
 # --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------
 
 def test_unhandled_exception_returns_generic_500():

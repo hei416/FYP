@@ -8,6 +8,7 @@ from database import get_db
 from sqlalchemy.orm import Session
 from services.error_explainer import get_cached_explanation, store_explanation, build_explain_prompt
 from routers.rag import call_llm
+from routers.auth import get_current_user
 from core.rate_limiter import limiter
 from typing import List, Dict
 
@@ -299,7 +300,13 @@ async def check_syntax(request: Request):
 
 
 @router.post("/api/explain-error")
-async def explain_error(request: Request, db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+async def explain_error(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    # SEC-12: authenticated + rate-limited — this endpoint spends LLM budget.
     data = await request.json()
     error_message = data.get("error_message", "").strip()
     code_snippet  = data.get("code_snippet", "")
