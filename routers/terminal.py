@@ -14,6 +14,8 @@ import logging
 import aiohttp
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from core import config
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -23,6 +25,13 @@ TERMINAL_SERVICE_WS = "ws://localhost:3001"
 
 @router.websocket("/ws/terminal")
 async def terminal_proxy(ws: WebSocket):
+    if not config.ENABLE_TERMINAL:
+        # AUD-1: terminal disabled by default (set ENABLE_TERMINAL=true to
+        # re-enable). Closing before accept() makes Starlette reject the
+        # handshake with HTTP 403; 1008 = policy violation.
+        logger.info("ws/terminal rejected: ENABLE_TERMINAL is off")
+        await ws.close(code=1008, reason="Terminal disabled (ENABLE_TERMINAL=false)")
+        return
     await ws.accept()
     try:
         async with aiohttp.ClientSession() as session:

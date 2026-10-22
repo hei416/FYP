@@ -73,6 +73,15 @@ ALLOWED_MIME_TYPES = {
 # DEBUG MODE
 # ============================================================================
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
+
+# ============================================================================
+# FEATURE FLAGS
+# ============================================================================
+# AUD-1 (owner decision 2026-10-22): /ws/terminal stays disabled unless
+# ENABLE_TERMINAL=true — the terminal-service it bridges to is unauthenticated
+# and unsandboxed (audit SEC-1..6). Read at import time: flipping it requires
+# an app restart (an Azure app-setting change restarts the app anyway).
+ENABLE_TERMINAL = os.environ.get("ENABLE_TERMINAL", "false").lower() == "true"
 FAISS_EMBEDDING_API_VERSION = "2024-05-01-preview"  # ← Changed from "2024-02-01"
 
 # Retrieval Settings

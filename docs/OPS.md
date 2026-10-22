@@ -25,9 +25,10 @@ Dev test account: `test@test.com` / `test1234` (recreate with `python create_adm
 
 ## Tests
 
-There is **no fast offline suite**. What exists:
+Almost everything needs a running stack. What exists:
 
-- `tests/` — pytest + Playwright E2E against a **running** localhost:3000 stack, plus a locustfile for load testing.
+- `tests/test_terminal_proxy.py` — the one **offline** test (FastAPI TestClient, no network, no running services): verifies the `ENABLE_TERMINAL` gate on `/ws/terminal`. Run it with `python -m pytest tests/test_terminal_proxy.py -q` (needs `pip install pytest` — see below).
+- `tests/` (the rest) — pytest + Playwright E2E against a **running** localhost:3000 stack, plus a locustfile for load testing.
 - `frontend/` — `npm test` (react-scripts, a few `__tests__`).
 
 The E2E/load dependencies are **not in `requirements.txt`** (kept out deliberately — the deploy zip ships requirements.txt). Install ad hoc:
@@ -54,6 +55,10 @@ Merged from the root `QUICKSTART.md` (original archived at `docs/_archives/QUICK
 4. DevTools Network check: saving sends `PATCH /classrooms/{id}` with body `{"description": "…"}` → 200.
 
 Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `frontend/src/TeacherClassroomDetail.js` (state + inline editor); backend PATCH endpoint pre-existed. Technical details: `docs/_archives/IMPLEMENTATION_SUMMARY.md`.
+
+## Feature flags
+
+- **`ENABLE_TERMINAL`** (env var, default **off**) — gates the backend `/ws/terminal` WebSocket proxy (`routers/terminal.py`; AUD-1 owner decision 2026-10-22 — the terminal-service it bridges to is unauthenticated and unsandboxed, audit SEC-1..6). When off, the WS handshake is rejected with HTTP 403 (close code 1008), so **the in-browser interactive Java terminal (Scanner/stdin) does not work in production**: the frontend prints `[WebSocket error — retrying via HTTP]` and falls back to batch execution via Paiza (no interactive input). Set `ENABLE_TERMINAL=true` (an app-setting change restarts the app) only after the terminal service is hardened. Details and frontend behavior: [docs/modules/code-playground.md](modules/code-playground.md).
 
 ## Vector store rebuild (document only — do not run casually)
 

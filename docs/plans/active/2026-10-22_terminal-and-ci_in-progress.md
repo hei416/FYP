@@ -28,3 +28,4 @@ Per commit: blocking secret scan clean (any hit blocks the commit; inspected bef
 
 - 2026-10-22 — Started. Worktree + branch created; base tagged `backup/pre-terminal-ci`.
 - 2026-10-22 — Commit 1 (docs cleanup): 8 wrong pty/node-pty claims corrected (AGENTS.md ×2, README ×3, OPS.md ×1, code-playground.md ×2); PROP-1 + AUD-1 marked Decided in backlog and audit; two decision-log entries appended (Option B baseline; backend/ restructure propose-only).
+- 2026-10-22 — Commit 2 (AUD-1 implementation): `ENABLE_TERMINAL` flag added to `core/config.py` (default off); `routers/terminal.py` rejects the `/ws/terminal` handshake with HTTP 403 / close 1008 when off (no deletions); offline pytest `tests/test_terminal_proxy.py` (3 tests, TestClient only, no network) passing; flag + production impact documented in OPS.md and code-playground.md.
