@@ -63,8 +63,26 @@ Done, except one deliberate deferral (see below).
   gated when `role == "teacher"`, silently skipping students entirely).
 - S13 — quiz `score` is now computed server-side from `quiz.questions`
   `correct_index` + submitted `answers`, ignoring the client's `score` field.
-  Challenge `passed` (the other half of S13) is **not** re-execution-graded —
-  see Known gaps below.
+  Challenge `passed` is now ALSO re-execution-graded (follow-up fix, same
+  session): confirmed the `base_code`/`question` payload shape is reliable —
+  the generator (`_generate_practical_question` in practical_tests.py) always
+  emits `baseCode.class`/`baseCode.methods`/`question.expectedOutput`, this
+  is what `_save_db_question` and `evaluate_ai` already key off, and the
+  frontend's teacher-save flow (`TeacherClassroomDetail.js`) round-trips the
+  generator's `base_code` object unedited — so a new
+  `grade_challenge_submission()` helper in practical_tests.py reuses the
+  existing Paiza integration (`_extract_student_methods`,
+  `_extract_helper_classes`, `_build_smart_run_app`, `_run_java_via_paiza`)
+  to re-run the student's submitted code server-side and compare its stdout
+  to the challenge's stored `expectedOutput`. `submit_practical_challenge_attempt`
+  now calls this and ignores the client's `execution_output`/`passed` claim
+  entirely — the persisted `execution_output` is the server's own result.
+  Verified the live frontend (`CodingChallengePlayer.js` → `classroomService.js`)
+  never reads the submit response's `execution_output`/`passed` fields (it
+  already computed its own pass/fail display before calling submit), and that
+  the teacher/student dashboards (`TeacherClassroomDetail.js`) only read
+  `attempt.passed` and `execution_output.stdout`/`.stderr`, both of which the
+  new shape still provides — no frontend changes needed.
 - S14 — `correct_index`/`explanation` stripped from quiz questions served to
   students (list + get).
 - S15 — `/practical-challenges/{id}/student-results` now verifies the challenge
@@ -106,32 +124,22 @@ Done, except one deliberate deferral (see below).
   LLM call, which previously had none.
 
 ### Known gaps (owner decision needed, not fixed here)
-- **S13, challenge half**: `passed` for practical-challenge submissions is
-  still computed from the client-supplied `execution_output`, which is
-  forgeable (a client can skip `evaluate-ai` and POST `submit` directly with
-  `{"passed": true}`). A real fix requires re-running the student's
-  `submitted_code` server-side via the existing Paiza integration
-  (`practical_tests.py::_run_java_via_paiza`/`_build_smart_run_app`) and
-  comparing output to the stored `expectedOutput`, but `base_code`'s "class"
-  key is only informally documented (`PracticalChallengeCode.class_name` has
-  an alias noted in a comment, never enforced via `Field(alias=...)`, and
-  `SavePracticalChallengeRequest.base_code` is stored as a raw
-  `Dict[str, Any]`) — implementing this blind risks silently failing every
-  legitimate submission instead of just closing the forgery hole. Needs the
-  teacher-save payload shape confirmed against the frontend before touching.
 - **S19**: no stored ground truth exists for `/my-work/save` quiz/test scores
   to be graded against (unlike the classroom quiz flow fixed under S13) — the
   clamp is a bound, not a fix for self-reported completion.
 
 ### Verification
 - `python -m pytest tests/test_security_fixes.py tests/test_terminal_proxy.py
-  tests/test_bug_audit_crit_high.py -q` → 36 passed (ran via a sibling
+  tests/test_bug_audit_crit_high.py -q` → 38 passed (ran via a sibling
   worktree's `.venv` since this worktree had none).
 - `python -c "import main"` → imports cleanly, 118 routes registered per
   main.py's own startup log / 120 via `len(app.routes)` (includes the two
   framework default routes) — unchanged from the audit baseline.
-- New tests added in `tests/test_bug_audit_crit_high.py` covering S13 (score
-  grading, including zero-questions/missing-answers edge cases), S14 (answer
-  key stripped for students), S11 (student PATCH rejected), S9 (non-owner
-  teacher rejected from student-results).
+- New tests added in `tests/test_bug_audit_crit_high.py` covering S13 (quiz
+  score grading incl. zero-questions/missing-answers edge cases; challenge
+  `passed` grading with `_run_java_via_paiza` mocked — a forged "passed: true"
+  claim with real output "0" is overridden to `passed: false`, and real
+  output "42" matching `expectedOutput` is correctly graded `passed: true`),
+  S14 (answer key stripped for students), S11 (student PATCH rejected), S9
+  (non-owner teacher rejected from student-results).
 - Everything committed locally on `fix/bug-audit-crit-high`; not pushed.

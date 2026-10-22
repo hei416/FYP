@@ -20,7 +20,10 @@ os.environ.setdefault("SECRET_KEY", "offline-test-signing-key-not-a-secret")
 from database import Base, get_db  # noqa: E402
 from routers import auth  # noqa: E402
 from routers import classroom as classroom_router  # noqa: E402
-from db_models import User, Classroom, ClassroomMember, ClassroomQuiz  # noqa: E402
+from routers import practical_tests  # noqa: E402
+from db_models import (  # noqa: E402
+    User, Classroom, ClassroomMember, ClassroomQuiz, ClassroomPracticalChallenge,
+)
 from core.rate_limiter import limiter  # noqa: E402
 from slowapi import _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
@@ -208,3 +211,93 @@ def test_quiz_student_results_rejects_non_owner_teacher(classroom_app):
 
     r = c.get(f"/classrooms/{room_id}/quizzes/{quiz_id}/student-results", headers=_hdr(other_teacher))
     assert r.status_code == 403
+
+
+# --- S13 (challenge half): submit is graded by re-executing the code --------
+# server-side, never by trusting the client's claimed execution_output/passed.
+
+def _make_classroom_with_challenge(TestSession):
+    db = TestSession()
+    teacher = User(email="ch-teacher@example.com", password_hash="x", role="teacher")
+    db.add(teacher)
+    db.commit()
+    room = Classroom(name="Room", class_code="JAVA101B", teacher_id=teacher.id)
+    db.add(room)
+    db.commit()
+    challenge = ClassroomPracticalChallenge(
+        classroom_id=room.id,
+        title="Add two numbers",
+        question={"title": "Add", "description": "Return 42", "methods": [], "expectedOutput": ["42"]},
+        base_code={"class": "Main", "helperClasses": "", "methods": {"addNumbers": "public int addNumbers() {}"}},
+        model_solution={"class": "Main", "helperClasses": "", "methods": {"addNumbers": ["return 42;"]}},
+        status="published",
+        created_by=teacher.id,
+    )
+    db.add(challenge)
+    db.commit()
+    ids = (room.id, challenge.id)
+    db.close()
+    return ids
+
+
+def _enroll(TestSession, room_id, user_id):
+    db = TestSession()
+    db.add(ClassroomMember(classroom_id=room_id, student_id=user_id))
+    db.commit()
+    db.close()
+
+
+STUDENT_CODE = {
+    "Main": "public class Main {\n    public int addNumbers() {\n        return 42;\n    }\n}"
+}
+
+
+def test_challenge_submit_ignores_forged_passed_claim(classroom_app, monkeypatch):
+    """A client claiming passed=True with no real execution must not be
+    believed — the server re-runs the code itself."""
+    c, TestSession = classroom_app
+    room_id, challenge_id = _make_classroom_with_challenge(TestSession)
+    student = _register(c, "ch-s1@example.com")
+    _enroll(TestSession, room_id, student["user_id"])
+
+    def fake_run(class_name, class_body, run_app_method, helper_classes="", stdin=None):
+        # Simulate the student's actual code printing the WRONG output,
+        # even though the forged client payload below claims success.
+        return {"success": True, "output": "0", "error": ""}
+
+    monkeypatch.setattr(practical_tests, "_run_java_via_paiza", fake_run)
+
+    r = c.post(
+        f"/classrooms/{room_id}/practical-challenges/{challenge_id}/submit",
+        headers=_hdr(student),
+        json={
+            "submitted_code": STUDENT_CODE,
+            "execution_output": {"passed": True, "success": True, "status": "completed"},
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["passed"] is False
+    assert body["execution_output"]["stdout"] == "0"
+    assert body["execution_output"]["expected_output"] == ["42"]
+
+
+def test_challenge_submit_passes_when_real_output_matches(classroom_app, monkeypatch):
+    c, TestSession = classroom_app
+    room_id, challenge_id = _make_classroom_with_challenge(TestSession)
+    student = _register(c, "ch-s2@example.com")
+    _enroll(TestSession, room_id, student["user_id"])
+
+    def fake_run(class_name, class_body, run_app_method, helper_classes="", stdin=None):
+        return {"success": True, "output": "42", "error": ""}
+
+    monkeypatch.setattr(practical_tests, "_run_java_via_paiza", fake_run)
+
+    r = c.post(
+        f"/classrooms/{room_id}/practical-challenges/{challenge_id}/submit",
+        headers=_hdr(student),
+        json={"submitted_code": STUDENT_CODE, "execution_output": {"passed": False}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["passed"] is True

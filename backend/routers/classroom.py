@@ -3027,28 +3027,28 @@ def submit_practical_challenge_attempt(
         if existing_count >= challenge.attempt_limit:
             raise HTTPException(403, f"Attempt limit reached ({challenge.attempt_limit} max)")
 
-    # Determine if passed based on execution output
-    passed = False
-    if data.execution_output:
-        # Check if test cases passed
-        passed = data.execution_output.get("passed", False) or data.execution_output.get("all_passed", False)
-        # If not explicitly marked, check for successful execution (no build errors, no stderr)
-        if not passed and not data.execution_output.get("stderr") and not data.execution_output.get("build_stderr"):
-            passed = data.execution_output.get("status") == "completed"
-    
-    # Create or update attempt record
-    attempt = db.query(ClassroomPracticalChallengeAttempt).filter(
-        ClassroomPracticalChallengeAttempt.challenge_id == challenge_id,
-        ClassroomPracticalChallengeAttempt.student_id == current_user.id,
-    ).order_by(ClassroomPracticalChallengeAttempt.submitted_at.desc()).first()
-    
+    # S13: re-run the submission server-side and grade it ourselves — the
+    # client's own `execution_output`/`passed` claim is never trusted,
+    # otherwise any student can POST {"execution_output": {"passed": true}}
+    # without running any code at all.
+    from routers.practical_tests import grade_challenge_submission
+    base_code = challenge.base_code or {}
+    expected_output = (challenge.question or {}).get("expectedOutput", [])
+    grading = grade_challenge_submission(
+        code_files=data.submitted_code,
+        base_class=base_code.get("class", "Main"),
+        base_methods=base_code.get("methods", {}),
+        expected_output=expected_output,
+    )
+    passed = grading["passed"]
+
     # Always create a new attempt record (don't update previous ones)
     attempt = ClassroomPracticalChallengeAttempt(
         challenge_id=challenge_id,
         student_id=current_user.id,
         submitted_code=data.submitted_code,
         passed=passed,
-        execution_output=data.execution_output,
+        execution_output=grading,
     )
     db.add(attempt)
     db.commit()

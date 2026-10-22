@@ -592,6 +592,65 @@ def _extract_student_methods(user_code: str):
     return class_name, class_body
 
 
+def grade_challenge_submission(
+    code_files: dict,
+    base_class: str,
+    base_methods: dict,
+    expected_output: list,
+) -> dict:
+    """Server-side re-execution grading for a practical-challenge submission (S13).
+
+    Runs the student's code the same way `/evaluate-ai` does (same Paiza
+    integration, same runApp-building logic) and compares the resulting
+    stdout against the challenge's stored `expectedOutput` to decide `passed`
+    — the client's own claim is never trusted for this.
+    """
+    user_code = (
+        code_files.get(base_class)
+        or code_files.get("Solution")
+        or code_files.get("Main")
+    )
+    expected_lines = [str(l).rstrip() for l in (expected_output or [])]
+
+    if not user_code:
+        return {
+            "passed": False,
+            "stdout": "",
+            "stderr": f"No code provided for class '{base_class}'.",
+            "expected_output": expected_lines,
+            "actual_output": [],
+        }
+
+    try:
+        class_name, class_body = _extract_student_methods(user_code)
+    except HTTPException as exc:
+        return {
+            "passed": False,
+            "stdout": "",
+            "stderr": str(exc.detail),
+            "expected_output": expected_lines,
+            "actual_output": [],
+        }
+
+    helper_classes = _extract_helper_classes(user_code)
+    run_app_method = _build_smart_run_app(base_methods or {})
+    result = _run_java_via_paiza(class_name, class_body, run_app_method, helper_classes)
+
+    actual_lines = [l.rstrip() for l in (result.get("output") or "").split("\n")]
+    while actual_lines and actual_lines[-1] == "":
+        actual_lines.pop()
+
+    passed = bool(result.get("success")) and actual_lines == expected_lines
+
+    return {
+        "passed": passed,
+        "stdout": result.get("output", ""),
+        "stderr": result.get("error", ""),
+        "expected_output": expected_lines,
+        "actual_output": actual_lines,
+    }
+
+
 def _build_run_app_method(run_app_lines) -> str:
     if isinstance(run_app_lines, str):
         run_app_lines = [run_app_lines]
