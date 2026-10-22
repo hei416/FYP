@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from database import get_engine, Base
-import db_models  # ensure models are imported so they are registered on Base
+from core.database import get_engine, Base
+import core.db_models as db_models  # ensure models are imported so they are registered on Base
 
 
 def main():

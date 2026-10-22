@@ -19,8 +19,8 @@ import re
 import logging
 import uuid
 from sqlalchemy import func
-from database import SessionLocal
-from db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork, Classroom, ClassroomMember, NLIMonitoringLog
+from core.database import SessionLocal
+from core.db_models import QuizQuestion as QuizQuestionModel, PracticalTestHint as PracticalTestHintModel, SavedWork, Classroom, ClassroomMember, NLIMonitoringLog
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
@@ -28,7 +28,7 @@ from core.rate_limiter import limiter
 from core.topic_mapping import SUBTOPIC_TO_MAIN_TOPIC, convert_topic_ids_to_main_topics
 from services.classroom_rag import query_classroom_rag
 from routers.auth import get_current_user
-from database import get_db
+from core.database import get_db
 from services.conversation_manager import ConversationManager
 from services.rag_helpers import (
     build_pdf_matches_from_classroom_chunks,
@@ -72,7 +72,7 @@ async def ask_classroom_rag(
         raise HTTPException(403, "You are not enrolled in this classroom")
 
     # Debug: Check chunk count in database
-    from db_models import ClassroomChunk
+    from core.db_models import ClassroomChunk
     chunk_count = db.query(ClassroomChunk).filter(ClassroomChunk.classroom_id == classroom_id).count()
     print(f"📊 Classroom {classroom_id}: {chunk_count} chunks in database")
     
@@ -83,7 +83,7 @@ async def ask_classroom_rag(
         return {"answer": "No documents have been uploaded to this classroom yet.", "has_context": False, "sources_count": 0}
 
     context = "\n\n".join(d.get("page_content", "") for d in docs)
-    from models import HKBULLM
+    from core.models import HKBULLM
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
     prompt = (
         "You are a Java programming tutor. Answer using the classroom document "
@@ -1685,7 +1685,7 @@ async def list_conversations(user_id: int, current_user=Depends(get_current_user
         manager = ConversationManager()
         db = SessionLocal()
 
-        from db_models import ConversationHistory
+        from core.db_models import ConversationHistory
 
         conversations = db.query(
             ConversationHistory.conversation_id,
@@ -1743,7 +1743,7 @@ async def ask_multi_classroom(
     merge all context, then answer once.
     """
     from services.classroom_rag import search_classroom_context
-    from models import HKBULLM
+    from core.models import HKBULLM
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
 
     # S16: verify the caller may access every requested classroom before

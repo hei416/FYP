@@ -9,8 +9,8 @@ import string
 import shutil, uuid, os, time, json, re, tempfile
 import httpx
 
-from database import get_db
-from db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, ClassroomPracticalChallenge, ClassroomPracticalChallengeAttempt, ClassroomQuizAttempt, MaterialRead
+from core.database import get_db
+from core.db_models import User, Classroom, ClassroomMember, UserProgress, SavedWork, ClassroomDocument, ClassroomFile, ClassroomChunk, ClassroomSection, ClassroomQuiz, ClassroomPracticalChallenge, ClassroomPracticalChallengeAttempt, ClassroomQuizAttempt, MaterialRead
 from routers.auth import get_current_user, require_role, get_optional_user
 from services.classroom_rag import (
     ingest_document, upload_and_index, delete_classroom_file,
@@ -1791,7 +1791,7 @@ def get_rag_status(
     current_user: User = Depends(get_current_user),
 ):
     """Debug endpoint: Check RAG indexing status for a classroom."""
-    from db_models import ClassroomFile, ClassroomChunk
+    from core.db_models import ClassroomFile, ClassroomChunk
     
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -1841,7 +1841,7 @@ async def ask_classroom(
     Returns answer + sources with metadata for PDF display.
     """
     from services.classroom_rag import search_classroom_context
-    from models import HKBULLM
+    from core.models import HKBULLM
     from core.config import API_KEY, BASE_URL, FAISS_MODEL_NAME, FAISS_API_VERSION
 
     _verify_classroom_access(classroom_id, current_user, db)
@@ -2230,7 +2230,7 @@ def submit_classroom_quiz_attempt(
     
     # Enforce attempt limit if set
     if quiz.attempt_limit is not None:
-        from db_models import ClassroomQuizAttempt as _CQA
+        from core.db_models import ClassroomQuizAttempt as _CQA
         existing_count = db.query(_CQA).filter(
             _CQA.quiz_id == quiz_id,
             _CQA.student_id == current_user.id,
@@ -2253,7 +2253,7 @@ def submit_classroom_quiz_attempt(
         score = 0.0
 
     # Create and save attempt
-    from db_models import ClassroomQuizAttempt
+    from core.db_models import ClassroomQuizAttempt
     attempt = ClassroomQuizAttempt(
         quiz_id=quiz_id,
         student_id=current_user.id,
@@ -2305,7 +2305,7 @@ def get_classroom_quiz_student_results(
     if not quiz:
         raise HTTPException(404, "Quiz not found")
     
-    from db_models import ClassroomQuizAttempt, User
+    from core.db_models import ClassroomQuizAttempt, User
     
     if is_student:
         # Return only current student's attempts
@@ -2385,7 +2385,7 @@ def get_classroom_quiz_detailed_results(
     # Build question lookup: id -> question dict
     questions_by_id = {str(q["id"]): q for q in (quiz.questions or [])}
 
-    from db_models import ClassroomQuizAttempt, User as UserModel
+    from core.db_models import ClassroomQuizAttempt, User as UserModel
     members = db.query(ClassroomMember).filter(
         ClassroomMember.classroom_id == classroom_id
     ).all()

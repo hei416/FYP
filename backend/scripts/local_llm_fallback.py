@@ -341,5 +341,5 @@ if __name__ == "__main__":
         print("   (This is intentional - focus on HKBU + retrieval-only)\n")
         print("To enable for future testing:")
         print("  export OLLAMA_FALLBACK_ENABLED=true")
-        print("  python local_llm_fallback.py\n")
+        print("  python scripts/local_llm_fallback.py\n")
         print("Then test: /ragAI endpoint\n")

@@ -12,8 +12,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy import desc, and_, func
 import uuid
 
-from database import SessionLocal
-from db_models import (
+from core.database import SessionLocal
+from core.db_models import (
     ConversationHistory,
     ConversationSummary,
 )

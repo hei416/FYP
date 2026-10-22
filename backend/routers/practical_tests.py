@@ -14,14 +14,14 @@ from pydantic import BaseModel
 from core.config import PAIZA_API_KEY
 
 try:
-    from database import SessionLocal
+    from core.database import SessionLocal
 except Exception as e:
     print(f"⚠️ Warning: database import failed: {e}")
     SessionLocal = None
 
 PracticalTestQuestion = None
 try:
-    from db_models import PracticalTestQuestion
+    from core.db_models import PracticalTestQuestion
 except Exception as e:
     print(f"⚠️ Warning: PracticalTestQuestion import failed: {e}")
 

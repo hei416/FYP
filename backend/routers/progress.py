@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional, Any
-from database import get_db
-from db_models import User, UserProgress, QuizAttempt, TestAttempt, SavedWork
+from core.database import get_db
+from core.db_models import User, UserProgress, QuizAttempt, TestAttempt, SavedWork
 from routers.auth import get_current_user
 import json
 

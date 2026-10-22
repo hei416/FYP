@@ -5,10 +5,10 @@ from datetime import datetime
 from typing import List, Optional, Any
 import uuid
 
-from database import get_db
-from db_models import ConversationHistory
+from core.database import get_db
+from core.db_models import ConversationHistory
 from routers.auth import get_current_user
-from db_models import User
+from core.db_models import User
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 

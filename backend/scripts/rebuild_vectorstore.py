@@ -2,7 +2,7 @@
 """
 Rebuild FAISS vectorstores using LOCAL offline embeddings (sentence-transformers).
 No API calls = no rate limiting, no 403 errors, fast and cheap.
-Run: python rebuild_vectorstore.py
+Run (from backend/): python scripts/rebuild_vectorstore.py
 """
 import os
 import sys
@@ -25,7 +25,7 @@ class LocalEmbeddings(Embeddings):
         return self._model.encode(text, convert_to_numpy=True).tolist()
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 def main():
