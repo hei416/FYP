@@ -44,6 +44,17 @@ python -c "from core import config"  # path config sanity
 cd frontend && npm run build          # only when frontend changed
 ```
 
+### Manual smoke test — classroom description editing
+
+Merged from the root `QUICKSTART.md` (original archived at `docs/_archives/QUICKSTART.md`). Needs backend + frontend running and a teacher login.
+
+1. Teacher Dashboard → open an owned classroom; a description section shows below the class name/category badge ("No description yet…" when empty).
+2. "✏️ Edit" → type a description → "✓ Save" → it displays; refresh the page → it persists.
+3. Edit again and "✕ Cancel" → text reverts to the saved value.
+4. DevTools Network check: saving sends `PATCH /classrooms/{id}` with body `{"description": "…"}` → 200.
+
+Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `frontend/src/TeacherClassroomDetail.js` (state + inline editor); backend PATCH endpoint pre-existed. Technical details: `docs/_archives/IMPLEMENTATION_SUMMARY.md`.
+
 ## Vector store rebuild (document only — do not run casually)
 
 `python rebuild_vectorstore.py` regenerates the FAISS stores in `vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast Azure startup — a rebuild changes tracked binaries and, if pushed, triggers a backend deploy (`vectorstore/` is in the CI path filter). Inspect metadata with `vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
