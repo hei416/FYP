@@ -79,6 +79,8 @@ Positive: startup is well-architected (migrations/NLI/FAISS offloaded to threads
 
 ## FE — frontend / CI / dependencies / tests findings
 
+> *Update 2026-10-22 (AUD-2, owner-approved, on branch `fix/terminal-and-ci`, pending review/merge): FE-2 (backend.yml now filters `terminal-service/**`), FE-7 (`--async true` removed — health poll validates the new build), FE-3 (frontend.yml regenerates `server.js` at package time) and GAP-9 (stale `lessons_raw/**` dropped) are fixed. FE-8/9/10/11/12 remain open.*
+
 | ID | Sev | Where | Evidence (short) | Fix | Eff | Deploy |
 |---|---|---|---|---|---|---|
 | FE-1 | crit | terminal-service/server.js:57-66 | (= SEC-2) raw `filename` → `path.join`; `startup.sh:88-90` runs this service **in production** | `path.basename` + origin check | S | none (see FE-2) |

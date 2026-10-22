@@ -12,7 +12,7 @@ Java learning platform (final-year project). FastAPI backend at the **repo root*
 
 ## Deploy triggers (why pushing is dangerous)
 
-- `.github/workflows/backend.yml` fires on **any `*.py` anywhere**, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/` → deploys the backend (`codetutor-fyp-hei`).
+- `.github/workflows/backend.yml` fires on **any `*.py` anywhere**, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/`, `terminal-service/` → deploys the backend (`codetutor-fyp-hei`).
 - `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → deploys the frontend.
 - Deploy-inert paths: `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
 

@@ -68,8 +68,8 @@ Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `fron
 
 Both GitHub Actions workflows deploy **on every push to `main`** matching their path filters:
 
-- `backend.yml`: any `*.py`, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/` → zips the repo (minus `frontend/`) → `az webapp deploy` to App Service `codetutor-fyp-hei` → polls a health endpoint.
-- `frontend.yml`: `frontend/**` plus stale root filters `public/**`, `src/**`, `package.json` → CRA build → deploys to the frontend App Service.
+- `backend.yml`: any `*.py`, `requirements.txt`, `startup.sh`, `routers/`, `services/`, `core/`, `vectorstore/`, `practical_tests/`, `terminal-service/` → zips the repo (minus `frontend/`) → synchronous `az webapp deploy` to App Service `codetutor-fyp-hei` → polls `/health` (the deploy is no longer `--async`, so the poll validates the **new** build).
+- `frontend.yml`: `frontend/**` plus stale root filters `public/**`, `src/**`, `package.json` → CRA build → regenerates `server.js` at package time (the repo copy was deleted in bec2835) → deploys to the frontend App Service.
 
 There is no staging environment. **Never push without the owner's explicit go-ahead.**
 

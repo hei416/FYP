@@ -63,6 +63,24 @@ jobs:
             --resource-group codetutor-rg \
             --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false
 
+      # ── Recreate server.js at package time ─────────────────────────
+      # frontend/server.js was deleted from the repo in commit bec2835, but the
+      # zip (and the App Service Node entry point) still expect it. Generating
+      # it here keeps the zip layout identical without re-adding the file to
+      # the repo. The middleware fallback (no '*' route) works on express 4 and 5.
+      - name: Recreate server.js (deleted from repo in bec2835)
+        working-directory: frontend
+        run: |
+          cat > server.js <<'EOF'
+          const express = require('express');
+          const path = require('path');
+          const app = express();
+          const port = process.env.PORT || 8080;
+          app.use(express.static(path.join(__dirname, 'build')));
+          app.use((req, res) => res.sendFile(path.join(__dirname, 'build', 'index.html')));
+          app.listen(port, () => console.log(`Frontend listening on ${port}`));
+          EOF
+
       # ── Package frontend (build/ + server.js + package.json + node_modules) ─
       - name: Create deployment zip
         working-directory: frontend

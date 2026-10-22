@@ -11,8 +11,8 @@ on:
       - 'services/**'
       - 'core/**'
       - 'vectorstore/**'
-      - 'lessons_raw/**'
       - 'practical_tests/**'
+      - 'terminal-service/**'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
 
@@ -88,8 +88,7 @@ jobs:
             --name codetutor-fyp-hei \
             --resource-group codetutor-rg \
             --src-path deploy.zip \
-            --type zip \
-            --async true
+            --type zip
 
       - name: Poll health until ready
         run: |
