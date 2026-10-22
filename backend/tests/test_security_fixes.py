@@ -92,6 +92,88 @@ def test_cors_origins_env_override(monkeypatch):
         importlib.reload(config)
 
 
+# --- SEC-10: classroom file view/download require enrollment -----------------
+
+@pytest.fixture()
+def classroom_client():
+    """App with auth + classroom routers, one classroom with one file."""
+    from db_models import Classroom, ClassroomFile
+    from routers import classroom as classroom_router
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+    app = FastAPI()
+    app.include_router(auth.router)
+    app.include_router(classroom_router.router)
+
+    def _get_db():
+        db = TestSession()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = _get_db
+
+    db = TestSession()
+    from db_models import User
+    teacher = User(email="t0@example.com", password_hash="x", role="teacher")
+    db.add(teacher)
+    db.commit()
+    room = Classroom(name="Room", class_code="JAVA101A", teacher_id=teacher.id)
+    db.add(room)
+    db.commit()
+    f = ClassroomFile(
+        classroom_id=room.id, filename="notes.txt",
+        mime_type="text/plain", file_data=b"hello",
+    )
+    db.add(f)
+    db.commit()
+    ids = (room.id, f.id)
+    db.close()
+
+    with TestClient(app) as c:
+        yield c, ids, TestSession
+
+
+def _register(client, email):
+    r = client.post("/auth/register", json={"email": email, "password": "pw123456"})
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_file_endpoints_require_enrollment(classroom_client):
+    from db_models import ClassroomMember
+    c, (room_id, file_id), TestSession = classroom_client
+    user = _register(c, "s1@example.com")
+    hdr = {"Authorization": f"Bearer {user['access_token']}"}
+
+    # not enrolled -> 403 on both endpoints (view takes ?token= too)
+    assert c.get(f"/classrooms/{room_id}/files/{file_id}/download", headers=hdr).status_code == 403
+    assert c.get(f"/classrooms/{room_id}/files/{file_id}/view", headers=hdr).status_code == 403
+    assert c.get(
+        f"/classrooms/{room_id}/files/{file_id}/view",
+        params={"token": user["access_token"]},
+    ).status_code == 403
+
+    # unauthenticated -> 401
+    assert c.get(f"/classrooms/{room_id}/files/{file_id}/view").status_code == 401
+
+    # enrolled -> 200
+    db = TestSession()
+    db.add(ClassroomMember(classroom_id=room_id, student_id=user["user_id"]))
+    db.commit()
+    db.close()
+    assert c.get(f"/classrooms/{room_id}/files/{file_id}/download", headers=hdr).status_code == 200
+    assert c.get(f"/classrooms/{room_id}/files/{file_id}/view", headers=hdr).status_code == 200
+
+
 # --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------
 
 def test_unhandled_exception_returns_generic_500():

@@ -1457,6 +1457,18 @@ def test_view_endpoint(
     }
 
 
+def _require_file_access(db: Session, classroom_id: int, current_user: User) -> None:
+    """SEC-10: same gate as list_files — students must be enrolled in the
+    classroom; teachers/admins pass. Raises 403 otherwise."""
+    if current_user.role == "student":
+        membership = db.query(ClassroomMember).filter(
+            ClassroomMember.classroom_id == classroom_id,
+            ClassroomMember.student_id == current_user.id,
+        ).first()
+        if not membership:
+            raise HTTPException(403, "Not enrolled in this classroom")
+
+
 @router.get("/{classroom_id}/files/{file_id}/view")
 def view_file(
     classroom_id: int,
@@ -1466,13 +1478,13 @@ def view_file(
     db: Session = Depends(get_db),
 ):
     """Stream file bytes back to client for inline viewing.
-    
+
     Supports authentication via:
     - Authorization header (Bearer token)
     - Query parameter ?token=xxx (for iframe embedding)
     """
     from routers.auth import verify_token
-    
+
     # Try to authenticate from header or query param
     current_user = None
     try:
@@ -1486,10 +1498,12 @@ def view_file(
     except Exception as e:
         print(f"❌ [VIEW_FILE] Auth failed: {e}")
         raise HTTPException(401, "Authentication required")
-    
+
     if not current_user:
         raise HTTPException(401, "Authentication required")
-    
+
+    _require_file_access(db, classroom_id, current_user)
+
     # Get file
     f = (
         db.query(ClassroomFile)
@@ -1514,6 +1528,8 @@ def download_file(
     current_user: User = Depends(get_current_user),
 ):
     """Stream file bytes back to client."""
+    _require_file_access(db, classroom_id, current_user)
+
     f = (
         db.query(ClassroomFile)
         .filter(ClassroomFile.id == file_id, ClassroomFile.classroom_id == classroom_id)
