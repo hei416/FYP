@@ -36,7 +36,7 @@ class LocalEmbeddings(Embeddings):
 # ============================================================================
 
 try:
-    from models import HKBULLM
+    from core.models import HKBULLM
     print("✅ HKBU LLM (qwen3-max) imported successfully - Primary LLM ready")
 except Exception as e:
     print(f"⚠️ HKBU LLM import failed: {e}")

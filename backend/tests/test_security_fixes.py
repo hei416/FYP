@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Offline-only signing key; must be set before the auth module is imported.
 os.environ.setdefault("SECRET_KEY", "offline-test-signing-key-not-a-secret")
 
-from database import Base, get_db  # noqa: E402
+from core.database import Base, get_db  # noqa: E402
 from routers import auth  # noqa: E402
 from core.rate_limiter import limiter  # noqa: E402
 from slowapi import _rate_limit_exceeded_handler  # noqa: E402
@@ -167,7 +167,7 @@ def test_cors_origins_env_override(monkeypatch):
 @pytest.fixture()
 def classroom_client():
     """App with auth + classroom routers, one classroom with one file."""
-    from db_models import Classroom, ClassroomFile
+    from core.db_models import Classroom, ClassroomFile
     from routers import classroom as classroom_router
 
     engine = create_engine(
@@ -192,7 +192,7 @@ def classroom_client():
     app.dependency_overrides[get_db] = _get_db
 
     db = TestSession()
-    from db_models import User
+    from core.db_models import User
     teacher = User(email="t0@example.com", password_hash="x", role="teacher")
     db.add(teacher)
     db.commit()
@@ -219,7 +219,7 @@ def _register(client, email):
 
 
 def test_file_endpoints_require_enrollment(classroom_client):
-    from db_models import ClassroomMember
+    from core.db_models import ClassroomMember
     c, (room_id, file_id), TestSession = classroom_client
     user = _register(c, "s1@example.com")
     hdr = {"Authorization": f"Bearer {user['access_token']}"}
@@ -447,7 +447,7 @@ def test_schema_migration_requires_explicit_confirmation():
     env.pop("MIGRATION_CONFIRM", None)
     backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     r = subprocess.run(
-        [sys.executable, "schema_migration.py"],
+        [sys.executable, "scripts/schema_migration.py"],
         cwd=backend_dir, env=env, capture_output=True, text=True, timeout=60,
     )
     assert r.returncode == 2

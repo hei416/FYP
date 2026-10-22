@@ -349,7 +349,7 @@ def run_migrations(db_engine):
 
 def _blocking_rag_init(rebuild_java=False, rebuild_platform=False):
     """Pure synchronous RAG setup — safe to run in a thread."""
-    from rag_system import setup_rag_system
+    from services.rag_system import setup_rag_system
     rag_chain, retriever = setup_rag_system(
         rebuild_java=rebuild_java,
         rebuild_platform=rebuild_platform,
@@ -415,7 +415,7 @@ async def lifespan(app: FastAPI):
     # ── Step 1: Database Migrations ─────────────────────────────────────────
     print("\n🗄️  Running database migrations...")
     try:
-        from database import get_engine
+        from core.database import get_engine
         engine = get_engine()
         await loop.run_in_executor(_startup_executor, run_migrations, engine)
         print("✅ All migrations complete\n")

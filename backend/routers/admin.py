@@ -6,8 +6,8 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from database import get_db
-from db_models import User, Classroom, ClassroomMember
+from core.database import get_db
+from core.db_models import User, Classroom, ClassroomMember
 from routers.auth import require_role, hash_password
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -205,7 +205,7 @@ async def get_nli_monitoring_stats(
     
     Returns summary stats and recent alerts for responses with low NLI scores.
     """
-    from db_models import NLIMonitoringLog
+    from core.db_models import NLIMonitoringLog
     from datetime import datetime, timedelta
     
     # Time window

@@ -1,4 +1,4 @@
-from database import Base
+from core.database import Base
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON, LargeBinary, UniqueConstraint, Index
 from datetime import datetime
 import json

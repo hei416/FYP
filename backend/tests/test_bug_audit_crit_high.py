@@ -17,10 +17,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 os.environ.setdefault("SECRET_KEY", "offline-test-signing-key-not-a-secret")
 
-from database import Base, get_db  # noqa: E402
+from core.database import Base, get_db  # noqa: E402
 from routers import auth  # noqa: E402
 from routers import classroom as classroom_router  # noqa: E402
-from db_models import User, Classroom, ClassroomMember, ClassroomQuiz  # noqa: E402
+from core.db_models import User, Classroom, ClassroomMember, ClassroomQuiz  # noqa: E402
 from core.rate_limiter import limiter  # noqa: E402
 from slowapi import _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402

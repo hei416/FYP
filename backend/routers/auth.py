@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 import jwt
 import os
 import bcrypt
-from database import get_db
-from db_models import User
+from core.database import get_db
+from core.db_models import User
 from core.rate_limiter import limiter
 from typing import Optional
 

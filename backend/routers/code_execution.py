@@ -4,7 +4,7 @@ import httpx
 import asyncio
 import logging
 from fastapi import APIRouter, Request, Depends
-from database import get_db
+from core.database import get_db
 from sqlalchemy.orm import Session
 from services.error_explainer import get_cached_explanation, store_explanation, build_explain_prompt
 from routers.rag import call_llm

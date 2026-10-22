@@ -4,7 +4,7 @@ Status: **methodology + golden set only** (deploy-inert). The runner script is d
 
 ## What is being evaluated
 
-The global RAG pipeline (`backend/rag_system.py` + `backend/routers/rag.py`): MMR retrieval over two committed FAISS stores — `backend/vectorstore/java_knowledge` (corpus: `backend/java_docs/` — oracle, javanotes, w3schools, geeksforgeeks, books, data_structures, exceptions) and `backend/vectorstore/platform_guide`. Current parameters (`backend/core/config.py:79-83`): chunks 600/150, k=3, fetch_k=15, lambda_mult=0.7. Classroom RAG (`backend/services/classroom_rag.py`) is a separate pipeline — evaluate later with per-classroom fixtures.
+The global RAG pipeline (`backend/services/rag_system.py` + `backend/routers/rag.py`): MMR retrieval over two committed FAISS stores — `backend/vectorstore/java_knowledge` (corpus: `backend/java_docs/` — oracle, javanotes, w3schools, geeksforgeeks, books, data_structures, exceptions) and `backend/vectorstore/platform_guide`. Current parameters (`backend/core/config.py:79-83`): chunks 600/150, k=3, fetch_k=15, lambda_mult=0.7. Classroom RAG (`backend/services/classroom_rag.py`) is a separate pipeline — evaluate later with per-classroom fixtures.
 
 ## Metrics
 

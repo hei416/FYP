@@ -15,8 +15,8 @@ import numpy as np
 import logging
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from db_models import ClassroomFile, ClassroomChunk
-from models import HKBUEmbeddings
+from core.db_models import ClassroomFile, ClassroomChunk
+from core.models import HKBUEmbeddings
 from core.config import (
     API_KEY, BASE_URL, FAISS_EMBEDDING_MODEL, FAISS_EMBEDDING_API_VERSION,
     MAX_UPLOAD_SIZE_BYTES, ALLOWED_MIME_TYPES
@@ -536,7 +536,7 @@ def ingest_document(
 
 def query_classroom_rag(classroom_id: int, question: str, k: int = 5) -> list:
     """Legacy shim — searches classroom context and returns dicts with text and metadata."""
-    from database import SessionLocal
+    from core.database import SessionLocal
     db = SessionLocal()
     try:
         chunks = search_classroom_context(classroom_id, question, db, top_k=k)
@@ -547,7 +547,7 @@ def query_classroom_rag(classroom_id: int, question: str, k: int = 5) -> list:
 
 def delete_classroom_index(classroom_id: int) -> None:
     """Legacy shim — clears both DB chunks and the in-memory cache."""
-    from database import SessionLocal
+    from core.database import SessionLocal
     db = SessionLocal()
     try:
         db.query(ClassroomChunk).filter(ClassroomChunk.classroom_id == classroom_id).delete()

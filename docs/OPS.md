@@ -24,7 +24,7 @@ Prerequisites: Python 3.10+, Node 18+, (optional) Docker.
 | Terminal service | `cd terminal-service && npm install && node server.js` | ws://localhost:3001 |
 | All-in-one | `docker-compose up --build` | — |
 
-Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && python create_admin.py`).
+Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && python scripts/create_admin.py`).
 
 ## Tests
 
@@ -65,7 +65,7 @@ Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `fron
 
 ## Vector store rebuild (document only — do not run casually)
 
-`cd backend && python rebuild_vectorstore.py` regenerates the FAISS stores in `backend/vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast Azure startup — a rebuild changes tracked binaries and, if pushed, triggers a backend deploy (`backend/**` is in the CI path filter). Inspect metadata with `backend/vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
+`cd backend && python scripts/rebuild_vectorstore.py` regenerates the FAISS stores in `backend/vectorstore/` (java_knowledge, platform_guide). The binaries are **committed on purpose** for fast Azure startup — a rebuild changes tracked binaries and, if pushed, triggers a backend deploy (`backend/**` is in the CI path filter). Inspect metadata with `backend/vectorstore/extract_from_faiss.py`; never hand-edit `index.faiss`.
 
 ## Container (host-agnostic — deploy method DEPLOY-1 still undecided)
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
-from db_models import SavedWork, User
+from core.database import get_db
+from core.db_models import SavedWork, User
 from routers.auth import get_current_user
 from pydantic import BaseModel, field_validator
 from typing import Optional, Any

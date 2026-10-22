@@ -1,6 +1,6 @@
 import re
 from sqlalchemy.orm import Session
-from db_models import ErrorExplanationCache
+from core.db_models import ErrorExplanationCache
 from datetime import datetime
 
 

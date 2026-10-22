@@ -7,7 +7,7 @@ This migration:
 3. Restores the data in JSON format
 4. Verifies data integrity
 
-Run: python schema_migration.py --yes
+Run (from backend/): python scripts/schema_migration.py --yes
      (AUD-5: the --yes flag — or MIGRATION_CONFIRM=yes — is required; the
       migration DROPS a column, so it must never run by accident.)
 """
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         print("This migration ALTERs user_progress and DROPS the old")
         print("dismissed_milestones column after converting it to JSON.")
         print("Nothing was executed. To run it for real:")
-        print("    python schema_migration.py --yes")
+        print("    python scripts/schema_migration.py --yes")
         print("(or set MIGRATION_CONFIRM=yes)")
         raise SystemExit(2)
 

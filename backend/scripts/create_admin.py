@@ -1,8 +1,8 @@
 """
 One-time script to create an admin account directly in the database.
 Usage:
-    python create_admin.py
-    python create_admin.py --email admin@example.com --password secret --name "Admin User"
+    python scripts/create_admin.py
+    python scripts/create_admin.py --email admin@example.com --password secret --name "Admin User"
 
 Never expose this script via an HTTP endpoint.
 """
@@ -12,8 +12,12 @@ import sys
 import bcrypt
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-from db_models import User
+import sys as _sys
+from pathlib import Path as _Path
+# Ensure backend/ is on sys.path so project imports work when run from scripts/
+_sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+from core.database import SessionLocal
+from core.db_models import User
 
 
 def hash_password(password: str) -> str:
