@@ -272,6 +272,42 @@ def test_explain_error_authenticated_empty_message_short_circuits(code_exec_clie
     assert r.json() == {"explanation": "No error message provided."}
 
 
+# --- SEC-13: webpage proxy is allowlist-only (SSRF guard) ---------------------
+
+@pytest.fixture()
+def lessons_client():
+    from routers import lessons
+
+    app = FastAPI()
+    app.include_router(lessons.router)
+    with TestClient(app) as c:
+        yield c
+
+
+def test_proxy_rejects_non_allowlisted_hosts(lessons_client):
+    c = lessons_client
+    for bad in (
+        "http://169.254.169.254/latest/meta-data/",
+        "http://127.0.0.1:8000/health",
+        "http://localhost:3001",
+        "https://evil.example.com/page",
+        "http://10.0.0.5/internal",
+    ):
+        r = c.get("/api/proxy/webpage", params={"url": bad})
+        assert r.status_code == 403, bad
+
+
+def test_proxy_rejects_non_http_schemes(lessons_client):
+    c = lessons_client
+    r = c.get("/api/proxy/webpage", params={"url": "file:///etc/passwd"})
+    assert r.status_code == 400
+
+
+def test_proxy_allowlist_validation_accepts_known_doc_host():
+    from routers.lessons import _validate_proxy_url
+    _validate_proxy_url("https://www.w3schools.com/java/")  # must not raise
+
+
 # --- SEC-9: unhandled exceptions must not leak tracebacks to clients ---------
 
 def test_unhandled_exception_returns_generic_500():

@@ -325,19 +325,66 @@ async def search_documents(query: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# SEC-13: strict host allowlist for the webpage proxy — only the reference
+# sites the RAG doc mappings actually link to. Extensible via env
+# PROXY_ALLOWED_HOSTS (comma-separated hostnames). No IPs, no private ranges:
+# anything not on the list (including redirect hops) is rejected.
+_PROXY_ALLOWED_HOSTS = {
+    "www.geeksforgeeks.org",
+    "www.w3schools.com",
+    "docs.oracle.com",
+    "opendatastructures.org",
+    "math.hws.edu",
+} | {
+    h.strip().lower()
+    for h in os.environ.get("PROXY_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+}
+
+
+def _validate_proxy_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Only http(s) URLs are allowed")
+    host = (parsed.hostname or "").lower()
+    if host not in _PROXY_ALLOWED_HOSTS:
+        raise HTTPException(status_code=403, detail="Domain not allowed")
+
+
+def _fetch_allowed(url: str):
+    """Fetch with every redirect hop re-validated against the allowlist."""
+    for _ in range(3):
+        _validate_proxy_url(url)
+        r = requests.get(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+            timeout=10,
+            allow_redirects=False,
+        )
+        if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
+            url = urljoin(url, r.headers["location"])
+            continue
+        return r
+    raise HTTPException(status_code=400, detail="Too many redirects")
+
+
 @router.get("/api/proxy/webpage")
 async def proxy_webpage(url: str):
-    """Extract clean content and rewrite links to go through proxy"""
-    
+    """Extract clean content and rewrite links to go through proxy.
+
+    SEC-13: only allowlisted documentation hosts can be fetched (the endpoint
+    is consumed by an <iframe>, so it stays token-less; the allowlist is the
+    SSRF guard)."""
+
+    _validate_proxy_url(url)
+
     try:
         # Lazy import trafilatura only when needed
         import trafilatura
-        
-        # Fetch webpage
-        response = requests.get(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }, timeout=10)
-        
+
+        # Fetch webpage (each redirect hop is re-validated)
+        response = _fetch_allowed(url)
+
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail="Failed to fetch")
         
@@ -509,7 +556,10 @@ async def proxy_webpage(url: str):
         """
         
         return HTMLResponse(content=html, status_code=200)
-        
+
+    except HTTPException:
+        # Allowlist/redirect rejections must surface as-is, not as a 200 page
+        raise
     except Exception as e:
         # Return friendly error page
         error_html = f"""
