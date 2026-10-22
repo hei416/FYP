@@ -160,12 +160,14 @@ def require_role(*allowed_roles: str):
 # Routes
 @router.post("/register", response_model=Token)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register a new user. Role defaults to 'student'; pass role='teacher' to register as teacher."""
-    # Prevent self-assigning admin role
-    if user_data.role not in ("student", "teacher"):
+    """Register a new user. All self-registrations are created as 'student';
+    an admin promotes accounts to teacher/admin (SEC-7)."""
+    # Self-registration must not grant elevated roles. The role field is still
+    # accepted for client compatibility but anything but 'student' is rejected.
+    if user_data.role != "student":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Role must be 'student' or 'teacher'"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Self-registration is student-only; an admin assigns other roles."
         )
 
     # Check if email already exists
@@ -175,14 +177,14 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered"
         )
-    
+
     # Create new user
     hashed_password = hash_password(user_data.password)
     new_user = User(
         email=user_data.email,
         password_hash=hashed_password,
         full_name=user_data.full_name,
-        role=user_data.role
+        role="student"
     )
     
     db.add(new_user)
