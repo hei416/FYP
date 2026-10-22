@@ -23,3 +23,4 @@
 ## Status
 
 - 2026-10-23 — Started; facts verified (see above). Edits in progress.
+- 2026-10-23 — **Done.** All edits committed in 3 commits on `worktree-docs-refresh` (guides refresh; copilot/frontend-README rewrites + stale duplicate deleted; plan housekeeping). Secret scan clean. Changed paths matching CI filters: `backend/*AGENTS.md` ×3, `frontend/README.md` — inert (workflows `disabled_manually`); owner approved merge to `main` + push this session. Not updated by design: `docs/reports/`, `docs/_archives/`, `docs/strategy/decision-log.md`, plan files already in `done/`. Left for the owner: `docs/plans/active/codebase-audit.md` + `enhancement-plan.md` keep their legacy (non-dated) filenames — renaming would break many cross-references. Filed to `done/`.
