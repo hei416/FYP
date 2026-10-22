@@ -29,6 +29,7 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[GAP-RAG] RAG quality** — unify the two divergent chunkers (GAP-2); eval golden set + methodology DONE 2026-10-22 (`docs/modules/rag-evaluation.md`); the runner `.py` still waits for AUD-2's CI fix (GAP-3).
 - **[GAP-OBS] Logging instead of print** — 193 `print(` vs 5 loggers (GAP-6, extends BE-25); module loggers + request-id middleware; batch with AUD-6.
 - **[GAP-FE] Frontend duplication** — shared `api.js` for the 18 duplicated API-base fallbacks (GAP-11); merge `TopicDetailPage`/`EnhancedTopicDetailPage` (GAP-12, halves the FE-4 sink surface). Frontend deploy.
+- **[FE-21] Delete unimported frontend dead code** — found during the 2026-10-23 src restructure: `src/components/Lessons.js`, `src/components/LessonLayout.js`, `src/components/ProgressAnalysisCard.js`, `src/App.css`, `src/logo.svg` have no importers (static or dynamic). Also decide on `src/TeacherClassroomDetail.js.bak` (116 KB, owner previously kept). Frontend deploy.
 
 ## Waiting
 

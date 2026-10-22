@@ -38,4 +38,5 @@ Target layout (CRA-conventional files stay at src root: index.js, index.css, App
 `frontend/src/**` (moves + import rewrites), `frontend/AGENTS.md`, `docs/modules/frontend.md`, this plan file.
 
 ## Status
-- 2026-10-23: Plan created on branch `refactor/frontend-src-structure` (worktree). Phase 1 starting.
+- 2026-10-23: Plan created on branch `refactor/frontend-src-structure` (worktree).
+- 2026-10-23: DONE. Phase 1 (8b87966): 4 dead duplicates deleted. Phase 2 (f3b672c): 40 files moved into pages/components/services/utils/data, 109 import lines rewritten, build + 6 tests green. Phase 3: frontend/src/AGENTS.md added, frontend/AGENTS.md + docs/modules/frontend.md updated, FE-21 (dead-code candidates) added to backlog. Branch is local-only — NOT merged, NOT pushed (every change matches the frontend deploy filter; owner pushes).

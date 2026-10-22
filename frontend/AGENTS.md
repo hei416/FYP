@@ -1,6 +1,6 @@
 # frontend/ — CRA React app
 
-Create-React-App (dev server :3000; talks to the backend at :8000 and terminal-service at :3001). Full guide: [docs/modules/frontend.md](../docs/modules/frontend.md).
+Create-React-App (dev server :3000; talks to the backend at :8000 and terminal-service at :3001). Full guide: [docs/modules/frontend.md](../docs/modules/frontend.md). Source layout (pages/components/services/utils/data, reorganized 2026-10-23): [src/AGENTS.md](src/AGENTS.md).
 
 ## Rules
 
