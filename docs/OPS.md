@@ -21,8 +21,13 @@ Prerequisites: Python 3.10+, Node 18+, (optional) Docker.
 |---|---|---|
 | Backend | `cd backend && uvicorn main:app --reload` | http://localhost:8000 (docs at `/docs`) |
 | Frontend | `cd frontend && npm install && npm start` | http://localhost:3000 |
-| Terminal service | `cd terminal-service && npm install && node server.js` | ws://localhost:3001 |
-| All-in-one | `docker-compose up --build` | — |
+| All-in-one (dev) | `docker compose up` | :3000 + :8000 |
+
+**Single-process mode.** A deployed instance runs **one** process: gunicorn/uvicorn serves the API *and*
+the built SPA from `FRONTEND_BUILD_DIR` (default `<repo>/frontend/build`). Reproduce it locally with
+`cd frontend && npm run build`, then start the backend — `/` now serves the SPA and unknown paths fall
+back to `index.html` so client-side routes survive a refresh. Leave the build dir absent (or set
+`FRONTEND_BUILD_DIR=/nonexistent`) to keep the backend API-only while CRA hot-reloads on :3000.
 
 Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && python create_admin.py`).
 
@@ -30,7 +35,7 @@ Dev test account: `test@test.com` / `test1234` (recreate with `cd backend && pyt
 
 Offline unit tests live in `backend/tests/`; E2E still needs a running stack. What exists:
 
-- **Offline suite** (FastAPI TestClient, no network, no running services) — run from `backend/`: `python -m pytest tests/ -q --ignore=tests/test_acceptance.py --ignore=tests/test_browser_compat.py --ignore=tests/locustfile.py`. Covers the `ENABLE_TERMINAL` gate (`test_terminal_proxy.py`) and the pre-first-deploy security fixes (`test_security_fixes.py`: registration role forcing, CORS config, traceback suppression, auth on conversations//explain-error/files, SSRF guard, SEC-14 login/register rate limit, SEC-16 password policy — 30 tests). Dependencies: `pip install -r backend/requirements-dev.txt`.
+- **Offline suite** (FastAPI TestClient, no network, no running services) — run from `backend/`: `python -m pytest tests/ -q --ignore=tests/test_acceptance.py --ignore=tests/test_browser_compat.py --ignore=tests/locustfile.py`. Covers the single-process SPA mount (`test_single_process_spa.py`: API routes beat the catch-all, client-side routes fall back to index.html, traversal cannot escape the build dir) and the pre-first-deploy security fixes (`test_security_fixes.py`: registration role forcing, CORS config, traceback suppression, auth on conversations//explain-error/files, SSRF guard, SEC-14 login/register rate limit, SEC-16 password policy — 30 tests). Dependencies: `pip install -r backend/requirements-dev.txt`.
 - `backend/tests/` (the rest) — pytest + Playwright E2E against a **running** localhost:3000 stack, plus a locustfile for load testing.
 - `frontend/` — `CI=true npm test -- --watchAll=false` (react-scripts/jest; green since FE-16: react-router 7 needs the `moduleNameMapper` + TextEncoder polyfill already configured in `package.json`/`setupTests.js` — don't remove them).
 
@@ -61,7 +66,7 @@ Implementation: `frontend/src/classroomService.js` (`updateClassroom()`) + `fron
 
 ## Feature flags
 
-- **`ENABLE_TERMINAL`** (env var, default **off**) — gates the backend `/ws/terminal` WebSocket proxy (`routers/terminal.py`; AUD-1 owner decision 2026-10-22 — the terminal-service it bridges to is unauthenticated and unsandboxed, audit SEC-1..6). When off, the WS handshake is rejected with HTTP 403 (close code 1008), so **the in-browser interactive Java terminal (Scanner/stdin) does not work in a deployed instance** (none is believed live — owner statement 2026-10-22): the frontend prints `[WebSocket error — retrying via HTTP]` and falls back to batch execution via Paiza (no interactive input). Set `ENABLE_TERMINAL=true` (an app-setting change restarts the app) only after the terminal service is hardened. Details and frontend behavior: [docs/modules/code-playground.md](modules/code-playground.md).
+- **`FRONTEND_BUILD_DIR`** (env var, default `<repo>/frontend/build`) — when the directory exists the backend serves the SPA from it; when it does not, the backend is API-only. This is the whole of single-process mode. `ENABLE_TERMINAL` and the `/ws/terminal` proxy were **removed 2026-10-23** with `terminal-service/` (owner decision): Java execution is Paiza-only and stdin is supplied up front rather than typed into a live process. Details: [docs/modules/code-playground.md](modules/code-playground.md).
 
 ## Vector store rebuild (document only — do not run casually)
 
@@ -97,7 +102,7 @@ docker compose -f docker-compose.container.yml down -v      # discard the throwa
 | `PAIZA_API_KEY` | no | `guest` | Code-execution fallback quota |
 | `CORS_ORIGINS` | yes at deploy | `https://your-frontend.example` | Comma-separated allowlist (SEC-8); defaults to localhost dev origins |
 | `PORT` | no | `8000` | Container listen port |
-| `ENABLE_TERMINAL` | **leave unset** | — | AUD-1: default off; only after SEC-2/3/5/6 hardening |
+| `FRONTEND_BUILD_DIR` | unset (uses the default) | — | Set only if the image puts the build somewhere else |
 | `DEBUG_MODE` | **leave unset** | — | Debug endpoints off by default |
 | `PDF_DIR` / `LESSON_DIR` / `BASE_PATH` | no | — | Stale defaults (BE-16); override only if those features are used |
 | `PROXY_ALLOWED_HOSTS` | no | `docs.oracle.com` | Extends the SSRF allowlist (SEC-13) |
@@ -105,7 +110,7 @@ docker compose -f docker-compose.container.yml down -v      # discard the throwa
 
 **Frontend container-era build option:** the frontend needs no container — `cd frontend && REACT_APP_API_BASE=https://YOUR-BACKEND.example npm run build` produces a static `build/` servable by any static host (or an nginx container). That removes the regenerated-`server.js` failure mode (FE-3) entirely; remember CRA env vars are build-time and `CORS_ORIGINS` must include the static origin.
 
-**Not in the image:** `terminal-service/` (stays undeployed until SEC-1..6 hardening), `frontend/`, `docs/`, tests, any `.env*`. `startup.sh` is unused by the image but stays at the repo root while the latent zip workflows exist.
+**Not in the image:** `docs/`, tests, any `.env*`. **`frontend/build` must now be *in* the image** — single-process mode serves the SPA from the backend process; `backend/Dockerfile` does not yet copy it (open item, DEPLOY-1). `startup.sh` is unused by the image but stays at the repo root while the latent zip workflows exist.
 
 ## Deploy mechanics (latent)
 
@@ -113,14 +118,14 @@ docker compose -f docker-compose.container.yml down -v      # discard the throwa
 
 Both GitHub Actions workflows fire **on every push to `main`** matching their path filters:
 
-- `backend.yml`: `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted 2026-10-22 for the `backend/` restructure; final shape waits on the deploy-method decision) → zips the repo (minus `frontend/`) → synchronous `az webapp deploy` to App Service `codetutor-fyp-hei` → polls `/health` (the deploy is no longer `--async`, so the poll validates the **new** build).
+- `backend.yml`: `backend/**`, `startup.sh`, `terminal-service/**` (the last is a **dead filter** since the folder was deleted 2026-10-23; final shape waits on the deploy-method decision) → zips the repo (minus `frontend/`) → synchronous `az webapp deploy` to App Service `codetutor-fyp-hei` → polls `/health` (the deploy is no longer `--async`, so the poll validates the **new** build).
 - `frontend.yml`: `frontend/**` plus stale root filters `public/**`, `src/**`, `package.json` → CRA build → regenerates `server.js` at package time (the repo copy was deleted in bec2835) → deploys to the frontend App Service.
 
 There is no staging environment. **Never push without the owner's explicit go-ahead.** Open question for the owner: no workflow run has fired since 2026-04-22 despite filter-matching pushes (Actions shows "active"; cause unverifiable with current token permissions) — resolve before relying on CI at all.
 
 ## Known failure patterns
 
-- **`startup.sh` layout assumption** — on Azure it locates `main.py` by searching under `/tmp` at runtime (Oryx extraction + `antenv` venv dance). Updated 2026-10-22 for the `backend/` layout (the find resolves to `backend/`, wwwroot fallback is `/home/site/wwwroot/backend`, terminal-service launches from the repo dir above). **Unverified on Azure** — nothing is deployed; verify at first deploy.
+- **`startup.sh` layout assumption** — on Azure it locates `main.py` by searching under `/tmp` at runtime (Oryx extraction + `antenv` venv dance). Updated 2026-10-22 for the `backend/` layout (the find resolves to `backend/`, wwwroot fallback is `/home/site/wwwroot/backend`); the terminal-service launch block was removed 2026-10-23 and replaced by a `frontend/build` presence check. **Unverified on Azure** — nothing is deployed; verify at first deploy.
 - **Stale path defaults in `backend/core/config.py`** — `PDF_DIR` defaults to `frontend/Lecture Notes-20250622` (now doubly wrong: `PROJECT_ROOT` is `backend/`, which contains no `frontend/`) and `LESSON_DIR` to `lessons_raw`; **neither directory exists**. Both are env-overridable; code paths relying on the defaults fail quietly. (Backlog item BE-16.)
 - **CRA env vars are build-time** — changing `REACT_APP_*` requires a rebuild/redeploy, not an app-settings change.
-- **Terminal-service has no native binaries** — it uses plain `child_process` (there is no node-pty; the old `npm rebuild node-pty` Azure step is obsolete). Bind terminal-service to localhost only.
+- **No Node runtime at deploy time** — the terminal-service was retired 2026-10-23; the artifact must instead carry a prebuilt `frontend/build` (built in CI, not on the host).

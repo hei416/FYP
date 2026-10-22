@@ -1,6 +1,6 @@
 # Frontend
 
-Create-React-App in `frontend/` (dev server :3000, talks to the backend at :8000 and terminal-service at :3001).
+Create-React-App in `frontend/` (dev server :3000, talks to the backend at :8000). A deployed instance has no CRA server: `npm run build` output is served by the backend process itself (single-process mode, 2026-10-23).
 
 **Commands:** `npm install`, `npm start` (dev), `npm run build` (production build — also the standard verification for frontend changes), `CI=true npm test -- --watchAll=false` (react-scripts/jest; green since FE-16 — the `jest.moduleNameMapper` in `package.json` and the TextEncoder polyfill in `src/setupTests.js` keep react-router 7 resolvable under jest 27; don't remove them).
 

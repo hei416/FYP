@@ -19,7 +19,6 @@
 - [Environment Variables](#environment-variables)
 - [Database](#database)
 - [Vectorstore / RAG Notes](#vectorstore--rag-notes)
-- [Interactive Terminal](#interactive-terminal-dev--deploy)
 - [Developer Tips](#developer-tips--conventions)
 - [Known Issues & TODOs](#known-issues--todos)
 - [Security & Configuration](#security--configuration)
@@ -38,7 +37,7 @@ CodeTutor is a full-stack AI-powered Java learning platform built as a Final Yea
 | Frontend | React (JavaScript) |
 | Database | SQLite (dev) / PostgreSQL (prod) |
 | AI / RAG | FAISS, sentence-transformers, HKBU qwen3-max |
-| Code Execution | Paiza API + Node.js terminal-service (plain `child_process`, no PTY) |
+| Code Execution | Paiza API (one-shot; stdin supplied up front) |
 | Deployment | Docker, Azure App Service |
 
 ---
@@ -89,7 +88,7 @@ Try: HKBU qwen3-max (97% accuracy, university API)
 - **Roadmap & Progress Tracking** — topic-by-topic learning path with completion states
 - **Quizzes (MCQ)** — auto-graded multiple choice questions
 - **Practical Coding Tests** — in-browser Java execution via Paiza API
-- **Interactive Java Playground** — interactive terminal (`terminal-service/`, plain `child_process` — no PTY) supporting `Scanner` input
+- **Java Playground** — Monaco editor, `javac` diagnostics inline, and a stdin box for `Scanner`-style programs (execution is one-shot via Paiza)
 - **Classroom Management** — teachers can create classrooms, upload documents, manage students
 - **PDF Viewer with Text Highlight** — displays source documents with relevant passages highlighted
 - **Admin Panel** — user management via `create_admin.py`
@@ -140,9 +139,6 @@ FYP/
 │       ├── classroomService.js
 │       └── TeacherClassroomDetail.js
 │
-├── terminal-service/         # Node.js terminal microservice (child_process, no PTY)
-│   └── server.js
-│
 └── public/                   # Static files (legacy, stays at root)
 ```
 
@@ -184,20 +180,20 @@ npm start
 # Frontend: http://localhost:3000
 ```
 
-### 3. Terminal Service (optional, for interactive Java stdin)
+### 3. Docker (all-in-one dev stack)
 
 ```bash
-cd terminal-service
-npm install
-node server.js
-# WebSocket: ws://localhost:3001
+docker compose up
 ```
 
-### 4. Docker (all-in-one)
+### 4. Single-process mode (what a deployed instance runs)
 
 ```bash
-docker-compose up --build
+cd frontend && npm run build     # then start the backend
 ```
+
+With `frontend/build` present the backend serves the SPA at `/` **and** the API on the same port —
+one process, one port, no Node runtime. Override the location with `FRONTEND_BUILD_DIR`.
 
 ### Test Account (dev)
 
@@ -228,8 +224,8 @@ DEBUG_MODE=true
 # Database (leave blank for SQLite default)
 DATABASE_URL=
 
-# Terminal service WebSocket URL (frontend)
-REACT_APP_TERMINAL_WS=ws://localhost:3001
+# Frontend build served by the backend (single-process mode); unset in dev
+FRONTEND_BUILD_DIR=
 ```
 
 > ⚠️ Never commit `.env` to version control. `DEBUG_MODE` must be `false` (or unset) in production.
@@ -282,27 +278,16 @@ cd backend && python rebuild_vectorstore.py
 
 ---
 
-## Interactive Terminal (dev & deploy)
+## Java Execution
 
-The `terminal-service/` Node.js microservice compiles and runs Java programs that need stdin (e.g., `Scanner`). It uses plain `child_process` (`javac`/`java` via `execFile`/`spawn`) over a WebSocket — **not** node-pty (no PTY dependency exists in `terminal-service/package.json`).
+All Java execution goes through the external **Paiza** API via `POST /api/run-code`
+(`backend/routers/code_execution.py`). Execution is **one-shot**: stdin is supplied up front in the
+Playground's "Program input" box rather than typed into a running process.
 
-### Local Dev — Convenience Script
-
-Install `concurrently` and add to `frontend/package.json`:
-
-```json
-"scripts": {
-  "dev:with-terminal": "concurrently \"node ../terminal-service/server.js\" \"npm start\" --names \"TERM,FRONT\" --kill-others-on-fail"
-}
-```
-
-Then: `npm run dev:with-terminal`
-
-### Production / Azure Notes
-
-- No native binaries to rebuild (the old `npm rebuild node-pty` step is obsolete — there is no node-pty).
-- In production, `startup.sh` launches the service in the background and the FastAPI backend proxies it at `/ws/terminal` (`routers/terminal.py`).
-- Bind the service to `localhost` only — never expose it publicly without authentication. *Currently neither the service nor the proxy authenticates (audit SEC-1..6, critical — see owner item AUD-1 in [`docs/backlog.md`](docs/backlog.md)).*
+The Node `terminal-service/` and its backend proxy `routers/terminal.py` were removed 2026-10-23
+(owner decision — single-process collapse). They were the only live-stdin path and cost a second
+runtime, port and deploy target plus an unauthenticated, unsandboxed `javac` surface (audit
+SEC-1..6). Details: [`docs/modules/code-playground.md`](docs/modules/code-playground.md).
 
 ---
 
@@ -345,7 +330,7 @@ uvicorn main:app
 | 4 | try/except + fallback already exist around `rag_chain()`; the real gap is a retrieval-only degradation mode when the LLM call itself fails (audit BE-22) | Handle LLM errors inside `chain_with_fallback` |
 | 5 | `local_llm_fallback.py` (Llama 2 CPU) disabled — `OLLAMA_FALLBACK_ENABLED=False` | Enable post-FYP if local inference needed |
 | 6 | `migrate_to_postgres.py` confirmed absent from the repo (audit BE-23) yet still listed in `.gitignore:47` | Owner: restore the script or drop the `.gitignore` line |
-| 7 | The backend proxy for the terminal WebSocket exists (`/ws/terminal`, `routers/terminal.py`) but is unauthenticated, as is the service itself (audit SEC-1..6) | Owner decision AUD-1 |
+| 7 | ~~Unauthenticated terminal WebSocket (`/ws/terminal` + `terminal-service/`, audit SEC-1..6)~~ | ✅ Resolved 2026-10-23 — both deleted in the single-process collapse; execution is Paiza-only |
 | 8 | ~~No `.env.example` file~~ | ✅ Done 2026-10-22 — created as `env.example` (placeholders only); rename to `.env.example` pending (backlog OPS-2) |
 | 9 | `quiz_questions.csv` committed to repo — may contain sensitive test data | Consider moving to seeded DB or protected storage |
 | 10 | ~~Multiple loose `*.md` doc files in root~~ | ✅ Done 2026-10-22 — archived to [`docs/_archives/`](docs/_archives/README.md) (reorg Phase 2) |
@@ -365,7 +350,6 @@ uvicorn main:app
 
 ## Security & Configuration
 
-- Bind `terminal-service` to `localhost` in production and proxy through your backend.
 - `DEBUG_MODE` must be `false` (or unset) in all production deployments.
 - JWT `SECRET_KEY` must be a long, random string — never use the default.
 - File upload endpoints are protected by MIME type whitelist and 50MB size cap.

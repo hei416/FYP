@@ -1,6 +1,6 @@
 # CodeTutor (FYP) — Agent Guide
 
-Java learning platform (final-year project). FastAPI backend in **`backend/`** (moved from the repo root 2026-10-22, owner-approved decision #9), React (CRA) frontend in `frontend/`, Node terminal service in `terminal-service/` (plain `child_process` — no node-pty), FAISS vector stores **deliberately committed** in `backend/vectorstore/` for fast Azure startup.
+Java learning platform (final-year project). **Single-process app** since 2026-10-23 (owner decision): one FastAPI process serves the API *and* the built SPA; Java execution is Paiza-only and the Node terminal-service is retired. FastAPI backend in **`backend/`** (moved from the repo root 2026-10-22, owner-approved decision #9), React (CRA) frontend in `frontend/`, FAISS vector stores **deliberately committed** in `backend/vectorstore/` for fast Azure startup.
 
 ## Hard rules — read before doing anything
 
@@ -12,9 +12,9 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 
 ## Deploy triggers (latent — why pushing is still off-limits)
 
-- `.github/workflows/backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted for the `backend/` layout 2026-10-22; final CI shape waits on the deploy-method decision) → would deploy the backend (`codetutor-fyp-hei`).
+- `.github/workflows/backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**` (the last is now a **dead filter** — the folder was deleted 2026-10-23; left in place because the CI shape waits on DEPLOY-1) → would deploy the backend (`codetutor-fyp-hei`).
 - `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → would deploy the frontend.
-- Deploy-inert paths: root-level `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`. **Caveat:** the filters have no `.md` exclusion, so any file inside `backend/`, `terminal-service/`, or `frontend/` matches — including those folders' `AGENTS.md` files.
+- Deploy-inert paths: root-level `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`. **Caveat:** the filters have no `.md` exclusion, so any file inside `backend/` or `frontend/` matches — including those folders' `AGENTS.md` files.
 
 ## Where things live
 
@@ -25,7 +25,6 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 | `backend/routers/` / `backend/services/` | API handlers / business logic (router → service pattern) |
 | `backend/rag_system.py`, `backend/vectorstore/` | RAG pipeline + committed FAISS stores |
 | `frontend/` | CRA app (localhost:3000) |
-| `terminal-service/` | ws + `child_process` server (localhost:3001; no node-pty) |
 | `backend/tests/` | offline unit tests (pytest, `backend/requirements-dev.txt`) + Playwright E2E + locust (E2E deps NOT in requirements.txt) |
 | `startup.sh` | Azure startup script — stays at the repo root (startup command) |
 | `backend/Dockerfile` | Host-agnostic backend image (DEPLOY-1 undecided) + `docker-compose.container.yml` smoke stack — see docs/OPS.md §Container |
@@ -35,9 +34,8 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 
 Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 
-- Backend: `source .venv/bin/activate && cd backend && uvicorn main:app --reload` (API docs at :8000/docs)
+- Backend: `source .venv/bin/activate && cd backend && uvicorn main:app --reload` (API docs at :8000/docs). With a `frontend/build` present it also serves the SPA at `/` — **single-process mode**; otherwise it stays API-only.
 - Frontend: `cd frontend && npm install && npm start`
-- Terminal service: `cd terminal-service && npm install && node server.js`
 - Import check (fast verification): `python -c "import main"` in the venv, run from `backend/`
 - Offline tests: `cd backend && python -m pytest tests/ -q` (deps: `backend/requirements-dev.txt`)
 - Frontend build check: `cd frontend && npm run build`; frontend tests: `CI=true npm test -- --watchAll=false` (green since FE-16)
@@ -46,7 +44,7 @@ Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 
 ## Docs map
 
-- **Per-folder guides:** `backend/`, `backend/routers/`, `backend/services/`, `backend/tests/`, `frontend/`, `terminal-service/`, and `docs/` each carry their own `AGENTS.md` (purpose, rules, commands, boundaries) — read the nearest one for any folder you touch; nearest wins, this file's hard rules win over all.
+- **Per-folder guides:** `backend/`, `backend/routers/`, `backend/services/`, `backend/tests/`, `frontend/`, and `docs/` each carry their own `AGENTS.md` (purpose, rules, commands, boundaries) — read the nearest one for any folder you touch; nearest wins, this file's hard rules win over all.
 - Runbook / ops: `docs/OPS.md`
 - Module guides: `docs/modules/` (routers, RAG pipeline, RAG evaluation, code playground, classroom roles, frontend)
 - Plans: `docs/plans/active/` (one file per task, `YYYY-MM-DD_<topic>_<status>.md`, with a Status block); move to `docs/plans/done/` when finished
