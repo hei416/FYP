@@ -1,5 +1,7 @@
 # Codebase audit — 2026-10-22 (read-only)
 
+> **Verification 2026-10-22 (second read-only pass):** every critical and high finding was spot-checked against the code — all 29 are **Confirmed** (file:line correct, evidence real); none Stale, none Disputed. One nuance on BE-6: `rag_system.py:378-385`'s own comment guarantees retrieval+LLM run in *one* thread per request, but nothing serialises *concurrent* requests hitting the shared chain via `asyncio.to_thread` (`routers/rag.py:87,1006`) — finding stands. New gaps found by this pass are appended as GAP-1..13 at the end of this file; human-readable summary in `docs/reports/codebase-analysis-2026-10-22.md`.
+
 Static analysis only (grep + targeted reads; no app runs, no Azure, no `.env*` files read). Three parallel read-only passes: security (SEC), backend quality/perf (BE), frontend/CI/deps/tests (FE). **No fixes applied** — owner approval required before any change; almost every backend fix triggers a live deploy when pushed (any `*.py` matches the CI filter). Severity: critical / high / med / low. Effort: S/M/L. Deploy column = what a push of the fix would deploy.
 
 > Secrets policy: locations only, values never reproduced here.
@@ -109,3 +111,25 @@ Positive: startup is well-architected (migrations/NLI/FAISS offloaded to threads
 ## Skipped in this audit (and why)
 
 Cron/scheduling rules and outbound-sending safeguards (nothing runs unattended or sends anything); per-skill SKILL.md files (module docs in `docs/modules/` serve that role); dynamic testing, dependency-scanner runs (`npm audit`/`pip-audit`), live-URL checks — out of scope for a static, read-only pass.
+
+## GAP — findings added by the 2026-10-22 verification pass
+
+Same conventions as above (severity / effort / deploy-on-push). All evidence re-checked at commit add8edc.
+
+| ID | Sev | Area | Where | Evidence (short) | Fix | Eff | Deploy |
+|---|---|---|---|---|---|---|---|
+| GAP-1 | med | architecture | routers/classroom.py (3121 lines), routers/rag.py (2069) | business logic lives in routers; `services/` thin (classroom_rag 516, conversation_manager 509) — the documented router→service pattern isn't held | extract services incrementally when touching each area | L | backend |
+| GAP-2 | med | RAG | rag_system.py:146-154 vs services/classroom_rag.py:213-218 | two divergent chunkers: RecursiveCharacterTextSplitter (char-based) for global RAG vs naive word-split 500/50 for classroom RAG → inconsistent retrieval quality | one shared chunker module | M | backend |
+| GAP-3 | med | RAG | evaluation/ (only nli_results.csv/.json); no `*.py` references them | RAG/NLI evaluation is a one-off artifact — no committed script regenerates it; no golden Q&A set, no retrieval metrics. Runtime NLI guard itself is good (services/nli_monitor.py, admin stats routers/admin.py:198) | commit a small eval harness (deploy-inert if under docs/ or tests/… but any `.py` matches CI — see FE-8) | M | backend* |
+| GAP-4 | med | data model | db_models.py:49 (SavedWork.user_id), :149 (ClassroomChunk.file_id) | hot FK columns without `index=True`; SavedWork.user_id is the filter in every analytics N+1 loop (classroom.py:629-643, 922-946, 1098-1107) — compounds BE-9/10 | add indexes (+ migration) | S | backend |
+| GAP-5 | low | data model | db_models.py:139 | `ClassroomFile.file_data` LargeBinary in Postgres — every view/download pulls whole blob through app memory; no size cap enforced (ties SEC-20) | size cap now; blob storage later | M | backend |
+| GAP-6 | med | observability | 193 `print(` in main.py+routers/+services/ vs 5 modules using `logging.getLogger`; gunicorn `--log-level info` (startup.sh:104) | no levels, no structure, no request IDs — prod debugging is grep-on-stdout; extends BE-25 beyond main.py | module loggers + uvicorn access log; request-id middleware | M | backend |
+| GAP-7 | low | API consistency | routers/rag.py:56,970,1066,1541,1575,1707 | one router mixes `/classroom/{id}/ask`, `/ragAI`, `/api/review-code`, `/rag/health`, `/api/conversations/*`, `/ask-multi` — no prefix convention (main.py:524-526 registers most routers prefixless) | document now; align on `/api/<area>` when next touched | M | backend |
+| GAP-8 | low | auth/roles | routers/auth.py:148 defines `require_role()`; 47 manual `role ==`/`!=` checks across routers/ | the clean dependency exists but is barely used; ad-hoc variants (rag.py:147) drift | adopt `require_role` when touching each router | M | backend |
+| GAP-9 | low | CI | .github/workflows/backend.yml:14 | path filter `lessons_raw/**` — directory doesn't exist (cf. dead `LESSON_DIR`, BE-16); pairs with FE-9 | drop with the AUD-2 CI commit | S | ci |
+| GAP-10 | low | deps | requirements.txt:30 and :91 | `langchain-text-splitters==0.3.7` pinned twice | dedupe with next requirements change | S | backend |
+| GAP-11 | low | frontend | 18 files in frontend/src define their own `REACT_APP_API_BASE \|\| localhost:8000` fallback (e.g. progressService.js:9) | no shared API client; base-URL/token logic duplicated | one api.js module, migrate opportunistically | M | frontend |
+| GAP-12 | low | frontend | TopicDetailPage.js (500) vs EnhancedTopicDetailPage.js (433); both routed (App.js:160-161); same raw-HTML sink (:221 / :198) | near-duplicate pages double the FE-4 XSS surface and maintenance | pick one, redirect the other | M | frontend |
+| GAP-13 | med | Azure cost/perf | startup.sh:96-97 (`--workers 1`); requirements.txt:12,26-30,98-99 (faiss-cpu, langchain stack, transformers 4.40.2, torch 2.2.2); main.py:390-392 (NLI pre-warm) | single worker + blocking sync calls (BE-11/12) → one slow request stalls the whole API; torch+transformers slug inflates memory/cold-start on App Service | fix BE-11/12 first; consider 2 workers after memory check; CPU-only torch wheel or ONNX for NLI later | M | backend |
+
+\* GAP-3: a new eval `.py` anywhere in the repo matches backend.yml's `'**.py'` filter (FE-8) — deploy-inert only after the CI filter fix, or keep results-only updates in docs/.
