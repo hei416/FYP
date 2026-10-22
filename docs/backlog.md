@@ -4,7 +4,7 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 
 ## Needs human (owner action, before code fixes)
 
-- **[NL-1] Confirm/correct the deployment-history statement** — owner says "never deployed online", but CI shows 408 deploy runs with successes in Mar–Apr 2026, then zero since 2026-04-22 (evidence report). Owner to confirm the weaker reading ("never a working production instance"), answer the readiness checklist "Needs owner" rows (Azure inventory, CI silence, BE-1 rotation, `frontend/.env.*`), and confirm the two proposed decision-log entries (incl. whether to re-open proposal decision #9, the `backend/` restructure, now cheap pre-first-deploy).
+- **[NL-1] Confirm/correct the deployment-history statement** — owner says "never deployed online", but CI shows 408 deploy runs with successes in Mar–Apr 2026, then zero since 2026-04-22 (evidence report). Owner to confirm the weaker reading ("never a working production instance"), answer the readiness checklist "Needs owner" rows (Azure inventory — GitHub half verified 2026-10-23, Azure half pending, see `docs/reports/azure-inventory-2026-10-23.md`; BE-1 rotation — **urgent, repo verified public**; `frontend/.env.*`; CI silence now explained — readiness #2 Done), and confirm the two proposed decision-log entries (incl. whether to re-open proposal decision #9, the `backend/` restructure, now cheap pre-first-deploy).
 
 - **[PROP-1] Decide improvement option A / B / C** — **Decided 2026-10-22: Option B adopted** (decision log; `backend/` restructure stays propose-only). Unblocks AUD-3..7 batching per the proposal's phased roadmap.
 
