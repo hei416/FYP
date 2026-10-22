@@ -1,6 +1,6 @@
 # frontend/ — CRA React app
 
-Create-React-App (dev server :3000; talks to the backend at :8000 and terminal-service at :3001). Full guide: [docs/modules/frontend.md](../docs/modules/frontend.md).
+Create-React-App (dev server :3000; talks to the backend at :8000). In a deployed instance there is no CRA server — `npm run build` output is served by the backend process itself. Full guide: [docs/modules/frontend.md](../docs/modules/frontend.md).
 
 ## Rules
 
@@ -14,4 +14,3 @@ Create-React-App (dev server :3000; talks to the backend at :8000 and terminal-s
 
 - `npm install`, then `npm start` (dev)
 - Verify a change: `npm run build` must pass, and `CI=true npm test -- --watchAll=false` must stay green (2 suites / 6 tests)
-- `npm run dev:with-terminal` starts the dev server plus terminal-service together

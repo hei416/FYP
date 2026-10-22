@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Compiler from "./Compiler";
-import InteractiveTerminal from './components/InteractiveTerminal';
 import { ProgressTracker } from "./ProgressTracker";
 import { saveWork } from './myWorkService';
 import { colors, radii, font, spacing, card, pageContainer } from './theme';
@@ -55,14 +54,6 @@ export default function Playground() {
     const tracker = useRef(new ProgressTracker()).current;
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [hasRun, setHasRun] = useState(false);
-
-    const needsInteractiveTerminal = (codeToCheck) =>
-        /Scanner\s+\w+\s*=\s*new\s+Scanner\s*\(\s*System\.in\s*\)/.test(codeToCheck);
-
-    useEffect(() => {
-        setHasRun(false);
-    }, [code]);
 
     const handleSave = async () => {
         if (!localStorage.getItem('authToken')) {
@@ -116,8 +107,6 @@ export default function Playground() {
         window.dispatchEvent(new CustomEvent('demo-fill-code', { detail: { code: fixed } }));
     };
 
-    const isInteractive = needsInteractiveTerminal(code);
-    const extractedClassName = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/)?.[1] ?? 'Main';
     const noMain = missingMainMethod(code);
 
     return (
@@ -187,63 +176,11 @@ export default function Playground() {
                     </div>
                 )}
 
-                {/* ── Compiler (Monaco editor + non-interactive run) ── */}
+                {/* ── Compiler (Monaco editor + run; stdin box appears for Scanner code) ── */}
                 <Compiler
                     code={code}
                     setCode={setCode}
-                    hideRunButton={isInteractive}
                 />
-
-                {/* ── Interactive terminal (Scanner-based programs) ── */}
-                {isInteractive && (
-                    <div style={{ marginTop: 12 }}>
-                        {!hasRun ? (
-                            <button
-                                onClick={() => setHasRun(true)}
-                                style={{
-                                    background: '#4f46e5',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '8px 20px',
-                                    borderRadius: 8,
-                                    cursor: 'pointer',
-                                    fontSize: font.sizeMd,
-                                    fontWeight: 500,
-                                }}
-                            >
-                                ▶ Run Code
-                            </button>
-                        ) : (
-                            <>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                    <span style={{ fontSize: font.sizeSm, color: colors.textSecondary }}>
-                                        Interactive Terminal
-                                    </span>
-                                    <button
-                                        onClick={() => setHasRun(false)}
-                                        style={{
-                                            background: 'none',
-                                            border: `1px solid ${colors.border}`,
-                                            borderRadius: 6,
-                                            padding: '2px 10px',
-                                            cursor: 'pointer',
-                                            fontSize: font.sizeSm,
-                                            color: colors.textSecondary,
-                                        }}
-                                    >
-                                        ↺ Restart
-                                    </button>
-                                </div>
-                                <InteractiveTerminal
-                                    code={code}
-                                    filename={`${extractedClassName}.java`}
-                                    className={extractedClassName}
-                                    onExit={(c) => console.log('Interactive process exited', c)}
-                                />
-                            </>
-                        )}
-                    </div>
-                )}
 
                 {/* ── Save button ── */}
                 <div style={{ marginTop: 12 }}>

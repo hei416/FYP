@@ -45,12 +45,9 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
     const [editingFileId, setEditingFileId] = useState(null);
     const [syntaxErrors, setSyntaxErrors] = useState([]);
     const [errorExplanations, setErrorExplanations] = useState({}); // { idx: "explanation text" }
-    const [wsRunning, setWsRunning] = useState(false);
     const [stdinInput, setStdinInput] = useState('');
     const decorationIdsRef = useRef([]);
-    const wsRef = useRef(null);
     const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
-    const TERMINAL_WS = process.env.REACT_APP_TERMINAL_WS;
 
     const filesRef = useRef(files);
     useEffect(() => { filesRef.current = files; }, [files]);
@@ -100,7 +97,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         return () => {
             clearTimeout(debounceRef.current);
             clearTimeout(filenameDebounceRef.current);
-            if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
         };
     }, []);
 
@@ -338,8 +334,6 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         }
     };
 
-    const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[mGKHF]/g, '');
-
     const handleHttpRun = async () => {
         setLoading(true);
         setLocalOutput('Running code...');
@@ -353,7 +347,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
             const res = await fetch(`${API_BASE}/api/run-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: filesToSend, main_class: mainClass }),
+                body: JSON.stringify({ files: filesToSend, main_class: mainClass, input: stdinInput }),
             });
             const data = await res.json();
             if (data.error && data.error.trim()) {
@@ -371,83 +365,7 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
         }
     };
 
-    const handleWsRun = () => {
-        if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
-        setLoading(true);
-        setWsRunning(true);
-        setLocalOutput('');
-        setStdinInput('');
-        const activeFileCurrent = filesRef.current.find(f => f.id === activeFileIdRef.current);
-        const mainClassName = activeFileCurrent ? extractClassName(activeFileCurrent.content) : 'Main';
-        const filename = activeFileCurrent?.filename || `${mainClassName}.java`;
-        const code = activeFileCurrent?.content || '';
-        let ws;
-        try {
-            ws = new WebSocket(TERMINAL_WS);
-        } catch (e) {
-            setWsRunning(false);
-            setLoading(false);
-            handleHttpRun();
-            return;
-        }
-        wsRef.current = ws;
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ type: 'run', code, className: mainClassName, filename }));
-        };
-        ws.onmessage = (evt) => {
-            try {
-                const msg = JSON.parse(evt.data);
-                if (msg.type === 'output') {
-                    setLocalOutput(prev => prev + stripAnsi(msg.data));
-                } else if (msg.type === 'exit') {
-                    setWsRunning(false);
-                    setLoading(false);
-                    if (wsRef.current === ws) wsRef.current = null;
-                    window.dispatchEvent(new CustomEvent('demo-code-output'));
-                }
-            } catch (e) {}
-        };
-        ws.onerror = () => {
-            setLocalOutput(prev => (prev ? prev + '\n' : '') + '[WebSocket error — retrying via HTTP]');
-            ws.close();
-            if (wsRef.current === ws) wsRef.current = null;
-            setWsRunning(false);
-            setLoading(false);
-            handleHttpRun();
-        };
-        ws.onclose = () => {
-            if (wsRef.current === ws) {
-                wsRef.current = null;
-                setWsRunning(false);
-                setLoading(false);
-            }
-        };
-    };
-
-    const stopRun = () => {
-        if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
-        setWsRunning(false);
-        setLoading(false);
-        setLocalOutput(prev => prev + '\n[Stopped]');
-    };
-
-    const sendStdin = (e) => {
-        e.preventDefault();
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-        wsRef.current.send(JSON.stringify({ type: 'input', data: stdinInput + '\n' }));
-        setLocalOutput(prev => prev + stdinInput + '\n');
-        setStdinInput('');
-    };
-
-    const handleInternalRun = () => {
-        if (TERMINAL_WS) {
-            handleWsRun();
-        } else {
-            handleHttpRun();
-        }
-    };
-
-    const handleRun = onRun || handleInternalRun;
+    const handleRun = onRun || handleHttpRun;
 
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#FFFFFF', borderRadius: '12px', border: `1px solid ${colors.border}`, boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)', padding: spacing.md, marginTop: spacing.sm }}>
@@ -636,34 +554,39 @@ function Compiler({ code, setCode, onRun, output, hideRunButton = false, readOnl
                     >
                         {loading ? '⏳ Running...' : '▶ Run Code'}
                     </button>
-                    {wsRunning && (
-                        <button onClick={stopRun} style={btn.danger}>
-                            ■ Stop
-                        </button>
-                    )}
                 </div>
             )}
 
-            {/* ── stdin input (only shown when code reads from stdin and program is running) ── */}
-            {wsRunning && !hideRunButton && needsStdin(activeFile?.content) && (
-                <form onSubmit={sendStdin} style={{ display: 'flex', gap: spacing.xs, marginTop: spacing.xs }}>
-                    <input
-                        type="text"
+            {/* ── Program input (stdin) ──
+                Execution is one-shot (POST /api/run-code), so stdin is supplied
+                up front rather than typed into a live process. Shown only when
+                the code actually reads from stdin. ── */}
+            {!hideRunButton && needsStdin(activeFile?.content) && (
+                <div style={{ marginTop: spacing.sm }}>
+                    <label
+                        htmlFor="program-stdin"
+                        style={{ display: 'block', fontSize: font.sizeSm, color: colors.textSecondary, marginBottom: spacing.xs }}
+                    >
+                        Program input (stdin) — one line per <code>nextLine()</code> call
+                    </label>
+                    <textarea
+                        id="program-stdin"
                         value={stdinInput}
                         onChange={e => setStdinInput(e.target.value)}
-                        placeholder="Type input and press Enter…"
-                        autoFocus
+                        rows={3}
+                        placeholder={'Alice\n42'}
                         style={{
-                            flex: 1,
-                            padding: '4px 8px',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            padding: '6px 8px',
                             border: `1px solid ${colors.border}`,
                             borderRadius: radii.sm,
                             fontFamily: font.mono,
                             fontSize: font.sizeSm,
+                            resize: 'vertical',
                         }}
                     />
-                    <button type="submit" style={{ ...btn.primary, ...btn.small }}>Send</button>
-                </form>
+                </div>
             )}
 
             {/* ── Output panel ── */}
