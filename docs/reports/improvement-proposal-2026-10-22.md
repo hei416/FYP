@@ -2,6 +2,8 @@
 
 Owner purpose: **maintain + portfolio**, no deadline. Basis: [codebase-analysis-2026-10-22.md](codebase-analysis-2026-10-22.md) and the verified audit (IDs below refer to `docs/plans/active/codebase-audit.md`). Constraint that shapes everything: **any pushed `*.py` change deploys the live backend**, and the CI health check currently validates the previous build (FE-7) — so fixes are batched into few, owner-reviewed pushes, each manually verified after deploy.
 
+> **Superseded in part, 2026-10-22 (later the same day):** the owner states the app has **never been live in production** ([deployment-evidence-2026-10-22.md](deployment-evidence-2026-10-22.md)). The "live backend" constraint above and the per-option "risk to live deploys" ratings are re-based in the **Reassessment** section at the end of this document; the original text is kept unchanged above it. The no-push rule stands (latent workflows may still be armed).
+
 ## The three options
 
 ### Option A — minimal: stabilise and document
@@ -94,3 +96,36 @@ Exact changes it would require (all in **one** push, after a staging rehearsal):
 8. **`quiz_questions.csv` in git** (KI-9) — *default: keep and document; revisit only if it gains sensitive content.*
 9. **Future restructure to `backend/`** (move map above) — *default: defer; recorded as propose-only.*
 10. **Staging slot / CI pytest gate** (C elements) — *default: pytest gate yes once Phase 4 tests exist; staging slot only if restructure is ever approved.*
+
+---
+
+## Reassessment 2026-10-22 — under "never deployed" (owner statement)
+
+Premise change: the owner states the app has never been live in production; CI history shows past deploy runs but none since 2026-04-22, and whether the App Services/secrets still exist is unverifiable ([deployment-evidence-2026-10-22.md](deployment-evidence-2026-10-22.md)). Code-level **severities are unchanged** — what changes is **urgency** (no exposed users, no production data believed at risk) and the **cost of risk** (a bad push breaks a latent pipeline, not a running service). The no-push rule stays regardless.
+
+### Re-rated urgencies
+
+| Finding | Old urgency (live) | New urgency (not deployed) |
+|---|---|---|
+| BE-1 committed DB credential (AUD-0) | critical — rotate today | **fix before first deploy** (rotate or confirm the Azure Postgres is gone; history purge still required before the repo is ever shared/public). No live data believed at risk today. |
+| Terminal RCE SEC-1..6/FE-1 (AUD-1) | critical — publicly reachable | **fix before first deploy** — no exposure while nothing runs online. The `ENABLE_TERMINAL` gate (default off, on `fix/terminal-and-ci`) becomes a hard first-deploy gate, not an emergency hotfix. Hardening SEC-2/3/5/6 required before the flag is ever turned on. |
+| CI repair (AUD-2, FE-2/3/7/8/9/11) | critical/high — untrustworthy pipeline guarding a live app | **fix before first deploy** (medium now) — plus a new open question: zero runs since 2026-04-22 despite matching pushes; resolve before trusting CI at all. |
+| Auth/exposure batch (SEC-7..14, SEC-16, SEC-10..13, SEC-21, AUD-3) | high — live attack surface | **fix before first deploy** — these define whether a first deployment is safe at all. |
+| XSS FE-4 (AUD-4) | high | **fix before first deploy**. |
+| Migration safety BE-2/3 (AUD-5) | high-ish | **fix before first deploy** — the first deploy runs migrations on a fresh DB; silent-success (BE-3) would mask a broken bring-up. |
+| Dependency FE-13 (`python-multipart` ReDoS-class) | med | **fix before first deploy** (cheap). |
+| Perf AUD-6 (BE-7..13, GAP-4), pagination KI-3, error specificity KI-2 | high/med (user-visible) | **fix later** — no users to feel it; do when convenient or post-launch. |
+| Observability GAP-6, RAG quality GAP-RAG, frontend duplication GAP-FE, dead code, remaining med/low (AUD-7) | med/low | **fix later**. |
+| SEC-ENV confirm `frontend/.env.*` URL-only | high (possible leaked secret) | unchanged in kind — **needs owner** either way; gate on repo-sharing and first deploy. |
+
+### Options A/B/C re-rated
+
+- **Option A — stabilise and document.** Effort shrinks to ~8–15 h (no emergency rotation choreography, no live verification). Risk ≈ none. But with no live fires burning, A now delivers almost nothing beyond what docs already capture — right only if the project stays offline indefinitely.
+- **Option B — balanced (adopted).** Effort ~50–70 h (slightly down: the batching-for-live-deploys overhead and per-push manual site verification disappear; work can proceed as normal small reviewed branches). Risk drops to low — nothing live to break; the residual risk is accidentally arming a latent deploy, covered by the no-push rule. Scope unchanged; **sequencing re-cut** into "before first deploy" (security batch, migrations, CI repair, FE-4, FE-13) vs "later" (perf, observability, polish).
+- **Option C — ambitious.** The big re-rating: the `backend/` restructure was rated high-risk **because it changed every path a live deployment depends on**. With nothing deployed, worst case is a broken first-deploy attempt debugged offline. Restructure estimate drops ~15–20 h → **~10–15 h** (no mandatory staging rehearsal; validation = local run + CI dry paths + the readiness checklist); the staging slot can be deferred until a launch is actually planned; total C ≈ **90–130 h** (was 130–170). Risk: low-moderate (was high). Moreover the restructure is **cheapest now, before first deploy** — it only ever gets more expensive once something is live.
+
+### Recommendation (updated)
+
+**Option B stays the baseline** (owner-adopted; closes every critical/high and builds the test net), re-sequenced into pre-deploy vs later as above. **One change proposed: re-open proposal decision #9** (the `backend/` restructure), because its recorded rejection reason — "moving code risks the live deployment" — no longer holds under the owner's statement; if the owner still wants the production-shaped repo for portfolio value, doing it **before** the first deploy is the cheap, safe window. The CI pytest gate stays pulled in (decision #10, default yes once Phase-4 tests exist); the staging slot stays deferred until a real launch decision. If the owner confirms no launch is ever intended, downgrade to A plus the pre-public-repo items (BE-1 history purge, SEC-ENV).
+
+First-deploy gate checklist: [../plans/active/first-deploy-readiness.md](../plans/active/first-deploy-readiness.md).

@@ -2,6 +2,8 @@
 
 Audience: project owner. Sources: the verified read-only audit (`docs/plans/active/codebase-audit.md`, IDs SEC/BE/FE/GAP — every critical and high finding re-checked against the code on 2026-10-22, all Confirmed) plus this pass's gap analysis. No secrets are reproduced here. Companion decision document: [improvement-proposal-2026-10-22.md](improvement-proposal-2026-10-22.md).
 
+> **Correction, 2026-10-22 (later the same day):** this report's premise that the app is "running live on two Azure App Services" is **superseded** — the owner states it has never been live in production. CI history shows deploys did run and sometimes succeed in Mar–Apr 2026, then stopped; see [deployment-evidence-2026-10-22.md](deployment-evidence-2026-10-22.md). Code-level findings and severities below are unaffected; every *urgency* framed as "live exposure" (notably risks 1–3) is re-based in the proposal's **Reassessment** section. The original text is preserved unchanged.
+
 ## Executive summary
 
 CodeTutor is a feature-rich Java learning platform — RAG tutoring with a runtime hallucination guard, classrooms with roles and analytics, quizzes, practical tests, a code playground with an in-browser terminal — running live on two Azure App Services that deploy automatically on every push to `main`. The feature set is genuinely impressive for a final-year project; the engineering underneath is uneven: strong ideas (NLI faithfulness monitoring, threaded startup, committed vectorstores for fast boot) sit next to serious security holes and zero backend unit tests.
