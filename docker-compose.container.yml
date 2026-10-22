@@ -1,0 +1,49 @@
+# Local smoke test for the backend container image — NOT a production deployment.
+# Builds backend/Dockerfile and runs it against a THROWAWAY Postgres with
+# dev-only placeholder credentials (data is discarded with the containers;
+# `docker compose -f docker-compose.container.yml down -v` removes the volume).
+#
+#   docker compose -f docker-compose.container.yml up --build
+#   curl -fsS http://localhost:8000/health
+#   curl -fsS http://localhost:8000/openapi.json | python3 -c "import json,sys; print(len(json.load(sys.stdin)['paths']), 'paths')"
+#
+# Real deployments: secrets live in the chosen host's secret store, never here.
+# The dev hot-reload stack stays in docker-compose.yml.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: codetutor_dev            # placeholder — local smoke test only
+      POSTGRES_PASSWORD: codetutor_dev_only   # placeholder — local smoke test only
+      POSTGRES_DB: codetutor
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - smoke_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codetutor_dev -d codetutor"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      # args: [ "BAKE_HF_MODELS=1" ]   # uncomment to smoke-test the baked-model variant
+    environment:
+      DATABASE_URL: postgresql://codetutor_dev:codetutor_dev_only@db:5432/codetutor  # placeholder, throwaway local DB only
+      SECRET_KEY: dev-smoke-test-not-a-real-secret
+      CORS_ORIGINS: http://localhost:3000
+      PORT: "8000"
+      # API_KEY / PAIZA_API_KEY intentionally unset: AI endpoints fail per-request,
+      # /health and the route list do not need them.
+      # ENABLE_TERMINAL / DEBUG_MODE intentionally unset: default off.
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  smoke_pgdata:
