@@ -135,3 +135,7 @@ Done, except one deliberate deferral (see below).
   key stripped for students), S11 (student PATCH rejected), S9 (non-owner
   teacher rejected from student-results).
 - Everything committed locally on `fix/bug-audit-crit-high`; not pushed.
+
+## Close-out
+
+- 2026-10-23 — Merged to `main` at `df44bad` ("close 17 of 19 Crit/High bug-audit findings"); branch pushed. The deferral above stands; the audit report lives on branch `docs/preserve-audit-and-ts-decision` (unmerged). Filed to `done/`.

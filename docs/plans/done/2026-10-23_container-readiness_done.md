@@ -52,3 +52,7 @@ Environment: venv reused from the restructure session (`/Users/pandawork/FYP-res
 ### Smoke test commands (for the owner, once Docker is available)
 
 Documented in docs/OPS.md §Container; summary: `docker build -t codetutor-backend backend/` (add `--build-arg BAKE_HF_MODELS=1` to bake models, ≈ +0.7 GB), `docker compose -f docker-compose.container.yml up --build`, then `curl -fsS localhost:8000/health` → `{"status":"ok"}` and the openapi path count per OPS.md. Tear down with `down -v` (throwaway DB).
+
+## Close-out
+
+- 2026-10-23 — Branch `integration/container-readiness` merged to `main` (SEC-14/16, FE-16, GAP-14, Dockerfile + smoke stack). Follow-up deploy-pipeline work lives on `ci/container-deploy-pipeline` (unmerged; DEPLOY-1 wording awaits owner confirmation). Filed to `done/`.
