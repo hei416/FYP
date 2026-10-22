@@ -14,7 +14,7 @@ Java learning platform (final-year project). FastAPI backend in **`backend/`** (
 
 - `.github/workflows/backend.yml` fires on `backend/**`, `startup.sh`, `terminal-service/**` (filters provisionally adjusted for the `backend/` layout 2026-10-22; final CI shape waits on the deploy-method decision) → would deploy the backend (`codetutor-fyp-hei`).
 - `.github/workflows/frontend.yml` fires on `frontend/**` and the stale root filters `public/**`, `src/**`, `package.json` → would deploy the frontend.
-- Deploy-inert paths: `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`.
+- Deploy-inert paths: root-level `*.md`, `docs/`, `.claude/`, `*.ipynb`, `*.csv`, `.gitignore`, `.env.example`. **Caveat:** the filters have no `.md` exclusion, so any file inside `backend/`, `terminal-service/`, or `frontend/` matches — including those folders' `AGENTS.md` files.
 
 ## Where things live
 
@@ -46,6 +46,7 @@ Full runbook: **[docs/OPS.md](docs/OPS.md)**. Quick version:
 
 ## Docs map
 
+- **Per-folder guides:** `backend/`, `backend/routers/`, `backend/services/`, `backend/tests/`, `frontend/`, `terminal-service/`, and `docs/` each carry their own `AGENTS.md` (purpose, rules, commands, boundaries) — read the nearest one for any folder you touch; nearest wins, this file's hard rules win over all.
 - Runbook / ops: `docs/OPS.md`
 - Module guides: `docs/modules/` (routers, RAG pipeline, RAG evaluation, code playground, classroom roles, frontend)
 - Plans: `docs/plans/active/` (one file per task, `YYYY-MM-DD_<topic>_<status>.md`, with a Status block); move to `docs/plans/done/` when finished
