@@ -85,6 +85,37 @@ def test_register_as_admin_rejected(client):
     assert r.status_code == 403
 
 
+# --- SEC-16: password policy on self-registration -----------------------------
+
+@pytest.mark.parametrize("bad_password", [
+    "",                # empty — the audit's headline case
+    "short1",          # < 8 chars
+    "lettersonly",     # no digit
+    "12345678",        # no letter
+    "x1" + "a" * 71,   # > 72 bytes (bcrypt truncation limit)
+])
+def test_register_rejects_weak_passwords(client, bad_password):
+    r = client.post("/auth/register", json={
+        "email": "weak@example.com", "password": bad_password, "full_name": "W",
+    })
+    assert r.status_code == 422
+
+
+def test_register_accepts_policy_compliant_password(client):
+    r = client.post("/auth/register", json={
+        "email": "strong@example.com", "password": "pw123456", "full_name": "S",
+    })
+    assert r.status_code == 200
+
+
+def test_login_unaffected_by_policy_for_existing_accounts(client):
+    # Policy applies at registration only; login must not validate strength.
+    r = client.post("/auth/login", json={
+        "email": "nobody@example.com", "password": "",
+    })
+    assert r.status_code == 401  # not 422
+
+
 # --- SEC-14: login/register are rate-limited (5/minute per client IP) --------
 
 def test_login_rate_limited_after_five_attempts(client):

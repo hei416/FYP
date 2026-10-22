@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime, timedelta
 import jwt
 import os
@@ -28,6 +28,20 @@ class UserRegister(BaseModel):
     password: str
     full_name: str = None
     role: str = "student"  # student / teacher (admin assigned manually)
+
+    @field_validator("password")
+    @classmethod
+    def password_policy(cls, v: str) -> str:
+        # SEC-16: minimal strength policy on self-registration. Login is
+        # untouched (existing accounts keep working); the admin update route
+        # stays unrestricted so admins can set temporary passwords.
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 bytes (bcrypt limit)")
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one letter and one digit")
+        return v
 
 class UserLogin(BaseModel):
     email: str
