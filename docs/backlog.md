@@ -13,6 +13,7 @@ One task per entry. Keep this file under 150 lines — minor items are grouped. 
 - **[KI-7] Proxy terminal-service WebSocket through the backend in production** — part of the AUD-1 architecture decision.
 - **[KI-9] `quiz_questions.csv` committed** — referenced by `db_models.py`, `routers/classroom.py`; owner decides seeded DB vs protected storage.
 - **[SEC-ENV] Confirm `frontend/.env.*` (git-tracked) contain only public URLs** (SEC-22/FE-6); agents must not read them. If not URL-only: rotate, untrack, purge.
+- **[DEPLOY-1] Choose the deployment method before any CI repair is merged** — research + comparison: `docs/reports/deploy-options-2026-10-22.md` (2026-10-22). Recommended default: container image on ghcr.io → Azure Container Apps scale-to-zero (~$0–10/mo) + static frontend (Cloudflare Pages / Azure SWA, $0) + Neon free Postgres; runner-up Fly.io. Depends on readiness #1 (Azure inventory). **While undecided, AUD-2's zip-pipeline repair on `fix/terminal-and-ci` stays on hold** (readiness #15/#16); a container choice needs a Dockerfile, baked HF models, and new build+push CI, and retires `startup.sh` (readiness #17).
 
 ## Ready (code fixes awaiting approval; backend deploy on push unless noted)
 
