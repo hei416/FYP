@@ -162,7 +162,7 @@ source .venv/bin/activate       # Windows: .venv\Scripts\activate
 pip install -r backend/requirements.txt
 
 # Set required environment variables (see below)
-cp .env.example .env            # or set manually
+cp env.example .env             # or set manually; rename to .env.example pending (backlog OPS-2)
 
 # Run backend (development) — from backend/
 cd backend
@@ -237,6 +237,8 @@ REACT_APP_TERMINAL_WS=ws://localhost:3001
 - **Production:** PostgreSQL — set `DATABASE_URL` in environment.
 - **Key files:** `backend/core/database.py`, `backend/core/db_models.py`, `backend/scripts/schema_migration.py`
 
+> ⚠️ The hosted Azure Postgres instance is currently unreachable — the Azure subscription is disabled (backlog AZ-1), and a connect-timeout fix is still pending (backlog BE-DB-TO), so pointing `DATABASE_URL` at it hangs for ~75s per request instead of failing fast. Leave `DATABASE_URL` unset for local dev to use the working SQLite fallback.
+
 ### Recreate Test User
 
 ```bash
@@ -298,7 +300,7 @@ Then: `npm run dev:with-terminal`
 
 - No native binaries to rebuild (the old `npm rebuild node-pty` step is obsolete — there is no node-pty).
 - In production, `startup.sh` launches the service in the background and the FastAPI backend proxies it at `/ws/terminal` (`routers/terminal.py`).
-- Bind the service to `localhost` only — never expose it publicly without authentication. *Currently neither the service nor the proxy authenticates (audit SEC-1..6, critical — see owner item AUD-1 in [`docs/backlog.md`](docs/backlog.md)).*
+- Bind the service to `localhost` only — never expose it publicly without authentication. The service itself still doesn't authenticate (audit SEC-1..6), but the backend proxy is disabled by default (`ENABLE_TERMINAL=false`) per owner decision AUD-1; full hardening is tracked as backlog AUD-3.
 
 ---
 
@@ -330,7 +332,6 @@ uvicorn main:app
 
 | # | Issue | File | Status |
 |---|---|---|---|
-| 1 | No password policy at all — no validator exists anywhere to "wire" (empty password accepted); one must be written (audit SEC-16) | `routers/auth.py` | ⏳ Pending |
 | 2 | Generic 500 errors in some routers — need specific 4xx/5xx codes | `routers/*.py` | ⏳ Pending |
 | 3 | No pagination on large query results (e.g., student lists) | `routers/` | ⏳ Pending |
 
@@ -341,19 +342,20 @@ uvicorn main:app
 | 4 | try/except + fallback already exist around `rag_chain()`; the real gap is a retrieval-only degradation mode when the LLM call itself fails (audit BE-22) | Handle LLM errors inside `chain_with_fallback` |
 | 5 | `local_llm_fallback.py` (Llama 2 CPU) disabled — `OLLAMA_FALLBACK_ENABLED=False` | Enable post-FYP if local inference needed |
 | 6 | `migrate_to_postgres.py` confirmed absent from the repo (audit BE-23) yet still listed in `.gitignore:47` | Owner: restore the script or drop the `.gitignore` line |
-| 7 | The backend proxy for the terminal WebSocket exists (`/ws/terminal`, `routers/terminal.py`) but is unauthenticated, as is the service itself (audit SEC-1..6) | Owner decision AUD-1 |
+| 7 | ~~The backend proxy for the terminal WebSocket is unauthenticated~~ | ✅ Decided + implemented 2026-10-23 (AUD-1) — `/ws/terminal` now rejects connections unless `ENABLE_TERMINAL=true` (default off, `core/config.py`). Full hardening (SEC-2/3/5/6) still open as backlog AUD-3. |
 | 8 | ~~No `.env.example` file~~ | ✅ Done 2026-10-22 — created as `env.example` (placeholders only); rename to `.env.example` pending (backlog OPS-2) |
 | 9 | `quiz_questions.csv` committed to repo — may contain sensitive test data | Consider moving to seeded DB or protected storage |
 | 10 | ~~Multiple loose `*.md` doc files in root~~ | ✅ Done 2026-10-22 — archived to [`docs/_archives/`](docs/_archives/README.md) (reorg Phase 2) |
 
 ### ✅ Completed Fixes (Phase 1 — April 2026)
 
-> *Accuracy note (2026-10-22 audit): some of these claims no longer hold in full — logging is still mostly `print()` (GAP-6), the upload size/MIME checks are missing on the legacy route and `MAX_UPLOAD_SIZE_BYTES` is never enforced (SEC-20), and rate limiting covers RAG/code-exec but not login/register (SEC-14) and keys by a single proxy IP in production (SEC-15).*
+> *Accuracy note (2026-10-22 audit): some of these claims no longer hold in full — logging is still mostly `print()` (GAP-6), the upload size/MIME checks are missing on the legacy route and `MAX_UPLOAD_SIZE_BYTES` is never enforced (SEC-20), and rate limiting keys by a single proxy IP in production (SEC-15). Update 2026-10-23: login/register are now rate-limited too (see below) — SEC-14 is fixed.*
 
 - ✅ Structured logging added throughout (silent exceptions eliminated)
 - ✅ Debug endpoints hidden behind `DEBUG_MODE` flag
 - ✅ File upload validation — 50MB size limit + MIME type whitelist
-- ✅ API rate limiting via `slowapi` (RAG: 30/min, code exec: 20/min)
+- ✅ API rate limiting via `slowapi` (RAG: 30/min, code exec: 20/min, login/register: 5/min — merged 2026-10-23)
+- ✅ Password policy enforced on registration (`routers/auth.py` field validator — merged 2026-10-23, closes former KI-1/SEC-16)
 - ✅ Classroom description inline-edit feature (teacher UI)
 - ✅ PDF display with text highlight implemented
 
