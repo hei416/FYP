@@ -150,15 +150,24 @@ sed -i '' 's|^REACT_APP_API_BASE=.*|REACT_APP_API_BASE=|' frontend/.env.producti
 The exact key spelling in those files comes from this plan's own notes, never from a file an agent
 read — eyeball the result before committing.
 
-**Verification that does not touch `.env*`** (an agent can run this): a plain `npm run build` with no
-command-line override — the earlier pass only tested `REACT_APP_API_BASE= npm run build`, which
-bypasses the file — then grep the bundle:
+**Verification that does not touch `.env*`** (an agent can run these):
+
+*SP-4* — a plain `npm run build` with no command-line override (the earlier pass only tested
+`REACT_APP_API_BASE= npm run build`, which bypasses the file), then grep the bundle:
 
 ```bash
-cd frontend && npm run build && grep -c "azurewebsites.net\|3001" build/static/js/*.js
+cd frontend && npm run build && grep -c "azurewebsites.net" build/static/js/*.js
 ```
 
-Zero hits closes SP-1 and SP-4 empirically. Note the edit matches the `frontend/**` CI deploy filter;
+Zero hits closes SP-4 empirically.
+
+*SP-1* — **there is no bundle-level test, and do not invent one.** CRA substitutes
+`process.env.REACT_APP_*` only where source code references it, and on this branch nothing reads
+`REACT_APP_TERMINAL_WS`, so the var never reaches the bundle whether or not the owner runs the sed.
+A bundle grep passes identically before and after and would be mistaken for a pass. SP-1 is closed
+by source-level absence — `grep -rn REACT_APP_TERMINAL_WS frontend/src backend env.example` returning
+nothing, which already holds here — plus the owner's sed, which is hygiene on the `.env` files
+themselves and nothing more. Note the edit matches the `frontend/**` CI deploy filter;
 both workflows are `disabled_manually` and nothing is pushed, so this is a commit-message note, not a
 gate.
 
