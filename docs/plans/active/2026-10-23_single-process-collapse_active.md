@@ -136,13 +136,44 @@ clearing that is **SP-4**, owner action, because `.env*` is off-limits to agents
   on `.env*` blocks agents from reading or writing the file. Still the one thing standing between this
   branch and a working deployed single process.
 
+### Owner one-liners — SP-1 + SP-4 (run from `/Users/pandawork/FYP-single-process`)
+
+Both edit `frontend/.env.production`, so do them in one pass. Agents cannot run these: the `.env*`
+deny rule in `.claude/settings.json` blocks reads and edits, and hard rule 3 blocks committing them
+too — the owner stages and commits these two paths.
+
+```bash
+sed -i '' '/REACT_APP_TERMINAL_WS/d' frontend/.env.development frontend/.env.production   # SP-1
+sed -i '' 's|^REACT_APP_API_BASE=.*|REACT_APP_API_BASE=|' frontend/.env.production        # SP-4
+```
+
+The exact key spelling in those files comes from this plan's own notes, never from a file an agent
+read — eyeball the result before committing.
+
+**Verification that does not touch `.env*`** (an agent can run this): a plain `npm run build` with no
+command-line override — the earlier pass only tested `REACT_APP_API_BASE= npm run build`, which
+bypasses the file — then grep the bundle:
+
+```bash
+cd frontend && npm run build && grep -c "azurewebsites.net\|3001" build/static/js/*.js
+```
+
+Zero hits closes SP-1 and SP-4 empirically. Note the edit matches the `frontend/**` CI deploy filter;
+both workflows are `disabled_manually` and nothing is pushed, so this is a commit-message note, not a
+gate.
+
 ### Left for the owner
 
 - **SP-4 (blocking for deploy)** `frontend/.env.production` pins `REACT_APP_API_BASE` to the stale
   Azure host. Until it is cleared, a production build calls that host rather than the origin serving
   it, and single-process mode does not work. One-line owner fix; agents cannot touch `.env*`.
 - **SP-1** `frontend/.env.development` / `.env.production` still set `REACT_APP_TERMINAL_WS`. Agents
-  must not touch `.env*` (hard rule 3). Dead but harmless.
+  must not touch `.env*` (hard rule 3). Dead **on this branch** — verified 2026-10-23, zero code
+  references outside `docs/`. **Correction:** an earlier note here called it "dead but harmless"
+  unconditionally; that holds only after this branch merges. On `main`,
+  `frontend/src/components/Compiler.js:53/386/443` still reads the var and `:443` branches on it, so
+  removing it there changes behaviour (local dev falls back to the HTTP/Paiza path). Do SP-1 and
+  SP-4 together **in this worktree**, not on `main`.
 - **DEPLOY-1 reconciliation** — `ci/container-deploy-pipeline` assumes a separate Cloudflare Pages
   frontend, which this decision retires. Someone has to reconcile the two before that pipeline lands.
 - **Build the image once Docker is available** — SP-2 is inspection-only today.
