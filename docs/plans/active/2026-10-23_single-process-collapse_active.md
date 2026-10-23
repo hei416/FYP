@@ -183,6 +183,10 @@ gate.
   `frontend/src/components/Compiler.js:53/386/443` still reads the var and `:443` branches on it, so
   removing it there changes behaviour (local dev falls back to the HTTP/Paiza path). Do SP-1 and
   SP-4 together **in this worktree**, not on `main`.
+  **Re-verified 2026-10-24:** `grep -rn REACT_APP_TERMINAL_WS frontend/src backend env.example`
+  still returns nothing on this branch — source-level closure holds. Only the `.env*` hygiene sed
+  (line 146 above) remains, and it's owner-only per hard rule 3; an agent asked to run it declined
+  and pointed back to this note instead.
 - **DEPLOY-1 reconciliation** — `ci/container-deploy-pipeline` assumes a separate Cloudflare Pages
   frontend, which this decision retires. Someone has to reconcile the two before that pipeline lands.
 - **Build the image once Docker is available** — SP-2 is inspection-only today.
